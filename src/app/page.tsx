@@ -1307,10 +1307,21 @@ export default function Home() {
     <div className="container">
       {/* Unified App Header */}
       <header className="app-header">
-        <div className="app-header-brand">
-          <div className="title-area">
-            <h1>REGISTRO DE AFECTADOS</h1>
-            <p className="subtitle">Censo Sismológico PWA · Venezuela 2026</p>
+
+        {/* ── Franja institucional ── */}
+        <div className="header-main">
+          <div className="header-identity">
+            <div className="header-seal" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <polyline points="9 12 11 14 15 10"/>
+              </svg>
+            </div>
+            <div className="header-title-group">
+              <span className="header-org-name">GOBERNACIÓN DEL ESTADO LA GUAIRA</span>
+              <h1>REGISTRO DE AFECTADOS</h1>
+              <p className="header-tagline">Sistema de Censo Sismológico · Venezuela 2026</p>
+            </div>
           </div>
           <button
             type="button"
@@ -1320,34 +1331,41 @@ export default function Home() {
             title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
           >
             {theme === "dark" ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
               </svg>
             ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
               </svg>
             )}
           </button>
         </div>
-        <div className="app-header-op">
-          <span className={`status-dot ${isOnline ? "online" : "offline"}`}></span>
-          <span className="app-header-conn">{isOnline ? "En línea" : "Sin señal"}</span>
-          {(pendingCount > 0 || isSyncing) && (
-            <span className="queue-badge">
-              {isSyncing && syncQueueProgress
-                ? <><span className="spinner spinner-sm"></span> {syncQueueProgress.done}/{syncQueueProgress.total}</>
-                : `${pendingCount} pend.`
-              }
-            </span>
-          )}
-          <span className="app-header-sep" />
-          <span className="app-header-operator">{currentUser.nombre}</span>
-          <span className={`role-badge ${currentUser.role === "ADMIN" ? "admin" : ""}`}>{currentUser.role}</span>
-          <button type="button" onClick={handleLogout} className="logout-btn" title="Cerrar sesión">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </button>
+
+        {/* ── Franja de operación ── */}
+        <div className="header-ops">
+          <div className="header-ops-status">
+            <span className={`status-dot ${isOnline ? "online" : "offline"}`}></span>
+            <span className="header-conn">{isOnline ? "En línea" : "Sin señal"}</span>
+            {(pendingCount > 0 || isSyncing) && (
+              <span className="queue-badge">
+                {isSyncing && syncQueueProgress
+                  ? <><span className="spinner spinner-sm"></span> {syncQueueProgress.done}/{syncQueueProgress.total}</>
+                  : `${pendingCount} pend.`
+                }
+              </span>
+            )}
+          </div>
+          <div className="header-ops-user">
+            <span className="header-operator">{currentUser.nombre}</span>
+            <span className={`role-badge ${currentUser.role === "ADMIN" ? "admin" : ""}`}>{currentUser.role}</span>
+            <button type="button" onClick={handleLogout} className="logout-btn" title="Cerrar sesión">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Salir
+            </button>
+          </div>
         </div>
+
       </header>
 
       {/* Navigation */}
