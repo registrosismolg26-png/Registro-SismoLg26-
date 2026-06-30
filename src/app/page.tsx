@@ -591,7 +591,8 @@ export default function Home() {
         body: JSON.stringify({ ...editData, medicamentos: editMedicamentos }),
       });
       if (res.ok) {
-        const updated = { ...selectedRegistro, ...editData, medicamentos: editMedicamentos };
+        const data = await res.json();
+        const updated = data.registro || { ...selectedRegistro, ...editData, medicamentos: editMedicamentos };
         setRegistros(prev => prev.map(r => r.id === updated.id ? updated : r));
         setSelectedRegistro(updated);
         setEditMode(false);
@@ -2762,9 +2763,16 @@ export default function Home() {
                         <td className="col-cedula">{reg.cedula}</td>
                         <td className="col-parroquia">{reg.parroquia}</td>
                         <td className="col-estado">
-                          <span className={`estado-pill ${reg.estadoFisico === "LESIONADO" ? "estado-pill--danger" : "estado-pill--ok"}`}>
-                            {reg.estadoFisico}
-                          </span>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <span className={`estado-pill ${reg.estadoFisico === "LESIONADO" ? "estado-pill--danger" : "estado-pill--ok"}`}>
+                              {reg.estadoFisico}
+                            </span>
+                            {reg.retirado === "SI" && (
+                              <span className="estado-pill" style={{ backgroundColor: "rgba(239, 68, 68, 0.2)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.4)" }}>
+                                RETIRADO
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="col-cuarto">
                           {reg.cuarto
@@ -2895,6 +2903,19 @@ export default function Home() {
                       <span className="cuarto-badge cuarto-badge--assigned">{selectedRegistro.cuarto}</span>
                     </div>
                   )}
+                  {selectedRegistro.retirado === "SI" && (
+                    <div className="detail-field detail-field--full" style={{ borderLeft: "3px solid var(--color-danger, #e53e3e)", paddingLeft: "8px" }}>
+                      <span className="detail-label" style={{ color: "var(--color-danger, #e53e3e)" }}>Estado: RETIRADO / EGRESADO</span>
+                      <span className="detail-value">
+                        {selectedRegistro.retiradoRazon && <div><strong>Razón:</strong> {selectedRegistro.retiradoRazon}</div>}
+                        {selectedRegistro.retiradoFecha && (
+                          <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                            <strong>Fecha/Hora:</strong> {new Date(selectedRegistro.retiradoFecha).toLocaleString("es-VE")}
+                          </div>
+                        )}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {currentUser.role === "ADMIN" && (
@@ -2914,6 +2935,8 @@ export default function Home() {
                         patologia: selectedRegistro.patologia,
                         patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
                         telefono: selectedRegistro.telefono || "",
+                        retirado: selectedRegistro.retirado || "NO",
+                        retiradoRazon: selectedRegistro.retiradoRazon || "",
                       });
                       setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
                     }}
@@ -3025,6 +3048,21 @@ export default function Home() {
                     <input type="text" value={editData.direccionExacta || ""}
                       onChange={e => setEditData(prev => ({ ...prev, direccionExacta: e.target.value }))} />
                   </div>
+                  <div className="form-group">
+                    <label>Retirado / Egresado</label>
+                    <select value={editData.retirado || "NO"}
+                      onChange={e => setEditData(prev => ({ ...prev, retirado: e.target.value }))}>
+                      <option value="NO">No</option>
+                      <option value="SI">Sí</option>
+                    </select>
+                  </div>
+                  {editData.retirado === "SI" && (
+                    <div className="form-group detail-field--full">
+                      <label>Razón de Retiro</label>
+                      <input type="text" placeholder="ej: Retornado a vivienda, alta médica, etc." value={editData.retiradoRazon || ""}
+                        onChange={e => setEditData(prev => ({ ...prev, retiradoRazon: e.target.value }))} />
+                    </div>
+                  )}
                 </div>
                 <div className="modal-edit-actions">
                   <button type="button" className="btn-secondary"

@@ -24,6 +24,9 @@ export async function GET() {
         patologiaDescripcion: true,
         telefono: true,
         cuarto: true,
+        retirado: true,
+        retiradoRazon: true,
+        retiradoFecha: true,
         createdAt: true,
       },
     });

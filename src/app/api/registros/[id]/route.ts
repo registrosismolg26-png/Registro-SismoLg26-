@@ -25,6 +25,8 @@ export async function PATCH(
       patologia,
       patologiaDescripcion,
       telefono,
+      retirado,
+      retiradoRazon,
     } = body;
 
     // Build update payload — only include fields present in the request body
@@ -67,6 +69,21 @@ export async function PATCH(
     }
     if ("telefono" in body) {
       data.telefono = telefono ? String(telefono).trim() : null;
+    }
+    if ("retirado" in body) {
+      if (!VALID_SI_NO.includes(retirado)) {
+        return NextResponse.json({ error: "Valor de retirado inválido" }, { status: 400 });
+      }
+      data.retirado = retirado;
+      if (retirado === "SI") {
+        data.retiradoFecha = new Date();
+      } else {
+        data.retiradoFecha = null;
+        data.retiradoRazon = null;
+      }
+    }
+    if ("retiradoRazon" in body) {
+      data.retiradoRazon = retiradoRazon ? String(retiradoRazon).trim() : null;
     }
     if ("medicamentos" in body) {
       data.medicamentos = Array.isArray(body.medicamentos) ? body.medicamentos : [];

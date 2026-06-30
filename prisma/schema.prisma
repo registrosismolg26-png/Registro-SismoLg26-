@@ -33,6 +33,9 @@ model Registro {
   telefono             String?
   cuarto               String?   // Assigned room: "EDIFICIO 1 SALON N"
   medicamentos         Json?     @default("[]") // [{nombre, dosis, periodo}]
+  retirado             String    @default("NO") // "SI" / "NO"
+  retiradoRazon        String?
+  retiradoFecha        DateTime?
   createdAt            DateTime  @default(now())
   syncedAt             DateTime? @default(now())
 }
