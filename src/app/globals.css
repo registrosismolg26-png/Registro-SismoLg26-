@@ -977,7 +977,7 @@ html[data-theme="dark"] select {
   background: #f0fdf4;
 }
 html[data-theme="dark"] .toast--success {
-  background: rgba(16, 185, 129, 0.22);
+  background: #0f2e22;
   border-color: rgba(16, 185, 129, 0.4);
 }
 .toast--success .toast-icon { color: var(--color-success); }
@@ -987,7 +987,7 @@ html[data-theme="dark"] .toast--success {
   background: #fef2f2;
 }
 html[data-theme="dark"] .toast--error {
-  background: rgba(239, 68, 68, 0.22);
+  background: #3a1616;
   border-color: rgba(239, 68, 68, 0.4);
 }
 .toast--error .toast-icon { color: var(--color-danger); }
@@ -997,7 +997,7 @@ html[data-theme="dark"] .toast--error {
   background: #fffbeb;
 }
 html[data-theme="dark"] .toast--warning {
-  background: rgba(245, 158, 11, 0.22);
+  background: #35210e;
   border-color: rgba(245, 158, 11, 0.4);
 }
 .toast--warning .toast-icon { color: var(--color-warning); }
@@ -1007,7 +1007,7 @@ html[data-theme="dark"] .toast--warning {
   background: var(--color-primary-light);
 }
 html[data-theme="dark"] .toast--info {
-  background: rgba(59, 130, 246, 0.22);
+  background: #0e2240;
   border-color: rgba(59, 130, 246, 0.4);
 }
 .toast--info .toast-icon { color: var(--color-primary); }
@@ -2888,4 +2888,140 @@ html[data-theme="dark"] .spinner {
 .btn-ver:hover {
   background-color: var(--color-primary);
   color: #fff;
+}
+
+/* ── Print Media Queries — optimized for Landscape PDF export ─────────── */
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+  
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Hide everything except the dashboard tab container */
+  body * {
+    visibility: hidden;
+    box-shadow: none !important;
+  }
+
+  .tab-view--dashboard, .tab-view--dashboard * {
+    visibility: visible;
+  }
+
+  .tab-view--dashboard {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    display: block !important;
+  }
+
+  /* Hide buttons, status bars and spinners when printing */
+  .tab-view--dashboard button,
+  .tab-view--dashboard .status-bar,
+  .tab-view--dashboard .loading-center,
+  .theme-toggle-btn {
+    display: none !important;
+  }
+
+  /* Optimize dashboard layout for landscape print */
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 20px !important;
+    width: 100% !important;
+  }
+
+  .stat-card {
+    border: 1px solid #ccc !important;
+    background: #fff !important;
+    padding: 10px !important;
+    page-break-inside: avoid;
+  }
+
+  .stat-card .stat-label {
+    color: #444 !important;
+  }
+
+  .stat-card .stat-value {
+    color: #000 !important;
+  }
+
+  /* Grid layout for SVGs and chart boxes */
+  .tab-view--dashboard .stats-charts-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 15px !important;
+    width: 100% !important;
+  }
+
+  .dashboard-section {
+    border: 1px solid #ccc !important;
+    background: #fff !important;
+    padding: 15px !important;
+    page-break-inside: avoid;
+    height: auto !important;
+  }
+
+  .dashboard-section-title {
+    color: #1e3a8a !important;
+    font-size: 1rem !important;
+  }
+
+  /* Force browsers to print backgrounds of SVG and chart elements */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+.stats-charts-grid {
+  display: contents;
+}
+
+.presentation-mode {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  padding: 2rem !important;
+  overflow-y: auto !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.5rem !important;
+}
+
+.presentation-mode .stats-charts-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)) !important;
+  gap: 1.5rem !important;
+}
+
+.presentation-mode .stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  gap: 1rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.presentation-mode .status-bar,
+.presentation-mode .theme-toggle-btn {
+  display: none !important;
+}
+
+@keyframes statPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); color: var(--color-success); }
+  100% { transform: scale(1); }
+}
+
+.stat-card-value-animate {
+  display: inline-block;
+  animation: statPulse 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }

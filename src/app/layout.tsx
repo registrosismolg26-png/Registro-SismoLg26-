@@ -26,6 +26,10 @@ export const metadata: Metadata = {
   title: "Registro de Afectados — Sismo La Guaira 2026",
   description: "Sistema de censo de familias afectadas por el sismo. Operación 100% offline en campo.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/logo_gob.webp",
+    apple: "/logo_gob.webp",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

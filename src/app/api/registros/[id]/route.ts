@@ -14,6 +14,7 @@ export async function PATCH(
     const body = await req.json();
 
     const {
+      cedula,
       cuarto,
       nombreApellido,
       parroquia,
@@ -32,6 +33,12 @@ export async function PATCH(
     // Build update payload — only include fields present in the request body
     const data: Record<string, any> = {};
 
+    if ("cedula" in body) {
+      if (!cedula?.trim()) {
+        return NextResponse.json({ error: "La cédula no puede estar vacía" }, { status: 400 });
+      }
+      data.cedula = String(cedula).trim().replace(/\D/g, "");
+    }
     if ("cuarto" in body) {
       data.cuarto = cuarto ? String(cuarto).trim() : null;
     }
@@ -101,6 +108,34 @@ export async function PATCH(
     return NextResponse.json({ success: true, registro: updated });
   } catch (error: any) {
     console.error("Error en PATCH /api/registros/[id]:", error);
+    if (error.code === "P2002") {
+      return NextResponse.json(
+        { error: "La cédula ingresada ya pertenece a otra persona registrada." },
+        { status: 409 }
+      );
+    }
+    if (error.code === "P2025") {
+      return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const deleted = await prisma.registro.delete({
+      where: { id },
+    });
+    return NextResponse.json({ success: true, registro: deleted });
+  } catch (error: any) {
+    console.error("Error en DELETE /api/registros/[id]:", error);
     if (error.code === "P2025") {
       return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
     }

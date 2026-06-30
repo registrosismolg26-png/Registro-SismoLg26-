@@ -96,7 +96,7 @@ function ToastIcon({ type }: { type: ToastType }) {
   }
 }
 
-const CUARTOS = Array.from({ length: 15 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`);
+const CUARTOS = Array.from({ length: 22 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`);
 
 export default function Home() {
   // Connection state
@@ -138,6 +138,10 @@ export default function Home() {
   // Tab View Routing State
   const [activeTab, setActiveTab] = useState<"censo" | "dashboard" | "usuarios" | "config" | "asignaciones">("censo");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isUpdatingPresentation, setIsUpdatingPresentation] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<1|2|3|4>(1);
 
   // Dashboard Stats States
@@ -335,6 +339,33 @@ export default function Home() {
       }
     }
   }, [activeTab, currentUser]);
+
+  // Listen to fullscreen changes to sync React state
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    document.addEventListener("webkitfullscreenchange", handleFsChange);
+    document.addEventListener("mozfullscreenchange", handleFsChange);
+    document.addEventListener("MSFullscreenChange", handleFsChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFsChange);
+      document.removeEventListener("webkitfullscreenchange", handleFsChange);
+      document.removeEventListener("mozfullscreenchange", handleFsChange);
+      document.removeEventListener("MSFullscreenChange", handleFsChange);
+    };
+  }, []);
+
+  // Automatically refresh stats every 5 seconds when in fullscreen presentation mode
+  useEffect(() => {
+    if (isFullscreen && isOnline) {
+      const interval = setInterval(() => {
+        fetchStats(true, true);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isFullscreen, isOnline]);
 
   // Auto-download padrón if not loaded when user logs in
   useEffect(() => {
@@ -553,9 +584,9 @@ export default function Home() {
   };
 
   // Fetch consolidated dashboard stats from Supabase
-  const fetchStats = async (force = false) => {
+  const fetchStats = async (force = false, silent = false) => {
     // Load from cache first for instant display
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && !silent) {
       const cached = localStorage.getItem("cached_stats");
       if (cached) {
         try {
@@ -570,7 +601,11 @@ export default function Home() {
     const now = Date.now();
     if (!force && now - lastStatsFetchRef.current < 30_000) return;
     lastStatsFetchRef.current = now;
-    setLoadingStats(true);
+    if (silent) {
+      setIsUpdatingPresentation(true);
+    } else {
+      setLoadingStats(true);
+    }
     try {
       const res = await fetch("/api/stats");
       const data = await res.json();
@@ -583,7 +618,11 @@ export default function Home() {
     } catch (err) {
       console.error("Error al obtener estadísticas:", err);
     } finally {
-      setLoadingStats(false);
+      if (silent) {
+        setIsUpdatingPresentation(false);
+      } else {
+        setLoadingStats(false);
+      }
     }
   };
 
@@ -697,6 +736,218 @@ export default function Home() {
     } finally {
       setSavingEdit(false);
     }
+  };
+
+  const handleDeleteRegistro = async (id: string) => {
+    try {
+      const res = await fetch(`/api/registros/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setRegistros(prev => {
+          const next = prev.filter(r => r.id !== id);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("cached_registros", JSON.stringify(next));
+          }
+          return next;
+        });
+        setSelectedRegistro(null);
+        showToast("Registro eliminado correctamente", "success");
+      } else {
+        const errData = await res.json();
+        showToast("Error al eliminar: " + (errData.error || ""), "error");
+      }
+    } catch {
+      showToast("Error de conexión", "error");
+    }
+  };
+
+  const handleExportExcel = () => {
+    const present = registros.filter(r => r.retirado !== "SI");
+    if (present.length === 0) {
+      showToast("No hay registros de personas presentes para exportar", "warning");
+      return;
+    }
+
+    const headers = [
+      "Cédula", "Nombre y Apellido", "Género", "Fecha de Nacimiento", "Edad",
+      "Parroquia", "Sector", "Comunidad", "Dirección Exacta", "Teléfono",
+      "Cuarto/Habitación", "Estado Físico", "Jefe de Familia", "Cédula Jefe",
+      "Patología", "Descripción Patología", "Medicamentos", "Fecha de Registro"
+    ];
+
+    const rows = present.map(r => {
+      const meds = Array.isArray(r.medicamentos) 
+        ? r.medicamentos.map((m: any) => `${m.nombre || ""}:${m.dosis || ""}:${m.periodo || ""}`).join(" | ")
+        : "";
+      return [
+        r.cedula,
+        r.nombreApellido,
+        r.genero,
+        r.fechaNacimiento,
+        r.edad,
+        r.parroquia,
+        r.sector,
+        r.comunidad,
+        r.direccionExacta,
+        r.telefono || "",
+        r.cuarto || "Sin asignar",
+        r.estadoFisico,
+        r.jefeFamilia,
+        r.cedulaJefeFamilia || "",
+        r.patologia,
+        r.patologiaDescripcion || "",
+        meds,
+        r.createdAt ? new Date(r.createdAt).toLocaleString("es-VE") : ""
+      ];
+    });
+
+    const csvContent = [headers.join(";"), ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(";"))].join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `registro_censo_presentes_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("CSV para Excel descargado correctamente", "success");
+  };
+
+  const handlePrintPDFList = () => {
+    const present = registros.filter(r => r.retirado !== "SI");
+    if (present.length === 0) {
+      showToast("No hay registros de personas presentes para imprimir", "warning");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      showToast("Por favor permita las ventanas emergentes para imprimir", "error");
+      return;
+    }
+
+    const sorted = [...present].sort((a, b) => {
+      const roomA = a.cuarto || "ZZZ";
+      const roomB = b.cuarto || "ZZZ";
+      return roomA.localeCompare(roomB) || a.nombreApellido.localeCompare(b.nombreApellido);
+    });
+
+    const rowsHtml = sorted.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${r.nombreApellido}</td>
+        <td>${r.cedula}</td>
+        <td>${r.edad}</td>
+        <td>${r.cuarto || '<span style="color: #999;">Sin asignar</span>'}</td>
+      </tr>
+    `).join("");
+
+    printWindow.document.write(\`
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8">
+        <title>Listado de Personas Presentes - Censo Sismológico 2026</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+          }
+          .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid #1e3a8a;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+          }
+          .logo {
+            height: 60px;
+            object-fit: contain;
+          }
+          .title-container {
+            text-align: right;
+          }
+          h1 {
+            font-size: 1.4rem;
+            margin: 0;
+            color: #1e3a8a;
+          }
+          h2 {
+            font-size: 1rem;
+            margin: 5px 0 0 0;
+            color: #666;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 0.9rem;
+          }
+          th {
+            background-color: #f3f4f6;
+            color: #1e3a8a;
+            font-weight: bold;
+          }
+          tr:nth-child(even) {
+            background-color: #f9fafb;
+          }
+          .footer {
+            margin-top: 30px;
+            font-size: 0.75rem;
+            text-align: center;
+            color: #777;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <img class="logo" src="/logo_gob.webp" alt="Gobernación La Guaira">
+          <div class="title-container">
+            <h1>LISTADO DE PERSONAS PRESENTES</h1>
+            <h2>Censo de Refugiados - Sismo La Guaira 2026</h2>
+          </div>
+        </div>
+        <p style="font-size: 0.85rem; color: #555;">
+          <strong>Total Presentes:</strong> \${present.length} refugiados. 
+          <strong>Fecha de Generación:</strong> \${new Date().toLocaleString("es-VE")}
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 50px;">#</th>
+              <th>Nombre y Apellido</th>
+              <th style="width: 120px;">Cédula</th>
+              <th style="width: 80px;">Edad</th>
+              <th style="width: 180px;">Habitación / Salón</th>
+            </tr>
+          </thead>
+          <tbody>
+            \${rowsHtml}
+          </tbody>
+        </table>
+        <div class="footer">
+          Gobernación del Estado La Guaira &middot; Sistema de Censo Sismológico 2026 &middot; Impresión Oficial
+        </div>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    \`);
+    printWindow.document.close();
   };
 
   // User Login Handler
@@ -1463,7 +1714,8 @@ ${entesList}`;
   if (!currentUser) {
     return (
       <div className="container">
-        <div className="app-header app-header--centered">
+        <div className="app-header app-header--centered" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+          <img src="/logo_gob.webp" alt="Logo Gobernación La Guaira" style={{ width: "90px", height: "90px", objectFit: "contain" }} />
           <div className="title-area title-area--centered">
             <h1>REGISTRO DE AFECTADOS</h1>
             <p className="subtitle">Censo Sismológico PWA 100% Offline</p>
@@ -1553,6 +1805,25 @@ ${entesList}`;
             <button type="submit" className="btn-submit" disabled={loadingAuth}>
               {loadingAuth ? "Verificando..." : "Entrar al Sistema"}
             </button>
+
+            <div style={{ marginTop: "1.5rem", textAlign: "center", borderTop: "1px solid var(--border-color)", paddingTop: "1rem" }}>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: 0 }}>
+                ¿Busca a un familiar afectado?
+              </p>
+              <a
+                href="/buscar"
+                style={{
+                  display: "inline-block",
+                  marginTop: "0.5rem",
+                  fontSize: "0.875rem",
+                  color: "var(--color-primary-hover, #2563eb)",
+                  fontWeight: "600",
+                  textDecoration: "underline",
+                }}
+              >
+                Consultar Buscador Público de Familiares
+              </a>
+            </div>
           </form>
         </div>
 
@@ -1575,11 +1846,8 @@ ${entesList}`;
         {/* ── Franja institucional ── */}
         <div className="header-main">
           <div className="header-identity">
-            <div className="header-seal" aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                <polyline points="9 12 11 14 15 10"/>
-              </svg>
+            <div className="header-seal" aria-hidden="true" style={{ overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src="/logo_gob.webp" alt="Escudo Gobernación La Guaira" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             <div className="header-title-group">
               <span className="header-org-name">GOBERNACIÓN DEL ESTADO LA GUAIRA</span>
@@ -2204,19 +2472,53 @@ ${entesList}`;
 
       {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
       {activeTab === "dashboard" && currentUser.role === "ADMIN" && (
-        <div className="tab-view tab-view--dashboard">
+        <div ref={dashboardRef} className={`tab-view tab-view--dashboard ${isFullscreen ? "presentation-mode" : ""}`}>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
-            <h2 className="dashboard-section-title" style={{ margin: 0 }}>Panel de Estadísticas</h2>
-            <button
-              type="button"
-              className="btn-submit"
-              style={{ width: "auto", margin: 0, padding: "0 1.25rem", height: "var(--element-height, 42px)", display: "flex", alignItems: "center", gap: "0.5rem" }}
-              onClick={() => setShowReportModal(true)}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-              Generar Reporte WhatsApp
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <h2 className="dashboard-section-title" style={{ margin: 0 }}>Panel de Estadísticas</h2>
+              {isUpdatingPresentation && (
+                <span className="updating-pulse-indicator" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontSize: "0.7rem", color: "var(--color-success)", fontWeight: "600" }}>
+                  <span className="pulse-dot" style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "var(--color-success)" }}></span>
+                  Actualizando...
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ width: "auto", margin: 0, padding: "0 1rem", height: "var(--element-height, 42px)", display: "flex", alignItems: "center", gap: "0.5rem" }}
+                onClick={() => {
+                  if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                  } else {
+                    dashboardRef.current?.requestFullscreen();
+                  }
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                {isFullscreen ? "Salir Presentación" : "Modo Presentación"}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ width: "auto", margin: 0, padding: "0 1rem", height: "var(--element-height, 42px)", display: "flex", alignItems: "center", gap: "0.5rem" }}
+                onClick={() => window.print()}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Imprimir / PDF
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ width: "auto", margin: 0, padding: "0 1.25rem", height: "var(--element-height, 42px)", display: "flex", alignItems: "center", gap: "0.5rem" }}
+                onClick={() => setShowReportModal(true)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                Generar Reporte WhatsApp
+              </button>
+            </div>
           </div>
 
           {/* Connection status notification for stats */}
@@ -2243,14 +2545,14 @@ ${entesList}`;
                     <span className="stat-label">Total Registrados</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-primary"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                   </div>
-                  <span className="stat-value">{currentStats.total}</span>
+                  <span key={currentStats.total} className="stat-value stat-card-value-animate">{currentStats.total}</span>
                 </div>
                 <div className="stat-card stat-card--warning">
                   <div className="stat-card-header">
                     <span className="stat-label">Menores (&lt;18)</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-warning"><path d="M14 18a6 6 0 0 0-12 0" /><circle cx="8" cy="8" r="4" /><path d="M12 11h8" /><path d="M12 15h6" /></svg>
                   </div>
-                  <span className="stat-value">
+                  <span key={currentStats.menores} className="stat-value stat-card-value-animate">
                     {currentStats.menores || 0}
                     <span className="stat-pct">
                       ({currentStats.total > 0 ? ((currentStats.menores / currentStats.total) * 100).toFixed(1) : 0}%)
@@ -2262,7 +2564,7 @@ ${entesList}`;
                     <span className="stat-label">Adultos (18-59)</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-success"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
                   </div>
-                  <span className="stat-value">
+                  <span key={currentStats.adultos} className="stat-value stat-card-value-animate">
                     {currentStats.adultos || 0}
                     <span className="stat-pct">
                       ({currentStats.total > 0 ? ((currentStats.adultos / currentStats.total) * 100).toFixed(1) : 0}%)
@@ -2274,7 +2576,7 @@ ${entesList}`;
                     <span className="stat-label">Mayores (60+)</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-violet"><path d="M20 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M2 21h12" /><circle cx="8" cy="7" r="4" /></svg>
                   </div>
-                  <span className="stat-value">
+                  <span key={currentStats.mayores} className="stat-value stat-card-value-animate">
                     {currentStats.mayores || 0}
                     <span className="stat-pct">
                       ({currentStats.total > 0 ? ((currentStats.mayores / currentStats.total) * 100).toFixed(1) : 0}%)
@@ -2286,19 +2588,20 @@ ${entesList}`;
                     <span className="stat-label">Edad Promedio</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-muted"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                   </div>
-                  <span className="stat-value">{currentStats.promedioEdad || 0} años</span>
+                  <span key={currentStats.promedioEdad} className="stat-value stat-card-value-animate">{currentStats.promedioEdad || 0} años</span>
                 </div>
                 <div className="stat-card stat-card--danger">
                   <div className="stat-card-header">
                     <span className="stat-label">Personas Retiradas</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-danger" style={{ color: "var(--color-danger)" }}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="17" y1="8" x2="22" y2="13" /><line x1="22" y1="8" x2="17" y2="13" /></svg>
                   </div>
-                  <span className="stat-value">{currentStats.totalRetirados || 0}</span>
+                  <span key={currentStats.totalRetirados} className="stat-value stat-card-value-animate">{currentStats.totalRetirados || 0}</span>
                 </div>
               </div>
 
-              {/* Distribución por Grupos de Edad - Segmentado */}
-              <div className="dashboard-section">
+              <div className="stats-charts-grid">
+                {/* Distribución por Grupos de Edad - Segmentado */}
+                <div className="dashboard-section">
                 <h3 className="dashboard-section-title">Distribución de Población por Edad</h3>
                 {currentStats.total === 0 ? (
                   <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "0.5rem 0" }}>Sin datos</p>
@@ -2588,8 +2891,9 @@ ${entesList}`;
                   </div>
                 </div>
               </div>
-            </>
-          )}
+            </div>
+          </>
+        )}
         </div>
       )}
 
@@ -2907,12 +3211,36 @@ ${entesList}`;
       {activeTab === "asignaciones" && (
         <div className="tab-view">
           <div className="dashboard-section">
-            <div className="asign-header">
-              <div className="dashboard-section-title">Registro de Afectados</div>
-              {!loadingRegistros && (
-                <span className="asign-count">
-                  {filteredRegistros.length} de {registros.length}
-                </span>
+            <div className="asign-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+                <div className="dashboard-section-title">Registro de Afectados</div>
+                {!loadingRegistros && (
+                  <span className="asign-count" style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                    {filteredRegistros.length} de {registros.length}
+                  </span>
+                )}
+              </div>
+              {currentUser.role === "ADMIN" && (
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ width: "auto", margin: 0, padding: "0 0.75rem", fontSize: "0.75rem", height: "32px", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                    onClick={handleExportExcel}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    Exportar Excel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ width: "auto", margin: 0, padding: "0 0.75rem", fontSize: "0.75rem", height: "32px", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                    onClick={handlePrintPDFList}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Imprimir PDF Presentes
+                  </button>
+                </div>
               )}
             </div>
 
@@ -2953,8 +3281,8 @@ ${entesList}`;
                     <tr>
                       <th>#</th>
                       <th>Nombre y Apellido</th>
-                      <th>Cédula</th>
-                      <th>Parroquia</th>
+                      <th className="col-cedula">Cédula</th>
+                      <th className="col-parroquia">Parroquia</th>
                       <th>Estado</th>
                       <th>Cuarto</th>
                       <th></th>
@@ -3123,33 +3451,51 @@ ${entesList}`;
                   )}
                 </div>
 
-                {currentUser.role === "ADMIN" && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => {
-                      setEditMode(true);
-                      setEditData({
-                        nombreApellido: selectedRegistro.nombreApellido,
-                        parroquia: selectedRegistro.parroquia,
-                        sector: selectedRegistro.sector,
-                        comunidad: selectedRegistro.comunidad,
-                        direccionExacta: selectedRegistro.direccionExacta,
-                        genero: selectedRegistro.genero,
-                        estadoFisico: selectedRegistro.estadoFisico,
-                        patologia: selectedRegistro.patologia,
-                        patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
-                        telefono: selectedRegistro.telefono || "",
-                        retirado: selectedRegistro.retirado || "NO",
-                        retiradoRazon: selectedRegistro.retiradoRazon || "",
-                      });
-                      setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    Editar Datos del Registro
-                  </button>
-                )}
+                 {currentUser.role === "ADMIN" && (
+                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", width: "100%" }}>
+                     <button
+                       type="button"
+                       className="btn-secondary"
+                       style={{ flex: 1, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", height: "var(--element-height, 42px)" }}
+                       onClick={() => {
+                         setEditMode(true);
+                         setEditData({
+                           cedula: selectedRegistro.cedula,
+                           nombreApellido: selectedRegistro.nombreApellido,
+                           parroquia: selectedRegistro.parroquia,
+                           sector: selectedRegistro.sector,
+                           comunidad: selectedRegistro.comunidad,
+                           direccionExacta: selectedRegistro.direccionExacta,
+                           genero: selectedRegistro.genero,
+                           estadoFisico: selectedRegistro.estadoFisico,
+                           patologia: selectedRegistro.patologia,
+                           patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
+                           telefono: selectedRegistro.telefono || "",
+                           retirado: selectedRegistro.retirado || "NO",
+                           retiradoRazon: selectedRegistro.retiradoRazon || "",
+                         });
+                         setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
+                       }}
+                     >
+                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                       Editar Datos
+                     </button>
+                     <button
+                       type="button"
+                       className="btn-submit"
+                       style={{ flex: 1, margin: 0, backgroundColor: "var(--color-danger, #ef4444)", borderColor: "var(--color-danger, #ef4444)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", height: "var(--element-height, 42px)" }}
+                       onClick={() => {
+                         const confirmDel = window.confirm(`¿Está seguro de que desea eliminar permanentemente a ${selectedRegistro.nombreApellido} de los registros? Esta acción no se puede deshacer.`);
+                         if (confirmDel) {
+                           handleDeleteRegistro(selectedRegistro.id);
+                         }
+                       }}
+                     >
+                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                       Eliminar
+                     </button>
+                   </div>
+                 )}
               </>
             )}
 
@@ -3157,6 +3503,40 @@ ${entesList}`;
             {editMode && (
               <>
                 <div className="detail-edit-grid">
+                  {currentUser.role === "ADMIN" && (
+                    <div className="form-group detail-field--full">
+                      <label>Cédula de Identidad</label>
+                      <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
+                        <input
+                          type="text"
+                          value={editData.cedula || ""}
+                          onChange={e => setEditData(prev => ({ ...prev, cedula: e.target.value.replace(/\D/g, "") }))}
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          type="button"
+                          className="btn-submit"
+                          style={{ width: "auto", margin: 0, padding: "0 1rem", fontSize: "0.8rem", height: "auto" }}
+                          onClick={async () => {
+                            if (!editData.cedula) return;
+                            const citizen = await buscarCedulaEnCliente(editData.cedula);
+                            if (citizen) {
+                              setEditData(prev => ({
+                                ...prev,
+                                nombreApellido: citizen.nombre || prev.nombreApellido,
+                                genero: citizen.sexo === "F" || citizen.sexo === "FEMENINO" ? "FEMENINO" : "MASCULINO"
+                              }));
+                              showToast("Datos cargados del padrón local", "success");
+                            } else {
+                              showToast("Cédula no encontrada en el padrón local", "warning");
+                            }
+                          }}
+                        >
+                          Consultar Padrón
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div className="form-group detail-field--full">
                     <label>Nombre y Apellido</label>
                     <input type="text" value={editData.nombreApellido || ""}
