@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Registro {
+  id                   String    @id @default(uuid())
+  parroquia            String
+  sector               String
+  comunidad            String
+  direccionExacta      String
+  nombreApellido       String
+  cedula               String    @unique
+  jefeFamilia          String    // "SI" / "NO"
+  genero               String    // "MASCULINO" / "FEMENINO"
+  fechaNacimiento      DateTime
+  edad                 Int
+  perteneceNucleo      String    // "SI" / "NO"
+  cedulaJefeFamilia    String?
+  estadoFisico         String    // "ILESO" / "LECIONADO"
+  patologia            String    // "SI" / "NO"
+  patologiaDescripcion String?
+  gpsLat               Float?
+  gpsLng               Float?
+  telefono             String?
+  createdAt            DateTime  @default(now())
+  syncedAt             DateTime? @default(now())
+}
+
+model Padron {
+  cedula          String   @id // Ej: "12345678"
+  nacionalidad    String   // "V" / "E"
+  nombreCompleto  String
+  sexo            String   // "M" / "F"
+  fechaNacimiento DateTime
+  parroquia       String   // Parroquia de votación
+
+  @@index([parroquia])
+}
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  nombre    String
+  password  String
+  role      String   // "ADMIN" | "REGISTRADOR"
+  createdAt DateTime @default(now())
+}
