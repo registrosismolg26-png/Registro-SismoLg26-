@@ -843,7 +843,7 @@ export default function Home() {
       </tr>
     `).join("");
 
-    printWindow.document.write(\`
+    printWindow.document.write(`
       <!DOCTYPE html>
       <html lang="es">
       <head>
@@ -918,8 +918,8 @@ export default function Home() {
           </div>
         </div>
         <p style="font-size: 0.85rem; color: #555;">
-          <strong>Total Presentes:</strong> \${present.length} refugiados. 
-          <strong>Fecha de Generación:</strong> \${new Date().toLocaleString("es-VE")}
+          <strong>Total Presentes:</strong> ${present.length} refugiados. 
+          <strong>Fecha de Generación:</strong> ${new Date().toLocaleString("es-VE")}
         </p>
         <table>
           <thead>
@@ -932,7 +932,7 @@ export default function Home() {
             </tr>
           </thead>
           <tbody>
-            \${rowsHtml}
+            ${rowsHtml}
           </tbody>
         </table>
         <div class="footer">
@@ -946,7 +946,7 @@ export default function Home() {
         </script>
       </body>
       </html>
-    \`);
+    `);
     printWindow.document.close();
   };
 
