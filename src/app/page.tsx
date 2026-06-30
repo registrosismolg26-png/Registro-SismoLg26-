@@ -96,7 +96,7 @@ function ToastIcon({ type }: { type: ToastType }) {
   }
 }
 
-const CUARTOS = Array.from({ length: 15 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`);
+const CUARTOS = Array.from({ length: 22 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`);
 
 export default function Home() {
   // Connection state
