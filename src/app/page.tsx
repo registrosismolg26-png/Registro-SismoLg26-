@@ -524,14 +524,14 @@ export default function Home() {
 
   // Fetch all registros from DB for admin asignaciones module
   const fetchRegistros = async () => {
-    if (!navigator.onLine) return;
     setLoadingRegistros(true);
     try {
       const res = await fetch("/api/registros");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      if (data.registros) setRegistros(data.registros);
-    } catch {
-      showToast("Error al cargar los registros", "error");
+      setRegistros(data.registros ?? []);
+    } catch (err: any) {
+      showToast("Error al cargar los registros: " + (err?.message ?? ""), "error");
     } finally {
       setLoadingRegistros(false);
     }
@@ -1222,6 +1222,16 @@ export default function Home() {
       promedioEdad
     };
   };
+
+  const filteredRegistros = useMemo(() => {
+    if (!registroSearch.trim()) return registros;
+    const q = registroSearch.toLowerCase();
+    return registros.filter(r =>
+      r.nombreApellido?.toLowerCase().includes(q) ||
+      r.cedula?.toLowerCase().includes(q) ||
+      r.parroquia?.toLowerCase().includes(q)
+    );
+  }, [registros, registroSearch]);
 
   const currentStats = useMemo(
     () => (isOnline && stats) ? stats : getLocalStats(),
@@ -2549,94 +2559,127 @@ export default function Home() {
       {activeTab === "asignaciones" && currentUser.role === "ADMIN" && (
         <div className="tab-view">
           <div className="dashboard-section">
-            <div className="dashboard-section-title">
-              Asignaciones de Alojamiento
+            <div className="asign-header">
+              <div className="dashboard-section-title">Registro de Afectados</div>
+              {!loadingRegistros && (
+                <span className="asign-count">
+                  {filteredRegistros.length} de {registros.length}
+                </span>
+              )}
             </div>
 
-            <div className="form-group">
+            <div className="asign-search-wrap">
               <input
                 type="text"
-                placeholder="Buscar por nombre o cédula..."
+                placeholder="Buscar por nombre, cédula o parroquia..."
                 value={registroSearch}
                 onChange={e => setRegistroSearch(e.target.value)}
               />
+              {registroSearch && (
+                <button
+                  className="asign-search-clear"
+                  onClick={() => setRegistroSearch("")}
+                  aria-label="Limpiar búsqueda"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              )}
             </div>
 
             {loadingRegistros ? (
-              <div className="text-muted" style={{ textAlign: "center", padding: "1.5rem" }}>
+              <div className="text-muted" style={{ textAlign: "center", padding: "2rem" }}>
                 Cargando registros...
               </div>
-            ) : registros.filter(r => {
-                const q = registroSearch.toLowerCase();
-                return !q || r.nombreApellido?.toLowerCase().includes(q) || r.cedula?.toLowerCase().includes(q);
-              }).length === 0 ? (
-              <div className="text-muted" style={{ textAlign: "center", padding: "1.5rem" }}>
-                {registroSearch ? "Sin resultados para la búsqueda." : "No hay afectados registrados en la base de datos."}
+            ) : registros.length === 0 ? (
+              <div className="text-muted" style={{ textAlign: "center", padding: "2rem" }}>
+                No hay afectados registrados o no se pudo conectar a la base de datos.
+              </div>
+            ) : filteredRegistros.length === 0 ? (
+              <div className="text-muted" style={{ textAlign: "center", padding: "2rem" }}>
+                Sin resultados para &ldquo;{registroSearch}&rdquo;
               </div>
             ) : (
-              <div className="registro-list">
-                {registros
-                  .filter(r => {
-                    const q = registroSearch.toLowerCase();
-                    return !q || r.nombreApellido?.toLowerCase().includes(q) || r.cedula?.toLowerCase().includes(q);
-                  })
-                  .map(reg => (
-                    <div
-                      key={reg.id}
-                      className="registro-list-item"
-                      onClick={() => {
-                        setSelectedRegistro(reg);
-                        setAsignCuarto(reg.cuarto || "");
-                        setEditMode(false);
-                        setEditData({});
-                      }}
-                    >
-                      <div className="registro-list-info">
-                        <div className="registro-list-name">{reg.nombreApellido}</div>
-                        <div className="registro-list-meta">
-                          {reg.cedula} &bull; {reg.parroquia}
-                        </div>
-                      </div>
-                      {reg.cuarto ? (
-                        <span className="cuarto-badge cuarto-badge--assigned">{reg.cuarto}</span>
-                      ) : (
-                        <span className="cuarto-badge cuarto-badge--none">Sin asignar</span>
-                      )}
-                    </div>
-                  ))
-                }
+              <div className="registro-table-wrapper">
+                <table className="registro-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Nombre y Apellido</th>
+                      <th>Cédula</th>
+                      <th>Parroquia</th>
+                      <th>Estado</th>
+                      <th>Cuarto</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRegistros.map((reg, i) => (
+                      <tr key={reg.id}>
+                        <td className="col-num">{i + 1}</td>
+                        <td className="col-nombre">{reg.nombreApellido}</td>
+                        <td className="col-cedula">{reg.cedula}</td>
+                        <td className="col-parroquia">{reg.parroquia}</td>
+                        <td className="col-estado">
+                          <span className={`estado-pill ${reg.estadoFisico === "LESIONADO" ? "estado-pill--danger" : "estado-pill--ok"}`}>
+                            {reg.estadoFisico}
+                          </span>
+                        </td>
+                        <td className="col-cuarto">
+                          {reg.cuarto
+                            ? <span className="cuarto-badge cuarto-badge--assigned">{reg.cuarto}</span>
+                            : <span className="cuarto-badge cuarto-badge--none">Sin asignar</span>
+                          }
+                        </td>
+                        <td className="col-action">
+                          <button
+                            className="btn-ver"
+                            onClick={() => {
+                              setSelectedRegistro(reg);
+                              setAsignCuarto(reg.cuarto || "");
+                              setEditMode(false);
+                              setEditData({});
+                            }}
+                          >
+                            Ver
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Registro Detail & Asignación Modal */}
+      {/* Registro Detail & Edit & Asignación Modal */}
       {selectedRegistro && (
         <div className="modal-overlay" onClick={() => { setSelectedRegistro(null); setEditMode(false); }}>
           <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()}>
+
+            {/* ── Header ── */}
             <div className="modal-header">
-              <span className="modal-title" style={{ color: "var(--color-primary)" }}>
-                {editMode ? "EDITAR REGISTRO" : "DETALLE DEL AFECTADO"}
-              </span>
-              <button
-                className="modal-close"
-                onClick={() => { setSelectedRegistro(null); setEditMode(false); }}
-              >
+              <div>
+                <span className="modal-title" style={{ color: "var(--color-primary)" }}>
+                  {editMode ? "EDITAR REGISTRO" : "AFECTADO"}
+                </span>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>
+                  {selectedRegistro.cedula}
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => { setSelectedRegistro(null); setEditMode(false); }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
-            {!editMode ? (
+            {/* ── VISTA DETALLE ── */}
+            {!editMode && (
               <>
                 <div className="detail-grid">
                   <div className="detail-field detail-field--full">
                     <span className="detail-label">Nombre y Apellido</span>
                     <span className="detail-value">{selectedRegistro.nombreApellido}</span>
-                  </div>
-                  <div className="detail-field">
-                    <span className="detail-label">Cédula</span>
-                    <span className="detail-value">{selectedRegistro.cedula}</span>
                   </div>
                   <div className="detail-field">
                     <span className="detail-label">Edad</span>
@@ -2652,6 +2695,10 @@ export default function Home() {
                       {selectedRegistro.estadoFisico}
                     </span>
                   </div>
+                  <div className="detail-field">
+                    <span className="detail-label">Jefe de Familia</span>
+                    <span className="detail-value">{selectedRegistro.jefeFamilia}</span>
+                  </div>
                   <div className="detail-field detail-field--full">
                     <span className="detail-label">Parroquia</span>
                     <span className="detail-value">{selectedRegistro.parroquia}</span>
@@ -2661,7 +2708,7 @@ export default function Home() {
                     <span className="detail-value">{selectedRegistro.sector} — {selectedRegistro.comunidad}</span>
                   </div>
                   <div className="detail-field detail-field--full">
-                    <span className="detail-label">Dirección</span>
+                    <span className="detail-label">Dirección Exacta</span>
                     <span className="detail-value">{selectedRegistro.direccionExacta}</span>
                   </div>
                   {selectedRegistro.telefono && (
@@ -2683,6 +2730,7 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+
                 <button
                   type="button"
                   className="btn-secondary"
@@ -2703,70 +2751,55 @@ export default function Home() {
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Editar Registro
+                  Editar Datos del Registro
                 </button>
               </>
-            ) : (
+            )}
+
+            {/* ── MODO EDICIÓN ── */}
+            {editMode && (
               <>
                 <div className="detail-edit-grid">
                   <div className="form-group detail-field--full">
                     <label>Nombre y Apellido</label>
-                    <input
-                      type="text"
-                      value={editData.nombreApellido || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, nombreApellido: e.target.value }))}
-                    />
+                    <input type="text" value={editData.nombreApellido || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, nombreApellido: e.target.value }))} />
                   </div>
                   <div className="form-group">
                     <label>Parroquia</label>
-                    <input
-                      type="text"
-                      value={editData.parroquia || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, parroquia: e.target.value }))}
-                    />
+                    <input type="text" value={editData.parroquia || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, parroquia: e.target.value }))} />
                   </div>
                   <div className="form-group">
                     <label>Sector</label>
-                    <input
-                      type="text"
-                      value={editData.sector || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, sector: e.target.value }))}
-                    />
+                    <input type="text" value={editData.sector || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, sector: e.target.value }))} />
                   </div>
                   <div className="form-group">
                     <label>Comunidad</label>
-                    <input
-                      type="text"
-                      value={editData.comunidad || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, comunidad: e.target.value }))}
-                    />
+                    <input type="text" value={editData.comunidad || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, comunidad: e.target.value }))} />
                   </div>
                   <div className="form-group">
                     <label>Género</label>
-                    <select
-                      value={editData.genero || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, genero: e.target.value }))}
-                    >
+                    <select value={editData.genero || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, genero: e.target.value }))}>
                       <option value="MASCULINO">Masculino</option>
                       <option value="FEMENINO">Femenino</option>
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Estado Físico</label>
-                    <select
-                      value={editData.estadoFisico || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, estadoFisico: e.target.value }))}
-                    >
+                    <select value={editData.estadoFisico || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, estadoFisico: e.target.value }))}>
                       <option value="ILESO">Ileso</option>
                       <option value="LESIONADO">Lesionado</option>
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Patología</label>
-                    <select
-                      value={editData.patologia || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, patologia: e.target.value }))}
-                    >
+                    <select value={editData.patologia || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, patologia: e.target.value }))}>
                       <option value="NO">No</option>
                       <option value="SI">Sí</option>
                     </select>
@@ -2774,84 +2807,55 @@ export default function Home() {
                   {editData.patologia === "SI" && (
                     <div className="form-group detail-field--full">
                       <label>Descripción de Patología</label>
-                      <input
-                        type="text"
-                        value={editData.patologiaDescripcion || ""}
-                        onChange={e => setEditData(prev => ({ ...prev, patologiaDescripcion: e.target.value }))}
-                      />
+                      <input type="text" value={editData.patologiaDescripcion || ""}
+                        onChange={e => setEditData(prev => ({ ...prev, patologiaDescripcion: e.target.value }))} />
                     </div>
                   )}
                   <div className="form-group">
                     <label>Teléfono</label>
-                    <input
-                      type="text"
-                      value={editData.telefono || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, telefono: e.target.value }))}
-                    />
+                    <input type="text" value={editData.telefono || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, telefono: e.target.value }))} />
                   </div>
                   <div className="form-group detail-field--full">
-                    <label>Dirección</label>
-                    <input
-                      type="text"
-                      value={editData.direccionExacta || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, direccionExacta: e.target.value }))}
-                    />
+                    <label>Dirección Exacta</label>
+                    <input type="text" value={editData.direccionExacta || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, direccionExacta: e.target.value }))} />
                   </div>
                 </div>
                 <div className="modal-edit-actions">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setEditMode(false)}
-                    disabled={savingEdit}
-                  >
+                  <button type="button" className="btn-secondary"
+                    onClick={() => setEditMode(false)} disabled={savingEdit}>
                     Cancelar
                   </button>
-                  <button
-                    type="button"
-                    className="btn-submit"
-                    style={{ flex: 1 }}
-                    onClick={handleSaveEdit}
-                    disabled={savingEdit}
-                  >
+                  <button type="button" className="btn-submit" style={{ flex: 1 }}
+                    onClick={handleSaveEdit} disabled={savingEdit}>
                     {savingEdit ? "Guardando..." : "Guardar Cambios"}
                   </button>
                 </div>
               </>
             )}
 
+            {/* ── ASIGNAR CUARTO (siempre visible) ── */}
             <div className="modal-cuarto-section">
-              <div className="section-title">
+              <div className="section-title" style={{ margin: "0 0 0.625rem" }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Asignar Alojamiento
+                Asignación de Alojamiento
               </div>
-              <div className="form-group" style={{ marginTop: "0.5rem" }}>
+              <div className="form-group">
                 <label htmlFor="cuarto-select">Cuarto / Salón</label>
-                <select
-                  id="cuarto-select"
-                  value={asignCuarto}
-                  onChange={e => setAsignCuarto(e.target.value)}
-                >
+                <select id="cuarto-select" value={asignCuarto}
+                  onChange={e => setAsignCuarto(e.target.value)}>
                   <option value="">— Seleccionar cuarto —</option>
-                  {CUARTOS.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  {CUARTOS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-              <button
-                type="button"
-                className="btn-submit"
-                style={{ marginTop: "0.625rem" }}
+              <button type="button" className="btn-submit" style={{ marginTop: "0.625rem" }}
                 onClick={handleAsignarCuarto}
-                disabled={savingCuarto || !asignCuarto || asignCuarto === selectedRegistro.cuarto}
-              >
-                {savingCuarto
-                  ? "Guardando..."
-                  : selectedRegistro.cuarto
-                    ? "Reasignar Cuarto"
-                    : "Confirmar Asignación"}
+                disabled={savingCuarto || !asignCuarto || asignCuarto === selectedRegistro.cuarto}>
+                {savingCuarto ? "Guardando..." : selectedRegistro.cuarto ? "Reasignar Cuarto" : "Confirmar Asignación"}
               </button>
             </div>
+
           </div>
         </div>
       )}
