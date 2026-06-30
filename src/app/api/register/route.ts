@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const VALID_GENERO = ["MASCULINO", "FEMENINO"];
+const VALID_ESTADO_FISICO = ["ILESO", "LESIONADO"];
+const VALID_SI_NO = ["SI", "NO"];
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    
-    // Quick validation
+
     const {
       parroquia,
       sector,
@@ -24,17 +27,52 @@ export async function POST(req: Request) {
       patologiaDescripcion,
       gpsLat,
       gpsLng,
-      telefono
+      telefono,
     } = body;
 
-    if (!parroquia || !sector || !comunidad || !direccionExacta || !nombreApellido || !cedula || !jefeFamilia || !genero || !fechaNacimiento || edad === undefined || !perteneceNucleo || !estadoFisico || !patologia) {
-      return NextResponse.json(
-        { error: "Faltan campos obligatorios" },
-        { status: 400 }
-      );
+    // Required field presence check
+    if (
+      !parroquia || !sector || !comunidad || !direccionExacta ||
+      !nombreApellido || !cedula || !jefeFamilia || !genero ||
+      !fechaNacimiento || edad === undefined || !perteneceNucleo ||
+      !estadoFisico || !patologia
+    ) {
+      return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
     }
 
-    // Try inserting into Supabase via Prisma
+    // Enum validation
+    if (!VALID_GENERO.includes(genero)) {
+      return NextResponse.json({ error: "Género inválido" }, { status: 400 });
+    }
+    if (!VALID_ESTADO_FISICO.includes(estadoFisico)) {
+      return NextResponse.json({ error: "Estado físico inválido" }, { status: 400 });
+    }
+    if (!VALID_SI_NO.includes(jefeFamilia)) {
+      return NextResponse.json({ error: "Valor de jefeFamilia inválido" }, { status: 400 });
+    }
+    if (!VALID_SI_NO.includes(perteneceNucleo)) {
+      return NextResponse.json({ error: "Valor de perteneceNucleo inválido" }, { status: 400 });
+    }
+    if (!VALID_SI_NO.includes(patologia)) {
+      return NextResponse.json({ error: "Valor de patología inválido" }, { status: 400 });
+    }
+
+    // Date validation
+    const fechaObj = new Date(fechaNacimiento);
+    if (isNaN(fechaObj.getTime())) {
+      return NextResponse.json({ error: "Fecha de nacimiento inválida" }, { status: 400 });
+    }
+    const now = new Date();
+    if (fechaObj > now) {
+      return NextResponse.json({ error: "La fecha de nacimiento no puede ser futura" }, { status: 400 });
+    }
+
+    // Age sanity check
+    const edadNum = Number(edad);
+    if (!Number.isInteger(edadNum) || edadNum < 0 || edadNum > 120) {
+      return NextResponse.json({ error: "Edad fuera de rango válido" }, { status: 400 });
+    }
+
     const newRegistro = await prisma.registro.create({
       data: {
         parroquia,
@@ -45,8 +83,8 @@ export async function POST(req: Request) {
         cedula: String(cedula).trim(),
         jefeFamilia,
         genero,
-        fechaNacimiento: new Date(fechaNacimiento),
-        edad: Number(edad),
+        fechaNacimiento: fechaObj,
+        edad: edadNum,
         perteneceNucleo,
         cedulaJefeFamilia: cedulaJefeFamilia ? String(cedulaJefeFamilia).trim() : null,
         estadoFisico,
@@ -55,18 +93,14 @@ export async function POST(req: Request) {
         gpsLat: gpsLat ? Number(gpsLat) : null,
         gpsLng: gpsLng ? Number(gpsLng) : null,
         telefono: telefono ? String(telefono).trim() : null,
-        syncedAt: new Date()
-      }
+        syncedAt: new Date(),
+      },
     });
 
-    return NextResponse.json(
-      { success: true, id: newRegistro.id },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, id: newRegistro.id }, { status: 201 });
   } catch (error: any) {
     console.error("Error en API /api/register:", error);
 
-    // Catch Prisma Unique Constraint Violation (P2002) for cedula
     if (error.code === "P2002") {
       return NextResponse.json(
         { error: "Registro ya existe", code: "DUPLICATED" },

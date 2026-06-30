@@ -1,21 +1,51 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useReducer, useMemo } from "react";
 import QRCode from "qrcode";
-import CustomSelect from "@/components/CustomSelect";
-import { 
-  saveLocal, 
-  getPending, 
-  getAllLocal, 
-  markSynced, 
-  incrementAttempt, 
-  isPadronCargado,
+import {
+  saveLocal,
+  getPending,
+  getAllLocal,
+  markSynced,
+  incrementAttempt,
   clearLocalPadron,
   cargarPadronEnCliente,
   buscarCedulaEnCliente,
   getLocalPadronCount,
-  LocalRegistro 
+  LocalRegistro
 } from "@/lib/db";
+
+// ── Form state ──────────────────────────────────────────────────────────────
+
+type FormData = {
+  parroquia: string; sector: string; comunidad: string; direccionExacta: string;
+  nacionalidad: string; cedula: string; nombreApellido: string; genero: string;
+  fechaNacimiento: string; edad: string; perteneceNucleo: string; jefeFamilia: string;
+  cedulaJefeFamilia: string; estadoFisico: string; patologia: string;
+  patologiaDescripcion: string; telefonoCod: string; telefonoNum: string;
+};
+
+type FormAction =
+  | { type: "SET"; field: keyof FormData; value: string }
+  | { type: "SET_MANY"; patch: Partial<FormData> }
+  | { type: "RESET" };
+
+const INITIAL_FORM: FormData = {
+  parroquia: "", sector: "", comunidad: "", direccionExacta: "",
+  nacionalidad: "V", cedula: "", nombreApellido: "", genero: "",
+  fechaNacimiento: "", edad: "", perteneceNucleo: "", jefeFamilia: "",
+  cedulaJefeFamilia: "", estadoFisico: "", patologia: "", patologiaDescripcion: "",
+  telefonoCod: "0412", telefonoNum: "",
+};
+
+function formReducer(state: FormData, action: FormAction): FormData {
+  switch (action.type) {
+    case "SET":      return { ...state, [action.field]: action.value };
+    case "SET_MANY": return { ...state, ...action.patch };
+    case "RESET":    return { ...INITIAL_FORM };
+    default:         return state;
+  }
+}
 
 // Parroquias de La Guaira y Caracas
 const PARROQUIAS = [
@@ -41,6 +71,31 @@ async function sha256(message: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+type ToastType = "success" | "error" | "info" | "warning";
+
+function ToastIcon({ type }: { type: ToastType }) {
+  const p = {
+    width: 18, height: 18, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    className: "toast-icon",
+  };
+  switch (type) {
+    case "success":
+      return <svg {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+    case "error":
+      return <svg {...p}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
+    case "warning":
+      return <svg {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+    default:
+      return <svg {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
+  }
+}
+
+const CUARTOS = Array.from({ length: 15 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`);
+
 export default function Home() {
   // Connection state
   const [isOnline, setIsOnline] = useState<boolean>(true);
@@ -62,7 +117,9 @@ export default function Home() {
   const [loadingAuth, setLoadingAuth] = useState(false);
 
   // Tab View Routing State
-  const [activeTab, setActiveTab] = useState<"censo" | "dashboard" | "usuarios" | "config">("censo");
+  const [activeTab, setActiveTab] = useState<"censo" | "dashboard" | "usuarios" | "config" | "asignaciones">("censo");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [step, setStep] = useState<1|2|3|4>(1);
 
   // Dashboard Stats States
   const [stats, setStats] = useState<any>(null);
@@ -79,30 +136,25 @@ export default function Home() {
   const [systemUsers, setSystemUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    parroquia: "",
-    sector: "",
-    comunidad: "",
-    direccionExacta: "",
-    nacionalidad: "V",
-    cedula: "",
-    nombreApellido: "",
-    genero: "",
-    fechaNacimiento: "",
-    edad: "",
-    perteneceNucleo: "",
-    jefeFamilia: "",
-    cedulaJefeFamilia: "",
-    estadoFisico: "",
-    patologia: "",
-    patologiaDescripcion: "",
-    telefonoCod: "0412",
-    telefonoNum: ""
-  });
+  // Asignaciones Module State (Admin only)
+  const [registros, setRegistros] = useState<any[]>([]);
+  const [loadingRegistros, setLoadingRegistros] = useState(false);
+  const [registroSearch, setRegistroSearch] = useState("");
+  const [selectedRegistro, setSelectedRegistro] = useState<any | null>(null);
+  const [asignCuarto, setAsignCuarto] = useState("");
+  const [savingCuarto, setSavingCuarto] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState<Record<string, any>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Form State — useReducer eliminates stale-closure bugs from useState in callbacks
+  const [formData, dispatch] = useReducer(formReducer, INITIAL_FORM);
 
   // Client Validation State
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Submission guard (distinct from background sync)
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // GPS state
   const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
@@ -117,7 +169,7 @@ export default function Home() {
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
 
   // Toast Notification State
-  const [toast, setToast] = useState<{ message: string; type: "success" | "info" | "warning" } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
   // Cédula local database lookup status
   const [lookupStatus, setLookupStatus] = useState<"idle" | "searching" | "found" | "not-found">("idle");
@@ -128,6 +180,13 @@ export default function Home() {
 
   // Stats cache guard: avoid redundant fetches if last one was < 30s ago
   const lastStatsFetchRef = useRef<number>(0);
+
+  // Online event debounce: wait 1s for stable connection before syncing (avoids 2G flicker double-sync)
+  const onlineDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Inactivity session timeout — updated on every pointer/key event
+  const lastActivityRef = useRef<number>(Date.now());
+  const INACTIVITY_MS = 60 * 60 * 1000; // 1 hour
 
   // Initialize online status, theme, user session, local padrón count, GPS and local queue on mount
   useEffect(() => {
@@ -152,12 +211,16 @@ export default function Home() {
 
       const handleOnline = () => {
         setIsOnline(true);
-        showToast("Conexión restablecida. Sincronizando...", "success");
-        triggerSync();
-        if (currentUser) {
-          fetchStats();
-          if (currentUser.role === "ADMIN") fetchUsers();
-        }
+        // Debounce 1s: on 2G the online event can fire multiple times during reconnection
+        if (onlineDebounceRef.current) clearTimeout(onlineDebounceRef.current);
+        onlineDebounceRef.current = setTimeout(() => {
+          showToast("Conexión restablecida. Sincronizando...", "success");
+          triggerSync();
+          if (currentUser && currentUser.role === "ADMIN") {
+            fetchStats();
+            fetchUsers();
+          }
+        }, 1000);
       };
       
       const handleOffline = () => {
@@ -195,14 +258,45 @@ export default function Home() {
 
   // Fetch Dashboard Stats and Users when active tab changes
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && currentUser.role === "ADMIN") {
       if (activeTab === "dashboard") {
         fetchStats();
-      } else if (activeTab === "usuarios" && currentUser.role === "ADMIN") {
+      } else if (activeTab === "usuarios") {
         fetchUsers();
+      } else if (activeTab === "asignaciones") {
+        fetchRegistros();
       }
     }
   }, [activeTab, currentUser]);
+
+  // Auto-download padrón if not loaded when user logs in
+  useEffect(() => {
+    if (!currentUser || !isOnline) return;
+    getLocalPadronCount().then(count => {
+      if (count === 0 && syncStatus === "idle") {
+        downloadFullPadron();
+      }
+    });
+  }, [currentUser]);
+
+  // Inactivity session expiry: logout after INACTIVITY_MS of no pointer/key events
+  useEffect(() => {
+    if (!currentUser) return;
+    const touch = () => { lastActivityRef.current = Date.now(); };
+    window.addEventListener("pointerdown", touch, { passive: true });
+    window.addEventListener("keydown", touch, { passive: true });
+    const guard = setInterval(() => {
+      if (Date.now() - lastActivityRef.current > INACTIVITY_MS) {
+        handleLogout();
+        showToast("Sesión cerrada por inactividad.", "info");
+      }
+    }, 60_000);
+    return () => {
+      window.removeEventListener("pointerdown", touch);
+      window.removeEventListener("keydown", touch);
+      clearInterval(guard);
+    };
+  }, [currentUser]);
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -235,7 +329,7 @@ export default function Home() {
   };
 
   // Helper to show temporary toasts
-  const showToast = (message: string, type: "success" | "info" | "warning") => {
+  const showToast = (message: string, type: ToastType) => {
     setToast({ message, type });
     setTimeout(() => {
       setToast(null);
@@ -308,7 +402,8 @@ export default function Home() {
     }
   };
 
-  // Download entire padron in compressed format and write in batches
+  // Download padron via NDJSON stream — writes to IndexedDB in 500-record
+  // batches as data arrives, so progress is visible immediately even on 2G.
   const downloadFullPadron = async () => {
     if (!isOnline) {
       showToast("Se requiere conexión a internet para descargar el padrón.", "warning");
@@ -316,26 +411,54 @@ export default function Home() {
     }
 
     setSyncStatus("downloading");
+    setSyncProgress(0);
+    setSyncTotal(0);
     showToast("Descargando padrón electoral...", "info");
 
     try {
       const res = await fetch("/api/padron/download", { method: "POST" });
-      if (!res.ok) throw new Error("Fallo al descargar padrón");
+      if (!res.ok || !res.body) throw new Error("Fallo al descargar padrón");
 
-      const data = await res.json();
-      setSyncTotal(data.length);
       setSyncStatus("saving");
 
-      // Write in background batches to prevent browser lock
-      await cargarPadronEnCliente(data, (insertedCount) => {
-        setSyncProgress(insertedCount);
-      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let pending: any[][] = [];
+      let total = 0;
+      const WRITE_EVERY = 500;
 
+      const flushPending = async () => {
+        if (pending.length === 0) return;
+        const chunk = pending.splice(0);
+        await cargarPadronEnCliente(chunk, () => {});
+        total += chunk.length;
+        setSyncProgress(total);
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop()!;
+        for (const line of lines) {
+          if (line.trim()) pending.push(JSON.parse(line));
+        }
+        if (pending.length >= WRITE_EVERY) await flushPending();
+      }
+
+      // flush any leftover line
+      if (buffer.trim()) {
+        try { pending.push(JSON.parse(buffer)); } catch {}
+      }
+      await flushPending();
+
+      setSyncTotal(total);
       setSyncStatus("completed");
-      showToast("Padrón electoral guardado exitosamente offline.", "success");
+      showToast(`Padrón descargado: ${total.toLocaleString()} registros.`, "success");
       await refreshVotersCount();
 
-      // Reset progress after a short delay
       setTimeout(() => {
         setSyncStatus("idle");
         setSyncProgress(0);
@@ -345,7 +468,7 @@ export default function Home() {
     } catch (err: any) {
       console.error(err);
       setSyncStatus("error");
-      showToast("Error al descargar el padrón.", "warning");
+      showToast("Error al descargar el padrón.", "error");
       setTimeout(() => setSyncStatus("idle"), 5000);
     }
   };
@@ -357,7 +480,7 @@ export default function Home() {
         await refreshVotersCount();
         showToast("Padrón local eliminado.", "info");
       } catch (err) {
-        showToast("Error al borrar el padrón.", "warning");
+        showToast("Error al borrar el padrón.", "error");
       }
     }
   };
@@ -396,6 +519,70 @@ export default function Home() {
       console.error("Error al listar usuarios:", err);
     } finally {
       setLoadingUsers(false);
+    }
+  };
+
+  // Fetch all registros from DB for admin asignaciones module
+  const fetchRegistros = async () => {
+    if (!navigator.onLine) return;
+    setLoadingRegistros(true);
+    try {
+      const res = await fetch("/api/registros");
+      const data = await res.json();
+      if (data.registros) setRegistros(data.registros);
+    } catch {
+      showToast("Error al cargar los registros", "error");
+    } finally {
+      setLoadingRegistros(false);
+    }
+  };
+
+  const handleAsignarCuarto = async () => {
+    if (!selectedRegistro || !asignCuarto) return;
+    setSavingCuarto(true);
+    try {
+      const res = await fetch(`/api/registros/${selectedRegistro.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cuarto: asignCuarto }),
+      });
+      if (res.ok) {
+        const updated = { ...selectedRegistro, cuarto: asignCuarto };
+        setRegistros(prev => prev.map(r => r.id === updated.id ? updated : r));
+        setSelectedRegistro(updated);
+        showToast("Cuarto asignado correctamente", "success");
+      } else {
+        showToast("Error al asignar el cuarto", "error");
+      }
+    } catch {
+      showToast("Error de conexión", "error");
+    } finally {
+      setSavingCuarto(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedRegistro) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/registros/${selectedRegistro.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editData),
+      });
+      if (res.ok) {
+        const updated = { ...selectedRegistro, ...editData };
+        setRegistros(prev => prev.map(r => r.id === updated.id ? updated : r));
+        setSelectedRegistro(updated);
+        setEditMode(false);
+        showToast("Registro actualizado correctamente", "success");
+      } else {
+        showToast("Error al guardar los cambios", "error");
+      }
+    } catch {
+      showToast("Error de conexión", "error");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -658,69 +845,39 @@ export default function Home() {
   // Input change handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === "cedula") {
       const cleanCedula = value.replace(/\D/g, "");
-      setFormData(prev => ({ ...prev, [name]: cleanCedula }));
-      
-      const error = validateField("cedula", cleanCedula);
-      setErrors(prev => ({ ...prev, cedula: error }));
-      
+      dispatch({ type: "SET", field: "cedula", value: cleanCedula });
+      setErrors(prev => ({ ...prev, cedula: validateField("cedula", cleanCedula) }));
       triggerLookup(cleanCedula);
       return;
     }
 
     if (name === "cedulaJefeFamilia") {
       const cleanVal = value.replace(/\D/g, "");
-      setFormData(prev => ({ ...prev, [name]: cleanVal }));
-      
-      const error = validateField("cedulaJefeFamilia", cleanVal);
-      setErrors(prev => ({ ...prev, cedulaJefeFamilia: error }));
+      dispatch({ type: "SET", field: "cedulaJefeFamilia", value: cleanVal });
+      setErrors(prev => ({ ...prev, cedulaJefeFamilia: validateField("cedulaJefeFamilia", cleanVal) }));
       return;
     }
 
     // Formatted Date Input Mask (DD/MM/AAAA)
     if (name === "fechaNacimiento") {
-      let rawVal = value.replace(/\D/g, "");
-      let formatted = "";
-      
-      if (rawVal.length > 0) {
-        formatted += rawVal.slice(0, 2);
-      }
-      if (rawVal.length > 2) {
-        formatted += "/" + rawVal.slice(2, 4);
-      }
-      if (rawVal.length > 4) {
-        formatted += "/" + rawVal.slice(4, 8);
-      }
-      
-      setFormData(prev => {
-        const updated = { ...prev, fechaNacimiento: formatted };
-        
-        // Calculate age on-the-fly once date is complete
-        if (rawVal.length === 8) {
-          const d = rawVal.slice(0, 2);
-          const m = rawVal.slice(2, 4);
-          const y = rawVal.slice(4, 8);
-          updated.edad = handleDateChange(`${y}-${m}-${d}`);
-        } else {
-          updated.edad = "";
-        }
-        return updated;
-      });
+      const rawVal = value.replace(/\D/g, "");
+      let formatted = rawVal.slice(0, 2);
+      if (rawVal.length > 2) formatted += "/" + rawVal.slice(2, 4);
+      if (rawVal.length > 4) formatted += "/" + rawVal.slice(4, 8);
 
-      const error = validateField("fechaNacimiento", formatted);
-      setErrors(prev => ({ ...prev, fechaNacimiento: error }));
+      const edad = rawVal.length === 8
+        ? handleDateChange(`${rawVal.slice(4, 8)}-${rawVal.slice(2, 4)}-${rawVal.slice(0, 2)}`)
+        : "";
+      dispatch({ type: "SET_MANY", patch: { fechaNacimiento: formatted, edad } });
+      setErrors(prev => ({ ...prev, fechaNacimiento: validateField("fechaNacimiento", formatted) }));
       return;
     }
 
-    setFormData(prev => {
-      const updated = { ...prev, [name]: value };
-      return updated;
-    });
-
-    const error = validateField(name, value);
-    setErrors(prev => ({ ...prev, [name]: error }));
+    dispatch({ type: "SET", field: name as keyof FormData, value });
+    setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
   };
 
   // Search voter locally in IndexedDB (100% offline)
@@ -761,13 +918,12 @@ export default function Home() {
             }
           }
 
-          setFormData(prev => ({
-            ...prev,
+          dispatch({ type: "SET_MANY", patch: {
             nombreApellido: citizen.nombreCompleto,
             genero: mappedGenero,
             fechaNacimiento: formattedDate,
-            edad: handleDateChange(citizen.fechaNacimiento)
-          }));
+            edad: handleDateChange(citizen.fechaNacimiento),
+          } });
           setErrors(prev => ({
             ...prev,
             nombreApellido: "",
@@ -784,14 +940,44 @@ export default function Home() {
     }, 250);
   };
 
+  // Per-step validation for the wizard
+  const STEP_FIELDS: Record<number, string[]> = {
+    1: ["parroquia", "sector", "comunidad", "direccionExacta"],
+    2: ["cedula", "nombreApellido", "genero", "fechaNacimiento", "telefonoNum"],
+    3: ["perteneceNucleo", "jefeFamilia"],
+    4: ["estadoFisico", "patologia"],
+  };
+
+  const handleNextStep = () => {
+    const fields = STEP_FIELDS[step];
+    const newErrors: Record<string, string> = {};
+    fields.forEach(field => {
+      const err = validateField(field, (formData as any)[field] as string);
+      if (err) newErrors[field] = err;
+    });
+    if (step === 3 && formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") {
+      const err = validateField("cedulaJefeFamilia", formData.cedulaJefeFamilia);
+      if (err) newErrors.cedulaJefeFamilia = err;
+    }
+    if (step === 4 && formData.patologia === "SI") {
+      const err = validateField("patologiaDescripcion", formData.patologiaDescripcion);
+      if (err) newErrors.patologiaDescripcion = err;
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...newErrors }));
+      return;
+    }
+    setStep(s => (s + 1) as 1|2|3|4);
+  };
+
   // Submit Handler: Saves to IndexedDB first, then triggers sync
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     if (!validateForm()) {
       showToast("Faltan campos obligatorios o poseen formato inválido.", "warning");
-      
-      // Auto-scroll smooth to first error field
       setTimeout(() => {
         const firstErrorEl = document.querySelector(".has-error");
         if (firstErrorEl) {
@@ -801,6 +987,7 @@ export default function Home() {
           }
         }
       }, 50);
+      setIsSubmitting(false);
       return;
     }
 
@@ -847,25 +1034,11 @@ export default function Home() {
       await saveLocal(registroData);
       showToast("Registro guardado localmente.", "success");
 
-      // Reset form fields
-      setFormData(prev => ({
-        ...prev,
-        cedula: "",
-        nombreApellido: "",
-        genero: "",
-        fechaNacimiento: "",
-        edad: "",
-        perteneceNucleo: "",
-        jefeFamilia: "",
-        cedulaJefeFamilia: "",
-        estadoFisico: "",
-        patologia: "",
-        patologiaDescripcion: "",
-        telefonoCod: "0412",
-        telefonoNum: ""
-      }));
+      dispatch({ type: "RESET" });
+      setErrors({});
       setLookupStatus("idle");
-      
+      setStep(1);
+
       await refreshLocalRecords();
 
       if (navigator.onLine) {
@@ -874,6 +1047,8 @@ export default function Home() {
     } catch (err) {
       showToast("Error al guardar en el dispositivo.", "warning");
       console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -895,7 +1070,7 @@ export default function Home() {
       downloadAnchor.remove();
       showToast("Copia de seguridad JSON descargada.", "success");
     } catch (err) {
-      showToast("Error al exportar archivo JSON.", "warning");
+      showToast("Error al exportar archivo JSON.", "error");
     }
   };
 
@@ -946,7 +1121,7 @@ export default function Home() {
       setShowQrModal(true);
     } catch (err) {
       console.error("Error al generar QR:", err);
-      showToast("Error al generar códigos QR.", "warning");
+      showToast("Error al generar códigos QR.", "error");
     }
   };
 
@@ -1048,14 +1223,17 @@ export default function Home() {
     };
   };
 
-  const currentStats = (isOnline && stats) ? stats : getLocalStats();
+  const currentStats = useMemo(
+    () => (isOnline && stats) ? stats : getLocalStats(),
+    [isOnline, stats, localRecords]
+  );
 
   // If user is not authenticated, show Login Screen
   if (!currentUser) {
     return (
       <div className="container">
-        <div className="app-header" style={{ justifyContent: "center" }}>
-          <div className="title-area" style={{ alignItems: "center" }}>
+        <div className="app-header app-header--centered">
+          <div className="title-area title-area--centered">
             <h1>REGISTRO DE AFECTADOS</h1>
             <p className="subtitle">Censo Sismológico PWA 100% Offline</p>
           </div>
@@ -1105,8 +1283,9 @@ export default function Home() {
         </div>
 
         {toast && (
-          <div className="toast">
-            <span>{toast.message}</span>
+          <div className={`toast toast--${toast.type}`}>
+            <ToastIcon type={toast.type} />
+            <span className="toast-message">{toast.message}</span>
           </div>
         )}
       </div>
@@ -1116,80 +1295,115 @@ export default function Home() {
   // Authenticated Dashboard Layout
   return (
     <div className="container">
-      {/* App Header */}
-      <div className="app-header">
-        <div className="title-area">
-          <h1>REGISTRO DE AFECTADOS</h1>
-          <p className="subtitle">Censo Sismológico PWA - Venezuela 2026</p>
-        </div>
-        <button 
-          type="button"
-          onClick={toggleTheme} 
-          className="theme-toggle-btn"
-          title={theme === "dark" ? "Modo Claro" : "Modo Oscuro"}
-        >
-          {theme === "dark" ? "Claro" : "Oscuro"}
-        </button>
-      </div>
-
-      {/* Operator Session Bar */}
-      <div className="operator-bar">
-        <div className="operator-info">
-          <span>{currentUser.nombre} ({currentUser.role})</span>
-        </div>
-        <button type="button" onClick={handleLogout} className="logout-btn">
-          Cerrar Sesión
-        </button>
-      </div>
-
-      {/* Connection status bar */}
-      <div className="status-bar">
-        <div className="status-indicator">
-          <span className={`status-dot ${isOnline ? "online" : "offline"}`}></span>
-          <span>{isOnline ? "CONEXIÓN ESTABLE (ONLINE)" : "TRABAJANDO SIN CONEXIÓN (OFFLINE)"}</span>
-        </div>
-        {(pendingCount > 0 || isSyncing) && (
-          <span className="queue-badge">
-            {isSyncing && syncQueueProgress
-              ? <><span className="spinner"></span> {syncQueueProgress.done}/{syncQueueProgress.total}</>
-              : <>{pendingCount} pendientes {isSyncing && <span className="spinner"></span>}</>
-            }
-          </span>
-        )}
-      </div>
-
-      {/* Tab Navigation Menu */}
-      <div className="nav-tabs">
-        <button 
-          type="button" 
-          onClick={() => setActiveTab("censo")} 
-          className={`nav-tab-btn ${activeTab === "censo" ? "active" : ""}`}
-        >
-          Registrar
-        </button>
-        <button 
-          type="button" 
-          onClick={() => setActiveTab("dashboard")} 
-          className={`nav-tab-btn ${activeTab === "dashboard" ? "active" : ""}`}
-        >
-          Estadísticas
-        </button>
-        {currentUser.role === "ADMIN" && (
-          <button 
-            type="button" 
-            onClick={() => setActiveTab("usuarios")} 
-            className={`nav-tab-btn ${activeTab === "usuarios" ? "active" : ""}`}
+      {/* Unified App Header */}
+      <header className="app-header">
+        <div className="app-header-brand">
+          <div className="title-area">
+            <h1>REGISTRO DE AFECTADOS</h1>
+            <p className="subtitle">Censo Sismológico PWA · Venezuela 2026</p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="theme-toggle-btn"
+            aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
           >
-            Usuarios
+            {theme === "dark" ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            )}
           </button>
+        </div>
+        <div className="app-header-op">
+          <span className={`status-dot ${isOnline ? "online" : "offline"}`}></span>
+          <span className="app-header-conn">{isOnline ? "En línea" : "Sin señal"}</span>
+          {(pendingCount > 0 || isSyncing) && (
+            <span className="queue-badge">
+              {isSyncing && syncQueueProgress
+                ? <><span className="spinner spinner-sm"></span> {syncQueueProgress.done}/{syncQueueProgress.total}</>
+                : `${pendingCount} pend.`
+              }
+            </span>
+          )}
+          <span className="app-header-sep" />
+          <span className="app-header-operator">{currentUser.nombre}</span>
+          <span className={`role-badge ${currentUser.role === "ADMIN" ? "admin" : ""}`}>{currentUser.role}</span>
+          <button type="button" onClick={handleLogout} className="logout-btn" title="Cerrar sesión">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+      </header>
+
+      {/* Navigation */}
+      <div className="app-nav">
+        <div className="app-nav-primary">
+          <button
+            type="button"
+            className={`nav-primary-btn ${activeTab === "censo" ? "active" : ""}`}
+            onClick={() => { setActiveTab("censo"); setMenuOpen(false); }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            Registrar
+          </button>
+          <button
+            type="button"
+            className={`nav-hamburger ${menuOpen ? "open" : ""}`}
+            onClick={() => setMenuOpen(m => !m)}
+            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+          >
+            <span className="nav-hamburger-line" />
+            <span className="nav-hamburger-line" />
+            <span className="nav-hamburger-line" />
+          </button>
+        </div>
+        {menuOpen && (
+          <div className="nav-drawer">
+            {currentUser.role === "ADMIN" && (
+              <button
+                type="button"
+                className={`nav-drawer-btn ${activeTab === "dashboard" ? "active" : ""}`}
+                onClick={() => { setActiveTab("dashboard"); setMenuOpen(false); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                Estadísticas del Censo
+              </button>
+            )}
+            {currentUser.role === "ADMIN" && (
+              <button
+                type="button"
+                className={`nav-drawer-btn ${activeTab === "asignaciones" ? "active" : ""}`}
+                onClick={() => { setActiveTab("asignaciones"); setMenuOpen(false); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Asignaciones de Alojamiento
+              </button>
+            )}
+            {currentUser.role === "ADMIN" && (
+              <button
+                type="button"
+                className={`nav-drawer-btn ${activeTab === "usuarios" ? "active" : ""}`}
+                onClick={() => { setActiveTab("usuarios"); setMenuOpen(false); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Gestión de Usuarios
+              </button>
+            )}
+            <button
+              type="button"
+              className={`nav-drawer-btn ${activeTab === "config" ? "active" : ""}`}
+              onClick={() => { setActiveTab("config"); setMenuOpen(false); }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
+              Configuración del Sistema
+            </button>
+          </div>
         )}
-        <button 
-          type="button" 
-          onClick={() => setActiveTab("config")} 
-          className={`nav-tab-btn ${activeTab === "config" ? "active" : ""}`}
-        >
-          Configuración
-        </button>
       </div>
 
       {/* TAB 1: FORM VIEW (CENSO) */}
@@ -1197,438 +1411,477 @@ export default function Home() {
         <>
           {currentUser.role === "REGISTRADOR" || currentUser.role === "ADMIN" ? (
             <form onSubmit={handleSubmit} className="form-card">
-              {/* Section 1: Ubicación */}
-              <div className="form-section">
-                <div className="section-title">
-                  Ubicación Geográfica
-                </div>
-                
-                <CustomSelect
-                  label="Parroquia donde vive"
-                  value={formData.parroquia}
-                  onChange={(val) => {
-                    setFormData(prev => ({ ...prev, parroquia: val }));
-                    setErrors(prev => ({ ...prev, parroquia: validateField("parroquia", val) }));
-                  }}
-                  options={PARROQUIAS}
-                  placeholder="Seleccione una parroquia..."
-                  required
-                  hasError={!!errors.parroquia}
-                />
-                <div className="error-container">
-                  {errors.parroquia && <span className="field-error-message">{errors.parroquia}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="sector">Sector donde vive<span className="required-star">*</span></label>
-                  <input 
-                    type="text" 
-                    name="sector" 
-                    id="sector" 
-                    placeholder="Ej: Barrio Aeropuerto" 
-                    value={formData.sector} 
-                    onChange={handleInputChange} 
-                    className={errors.sector ? "has-error" : ""}
-                  />
-                  <div className="error-container">
-                    {errors.sector && <span className="field-error-message">{errors.sector}</span>}
+              {/* Wizard Progress Bar */}
+              <div className="wizard-progress">
+                {([1, 2, 3, 4] as const).map((s) => (
+                  <div key={s} className="wizard-step-wrapper">
+                    <div className={`wizard-step-dot ${step === s ? "active" : step > s ? "done" : ""}`}>
+                      {step > s ? (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      ) : s}
+                    </div>
+                    {s < 4 && <div className={`wizard-step-line ${step > s ? "done" : ""}`} />}
                   </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="comunidad">Comunidad donde vive<span className="required-star">*</span></label>
-                  <input 
-                    type="text" 
-                    name="comunidad" 
-                    id="comunidad" 
-                    placeholder="Ej: Consejo Comunal Luchadores" 
-                    value={formData.comunidad} 
-                    onChange={handleInputChange} 
-                    className={errors.comunidad ? "has-error" : ""}
-                  />
-                  <div className="error-container">
-                    {errors.comunidad && <span className="field-error-message">{errors.comunidad}</span>}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="direccionExacta">Dirección Exacta<span className="required-star">*</span></label>
-                  <textarea 
-                    name="direccionExacta" 
-                    id="direccionExacta" 
-                    placeholder="Ej: Calle principal, casa N° 12, frente al abasto..." 
-                    value={formData.direccionExacta} 
-                    onChange={handleInputChange} 
-                    className={errors.direccionExacta ? "has-error" : ""}
-                  />
-                  <div className="error-container">
-                    {errors.direccionExacta && <span className="field-error-message">{errors.direccionExacta}</span>}
-                  </div>
-                </div>
+                ))}
+              </div>
+              <div className="wizard-step-label">
+                {step === 1 && "Paso 1 — Ubicación Geográfica"}
+                {step === 2 && "Paso 2 — Identificación Personal"}
+                {step === 3 && "Paso 3 — Grupo Familiar"}
+                {step === 4 && "Paso 4 — Estado de Salud"}
               </div>
 
-              <hr className="section-divider" />
+              {/* PASO 1: Ubicación */}
+              {step === 1 && (
+                <div className="form-section form-step-content">
+                  <div className="form-group">
+                    <label htmlFor="parroquia">Parroquia donde vive<span className="required-star">*</span></label>
+                    <div className="native-select-wrapper">
+                      <select
+                        id="parroquia"
+                        className={`native-select ${errors.parroquia ? "has-error" : ""}`}
+                        value={formData.parroquia}
+                        onChange={(e) => {
+                          dispatch({ type: "SET", field: "parroquia", value: e.target.value });
+                          setErrors(prev => ({ ...prev, parroquia: validateField("parroquia", e.target.value) }));
+                        }}
+                      >
+                        <option value="">Seleccione una parroquia...</option>
+                        {PARROQUIAS.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                      <svg className="native-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div className="error-container">
+                      {errors.parroquia && <span className="field-error-message">{errors.parroquia}</span>}
+                    </div>
+                  </div>
 
-              {/* Section 2: Datos Personales */}
-              <div className="form-section">
-                <div className="section-title">
-                  Datos Personales
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="cedula">Cédula de Identidad<span className="required-star">*</span></label>
-                  <div style={{ display: "grid", gridTemplateColumns: "75px 1fr", gap: "0.75rem", alignItems: "center" }}>
-                    <CustomSelect
-                      label=""
-                      value={formData.nacionalidad}
-                      onChange={(val) => setFormData(prev => ({ ...prev, nacionalidad: val }))}
-                      options={["V", "E"]}
-                    />
-                    <input 
-                      type="text" 
-                      name="cedula" 
-                      id="cedula" 
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="Solo números (ej: 12345678)" 
-                      value={formData.cedula} 
-                      onChange={handleInputChange} 
-                      className={errors.cedula ? "has-error" : ""}
-                    />
-                  </div>
-                  <div className="helper-box">
-                    <span className={`helper-text ${lookupStatus !== "idle" ? "active" : ""} ${lookupStatus}`}>
-                      {lookupStatus === "searching" && "Buscando cédula en padrón local..."}
-                      {lookupStatus === "found" && "Ciudadano verificado. Datos autocompletados."}
-                      {lookupStatus === "not-found" && "Cédula no registrada localmente. Ingrese manual."}
-                    </span>
-                  </div>
-                  <div className="error-container">
-                    {errors.cedula && <span className="field-error-message">{errors.cedula}</span>}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="nombreApellido">Nombre y Apellido<span className="required-star">*</span></label>
-                  <input 
-                    type="text" 
-                    name="nombreApellido" 
-                    id="nombreApellido" 
-                    placeholder="Nombre completo" 
-                    value={formData.nombreApellido} 
-                    onChange={handleInputChange} 
-                    className={errors.nombreApellido ? "has-error" : ""}
-                  />
-                  <div className="error-container">
-                    {errors.nombreApellido && <span className="field-error-message">{errors.nombreApellido}</span>}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Género<span className="required-star">*</span></label>
-                  <div className="radio-group">
-                    <label className={`radio-card ${formData.genero === "MASCULINO" ? "selected" : ""} ${errors.genero ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="genero" 
-                        value="MASCULINO" 
-                        checked={formData.genero === "MASCULINO"}
-                        onChange={handleInputChange} 
-                      />
-                      MASCULINO
-                    </label>
-                    <label className={`radio-card ${formData.genero === "FEMENINO" ? "selected" : ""} ${errors.genero ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="genero" 
-                        value="FEMENINO" 
-                        checked={formData.genero === "FEMENINO"}
-                        onChange={handleInputChange} 
-                      />
-                      FEMENINO
-                    </label>
-                  </div>
-                  <div className="error-container">
-                    {errors.genero && <span className="field-error-message">{errors.genero}</span>}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="fechaNacimiento">Fecha de Nacimiento (DD/MM/AAAA)<span className="required-star">*</span></label>
-                  <input 
-                    type="text" 
-                    name="fechaNacimiento" 
-                    id="fechaNacimiento" 
-                    inputMode="numeric"
-                    placeholder="DD/MM/AAAA (ej: 15/05/1990)" 
-                    value={formData.fechaNacimiento} 
-                    onChange={handleInputChange} 
-                    className={errors.fechaNacimiento ? "has-error" : ""}
-                  />
-                  <div className="error-container">
-                    {errors.fechaNacimiento && <span className="field-error-message">{errors.fechaNacimiento}</span>}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="edad">Edad<span className="required-star">*</span></label>
-                  <input 
-                    type="number" 
-                    name="edad" 
-                    id="edad" 
-                    placeholder="Edad calculada" 
-                    value={formData.edad} 
-                    onChange={handleInputChange} 
-                    disabled
-                    style={{ backgroundColor: "var(--bg-primary)", cursor: "not-allowed" }}
-                  />
-                  <div className="error-container"></div>
-                </div>
-
-                <div className="form-group">
-                  <label>Teléfono de Contacto<span className="required-star">*</span></label>
-                  <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: "0.75rem", alignItems: "start" }}>
-                    <CustomSelect
-                      label=""
-                      value={formData.telefonoCod}
-                      onChange={(val) => setFormData(prev => ({ ...prev, telefonoCod: val }))}
-                      options={["0424", "0414", "0416", "0426", "0412", "0422", "0212"]}
-                      placeholder="Código"
-                    />
-                    <input 
-                      type="text" 
-                      name="telefonoNum" 
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="Número (7 dígitos)" 
-                      value={formData.telefonoNum} 
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "").slice(0, 7);
-                        setFormData(prev => ({ ...prev, telefonoNum: val }));
-                        setErrors(prev => ({ ...prev, telefonoNum: validateField("telefonoNum", val) }));
-                      }}
-                      className={errors.telefonoNum ? "has-error" : ""}
-                    />
-                  </div>
-                  <div className="error-container">
-                    {errors.telefonoNum && <span className="field-error-message">{errors.telefonoNum}</span>}
-                  </div>
-                </div>
-              </div>
-
-              <hr className="section-divider" />
-
-              {/* Section 3: Núcleo Familiar */}
-              <div className="form-section">
-                <div className="section-title">
-                  Grupo Familiar
-                </div>
-
-                <div className="form-group">
-                  <label>¿Pertenece a un núcleo familiar?<span className="required-star">*</span></label>
-                  <div className="radio-group">
-                    <label className={`radio-card ${formData.perteneceNucleo === "SI" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="perteneceNucleo" 
-                        value="SI" 
-                        checked={formData.perteneceNucleo === "SI"}
-                        onChange={handleInputChange} 
-                      />
-                      SI
-                    </label>
-                    <label className={`radio-card ${formData.perteneceNucleo === "NO" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="perteneceNucleo" 
-                        value="NO" 
-                        checked={formData.perteneceNucleo === "NO"}
-                        onChange={handleInputChange} 
-                      />
-                      NO
-                    </label>
-                  </div>
-                  <div className="error-container">
-                    {errors.perteneceNucleo && <span className="field-error-message">{errors.perteneceNucleo}</span>}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>¿Usted es el Jefe de Familia?<span className="required-star">*</span></label>
-                  <div className="radio-group">
-                    <label className={`radio-card ${formData.jefeFamilia === "SI" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="jefeFamilia" 
-                        value="SI" 
-                        checked={formData.jefeFamilia === "SI"}
-                        onChange={handleInputChange} 
-                      />
-                      SI
-                    </label>
-                    <label className={`radio-card ${formData.jefeFamilia === "NO" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="jefeFamilia" 
-                        value="NO" 
-                        checked={formData.jefeFamilia === "NO"}
-                        onChange={handleInputChange} 
-                      />
-                      NO
-                    </label>
-                  </div>
-                  <div className="error-container">
-                    {errors.jefeFamilia && <span className="field-error-message">{errors.jefeFamilia}</span>}
-                  </div>
-                </div>
-
-                <div className={`conditional-wrapper ${formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO" ? "open" : ""}`}>
-                  <div className="conditional-inner">
-                    <label htmlFor="cedulaJefeFamilia">Cédula del Jefe de Familia<span className="required-star">*</span></label>
-                    <input 
-                      type="text" 
-                      name="cedulaJefeFamilia" 
-                      id="cedulaJefeFamilia" 
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="Cédula del jefe del núcleo" 
-                      value={formData.cedulaJefeFamilia} 
-                      onChange={handleInputChange} 
-                      className={errors.cedulaJefeFamilia ? "has-error" : ""}
+                  <div className="form-group">
+                    <label htmlFor="sector">Sector<span className="required-star">*</span></label>
+                    <input
+                      type="text"
+                      name="sector"
+                      id="sector"
+                      placeholder="Ej: Barrio Aeropuerto"
+                      value={formData.sector}
+                      onChange={handleInputChange}
+                      className={errors.sector ? "has-error" : ""}
                     />
                     <div className="error-container">
-                      {errors.cedulaJefeFamilia && <span className="field-error-message">{errors.cedulaJefeFamilia}</span>}
+                      {errors.sector && <span className="field-error-message">{errors.sector}</span>}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="comunidad">Comunidad<span className="required-star">*</span></label>
+                    <input
+                      type="text"
+                      name="comunidad"
+                      id="comunidad"
+                      placeholder="Ej: Consejo Comunal Luchadores"
+                      value={formData.comunidad}
+                      onChange={handleInputChange}
+                      className={errors.comunidad ? "has-error" : ""}
+                    />
+                    <div className="error-container">
+                      {errors.comunidad && <span className="field-error-message">{errors.comunidad}</span>}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="direccionExacta">Dirección Exacta<span className="required-star">*</span></label>
+                    <textarea
+                      name="direccionExacta"
+                      id="direccionExacta"
+                      placeholder="Ej: Calle principal, casa N° 12, frente al abasto..."
+                      value={formData.direccionExacta}
+                      onChange={handleInputChange}
+                      className={errors.direccionExacta ? "has-error" : ""}
+                    />
+                    <div className="error-container">
+                      {errors.direccionExacta && <span className="field-error-message">{errors.direccionExacta}</span>}
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <hr className="section-divider" />
-
-              {/* Section 4: Estado Físico y Salud */}
-              <div className="form-section">
-                <div className="section-title">
-                  Estado de Salud
-                </div>
-
-                <div className="form-group">
-                  <label>Estado Físico Actual<span className="required-star">*</span></label>
-                  <div className="radio-group">
-                    <label className={`radio-card ${formData.estadoFisico === "ILESO" ? "selected" : ""} ${errors.estadoFisico ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="estadoFisico" 
-                        value="ILESO" 
-                        checked={formData.estadoFisico === "ILESO"}
-                        onChange={handleInputChange} 
+              {/* PASO 2: Identificación Personal */}
+              {step === 2 && (
+                <div className="form-section form-step-content">
+                  <div className="form-group">
+                    <label htmlFor="cedula">Cédula de Identidad<span className="required-star">*</span></label>
+                    <div className="field-row-cedula">
+                      <div className="nat-toggle">
+                        <button
+                          type="button"
+                          className={`nat-btn ${formData.nacionalidad === "V" ? "active" : ""}`}
+                          onPointerDown={(e) => e.preventDefault()}
+                          onClick={() => dispatch({ type: "SET", field: "nacionalidad", value: "V" })}
+                        >V</button>
+                        <button
+                          type="button"
+                          className={`nat-btn ${formData.nacionalidad === "E" ? "active" : ""}`}
+                          onPointerDown={(e) => e.preventDefault()}
+                          onClick={() => dispatch({ type: "SET", field: "nacionalidad", value: "E" })}
+                        >E</button>
+                      </div>
+                      <input
+                        type="text"
+                        name="cedula"
+                        id="cedula"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Solo números (ej: 12345678)"
+                        value={formData.cedula}
+                        onChange={handleInputChange}
+                        className={errors.cedula ? "has-error" : ""}
                       />
-                      ILESO
-                    </label>
-                    <label className={`radio-card ${formData.estadoFisico === "LECIONADO" ? "selected" : ""} ${errors.estadoFisico ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="estadoFisico" 
-                        value="LECIONADO" 
-                        checked={formData.estadoFisico === "LECIONADO"}
-                        onChange={handleInputChange} 
-                      />
-                      LESIONADO
-                    </label>
+                    </div>
+                    <div className="helper-box">
+                      <span className={`helper-text ${lookupStatus !== "idle" ? "active" : ""} ${lookupStatus}`}>
+                        {lookupStatus === "searching" && "Buscando cédula en padrón local..."}
+                        {lookupStatus === "found" && "Ciudadano verificado. Datos autocompletados."}
+                        {lookupStatus === "not-found" && "Cédula no registrada localmente. Ingrese manual."}
+                      </span>
+                    </div>
+                    <div className="error-container">
+                      {errors.cedula && <span className="field-error-message">{errors.cedula}</span>}
+                    </div>
                   </div>
-                  <div className="error-container">
-                    {errors.estadoFisico && <span className="field-error-message">{errors.estadoFisico}</span>}
-                  </div>
-                </div>
 
-                <div className="form-group">
-                  <label>¿Posee alguna patología crónica?<span className="required-star">*</span></label>
-                  <div className="radio-group">
-                    <label className={`radio-card ${formData.patologia === "SI" ? "selected" : ""} ${errors.patologia ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="patologia" 
-                        value="SI" 
-                        checked={formData.patologia === "SI"}
-                        onChange={handleInputChange} 
-                      />
-                      SI
-                    </label>
-                    <label className={`radio-card ${formData.patologia === "NO" ? "selected" : ""} ${errors.patologia ? "has-error" : ""}`}>
-                      <input 
-                        type="radio" 
-                        name="patologia" 
-                        value="NO" 
-                        checked={formData.patologia === "NO"}
-                        onChange={handleInputChange} 
-                      />
-                      NO
-                    </label>
-                  </div>
-                  <div className="error-container">
-                    {errors.patologia && <span className="field-error-message">{errors.patologia}</span>}
-                  </div>
-                </div>
-
-                <div className={`conditional-wrapper ${formData.patologia === "SI" ? "open" : ""}`}>
-                  <div className="conditional-inner">
-                    <label htmlFor="patologiaDescripcion">Describa la patología y medicamentos requeridos<span className="required-star">*</span></label>
-                    <textarea 
-                      name="patologiaDescripcion" 
-                      id="patologiaDescripcion" 
-                      placeholder="Detalle de patologías (ej: Hipertensión, Diabetes, Asma...)" 
-                      value={formData.patologiaDescripcion} 
-                      onChange={handleInputChange} 
-                      className={errors.patologiaDescripcion ? "has-error" : ""}
+                  <div className="form-group">
+                    <label htmlFor="nombreApellido">Nombre y Apellido<span className="required-star">*</span></label>
+                    <input
+                      type="text"
+                      name="nombreApellido"
+                      id="nombreApellido"
+                      placeholder="Nombre completo"
+                      value={formData.nombreApellido}
+                      onChange={handleInputChange}
+                      className={errors.nombreApellido ? "has-error" : ""}
                     />
                     <div className="error-container">
-                      {errors.patologiaDescripcion && <span className="field-error-message">{errors.patologiaDescripcion}</span>}
+                      {errors.nombreApellido && <span className="field-error-message">{errors.nombreApellido}</span>}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Género<span className="required-star">*</span></label>
+                    <div className="radio-group">
+                      <label
+                        className={`radio-card ${formData.genero === "MASCULINO" ? "selected" : ""} ${errors.genero ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input
+                          type="radio"
+                          name="genero"
+                          value="MASCULINO"
+                          checked={formData.genero === "MASCULINO"}
+                          onChange={(e) => {
+                            handleInputChange(e);
+                            setTimeout(() => document.getElementById("fechaNacimiento")?.focus(), 50);
+                          }}
+                        />
+                        MASCULINO
+                      </label>
+                      <label
+                        className={`radio-card ${formData.genero === "FEMENINO" ? "selected" : ""} ${errors.genero ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input
+                          type="radio"
+                          name="genero"
+                          value="FEMENINO"
+                          checked={formData.genero === "FEMENINO"}
+                          onChange={(e) => {
+                            handleInputChange(e);
+                            setTimeout(() => document.getElementById("fechaNacimiento")?.focus(), 50);
+                          }}
+                        />
+                        FEMENINO
+                      </label>
+                    </div>
+                    <div className="error-container">
+                      {errors.genero && <span className="field-error-message">{errors.genero}</span>}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="fechaNacimiento">Fecha de Nacimiento (DD/MM/AAAA)<span className="required-star">*</span></label>
+                    <input
+                      type="text"
+                      name="fechaNacimiento"
+                      id="fechaNacimiento"
+                      inputMode="numeric"
+                      placeholder="DD/MM/AAAA (ej: 15/05/1990)"
+                      value={formData.fechaNacimiento}
+                      onChange={handleInputChange}
+                      className={errors.fechaNacimiento ? "has-error" : ""}
+                    />
+                    <div className="error-container">
+                      {errors.fechaNacimiento && <span className="field-error-message">{errors.fechaNacimiento}</span>}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edad">Edad (calculada automáticamente)</label>
+                    <input
+                      type="number"
+                      name="edad"
+                      id="edad"
+                      placeholder="—"
+                      value={formData.edad}
+                      onChange={handleInputChange}
+                      disabled
+                      className="input-disabled"
+                    />
+                    <div className="error-container"></div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Teléfono de Contacto<span className="required-star">*</span></label>
+                    <div className="field-row-phone">
+                      <div className="native-select-wrapper">
+                        <select
+                          className="native-select"
+                          value={formData.telefonoCod}
+                          onChange={(e) => dispatch({ type: "SET", field: "telefonoCod", value: e.target.value })}
+                        >
+                          {["0424", "0414", "0416", "0426", "0412", "0422", "0212"].map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                        <svg className="native-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      </div>
+                      <input
+                        type="text"
+                        name="telefonoNum"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="7 dígitos"
+                        value={formData.telefonoNum}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 7);
+                          dispatch({ type: "SET", field: "telefonoNum", value: val });
+                          setErrors(prev => ({ ...prev, telefonoNum: validateField("telefonoNum", val) }));
+                        }}
+                        className={errors.telefonoNum ? "has-error" : ""}
+                      />
+                    </div>
+                    <div className="error-container">
+                      {errors.telefonoNum && <span className="field-error-message">{errors.telefonoNum}</span>}
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* GPS indicator */}
-              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", gap: "0.25rem", alignItems: "center" }}>
-                {coords.lat && coords.lng ? (
-                  <span style={{ color: "var(--color-success)" }}>
-                    Coordenadas satelitales GPS fijadas: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-                  </span>
-                ) : (
-                  <span>Capturando coordenadas satelitales GPS...</span>
+              {/* PASO 3: Grupo Familiar */}
+              {step === 3 && (
+                <div className="form-section form-step-content">
+                  <div className="form-group">
+                    <label>¿Pertenece a un núcleo familiar?<span className="required-star">*</span></label>
+                    <div className="radio-group">
+                      <label
+                        className={`radio-card ${formData.perteneceNucleo === "SI" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="perteneceNucleo" value="SI" checked={formData.perteneceNucleo === "SI"} onChange={handleInputChange} />
+                        SI
+                      </label>
+                      <label
+                        className={`radio-card ${formData.perteneceNucleo === "NO" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="perteneceNucleo" value="NO" checked={formData.perteneceNucleo === "NO"} onChange={handleInputChange} />
+                        NO
+                      </label>
+                    </div>
+                    <div className="error-container">
+                      {errors.perteneceNucleo && <span className="field-error-message">{errors.perteneceNucleo}</span>}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>¿Usted es el Jefe de Familia?<span className="required-star">*</span></label>
+                    <div className="radio-group">
+                      <label
+                        className={`radio-card ${formData.jefeFamilia === "SI" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="jefeFamilia" value="SI" checked={formData.jefeFamilia === "SI"} onChange={handleInputChange} />
+                        SI
+                      </label>
+                      <label
+                        className={`radio-card ${formData.jefeFamilia === "NO" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="jefeFamilia" value="NO" checked={formData.jefeFamilia === "NO"} onChange={handleInputChange} />
+                        NO
+                      </label>
+                    </div>
+                    <div className="error-container">
+                      {errors.jefeFamilia && <span className="field-error-message">{errors.jefeFamilia}</span>}
+                    </div>
+                  </div>
+
+                  <div className={`conditional-wrapper ${formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO" ? "open" : ""}`}>
+                    <div className="conditional-inner">
+                      <label htmlFor="cedulaJefeFamilia">Cédula del Jefe de Familia<span className="required-star">*</span></label>
+                      <input
+                        type="text"
+                        name="cedulaJefeFamilia"
+                        id="cedulaJefeFamilia"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Cédula del jefe del núcleo"
+                        value={formData.cedulaJefeFamilia}
+                        onChange={handleInputChange}
+                        className={errors.cedulaJefeFamilia ? "has-error" : ""}
+                      />
+                      <div className="error-container">
+                        {errors.cedulaJefeFamilia && <span className="field-error-message">{errors.cedulaJefeFamilia}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASO 4: Estado de Salud */}
+              {step === 4 && (
+                <div className="form-section form-step-content">
+                  <div className="form-group">
+                    <label>Estado Físico Actual<span className="required-star">*</span></label>
+                    <div className="radio-group">
+                      <label
+                        className={`radio-card ${formData.estadoFisico === "ILESO" ? "selected" : ""} ${errors.estadoFisico ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="estadoFisico" value="ILESO" checked={formData.estadoFisico === "ILESO"} onChange={handleInputChange} />
+                        ILESO
+                      </label>
+                      <label
+                        className={`radio-card ${formData.estadoFisico === "LESIONADO" ? "selected" : ""} ${errors.estadoFisico ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="estadoFisico" value="LESIONADO" checked={formData.estadoFisico === "LESIONADO"} onChange={handleInputChange} />
+                        LESIONADO
+                      </label>
+                    </div>
+                    <div className="error-container">
+                      {errors.estadoFisico && <span className="field-error-message">{errors.estadoFisico}</span>}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>¿Posee alguna patología crónica?<span className="required-star">*</span></label>
+                    <div className="radio-group">
+                      <label
+                        className={`radio-card ${formData.patologia === "SI" ? "selected" : ""} ${errors.patologia ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="patologia" value="SI" checked={formData.patologia === "SI"} onChange={handleInputChange} />
+                        SI
+                      </label>
+                      <label
+                        className={`radio-card ${formData.patologia === "NO" ? "selected" : ""} ${errors.patologia ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="patologia" value="NO" checked={formData.patologia === "NO"} onChange={handleInputChange} />
+                        NO
+                      </label>
+                    </div>
+                    <div className="error-container">
+                      {errors.patologia && <span className="field-error-message">{errors.patologia}</span>}
+                    </div>
+                  </div>
+
+                  <div className={`conditional-wrapper ${formData.patologia === "SI" ? "open" : ""}`}>
+                    <div className="conditional-inner">
+                      <label htmlFor="patologiaDescripcion">Describa la patología y medicamentos requeridos<span className="required-star">*</span></label>
+                      <textarea
+                        name="patologiaDescripcion"
+                        id="patologiaDescripcion"
+                        placeholder="Detalle de patologías (ej: Hipertensión, Diabetes, Asma...)"
+                        value={formData.patologiaDescripcion}
+                        onChange={handleInputChange}
+                        className={errors.patologiaDescripcion ? "has-error" : ""}
+                      />
+                      <div className="error-container">
+                        {errors.patologiaDescripcion && <span className="field-error-message">{errors.patologiaDescripcion}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Navegación del asistente */}
+              <div className="form-section-submit">
+                {step === 4 && (
+                  <div className={`gps-status ${coords.lat && coords.lng ? "gps-status--active" : "gps-status--inactive"}`}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+                    {coords.lat && coords.lng
+                      ? `GPS: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
+                      : "Adquiriendo señal GPS..."}
+                  </div>
                 )}
+                <div className="wizard-nav">
+                  {step > 1 && (
+                    <button
+                      type="button"
+                      className="btn-back"
+                      onClick={() => setStep(s => (s - 1) as 1 | 2 | 3 | 4)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                      Atrás
+                    </button>
+                  )}
+                  {step < 4 ? (
+                    <button
+                      type="button"
+                      className="btn-submit"
+                      onClick={handleNextStep}
+                    >
+                      Continuar
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="btn-submit"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Guardando..." : "Registrar Familia Afectada"}
+                    </button>
+                  )}
+                </div>
               </div>
-
-              {/* Submit Button */}
-              <button type="submit" className="btn-submit">
-                Registrar Familia Afectada
-              </button>
             </form>
           ) : (
-            <div className="form-card" style={{ textAlign: "center", padding: "3rem 1.5rem" }}>
+            <div className="form-card form-card--centered">
               <p style={{ fontWeight: "bold" }}>Acceso no permitido.</p>
             </div>
           )}
         </>
       )}
 
-      {/* TAB 2: DASHBOARD VIEW */}
-      {activeTab === "dashboard" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
+      {activeTab === "dashboard" && currentUser.role === "ADMIN" && (
+        <div className="tab-view">
           
           {/* Connection status notification for stats */}
           {!isOnline && (
-            <div className="status-bar" style={{ borderLeftColor: "var(--color-warning)", background: "rgba(245, 158, 11, 0.05)" }}>
+            <div className="status-bar status-bar--warning">
               <div className="status-indicator">
                 <span className="status-dot offline"></span>
-                <span style={{ color: "var(--color-warning)" }}>Modo Offline: Estadísticas de registros locales</span>
+                <span className="text-warning">Modo Offline: Estadísticas de registros locales</span>
               </div>
             </div>
           )}
 
           {loadingStats ? (
-            <div className="form-card" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "200px" }}>
-              <span className="spinner" style={{ width: "30px", height: "30px" }}></span>
-              <span style={{ marginLeft: "0.5rem", fontSize: "0.9rem" }}>Cargando métricas consolidadas...</span>
+            <div className="form-card loading-center">
+              <span className="spinner spinner-lg"></span>
+              <span>Cargando métricas consolidadas...</span>
             </div>
           ) : (
             <>
@@ -1637,18 +1890,18 @@ export default function Home() {
                 <div className="stat-card stat-card--primary">
                   <div className="stat-card-header">
                     <span className="stat-label">Total Registrados</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "16px", height: "16px" }} className="stat-icon stat-icon-primary"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-primary"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                   </div>
                   <span className="stat-value">{currentStats.total}</span>
                 </div>
                 <div className="stat-card stat-card--warning">
                   <div className="stat-card-header">
                     <span className="stat-label">Menores (&lt;18)</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "16px", height: "16px" }} className="stat-icon stat-icon-warning"><path d="M14 18a6 6 0 0 0-12 0" /><circle cx="8" cy="8" r="4" /><path d="M12 11h8" /><path d="M12 15h6" /></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-warning"><path d="M14 18a6 6 0 0 0-12 0" /><circle cx="8" cy="8" r="4" /><path d="M12 11h8" /><path d="M12 15h6" /></svg>
                   </div>
                   <span className="stat-value">
                     {currentStats.menores || 0}
-                    <span style={{ fontSize: "0.75rem", fontWeight: "normal", color: "var(--text-muted)", marginLeft: "0.25rem" }}>
+                    <span className="stat-pct">
                       ({currentStats.total > 0 ? ((currentStats.menores / currentStats.total) * 100).toFixed(1) : 0}%)
                     </span>
                   </span>
@@ -1656,11 +1909,11 @@ export default function Home() {
                 <div className="stat-card stat-card--success">
                   <div className="stat-card-header">
                     <span className="stat-label">Adultos (18-59)</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "16px", height: "16px" }} className="stat-icon stat-icon-success"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-success"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
                   </div>
                   <span className="stat-value">
                     {currentStats.adultos || 0}
-                    <span style={{ fontSize: "0.75rem", fontWeight: "normal", color: "var(--text-muted)", marginLeft: "0.25rem" }}>
+                    <span className="stat-pct">
                       ({currentStats.total > 0 ? ((currentStats.adultos / currentStats.total) * 100).toFixed(1) : 0}%)
                     </span>
                   </span>
@@ -1668,11 +1921,11 @@ export default function Home() {
                 <div className="stat-card stat-card--violet">
                   <div className="stat-card-header">
                     <span className="stat-label">Mayores (60+)</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "16px", height: "16px" }} className="stat-icon stat-icon-violet"><path d="M20 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M2 21h12" /><circle cx="8" cy="7" r="4" /></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-violet"><path d="M20 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M2 21h12" /><circle cx="8" cy="7" r="4" /></svg>
                   </div>
                   <span className="stat-value">
                     {currentStats.mayores || 0}
-                    <span style={{ fontSize: "0.75rem", fontWeight: "normal", color: "var(--text-muted)", marginLeft: "0.25rem" }}>
+                    <span className="stat-pct">
                       ({currentStats.total > 0 ? ((currentStats.mayores / currentStats.total) * 100).toFixed(1) : 0}%)
                     </span>
                   </span>
@@ -1680,7 +1933,7 @@ export default function Home() {
                 <div className="stat-card stat-card--muted">
                   <div className="stat-card-header">
                     <span className="stat-label">Edad Promedio</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "16px", height: "16px" }} className="stat-icon stat-icon-muted"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-muted"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                   </div>
                   <span className="stat-value">{currentStats.promedioEdad || 0} años</span>
                 </div>
@@ -1699,9 +1952,9 @@ export default function Home() {
                       const pAd  = (currentStats.adultos  || 0) / t * 100;
                       const pMay = (currentStats.mayores  || 0) / t * 100;
                       const segs = [
-                        { pct: pMen, count: currentStats.menores || 0, color: "#d97706" },
-                        { pct: pAd,  count: currentStats.adultos  || 0, color: "#059669" },
-                        { pct: pMay, count: currentStats.mayores  || 0, color: "#7c3aed" }
+                        { pct: pMen, count: currentStats.menores || 0, color: "var(--chart-menores)" },
+                        { pct: pAd,  count: currentStats.adultos  || 0, color: "var(--chart-adultos)" },
+                        { pct: pMay, count: currentStats.mayores  || 0, color: "var(--chart-mayores)" }
                       ];
                       return (
                         <>
@@ -1717,9 +1970,9 @@ export default function Home() {
                             ))}
                           </div>
                           <div className="segmented-bar-legend">
-                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "#d97706" }}></span> Menores ({pMen.toFixed(1)}%)</span>
-                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "#059669" }}></span> Adultos ({pAd.toFixed(1)}%)</span>
-                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "#7c3aed" }}></span> Mayores ({pMay.toFixed(1)}%)</span>
+                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-menores)" }}></span> Menores ({pMen.toFixed(1)}%)</span>
+                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-adultos)" }}></span> Adultos ({pAd.toFixed(1)}%)</span>
+                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-mayores)" }}></span> Mayores ({pMay.toFixed(1)}%)</span>
                           </div>
                         </>
                       );
@@ -1749,9 +2002,9 @@ export default function Home() {
                     const cy = 50;
                     const circ = 2 * Math.PI * r;
                     const segments = [
-                      { count: f, pct: pFem,  color: "#db2777", label: "Femenino"  },
-                      { count: m, pct: pMasc, color: "#2563eb", label: "Masculino" },
-                      { count: o, pct: pOtro, color: "#64748b", label: "No especif." }
+                      { count: f, pct: pFem,  color: "var(--chart-femenino)",  label: "Femenino"  },
+                      { count: m, pct: pMasc, color: "var(--chart-masculino)", label: "Masculino" },
+                      { count: o, pct: pOtro, color: "var(--chart-otro)",      label: "No especif." }
                     ];
                     let offset = 0;
                     const arcs = segments.map(seg => {
@@ -1872,22 +2125,22 @@ export default function Home() {
               <div className="dashboard-section">
                 <h3 className="dashboard-section-title">Afectados por Parroquia</h3>
                 {currentStats.byParroquia.length === 0 ? (
-                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "1rem 0" }}>
+                  <p className="data-empty">
                     No hay datos registrados aún.
                   </p>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <div className="bar-list">
                     {[...currentStats.byParroquia]
                       .sort((a: any, b: any) => b.count - a.count)
                       .map((p: any, i: number) => {
                         const pct = currentStats.total > 0 ? Math.round((p.count / currentStats.total) * 100) : 0;
                         return (
-                          <div key={p.name} style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.775rem", fontWeight: "700" }}>
+                          <div key={p.name} className="bar-item">
+                            <div className="bar-item-header">
                               <span>{p.name}</span>
-                              <span style={{ color: "var(--text-secondary)" }}>{p.count} <span style={{ fontWeight: "normal", color: "var(--text-muted)" }}>({pct}%)</span></span>
+                              <span className="bar-item-meta">{p.count} <span className="bar-item-pct">({pct}%)</span></span>
                             </div>
-                            <div style={{ width: "100%", height: "8px", background: "var(--border-color)", borderRadius: "4px", overflow: "hidden" }}>
+                            <div className="bar-track">
                               <div
                                 className="parroquia-bar"
                                 style={{
@@ -1906,12 +2159,12 @@ export default function Home() {
               {/* Salud y Condición Física */}
               <div className="dashboard-section">
                 <h3 className="dashboard-section-title">Salud y Condición Física</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div className="tab-view" style={{ gap: "1rem" }}>
                   {/* Estado Físico - Gauges semicirculares SVG */}
                   <div>
-                    <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "0.75rem", fontWeight: "700" }}>Estado Físico</h4>
+                    <h4 className="subsection-title">Estado Físico</h4>
                     {currentStats.byEstadoFisico.length === 0 ? (
-                      <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Sin datos</p>
+                      <p className="data-empty-sm">Sin datos</p>
                     ) : (
                       (() => {
                         const ileso    = currentStats.byEstadoFisico.find((e: any) => e.name === "ILESO")?.count || 0;
@@ -1924,8 +2177,8 @@ export default function Home() {
                           return `${filled} ${halfCirc - filled}`;
                         };
                         const gauges = [
-                          { label: "Ilesos",    count: ileso,    pct: (ileso / t * 100),    color: "#059669", track: "rgba(5,150,105,0.12)" },
-                          { label: "Lesionados", count: lesionado, pct: (lesionado / t * 100), color: "#ef4444", track: "rgba(239,68,68,0.12)" }
+                          { label: "Ilesos",     count: ileso,    pct: (ileso    / t * 100), color: "var(--chart-ileso)",    track: "var(--chart-ileso-track)" },
+                          { label: "Lesionados", count: lesionado, pct: (lesionado / t * 100), color: "var(--chart-lesionado)", track: "var(--chart-lesionado-track)" }
                         ];
                         return (
                           <div className="gauge-wrapper">
@@ -1952,22 +2205,22 @@ export default function Home() {
 
                   {/* Patologías Crónicas */}
                   <div>
-                    <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "0.4rem", fontWeight: "700" }}>Patologías Crónicas</h4>
+                    <h4 className="subsection-title subsection-title--compact">Patologías Crónicas</h4>
                     {currentStats.byPatologia.length === 0 ? (
-                      <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Sin datos</p>
+                      <p className="data-empty-sm">Sin datos</p>
                     ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      <div className="bar-list bar-list--sm">
                         {currentStats.byPatologia.map((pat: any) => {
                           const percentage = currentStats.total > 0 ? Math.round((pat.count / currentStats.total) * 100) : 0;
                           const barColor = pat.name === "SI" ? "var(--color-warning)" : "#94a3b8";
                           return (
-                            <div key={pat.name} style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.725rem", fontWeight: "700" }}>
+                            <div key={pat.name} className="bar-item">
+                              <div className="bar-item-header bar-item-header--sm">
                                 <span>{pat.name === "SI" ? "SÍ POSEE PATOLOGÍA" : "NO POSEE PATOLOGÍA"}</span>
                                 <span>{pat.count} ({percentage}%)</span>
                               </div>
-                              <div style={{ width: "100%", height: "6px", background: "var(--border-color)", borderRadius: "3px", overflow: "hidden" }}>
-                                <div style={{ width: `${percentage}%`, height: "100%", background: barColor, borderRadius: "3px" }}></div>
+                              <div className="bar-track-sm">
+                                <div className="bar-fill" style={{ width: `${percentage}%`, background: barColor }}></div>
                               </div>
                             </div>
                           );
@@ -1984,11 +2237,11 @@ export default function Home() {
 
       {/* TAB 3: USER ADMINISTRATION (ADMIN ONLY) */}
       {activeTab === "usuarios" && currentUser.role === "ADMIN" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div className="tab-view">
           
           {/* User Registration Form Card */}
           <form onSubmit={handleCreateUser} className="form-card">
-            <div className="form-section" style={{ gap: "1rem" }}>
+            <div className="form-section form-section--gap-md">
               <div className="section-title">
                 Crear Nuevo Usuario
               </div>
@@ -2083,28 +2336,28 @@ export default function Home() {
           <div className="history-card">
             <span className="history-title">OPERADORES DEL SISTEMA</span>
             {!isOnline && (
-              <p style={{ fontSize: "0.75rem", color: "var(--color-warning)", margin: "0.5rem 0", fontWeight: "700" }}>
+              <p className="status-msg status-msg--warning" style={{ margin: "0.5rem 0" }}>
                 Sin conexión. No es posible listar o actualizar operadores.
               </p>
             )}
             
             {loadingUsers ? (
-              <div style={{ display: "flex", justifyContent: "center", padding: "1rem 0" }}>
+              <div className="loading-center" style={{ minHeight: "unset", padding: "1rem 0" }}>
                 <span className="spinner"></span>
               </div>
             ) : systemUsers.length === 0 ? (
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "1rem 0" }}>
+              <p className="data-empty">
                 No hay operadores cargados o se requiere conexión para consultar.
               </p>
             ) : (
-              <div className="history-list" style={{ marginTop: "0.5rem" }}>
+              <div className="history-list history-list--mt">
                 {systemUsers.map((usr) => (
-                  <div className="history-item" key={usr.id} style={{ padding: "0.6rem 0.8rem" }}>
+                  <div className="history-item" key={usr.id}>
                     <div className="history-item-info">
                       <span className="history-item-name">{usr.nombre}</span>
                       <span className="history-item-meta">{usr.email}</span>
                     </div>
-                    <span className="queue-badge" style={{ background: usr.role === "ADMIN" ? "var(--color-primary-light)" : "var(--bg-primary)" }}>
+                    <span className={`queue-badge ${usr.role === "ADMIN" ? "queue-badge--role-admin" : "queue-badge--role-registrador"}`}>
                       {usr.role}
                     </span>
                   </div>
@@ -2117,24 +2370,24 @@ export default function Home() {
 
       {/* TAB 4: CONFIGURATION & DATABASE STATS VIEW */}
       {activeTab === "config" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div className="tab-view">
           
           {/* Operator Profile Details */}
-          <div className="history-card" style={{ gap: "0.5rem" }}>
+          <div className="history-card history-card--gap-sm">
             <span className="history-title">PERFIL DE OPERADOR</span>
-            <div style={{ fontSize: "0.8rem", display: "grid", gridTemplateColumns: "100px 1fr", gap: "0.5rem" }}>
-              <span style={{ color: "var(--text-secondary)" }}>Nombre:</span>
+            <div className="profile-grid">
+              <span className="profile-grid-label">Nombre:</span>
               <strong>{currentUser.nombre}</strong>
-              <span style={{ color: "var(--text-secondary)" }}>Usuario:</span>
+              <span className="profile-grid-label">Usuario:</span>
               <strong>{currentUser.email}</strong>
-              <span style={{ color: "var(--text-secondary)" }}>Rol:</span>
-              <strong style={{ color: "var(--color-primary)" }}>{currentUser.role}</strong>
+              <span className="profile-grid-label">Rol:</span>
+              <strong className="profile-grid-value-accent">{currentUser.role}</strong>
             </div>
           </div>
 
           {/* Voter Database Management */}
-          <div className="history-card" style={{ gap: "0.75rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="history-card">
+            <div className="card-header-row">
               <span className="history-title" style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
                 Padrón Electoral Local
               </span>
@@ -2142,7 +2395,7 @@ export default function Home() {
                 <button 
                   type="button" 
                   onClick={deletePadronLocal}
-                  style={{ background: "none", border: "none", color: "var(--color-danger)", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer" }}
+                  className="btn-link-danger"
                 >
                   Borrar local
                 </button>
@@ -2150,11 +2403,11 @@ export default function Home() {
             </div>
 
             {votersCount > 0 ? (
-              <div style={{ fontSize: "0.8rem", color: "var(--color-success)", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+              <div className="padron-installed">
                 Padrón electoral instalado ({votersCount.toLocaleString()} ciudadanos)
               </div>
             ) : (
-              <div style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: "700" }}>
+              <div className="padron-missing">
                 Padrón offline no instalado. El censo no autocompletará datos.
               </div>
             )}
@@ -2164,46 +2417,46 @@ export default function Home() {
                 type="button" 
                 onClick={downloadFullPadron} 
                 disabled={!isOnline}
-                className="btn-submit"
-                style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", borderRadius: "10px" }}
+                className="btn-submit btn-submit--sm"
               >
                 Descargar Padrón Completo
               </button>
             )}
 
             {syncStatus === "downloading" && (
-              <div style={{ fontSize: "0.8rem", color: "var(--color-warning)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <div className="status-msg status-msg--warning">
                 <span className="spinner"></span> Descargando datos del padrón...
               </div>
             )}
 
             {syncStatus === "saving" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                <div style={{ fontSize: "0.8rem", color: "var(--color-warning)", display: "flex", justifyContent: "space-between" }}>
-                  <span>Guardando en base IndexedDB local...</span>
-                  <span>{syncProgress.toLocaleString()} / {syncTotal.toLocaleString()}</span>
+                <div className="padron-status-count-row status-msg--warning">
+                  <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <span className="spinner spinner-sm"></span>
+                    Guardando en dispositivo...
+                  </span>
+                  <span className="tabular-num">
+                    {syncProgress.toLocaleString()} reg.
+                  </span>
                 </div>
-                <div style={{ width: "100%", height: "6px", background: "var(--glass-border)", borderRadius: "3px", overflow: "hidden" }}>
-                  <div 
-                    style={{ 
-                      width: `${(syncProgress / syncTotal) * 100}%`, 
-                      height: "100%", 
-                      background: "var(--color-warning)", 
-                      transition: "width 0.1s ease" 
-                    }}
-                  ></div>
+                <div className="padron-progress-track">
+                  <div
+                    className="padron-indeterminate-bar"
+                    style={{ height: "100%", background: "var(--color-warning)" }}
+                  />
                 </div>
               </div>
             )}
 
             {syncStatus === "completed" && (
-              <div style={{ fontSize: "0.8rem", color: "var(--color-success)", fontWeight: "700" }}>
+              <div className="status-msg status-msg--success">
                 Instalación completa. Ciudadanos listos para lookup local.
               </div>
             )}
 
             {syncStatus === "error" && (
-              <div style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: "700" }}>
+              <div className="status-msg status-msg--danger">
                 Error al descargar el padrón. Verifique conexión de internet.
               </div>
             )}
@@ -2211,27 +2464,25 @@ export default function Home() {
 
           {/* Backup warning panels */}
           {pendingCount > 0 && (
-            <div className="history-card" style={{ border: "1px dashed var(--color-warning)", background: "rgba(245, 158, 11, 0.02)", gap: "0.5rem" }}>
-              <span className="history-title" style={{ color: "var(--color-warning)", display: "flex", alignItems: "center", gap: "0.375rem" }}>
+            <div className="history-card history-card--alert history-card--gap-sm">
+              <span className="history-title text-warning" style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
                 Respaldo y Transferencia de Emergencia
               </span>
               <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", lineHeight: "1.3" }}>
                 Posee {pendingCount} registros locales en cola. Si necesita transferirlos a otro dispositivo offline por contingencia de red, use las siguientes opciones:
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.25rem" }}>
+              <div className="transfer-grid">
                 <button 
                   type="button" 
                   onClick={handleExportJSON}
-                  className="radio-card"
-                  style={{ borderColor: "rgba(255, 255, 255, 0.1)", background: "rgba(255, 255, 255, 0.02)", cursor: "pointer", fontSize: "0.8rem" }}
+                  className="radio-card transfer-btn"
                 >
                   Exportar Respaldo (JSON)
                 </button>
                 <button 
                   type="button" 
                   onClick={handleGenerateQRs}
-                  className="radio-card"
-                  style={{ borderColor: "rgba(99, 102, 241, 0.3)", background: "rgba(99, 102, 241, 0.05)", color: "var(--color-primary)", cursor: "pointer", fontSize: "0.8rem" }}
+                  className="radio-card transfer-btn transfer-btn--primary"
                 >
                   Generar Lotes (QR)
                 </button>
@@ -2240,21 +2491,21 @@ export default function Home() {
           )}
 
           {/* Sync Detailed Audit Queue List */}
-          <div className="history-card" style={{ gap: "0.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="history-card history-card--gap-sm">
+            <div className="card-header-row">
               <span className="history-title">Auditoría y Registros Locales</span>
               <button 
                 type="button" 
                 onClick={triggerSync} 
                 disabled={isSyncing || !isOnline}
-                style={{ background: "none", border: "none", color: "var(--color-primary)", fontWeight: "bold", fontSize: "0.75rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.2rem" }}
+                className="btn-link"
               >
                 Sincronizar cola
               </button>
             </div>
 
             {localRecords.length === 0 ? (
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "1.5rem 0" }}>
+              <p className="data-empty">
                 No hay registros cargados en este dispositivo.
               </p>
             ) : (
@@ -2294,6 +2545,317 @@ export default function Home() {
         </div>
       )}
 
+      {/* TAB 4: ASIGNACIONES (ADMIN ONLY) */}
+      {activeTab === "asignaciones" && currentUser.role === "ADMIN" && (
+        <div className="tab-view">
+          <div className="dashboard-section">
+            <div className="dashboard-section-title">
+              Asignaciones de Alojamiento
+            </div>
+
+            <div className="form-group">
+              <input
+                type="text"
+                placeholder="Buscar por nombre o cédula..."
+                value={registroSearch}
+                onChange={e => setRegistroSearch(e.target.value)}
+              />
+            </div>
+
+            {loadingRegistros ? (
+              <div className="text-muted" style={{ textAlign: "center", padding: "1.5rem" }}>
+                Cargando registros...
+              </div>
+            ) : registros.filter(r => {
+                const q = registroSearch.toLowerCase();
+                return !q || r.nombreApellido?.toLowerCase().includes(q) || r.cedula?.toLowerCase().includes(q);
+              }).length === 0 ? (
+              <div className="text-muted" style={{ textAlign: "center", padding: "1.5rem" }}>
+                {registroSearch ? "Sin resultados para la búsqueda." : "No hay afectados registrados en la base de datos."}
+              </div>
+            ) : (
+              <div className="registro-list">
+                {registros
+                  .filter(r => {
+                    const q = registroSearch.toLowerCase();
+                    return !q || r.nombreApellido?.toLowerCase().includes(q) || r.cedula?.toLowerCase().includes(q);
+                  })
+                  .map(reg => (
+                    <div
+                      key={reg.id}
+                      className="registro-list-item"
+                      onClick={() => {
+                        setSelectedRegistro(reg);
+                        setAsignCuarto(reg.cuarto || "");
+                        setEditMode(false);
+                        setEditData({});
+                      }}
+                    >
+                      <div className="registro-list-info">
+                        <div className="registro-list-name">{reg.nombreApellido}</div>
+                        <div className="registro-list-meta">
+                          {reg.cedula} &bull; {reg.parroquia}
+                        </div>
+                      </div>
+                      {reg.cuarto ? (
+                        <span className="cuarto-badge cuarto-badge--assigned">{reg.cuarto}</span>
+                      ) : (
+                        <span className="cuarto-badge cuarto-badge--none">Sin asignar</span>
+                      )}
+                    </div>
+                  ))
+                }
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Registro Detail & Asignación Modal */}
+      {selectedRegistro && (
+        <div className="modal-overlay" onClick={() => { setSelectedRegistro(null); setEditMode(false); }}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title" style={{ color: "var(--color-primary)" }}>
+                {editMode ? "EDITAR REGISTRO" : "DETALLE DEL AFECTADO"}
+              </span>
+              <button
+                className="modal-close"
+                onClick={() => { setSelectedRegistro(null); setEditMode(false); }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            {!editMode ? (
+              <>
+                <div className="detail-grid">
+                  <div className="detail-field detail-field--full">
+                    <span className="detail-label">Nombre y Apellido</span>
+                    <span className="detail-value">{selectedRegistro.nombreApellido}</span>
+                  </div>
+                  <div className="detail-field">
+                    <span className="detail-label">Cédula</span>
+                    <span className="detail-value">{selectedRegistro.cedula}</span>
+                  </div>
+                  <div className="detail-field">
+                    <span className="detail-label">Edad</span>
+                    <span className="detail-value">{selectedRegistro.edad} años</span>
+                  </div>
+                  <div className="detail-field">
+                    <span className="detail-label">Género</span>
+                    <span className="detail-value">{selectedRegistro.genero}</span>
+                  </div>
+                  <div className="detail-field">
+                    <span className="detail-label">Estado Físico</span>
+                    <span className={`detail-value ${selectedRegistro.estadoFisico === "LESIONADO" ? "text-danger" : "text-success"}`}>
+                      {selectedRegistro.estadoFisico}
+                    </span>
+                  </div>
+                  <div className="detail-field detail-field--full">
+                    <span className="detail-label">Parroquia</span>
+                    <span className="detail-value">{selectedRegistro.parroquia}</span>
+                  </div>
+                  <div className="detail-field detail-field--full">
+                    <span className="detail-label">Sector / Comunidad</span>
+                    <span className="detail-value">{selectedRegistro.sector} — {selectedRegistro.comunidad}</span>
+                  </div>
+                  <div className="detail-field detail-field--full">
+                    <span className="detail-label">Dirección</span>
+                    <span className="detail-value">{selectedRegistro.direccionExacta}</span>
+                  </div>
+                  {selectedRegistro.telefono && (
+                    <div className="detail-field">
+                      <span className="detail-label">Teléfono</span>
+                      <span className="detail-value">{selectedRegistro.telefono}</span>
+                    </div>
+                  )}
+                  {selectedRegistro.patologia === "SI" && (
+                    <div className="detail-field detail-field--full">
+                      <span className="detail-label">Patología</span>
+                      <span className="detail-value">{selectedRegistro.patologiaDescripcion || "Sí"}</span>
+                    </div>
+                  )}
+                  {selectedRegistro.cuarto && (
+                    <div className="detail-field detail-field--full">
+                      <span className="detail-label">Cuarto Asignado</span>
+                      <span className="detail-value text-success" style={{ fontWeight: 700 }}>{selectedRegistro.cuarto}</span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setEditMode(true);
+                    setEditData({
+                      nombreApellido: selectedRegistro.nombreApellido,
+                      parroquia: selectedRegistro.parroquia,
+                      sector: selectedRegistro.sector,
+                      comunidad: selectedRegistro.comunidad,
+                      direccionExacta: selectedRegistro.direccionExacta,
+                      genero: selectedRegistro.genero,
+                      estadoFisico: selectedRegistro.estadoFisico,
+                      patologia: selectedRegistro.patologia,
+                      patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
+                      telefono: selectedRegistro.telefono || "",
+                    });
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Editar Registro
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="detail-edit-grid">
+                  <div className="form-group detail-field--full">
+                    <label>Nombre y Apellido</label>
+                    <input
+                      type="text"
+                      value={editData.nombreApellido || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, nombreApellido: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Parroquia</label>
+                    <input
+                      type="text"
+                      value={editData.parroquia || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, parroquia: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Sector</label>
+                    <input
+                      type="text"
+                      value={editData.sector || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, sector: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Comunidad</label>
+                    <input
+                      type="text"
+                      value={editData.comunidad || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, comunidad: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Género</label>
+                    <select
+                      value={editData.genero || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, genero: e.target.value }))}
+                    >
+                      <option value="MASCULINO">Masculino</option>
+                      <option value="FEMENINO">Femenino</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Estado Físico</label>
+                    <select
+                      value={editData.estadoFisico || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, estadoFisico: e.target.value }))}
+                    >
+                      <option value="ILESO">Ileso</option>
+                      <option value="LESIONADO">Lesionado</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Patología</label>
+                    <select
+                      value={editData.patologia || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, patologia: e.target.value }))}
+                    >
+                      <option value="NO">No</option>
+                      <option value="SI">Sí</option>
+                    </select>
+                  </div>
+                  {editData.patologia === "SI" && (
+                    <div className="form-group detail-field--full">
+                      <label>Descripción de Patología</label>
+                      <input
+                        type="text"
+                        value={editData.patologiaDescripcion || ""}
+                        onChange={e => setEditData(prev => ({ ...prev, patologiaDescripcion: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                  <div className="form-group">
+                    <label>Teléfono</label>
+                    <input
+                      type="text"
+                      value={editData.telefono || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, telefono: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group detail-field--full">
+                    <label>Dirección</label>
+                    <input
+                      type="text"
+                      value={editData.direccionExacta || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, direccionExacta: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="modal-edit-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setEditMode(false)}
+                    disabled={savingEdit}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-submit"
+                    style={{ flex: 1 }}
+                    onClick={handleSaveEdit}
+                    disabled={savingEdit}
+                  >
+                    {savingEdit ? "Guardando..." : "Guardar Cambios"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            <div className="modal-cuarto-section">
+              <div className="section-title">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Asignar Alojamiento
+              </div>
+              <div className="form-group" style={{ marginTop: "0.5rem" }}>
+                <label htmlFor="cuarto-select">Cuarto / Salón</label>
+                <select
+                  id="cuarto-select"
+                  value={asignCuarto}
+                  onChange={e => setAsignCuarto(e.target.value)}
+                >
+                  <option value="">— Seleccionar cuarto —</option>
+                  {CUARTOS.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ marginTop: "0.625rem" }}
+                onClick={handleAsignarCuarto}
+                disabled={savingCuarto || !asignCuarto || asignCuarto === selectedRegistro.cuarto}
+              >
+                {savingCuarto
+                  ? "Guardando..."
+                  : selectedRegistro.cuarto
+                    ? "Reasignar Cuarto"
+                    : "Confirmar Asignación"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* QR Codes Modal */}
       {showQrModal && (
         <div className="modal-overlay" onClick={() => setShowQrModal(false)}>
@@ -2320,8 +2882,9 @@ export default function Home() {
 
       {/* Toast Notification */}
       {toast && (
-        <div className="toast">
-          <span>{toast.message}</span>
+        <div className={`toast toast--${toast.type}`}>
+          <ToastIcon type={toast.type} />
+          <span className="toast-message">{toast.message}</span>
         </div>
       )}
     </div>

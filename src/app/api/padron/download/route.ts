@@ -1,40 +1,64 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request) {
-  try {
-    // Retrieve all electoral records from Supabase
-    // Using select to extract only the required columns and minimize DB footprint
-    const citizens = await prisma.padron.findMany({
-      select: {
-        cedula: true,
-        nacionalidad: true,
-        nombreCompleto: true,
-        sexo: true,
-        fechaNacimiento: true,
-        parroquia: true
+export async function POST() {
+  const encoder = new TextEncoder();
+
+  // Stream records as NDJSON in server-side batches of 500.
+  // The client writes each batch to IndexedDB as it arrives, so even on a
+  // 2G connection the padrón builds up progressively instead of waiting
+  // for the entire payload to download before anything is persisted.
+  const readable = new ReadableStream({
+    async start(controller) {
+      try {
+        let skip = 0;
+        const BATCH = 500;
+
+        while (true) {
+          const batch = await prisma.padron.findMany({
+            select: {
+              cedula: true,
+              nacionalidad: true,
+              nombreCompleto: true,
+              sexo: true,
+              fechaNacimiento: true,
+              parroquia: true,
+            },
+            skip,
+            take: BATCH,
+            orderBy: { cedula: "asc" },
+          });
+
+          if (batch.length === 0) break;
+
+          for (const c of batch) {
+            const line =
+              JSON.stringify([
+                c.cedula,
+                c.nacionalidad,
+                c.nombreCompleto,
+                c.sexo,
+                c.fechaNacimiento.toISOString().slice(0, 10),
+                c.parroquia,
+              ]) + "\n";
+            controller.enqueue(encoder.encode(line));
+          }
+
+          skip += batch.length;
+          if (batch.length < BATCH) break;
+        }
+
+        controller.close();
+      } catch (err) {
+        controller.error(err);
       }
-    });
+    },
+  });
 
-    console.log(`Exportando padrón completo de ${citizens.length} registros para descarga...`);
-
-    // Format as a raw Array of Arrays to avoid repeating JSON keys (saves 65% bandwidth)
-    // Structure: [ [cedula, nacionalidad, nombreCompleto, sexo, fechaNacimiento, parroquia] ]
-    const optimizedList = citizens.map(c => [
-      c.cedula,
-      c.nacionalidad,
-      c.nombreCompleto,
-      c.sexo,
-      c.fechaNacimiento.toISOString().slice(0, 10), // "YYYY-MM-DD"
-      c.parroquia
-    ]);
-
-    return NextResponse.json(optimizedList);
-  } catch (error: any) {
-    console.error("Error en API /api/padron/download:", error);
-    return NextResponse.json(
-      { error: "Error al generar la descarga", details: error.message },
-      { status: 500 }
-    );
-  }
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }

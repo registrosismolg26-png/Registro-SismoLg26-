@@ -31,6 +31,7 @@ model Registro {
   gpsLat               Float?
   gpsLng               Float?
   telefono             String?
+  cuarto               String?   // Assigned room: "EDIFICIO 1 SALON N"
   createdAt            DateTime  @default(now())
   syncedAt             DateTime? @default(now())
 }

@@ -1,78 +1,78 @@
-const CACHE_NAME = 'registro-sismo-cache-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/manifest.json',
-  '/favicon.ico'
+// Update this string on every production deploy to bust the cache on all clients.
+const BUILD_TS = "20260630-1";
+const CACHE_NAME = `registro-sismo-v${BUILD_TS}`;
+
+const PRECACHE = [
+  "/",
+  "/manifest.json",
+  "/favicon.ico",
 ];
 
-// Install Event: cache core assets
-self.addEventListener('install', (event) => {
+// Install: pre-cache shell assets
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
   );
   self.skipWaiting();
 });
 
-// Activate Event: clear old caches
-self.addEventListener('activate', (event) => {
+// Activate: delete every cache that isn't the current version
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
   );
   self.clients.claim();
 });
 
-// Fetch Event: Cache-First or Stale-While-Revalidate for UI, network-only for APIs
-self.addEventListener('fetch', (event) => {
+// Fetch strategy:
+//   - /api/*            → network-only (never cache API responses)
+//   - /_next/static/*   → cache-first (immutable hashed chunks)
+//   - everything else   → stale-while-revalidate
+self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // 1. Bypass all APIs, Next.js internal assets (webpack-hmr, turbopack, image chunks)
-  // and non-http protocols (like chrome extensions or web sockets)
+  // Skip non-HTTP and API routes
   if (
-    url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/_next/') ||
-    url.pathname.includes('webpack-hmr') ||
-    !event.request.url.startsWith('http')
+    !event.request.url.startsWith("http") ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.includes("webpack-hmr") ||
+    url.pathname.includes("_next/webpack")
   ) {
-    return; // Direct browser network handling
+    return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch in background to update cache (stale-while-revalidate)
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
-              });
+  // Cache-first for immutable hashed Next.js static assets
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      caches.match(event.request).then(
+        (cached) =>
+          cached ||
+          fetch(event.request).then((res) => {
+            if (res.status === 200) {
+              caches.open(CACHE_NAME).then((c) => c.put(event.request, res.clone()));
             }
+            return res;
           })
-          .catch(() => { /* Ignore offline fetch errors */ });
-          
-        return cachedResponse;
-      }
+      )
+    );
+    return;
+  }
 
-      return fetch(event.request).then((response) => {
-        // Cache newly requested resources if they are valid
-        if (response.status === 200 && event.request.method === 'GET') {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return response;
-      });
+  // Stale-while-revalidate for everything else
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      const networkFetch = fetch(event.request)
+        .then((res) => {
+          if (res.status === 200 && event.request.method === "GET") {
+            caches.open(CACHE_NAME).then((c) => c.put(event.request, res.clone()));
+          }
+          return res;
+        })
+        .catch(() => cached); // serve stale on network error
+
+      return cached || networkFetch;
     })
   );
 });

@@ -1,0 +1,19 @@
+name: Actualizar Espejo Vercel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  push-to-mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar código actual
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Empujar cambios al segundo GitHub
+        run: |
+          git push --force https://${{ secrets.SECUNDARIO_GITHUB_TOKEN }}@github.com/registrosismolg26-png/Registro-SismoLg26-.git HEAD:main
