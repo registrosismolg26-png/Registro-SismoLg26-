@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       gpsLat,
       gpsLng,
       telefono,
+      medicamentos,
     } = body;
 
     // Required field presence check
@@ -93,6 +94,7 @@ export async function POST(req: Request) {
         gpsLat: gpsLat ? Number(gpsLat) : null,
         gpsLng: gpsLng ? Number(gpsLng) : null,
         telefono: telefono ? String(telefono).trim() : null,
+        medicamentos: Array.isArray(medicamentos) ? medicamentos : [],
         syncedAt: new Date(),
       },
     });

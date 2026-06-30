@@ -17,6 +17,8 @@ import {
 
 // ── Form state ──────────────────────────────────────────────────────────────
 
+type Medicamento = { nombre: string; dosis: string; periodo: string };
+
 type FormData = {
   parroquia: string; sector: string; comunidad: string; direccionExacta: string;
   nacionalidad: string; cedula: string; nombreApellido: string; genero: string;
@@ -149,6 +151,19 @@ export default function Home() {
 
   // Form State — useReducer eliminates stale-closure bugs from useState in callbacks
   const [formData, dispatch] = useReducer(formReducer, INITIAL_FORM);
+
+  // Medicamentos dinámicos (array independiente del reducer de strings)
+  const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
+  const addMedicamento    = () => setMedicamentos(p => [...p, { nombre: "", dosis: "", periodo: "" }]);
+  const removeMedicamento = (i: number) => setMedicamentos(p => p.filter((_, idx) => idx !== i));
+  const updateMedicamento = (i: number, field: keyof Medicamento, val: string) =>
+    setMedicamentos(p => p.map((m, idx) => idx === i ? { ...m, [field]: val } : m));
+
+  const [editMedicamentos, setEditMedicamentos] = useState<Medicamento[]>([]);
+  const addEditMed    = () => setEditMedicamentos(p => [...p, { nombre: "", dosis: "", periodo: "" }]);
+  const removeEditMed = (i: number) => setEditMedicamentos(p => p.filter((_, idx) => idx !== i));
+  const updateEditMed = (i: number, field: keyof Medicamento, val: string) =>
+    setEditMedicamentos(p => p.map((m, idx) => idx === i ? { ...m, [field]: val } : m));
 
   // Client Validation State
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -568,10 +583,10 @@ export default function Home() {
       const res = await fetch(`/api/registros/${selectedRegistro.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editData),
+        body: JSON.stringify({ ...editData, medicamentos: editMedicamentos }),
       });
       if (res.ok) {
-        const updated = { ...selectedRegistro, ...editData };
+        const updated = { ...selectedRegistro, ...editData, medicamentos: editMedicamentos };
         setRegistros(prev => prev.map(r => r.id === updated.id ? updated : r));
         setSelectedRegistro(updated);
         setEditMode(false);
@@ -1027,7 +1042,8 @@ export default function Home() {
           patologiaDescripcion: formData.patologia === "SI" ? formData.patologiaDescripcion.trim() : undefined,
           gpsLat: coords.lat !== null ? coords.lat : undefined,
           gpsLng: coords.lng !== null ? coords.lng : undefined,
-          telefono: finalTelefono !== null ? finalTelefono : undefined
+          telefono: finalTelefono !== null ? finalTelefono : undefined,
+          medicamentos: medicamentos.filter(m => m.nombre.trim()),
         }
       };
 
@@ -1035,6 +1051,7 @@ export default function Home() {
       showToast("Registro guardado localmente.", "success");
 
       dispatch({ type: "RESET" });
+      setMedicamentos([]);
       setErrors({});
       setLookupStatus("idle");
       setStep(1);
@@ -1823,7 +1840,7 @@ export default function Home() {
 
                   <div className={`conditional-wrapper ${formData.patologia === "SI" ? "open" : ""}`}>
                     <div className="conditional-inner">
-                      <label htmlFor="patologiaDescripcion">Describa la patología y medicamentos requeridos<span className="required-star">*</span></label>
+                      <label htmlFor="patologiaDescripcion">Describa la patología crónica<span className="required-star">*</span></label>
                       <textarea
                         name="patologiaDescripcion"
                         id="patologiaDescripcion"
@@ -1834,6 +1851,52 @@ export default function Home() {
                       />
                       <div className="error-container">
                         {errors.patologiaDescripcion && <span className="field-error-message">{errors.patologiaDescripcion}</span>}
+                      </div>
+
+                      <div className="med-section">
+                        <div className="med-section-header">
+                          <span className="med-section-title">Medicamentos</span>
+                          <button type="button" className="btn-add-med" onClick={addMedicamento}>
+                            + Agregar
+                          </button>
+                        </div>
+                        {medicamentos.length === 0 ? (
+                          <p className="med-empty">Sin medicamentos registrados. Usa "+ Agregar" para añadir uno.</p>
+                        ) : (
+                          <>
+                            <div className="med-row med-row--header">
+                              <span>Nombre</span>
+                              <span>Dosis</span>
+                              <span>Período</span>
+                              <span />
+                            </div>
+                            {medicamentos.map((m, i) => (
+                              <div key={i} className="med-row">
+                                <input
+                                  className="med-input"
+                                  placeholder="ej: Metformina"
+                                  value={m.nombre}
+                                  onChange={e => updateMedicamento(i, "nombre", e.target.value)}
+                                />
+                                <input
+                                  className="med-input"
+                                  placeholder="ej: 500mg"
+                                  value={m.dosis}
+                                  onChange={e => updateMedicamento(i, "dosis", e.target.value)}
+                                />
+                                <input
+                                  className="med-input"
+                                  placeholder="ej: 2 veces/día"
+                                  value={m.periodo}
+                                  onChange={e => updateMedicamento(i, "periodo", e.target.value)}
+                                />
+                                <button type="button" className="btn-remove-med" onClick={() => removeMedicamento(i)}>
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2744,6 +2807,25 @@ export default function Home() {
                       <span className="detail-value">{selectedRegistro.patologiaDescripcion || "Sí"}</span>
                     </div>
                   )}
+                  {selectedRegistro.patologia === "SI" && Array.isArray(selectedRegistro.medicamentos) && selectedRegistro.medicamentos.length > 0 && (
+                    <div className="detail-field detail-field--full">
+                      <span className="detail-label">Medicamentos</span>
+                      <div className="med-table-view">
+                        <div className="med-row med-row--header">
+                          <span>Nombre</span>
+                          <span>Dosis</span>
+                          <span>Período</span>
+                        </div>
+                        {(selectedRegistro.medicamentos as Medicamento[]).map((m, i) => (
+                          <div key={i} className="med-row med-row--readonly">
+                            <span>{m.nombre}</span>
+                            <span>{m.dosis}</span>
+                            <span>{m.periodo}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {selectedRegistro.cuarto && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Cuarto Asignado</span>
@@ -2769,6 +2851,7 @@ export default function Home() {
                       patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
                       telefono: selectedRegistro.telefono || "",
                     });
+                    setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -2830,6 +2913,41 @@ export default function Home() {
                       <label>Descripción de Patología</label>
                       <input type="text" value={editData.patologiaDescripcion || ""}
                         onChange={e => setEditData(prev => ({ ...prev, patologiaDescripcion: e.target.value }))} />
+                    </div>
+                  )}
+                  {editData.patologia === "SI" && (
+                    <div className="form-group detail-field--full">
+                      <div className="med-section">
+                        <div className="med-section-header">
+                          <span className="med-section-title">Medicamentos</span>
+                          <button type="button" className="btn-add-med" onClick={addEditMed}>
+                            + Agregar
+                          </button>
+                        </div>
+                        {editMedicamentos.length === 0 ? (
+                          <p className="med-empty">Sin medicamentos. Usa "+ Agregar" para añadir.</p>
+                        ) : (
+                          <>
+                            <div className="med-row med-row--header">
+                              <span>Nombre</span>
+                              <span>Dosis</span>
+                              <span>Período</span>
+                              <span />
+                            </div>
+                            {editMedicamentos.map((m, i) => (
+                              <div key={i} className="med-row">
+                                <input className="med-input" placeholder="ej: Metformina" value={m.nombre}
+                                  onChange={e => updateEditMed(i, "nombre", e.target.value)} />
+                                <input className="med-input" placeholder="ej: 500mg" value={m.dosis}
+                                  onChange={e => updateEditMed(i, "dosis", e.target.value)} />
+                                <input className="med-input" placeholder="ej: 2 veces/día" value={m.periodo}
+                                  onChange={e => updateEditMed(i, "periodo", e.target.value)} />
+                                <button type="button" className="btn-remove-med" onClick={() => removeEditMed(i)}>×</button>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
                   <div className="form-group">

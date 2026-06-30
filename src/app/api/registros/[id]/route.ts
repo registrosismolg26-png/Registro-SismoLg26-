@@ -68,6 +68,9 @@ export async function PATCH(
     if ("telefono" in body) {
       data.telefono = telefono ? String(telefono).trim() : null;
     }
+    if ("medicamentos" in body) {
+      data.medicamentos = Array.isArray(body.medicamentos) ? body.medicamentos : [];
+    }
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: "No hay campos para actualizar" }, { status: 400 });

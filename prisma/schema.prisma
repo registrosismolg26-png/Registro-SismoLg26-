@@ -32,6 +32,7 @@ model Registro {
   gpsLng               Float?
   telefono             String?
   cuarto               String?   // Assigned room: "EDIFICIO 1 SALON N"
+  medicamentos         Json?     @default("[]") // [{nombre, dosis, periodo}]
   createdAt            DateTime  @default(now())
   syncedAt             DateTime? @default(now())
 }
