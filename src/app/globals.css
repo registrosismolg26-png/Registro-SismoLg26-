@@ -78,7 +78,7 @@ html[data-theme="dark"] {
   
   --color-primary: #3b82f6;   /* Royal Blue */
   --color-primary-hover: #60a5fa;
-  --color-primary-light: rgba(59, 130, 246, 0.08);
+  --color-primary-light: rgba(59, 130, 246, 0.14);
   --color-primary-ring: rgba(59, 130, 246, 0.22);
   --color-success: #10b981;   /* Emerald 500 */
   --color-warning: #f59e0b;   /* Amber 500 */
@@ -94,16 +94,16 @@ html[data-theme="dark"] {
 
   /* Dark-mode palette overrides — same hue family, lighter for dark backgrounds */
   --color-teal: #14b8a6;              /* Teal-500  — more vivid on dark bg   */
-  --color-teal-light: rgba(20, 184, 166, 0.10);
+  --color-teal-light: rgba(20, 184, 166, 0.16);
   --color-cyan: #0ea5e9;              /* Sky-500   — distinct from primary   */
-  --color-cyan-light: rgba(14, 165, 233, 0.10);
+  --color-cyan-light: rgba(14, 165, 233, 0.16);
   --color-slate-deep: #94a3b8;        /* Slate-400 — readable on dark bg     */
   --color-muted-accent: #94a3b8;
-  --color-success-light: rgba(16, 185, 129, 0.10);
-  --color-warning-light: rgba(245, 158, 11, 0.10);
-  --color-danger-light: rgba(239, 68, 68, 0.10);
+  --color-success-light: rgba(16, 185, 129, 0.18);
+  --color-warning-light: rgba(245, 158, 11, 0.18);
+  --color-danger-light: rgba(239, 68, 68, 0.18);
   --color-gold: #fbbf24;
-  --color-gold-light: rgba(251, 191, 36, 0.10);
+  --color-gold-light: rgba(251, 191, 36, 0.16);
 }
 
 html {
@@ -829,7 +829,8 @@ html[data-theme="dark"] select {
   background: #f0fdf4;
 }
 html[data-theme="dark"] .toast--success {
-  background: rgba(5, 150, 105, 0.07);
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.4);
 }
 .toast--success .toast-icon { color: var(--color-success); }
 
@@ -838,7 +839,8 @@ html[data-theme="dark"] .toast--success {
   background: #fef2f2;
 }
 html[data-theme="dark"] .toast--error {
-  background: rgba(220, 38, 38, 0.07);
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.4);
 }
 .toast--error .toast-icon { color: var(--color-danger); }
 
@@ -847,13 +849,18 @@ html[data-theme="dark"] .toast--error {
   background: #fffbeb;
 }
 html[data-theme="dark"] .toast--warning {
-  background: rgba(217, 119, 6, 0.07);
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.4);
 }
 .toast--warning .toast-icon { color: var(--color-warning); }
 
 .toast--info {
   border-left-color: var(--color-primary);
   background: var(--color-primary-light);
+}
+html[data-theme="dark"] .toast--info {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: rgba(59, 130, 246, 0.4);
 }
 .toast--info .toast-icon { color: var(--color-primary); }
 
