@@ -1852,7 +1852,11 @@ export default function Home() {
                       <div className="error-container">
                         {errors.patologiaDescripcion && <span className="field-error-message">{errors.patologiaDescripcion}</span>}
                       </div>
+                    </div>
+                  </div>
 
+                  <div className={`conditional-wrapper ${formData.patologia === "SI" || formData.estadoFisico === "LESIONADO" ? "open" : ""}`}>
+                    <div className="conditional-inner">
                       <div className="med-section">
                         <div className="med-section-header">
                           <span className="med-section-title">Medicamentos</span>
@@ -2807,7 +2811,7 @@ export default function Home() {
                       <span className="detail-value">{selectedRegistro.patologiaDescripcion || "Sí"}</span>
                     </div>
                   )}
-                  {selectedRegistro.patologia === "SI" && Array.isArray(selectedRegistro.medicamentos) && selectedRegistro.medicamentos.length > 0 && (
+                  {(selectedRegistro.patologia === "SI" || selectedRegistro.estadoFisico === "LESIONADO") && Array.isArray(selectedRegistro.medicamentos) && selectedRegistro.medicamentos.length > 0 && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Medicamentos</span>
                       <div className="med-table-view">
@@ -2915,7 +2919,7 @@ export default function Home() {
                         onChange={e => setEditData(prev => ({ ...prev, patologiaDescripcion: e.target.value }))} />
                     </div>
                   )}
-                  {editData.patologia === "SI" && (
+                  {(editData.patologia === "SI" || editData.estadoFisico === "LESIONADO") && (
                     <div className="form-group detail-field--full">
                       <div className="med-section">
                         <div className="med-section-header">
