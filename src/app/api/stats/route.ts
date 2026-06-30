@@ -75,10 +75,10 @@ export async function GET() {
             adultos: { femenino: n(aggregates.ad_fem),   masculino: n(aggregates.ad_masc),   otro: n(aggregates.ad_otro) },
             mayores: { femenino: n(aggregates.may_fem),  masculino: n(aggregates.may_masc),  otro: n(aggregates.may_otro) }
           },
-          byParroquia:    parroquiaGroup.map(g => ({ name: g.parroquia,    count: g._count._all })),
-          byGenero:       generoGroup.map(g =>    ({ name: g.genero,       count: g._count._all })),
-          byEstadoFisico: estadoFisicoGroup.map(g => ({ name: g.estadoFisico, count: g._count._all })),
-          byPatologia:    patologiaGroup.map(g =>  ({ name: g.patologia,   count: g._count._all }))
+          byParroquia:    parroquiaGroup.map((g: { parroquia: string; _count: { _all: number } }) => ({ name: g.parroquia,    count: g._count._all })),
+          byGenero:       generoGroup.map((g: { genero: string; _count: { _all: number } }) =>       ({ name: g.genero,       count: g._count._all })),
+          byEstadoFisico: estadoFisicoGroup.map((g: { estadoFisico: string; _count: { _all: number } }) => ({ name: g.estadoFisico, count: g._count._all })),
+          byPatologia:    patologiaGroup.map((g: { patologia: string; _count: { _all: number } }) =>  ({ name: g.patologia,   count: g._count._all }))
         }
       },
       { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } }
