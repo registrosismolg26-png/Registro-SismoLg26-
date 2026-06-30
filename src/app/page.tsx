@@ -287,7 +287,37 @@ export default function Home() {
         clearInterval(interval);
       };
     }
+  // Load cached stats and registrations on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cachedRegs = localStorage.getItem("cached_registros");
+      if (cachedRegs) {
+        try {
+          setRegistros(JSON.parse(cachedRegs));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      const cachedStats = localStorage.getItem("cached_stats");
+      if (cachedStats) {
+        try {
+          setStats(JSON.parse(cachedStats));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
   }, []);
+
+  // Fetch registrations from database on login/refresh to keep local cache up-to-date
+  useEffect(() => {
+    if (currentUser) {
+      fetchRegistros();
+      if (currentUser.role === "ADMIN") {
+        fetchStats(true);
+      }
+    }
+  }, [currentUser]);
 
   // Fetch Dashboard Stats and Users when active tab changes
   useEffect(() => {
@@ -522,6 +552,18 @@ export default function Home() {
 
   // Fetch consolidated dashboard stats from Supabase
   const fetchStats = async (force = false) => {
+    // Load from cache first for instant display
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("cached_stats");
+      if (cached) {
+        try {
+          setStats(JSON.parse(cached));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
     if (!navigator.onLine) return;
     const now = Date.now();
     if (!force && now - lastStatsFetchRef.current < 30_000) return;
@@ -532,6 +574,9 @@ export default function Home() {
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("cached_stats", JSON.stringify(data.stats));
+        }
       }
     } catch (err) {
       console.error("Error al obtener estadísticas:", err);
@@ -559,12 +604,30 @@ export default function Home() {
 
   // Fetch all registros from DB for admin asignaciones module
   const fetchRegistros = async () => {
+    // Load from cache first for instant display
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("cached_registros");
+      if (cached) {
+        try {
+          setRegistros(JSON.parse(cached));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    if (!navigator.onLine) return;
+
     setLoadingRegistros(true);
     try {
       const res = await fetch("/api/registros");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setRegistros(data.registros ?? []);
+      const newRegs = data.registros ?? [];
+      setRegistros(newRegs);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("cached_registros", JSON.stringify(newRegs));
+      }
     } catch (err: any) {
       showToast("Error al cargar los registros: " + (err?.message ?? ""), "error");
     } finally {
@@ -583,7 +646,13 @@ export default function Home() {
       });
       if (res.ok) {
         const updated = { ...selectedRegistro, cuarto: asignCuarto };
-        setRegistros(prev => prev.map(r => r.id === updated.id ? updated : r));
+        setRegistros(prev => {
+          const next = prev.map(r => r.id === updated.id ? updated : r);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("cached_registros", JSON.stringify(next));
+          }
+          return next;
+        });
         setSelectedRegistro(updated);
         showToast("Cuarto asignado correctamente", "success");
       } else {
@@ -608,7 +677,13 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         const updated = data.registro || { ...selectedRegistro, ...editData, medicamentos: editMedicamentos };
-        setRegistros(prev => prev.map(r => r.id === updated.id ? updated : r));
+        setRegistros(prev => {
+          const next = prev.map(r => r.id === updated.id ? updated : r);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("cached_registros", JSON.stringify(next));
+          }
+          return next;
+        });
         setSelectedRegistro(updated);
         setEditMode(false);
         showToast("Registro actualizado correctamente", "success");
@@ -907,6 +982,27 @@ export default function Home() {
       const cleanVal = value.replace(/\D/g, "");
       dispatch({ type: "SET", field: "cedulaJefeFamilia", value: cleanVal });
       setErrors(prev => ({ ...prev, cedulaJefeFamilia: validateField("cedulaJefeFamilia", cleanVal) }));
+
+      if (cleanVal.length >= 5) {
+        // Look up Jefe in local registros cache (which contains all records)
+        const jefe = registros.find(r => {
+          const rClean = r.cedula.replace(/\D/g, "");
+          return rClean === cleanVal;
+        });
+
+        if (jefe) {
+          dispatch({
+            type: "SET_MANY",
+            patch: {
+              parroquia: jefe.parroquia || "",
+              sector: jefe.sector || "",
+              comunidad: jefe.comunidad || "",
+              direccionExacta: jefe.direccionExacta || ""
+            }
+          });
+          showToast(`Residencia precargada desde el Jefe: ${jefe.nombreApellido}`, "success");
+        }
+      }
       return;
     }
 
@@ -989,11 +1085,11 @@ export default function Home() {
     }, 250);
   };
 
-  // Per-step validation for the wizard
+  // Per-step validation for the wizard (Swapped: Step 1 is Family Group, Step 2 is Geo, Step 3 is Personal ID, Step 4 is Health)
   const STEP_FIELDS: Record<number, string[]> = {
-    1: ["parroquia", "sector", "comunidad", "direccionExacta"],
-    2: ["cedula", "nombreApellido", "genero", "fechaNacimiento", "telefonoNum"],
-    3: ["perteneceNucleo", "jefeFamilia"],
+    1: ["perteneceNucleo", "jefeFamilia"],
+    2: ["parroquia", "sector", "comunidad", "direccionExacta"],
+    3: ["cedula", "nombreApellido", "genero", "fechaNacimiento", "telefonoNum"],
     4: ["estadoFisico", "patologia"],
   };
 
@@ -1004,7 +1100,7 @@ export default function Home() {
       const err = validateField(field, (formData as any)[field] as string);
       if (err) newErrors[field] = err;
     });
-    if (step === 3 && formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") {
+    if (step === 1 && formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") {
       const err = validateField("cedulaJefeFamilia", formData.cedulaJefeFamilia);
       if (err) newErrors.cedulaJefeFamilia = err;
     }
@@ -1615,14 +1711,85 @@ ${entesList}`;
                 ))}
               </div>
               <div className="wizard-step-label">
-                {step === 1 && "Paso 1 — Ubicación Geográfica"}
-                {step === 2 && "Paso 2 — Identificación Personal"}
-                {step === 3 && "Paso 3 — Grupo Familiar"}
+                {step === 1 && "Paso 1 — Grupo Familiar"}
+                {step === 2 && "Paso 2 — Ubicación Geográfica"}
+                {step === 3 && "Paso 3 — Identificación Personal"}
                 {step === 4 && "Paso 4 — Estado de Salud"}
               </div>
 
-              {/* PASO 1: Ubicación */}
+              {/* PASO 1: Grupo Familiar */}
               {step === 1 && (
+                <div className="form-section form-step-content">
+                  <div className="form-group">
+                    <label>¿Pertenece a un núcleo familiar?<span className="required-star">*</span></label>
+                    <div className="radio-group">
+                      <label
+                        className={`radio-card ${formData.perteneceNucleo === "SI" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="perteneceNucleo" value="SI" checked={formData.perteneceNucleo === "SI"} onChange={handleInputChange} />
+                        SI
+                      </label>
+                      <label
+                        className={`radio-card ${formData.perteneceNucleo === "NO" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="perteneceNucleo" value="NO" checked={formData.perteneceNucleo === "NO"} onChange={handleInputChange} />
+                        NO
+                      </label>
+                    </div>
+                    <div className="error-container">
+                      {errors.perteneceNucleo && <span className="field-error-message">{errors.perteneceNucleo}</span>}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>¿Usted es el Jefe de Familia?<span className="required-star">*</span></label>
+                    <div className="radio-group">
+                      <label
+                        className={`radio-card ${formData.jefeFamilia === "SI" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="jefeFamilia" value="SI" checked={formData.jefeFamilia === "SI"} onChange={handleInputChange} />
+                        SI
+                      </label>
+                      <label
+                        className={`radio-card ${formData.jefeFamilia === "NO" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="jefeFamilia" value="NO" checked={formData.jefeFamilia === "NO"} onChange={handleInputChange} />
+                        NO
+                      </label>
+                    </div>
+                    <div className="error-container">
+                      {errors.jefeFamilia && <span className="field-error-message">{errors.jefeFamilia}</span>}
+                    </div>
+                  </div>
+
+                  <div className={`conditional-wrapper ${formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO" ? "open" : ""}`}>
+                    <div className="conditional-inner">
+                      <label htmlFor="cedulaJefeFamilia">Cédula del Jefe de Familia<span className="required-star">*</span></label>
+                      <input
+                        type="text"
+                        name="cedulaJefeFamilia"
+                        id="cedulaJefeFamilia"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Cédula del jefe (si ya está en sistema se precargará la residencia)"
+                        value={formData.cedulaJefeFamilia}
+                        onChange={handleInputChange}
+                        className={errors.cedulaJefeFamilia ? "has-error" : ""}
+                      />
+                      <div className="error-container">
+                        {errors.cedulaJefeFamilia && <span className="field-error-message">{errors.cedulaJefeFamilia}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASO 2: Ubicación */}
+              {step === 2 && (
                 <div className="form-section form-step-content">
                   <div className="form-group">
                     <label htmlFor="parroquia">Parroquia donde vive<span className="required-star">*</span></label>
@@ -1695,8 +1862,8 @@ ${entesList}`;
                 </div>
               )}
 
-              {/* PASO 2: Identificación Personal */}
-              {step === 2 && (
+              {/* PASO 3: Identificación Personal */}
+              {step === 3 && (
                 <div className="form-section form-step-content">
                   <div className="form-group">
                     <label htmlFor="cedula">Cédula de Identidad<span className="required-star">*</span></label>
@@ -1865,77 +2032,6 @@ ${entesList}`;
                 </div>
               )}
 
-              {/* PASO 3: Grupo Familiar */}
-              {step === 3 && (
-                <div className="form-section form-step-content">
-                  <div className="form-group">
-                    <label>¿Pertenece a un núcleo familiar?<span className="required-star">*</span></label>
-                    <div className="radio-group">
-                      <label
-                        className={`radio-card ${formData.perteneceNucleo === "SI" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}
-                        onPointerDown={(e) => e.preventDefault()}
-                      >
-                        <input type="radio" name="perteneceNucleo" value="SI" checked={formData.perteneceNucleo === "SI"} onChange={handleInputChange} />
-                        SI
-                      </label>
-                      <label
-                        className={`radio-card ${formData.perteneceNucleo === "NO" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}
-                        onPointerDown={(e) => e.preventDefault()}
-                      >
-                        <input type="radio" name="perteneceNucleo" value="NO" checked={formData.perteneceNucleo === "NO"} onChange={handleInputChange} />
-                        NO
-                      </label>
-                    </div>
-                    <div className="error-container">
-                      {errors.perteneceNucleo && <span className="field-error-message">{errors.perteneceNucleo}</span>}
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>¿Usted es el Jefe de Familia?<span className="required-star">*</span></label>
-                    <div className="radio-group">
-                      <label
-                        className={`radio-card ${formData.jefeFamilia === "SI" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}
-                        onPointerDown={(e) => e.preventDefault()}
-                      >
-                        <input type="radio" name="jefeFamilia" value="SI" checked={formData.jefeFamilia === "SI"} onChange={handleInputChange} />
-                        SI
-                      </label>
-                      <label
-                        className={`radio-card ${formData.jefeFamilia === "NO" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}
-                        onPointerDown={(e) => e.preventDefault()}
-                      >
-                        <input type="radio" name="jefeFamilia" value="NO" checked={formData.jefeFamilia === "NO"} onChange={handleInputChange} />
-                        NO
-                      </label>
-                    </div>
-                    <div className="error-container">
-                      {errors.jefeFamilia && <span className="field-error-message">{errors.jefeFamilia}</span>}
-                    </div>
-                  </div>
-
-                  <div className={`conditional-wrapper ${formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO" ? "open" : ""}`}>
-                    <div className="conditional-inner">
-                      <label htmlFor="cedulaJefeFamilia">Cédula del Jefe de Familia<span className="required-star">*</span></label>
-                      <input
-                        type="text"
-                        name="cedulaJefeFamilia"
-                        id="cedulaJefeFamilia"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        placeholder="Cédula del jefe del núcleo"
-                        value={formData.cedulaJefeFamilia}
-                        onChange={handleInputChange}
-                        className={errors.cedulaJefeFamilia ? "has-error" : ""}
-                      />
-                      <div className="error-container">
-                        {errors.cedulaJefeFamilia && <span className="field-error-message">{errors.cedulaJefeFamilia}</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* PASO 4: Estado de Salud */}
               {step === 4 && (
                 <div className="form-section form-step-content">
@@ -2056,7 +2152,7 @@ ${entesList}`;
 
               {/* Navegación del asistente */}
               <div className="form-section-submit">
-                {step === 4 && (
+                {step === 2 && (
                   <div className={`gps-status ${coords.lat && coords.lng ? "gps-status--active" : "gps-status--inactive"}`}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
                     {coords.lat && coords.lng
@@ -3238,13 +3334,13 @@ ${entesList}`;
       {/* WhatsApp Report Generator Modal */}
       {showReportModal && (
         <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "600px" }}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "600px", width: "95%" }}>
             <div className="modal-header">
-              <span className="modal-title">Generador de Reporte para WhatsApp</span>
+              <span className="modal-title" style={{ fontSize: "0.95rem", lineHeight: "1.2" }}>Generador de Reporte para WhatsApp</span>
               <button className="modal-close" onClick={() => setShowReportModal(false)}>✕</button>
             </div>
             
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1rem", maxHeight: "70vh", overflowY: "auto", paddingRight: "5px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1rem", maxHeight: "65vh", overflowY: "auto", paddingRight: "5px" }}>
               <div className="form-group">
                 <label htmlFor="rep-personal">Personal de Trabajo</label>
                 <input
@@ -3258,21 +3354,21 @@ ${entesList}`;
 
               <div className="form-group">
                 <label>Entes Presentes</label>
-                <form onSubmit={handleAddEnte} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <form onSubmit={handleAddEnte} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem", width: "100%" }}>
                   <input
                     type="text"
                     placeholder="Agregar nuevo ente..."
                     value={newEnte}
                     onChange={e => setNewEnte(e.target.value)}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: "120px" }}
                   />
-                  <button type="submit" className="btn-submit" style={{ width: "auto", margin: 0 }}>Agregar</button>
+                  <button type="submit" className="btn-submit" style={{ width: "auto", margin: 0, padding: "0 1rem" }}>Agregar</button>
                 </form>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", maxHeight: "150px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "6px", padding: "0.5rem" }}>
                   {entes.map((ente, index) => (
                     <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", padding: "2px 0" }}>
-                      <span>• {ente}</span>
-                      <button type="button" onClick={() => handleRemoveEnte(index)} style={{ background: "none", border: "none", color: "var(--color-danger)", cursor: "pointer", fontWeight: "bold" }}>✕</button>
+                      <span style={{ wordBreak: "break-all", paddingRight: "5px" }}>• {ente}</span>
+                      <button type="button" onClick={() => handleRemoveEnte(index)} style={{ background: "none", border: "none", color: "var(--color-danger)", cursor: "pointer", fontWeight: "bold", padding: "0 5px" }}>✕</button>
                     </div>
                   ))}
                 </div>
@@ -3282,6 +3378,7 @@ ${entesList}`;
                 <label>Vista Previa del Mensaje</label>
                 <pre style={{
                   whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
                   fontFamily: "var(--font-system)",
                   fontSize: "0.8rem",
                   backgroundColor: "var(--input-bg)",
@@ -3289,19 +3386,20 @@ ${entesList}`;
                   borderRadius: "6px",
                   padding: "0.75rem",
                   color: "var(--text-primary)",
-                  maxHeight: "200px",
-                  overflowY: "auto"
+                  maxHeight: "180px",
+                  overflowY: "auto",
+                  overflowX: "hidden"
                 }}>
                   {generateReportText()}
                 </pre>
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-              <button type="button" className="btn-secondary" onClick={() => setShowReportModal(false)}>
+            <div className="modal-actions" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" style={{ flex: "1 1 100px", margin: 0 }} onClick={() => setShowReportModal(false)}>
                 Cancelar
               </button>
-              <button type="button" className="btn-submit" style={{ flex: 1, margin: 0 }} onClick={handleShareReport}>
+              <button type="button" className="btn-submit" style={{ flex: "2 1 180px", margin: 0, whiteSpace: "normal", height: "auto", minHeight: "var(--element-height)", padding: "6px 12px", lineHeight: "1.2" }} onClick={handleShareReport}>
                 Copiar y Abrir WhatsApp
               </button>
             </div>

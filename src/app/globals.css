@@ -5,6 +5,27 @@
   padding: 0;
 }
 
+/* Custom global minimalist scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 9999px;
+  transition: background var(--timing-fast) ease-in-out;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
 :root {
   /* Institutional Light Theme (Default) */
   --bg-primary: #f1f5f9;      /* Slate 100 */
