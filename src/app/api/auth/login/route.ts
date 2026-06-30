@@ -28,6 +28,8 @@ function verifyPassword(input: string, stored: string): boolean {
   return legacyHash === stored;
 }
 
+type UserRow = { id: string; email: string; nombre: string; password: string; role: string };
+
 // Retry once on transient TCP errors caused by VPN/NAT connection drops
 async function dbWithRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {
@@ -59,11 +61,11 @@ export async function POST(req: Request) {
 
     const cleanEmail = String(email).trim().toLowerCase();
 
-    const user = await dbWithRetry(() =>
+    const user = await dbWithRetry<UserRow | null>(() =>
       prisma.user.findUnique({
         where: { email: cleanEmail },
         select: { id: true, email: true, nombre: true, password: true, role: true },
-      })
+      }) as Promise<UserRow | null>
     );
 
     if (!user) {
