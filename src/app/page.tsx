@@ -1372,8 +1372,7 @@ export default function Home() {
             <span className="nav-hamburger-line" />
           </button>
         </div>
-        {menuOpen && (
-          <div className="nav-drawer">
+        <div className={`nav-drawer${menuOpen ? "" : " nav-drawer--closed"}`}>
             {currentUser.role === "ADMIN" && (
               <button
                 type="button"
@@ -1413,7 +1412,6 @@ export default function Home() {
               Configuración del Sistema
             </button>
           </div>
-        )}
       </div>
 
       {/* TAB 1: FORM VIEW (CENSO) */}
@@ -1876,8 +1874,8 @@ export default function Home() {
 
       {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
       {activeTab === "dashboard" && currentUser.role === "ADMIN" && (
-        <div className="tab-view">
-          
+        <div className="tab-view tab-view--dashboard">
+
           {/* Connection status notification for stats */}
           {!isOnline && (
             <div className="status-bar status-bar--warning">
