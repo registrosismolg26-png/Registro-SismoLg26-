@@ -60,7 +60,10 @@ export async function POST(req: Request) {
     const cleanEmail = String(email).trim().toLowerCase();
 
     const user = await dbWithRetry(() =>
-      prisma.user.findUnique({ where: { email: cleanEmail } })
+      prisma.user.findUnique({
+        where: { email: cleanEmail },
+        select: { id: true, email: true, nombre: true, password: true, role: true },
+      })
     );
 
     if (!user) {
