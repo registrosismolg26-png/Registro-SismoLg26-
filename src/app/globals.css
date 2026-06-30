@@ -1206,17 +1206,19 @@ html[data-theme="dark"] .spinner {
   .dashboard-section { padding: 1.375rem; }
   .nav-primary-btn { padding: 0 0.75rem; }
 
-  /* ── Dashboard 2 columnas desde tablet ── */
-  .tab-view--dashboard {
+  /* ── Dashboard 2 columnas desde tablet ──
+     Selector compuesto (.tab-view.tab-view--dashboard) para ganar
+     en especificidad sobre la regla base .tab-view { display: flex } */
+  .tab-view.tab-view--dashboard {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.25rem;
     align-items: start;
   }
-  .tab-view--dashboard > .stats-grid,
-  .tab-view--dashboard > .dashboard-section:last-child,
-  .tab-view--dashboard > .status-bar,
-  .tab-view--dashboard > .form-card { grid-column: 1 / -1; }
+  .tab-view.tab-view--dashboard > .stats-grid,
+  .tab-view.tab-view--dashboard > .dashboard-section:last-child,
+  .tab-view.tab-view--dashboard > .status-bar,
+  .tab-view.tab-view--dashboard > .form-card { grid-column: 1 / -1; }
 
   /* ── Sección Salud: gauges + patologías lado a lado ── */
   .dashboard-section .tab-view {
@@ -1269,7 +1271,7 @@ html[data-theme="dark"] .spinner {
   }
 
   /* DASHBOARD: aumentar gap en desktop */
-  .tab-view--dashboard { gap: 1.5rem; }
+  .tab-view.tab-view--dashboard { gap: 1.5rem; }
 
   /* Donut + Gauge: más grandes en desktop */
   .donut-chart-wrapper > svg { width: 150px; height: 150px; }
@@ -1312,7 +1314,7 @@ html[data-theme="dark"] .spinner {
   /* Donut + Gauge: máximo tamaño en monitor ancho */
   .donut-chart-wrapper > svg { width: 180px; height: 180px; }
   .gauge-wrapper svg { width: 160px; height: 90px; }
-  .tab-view--dashboard { gap: 2rem; }
+  .tab-view.tab-view--dashboard { gap: 2rem; }
 
   /* Form wizard: 2 secciones side-by-side en el wizard */
   .wizard-two-col {
