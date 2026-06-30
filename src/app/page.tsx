@@ -1408,7 +1408,7 @@ export default function Home() {
                 onClick={() => { setActiveTab("asignaciones"); setMenuOpen(false); }}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Asignaciones de Alojamiento
+                Tabla de Registrados
               </button>
             )}
             {currentUser.role === "ADMIN" && (
@@ -2677,11 +2677,16 @@ export default function Home() {
             {/* ── Header ── */}
             <div className="modal-header">
               <div>
-                <span className="modal-title" style={{ color: "var(--color-primary)" }}>
-                  {editMode ? "EDITAR REGISTRO" : "AFECTADO"}
+                <span className="modal-title">
+                  {editMode ? "Editar Registro" : selectedRegistro.nombreApellido}
                 </span>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>
-                  {selectedRegistro.cedula}
+                <div className="modal-subtitle">
+                  <span>C.I. {selectedRegistro.cedula}</span>
+                  {!editMode && (
+                    <span className={`estado-pill ${selectedRegistro.estadoFisico === "LESIONADO" ? "estado-pill--danger" : "estado-pill--ok"}`}>
+                      {selectedRegistro.estadoFisico}
+                    </span>
+                  )}
                 </div>
               </div>
               <button className="modal-close" onClick={() => { setSelectedRegistro(null); setEditMode(false); }}>
@@ -2707,7 +2712,7 @@ export default function Home() {
                   </div>
                   <div className="detail-field">
                     <span className="detail-label">Estado Físico</span>
-                    <span className={`detail-value ${selectedRegistro.estadoFisico === "LESIONADO" ? "text-danger" : "text-success"}`}>
+                    <span className={`estado-pill ${selectedRegistro.estadoFisico === "LESIONADO" ? "estado-pill--danger" : "estado-pill--ok"}`}>
                       {selectedRegistro.estadoFisico}
                     </span>
                   </div>
@@ -2742,7 +2747,7 @@ export default function Home() {
                   {selectedRegistro.cuarto && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Cuarto Asignado</span>
-                      <span className="detail-value text-success" style={{ fontWeight: 700 }}>{selectedRegistro.cuarto}</span>
+                      <span className="cuarto-badge cuarto-badge--assigned">{selectedRegistro.cuarto}</span>
                     </div>
                   )}
                 </div>
