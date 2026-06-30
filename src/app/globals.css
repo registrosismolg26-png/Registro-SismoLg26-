@@ -1452,7 +1452,7 @@ html[data-theme="dark"] .spinner {
   h1 { font-size: 2rem; }
 
   /* KPI: 1 por tarjeta en fila completa */
-  .stats-grid { grid-template-columns: repeat(5, 1fr); }
+  .stats-grid { grid-template-columns: repeat(6, 1fr); }
   .stat-value { font-size: 2.25rem; }
 
   /* Donut + Gauge: máximo tamaño en monitor ancho */

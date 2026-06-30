@@ -6,24 +6,26 @@ export async function GET() {
     // Single SQL pass for all numeric aggregates (replaces 14 sequential queries)
     const [aggregates] = await prisma.$queryRaw<any[]>`
       SELECT
-        COUNT(*)                                                                        AS total,
-        ROUND(AVG(edad))                                                                AS promedio_edad,
-        COUNT(*) FILTER (WHERE edad < 18)                                               AS menores,
-        COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60)                                AS adultos,
-        COUNT(*) FILTER (WHERE edad >= 60)                                              AS mayores,
-        COUNT(*) FILTER (WHERE edad < 18  AND genero = 'FEMENINO')                     AS men_fem,
-        COUNT(*) FILTER (WHERE edad < 18  AND genero = 'MASCULINO')                    AS men_masc,
-        COUNT(*) FILTER (WHERE edad < 18  AND genero NOT IN ('FEMENINO','MASCULINO'))   AS men_otro,
-        COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60 AND genero = 'FEMENINO')        AS ad_fem,
-        COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60 AND genero = 'MASCULINO')       AS ad_masc,
-        COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60 AND genero NOT IN ('FEMENINO','MASCULINO')) AS ad_otro,
-        COUNT(*) FILTER (WHERE edad >= 60 AND genero = 'FEMENINO')                     AS may_fem,
-        COUNT(*) FILTER (WHERE edad >= 60 AND genero = 'MASCULINO')                    AS may_masc,
-        COUNT(*) FILTER (WHERE edad >= 60 AND genero NOT IN ('FEMENINO','MASCULINO'))   AS may_otro
+        COUNT(*) FILTER (WHERE retirado = 'NO')                                         AS total,
+        ROUND(AVG(edad) FILTER (WHERE retirado = 'NO'))                                 AS promedio_edad,
+        COUNT(*) FILTER (WHERE edad < 18 AND retirado = 'NO')                           AS menores,
+        COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60 AND retirado = 'NO')            AS adultos,
+        COUNT(*) FILTER (WHERE edad >= 60 AND retirado = 'NO')                          AS mayores,
+        COUNT(*) FILTER (WHERE edad < 18  AND genero = 'FEMENINO' AND retirado = 'NO')  AS men_fem,
+        COUNT(*) FILTER (WHERE edad < 18  AND genero = 'MASCULINO' AND retirado = 'NO') AS men_masc,
+        COUNT(*) FILTER (WHERE edad < 18  AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS men_otro,
+        COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60 AND genero = 'FEMENINO' AND retirado = 'NO')  AS ad_fem,
+        COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60 AND genero = 'MASCULINO' AND retirado = 'NO') AS ad_masc,
+        COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60 AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS ad_otro,
+        COUNT(*) FILTER (WHERE edad >= 60 AND genero = 'FEMENINO' AND retirado = 'NO')  AS may_fem,
+        COUNT(*) FILTER (WHERE edad >= 60 AND genero = 'MASCULINO' AND retirado = 'NO') AS may_masc,
+        COUNT(*) FILTER (WHERE edad >= 60 AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS may_otro,
+        COUNT(*) FILTER (WHERE retirado = 'SI')                                         AS total_retirados
       FROM "Registro"
     `;
 
     const total = Number(aggregates.total ?? 0);
+    const totalRetirados = Number(aggregates.total_retirados ?? 0);
 
     if (total === 0) {
       return NextResponse.json(
@@ -31,6 +33,7 @@ export async function GET() {
           success: true,
           stats: {
             total: 0,
+            totalRetirados,
             menores: 0,
             adultos: 0,
             mayores: 0,
@@ -50,13 +53,15 @@ export async function GET() {
       );
     }
 
-    // 4 groupBy queries running in parallel
+    const activeFilter = { retirado: "NO" };
+
+    // 4 groupBy queries running in parallel, filtering active people
     const [parroquiaGroup, generoGroup, estadoFisicoGroup, patologiaGroup] =
       await Promise.all([
-        prisma.registro.groupBy({ by: ["parroquia"], _count: { _all: true } }),
-        prisma.registro.groupBy({ by: ["genero"],    _count: { _all: true } }),
-        prisma.registro.groupBy({ by: ["estadoFisico"], _count: { _all: true } }),
-        prisma.registro.groupBy({ by: ["patologia"], _count: { _all: true } })
+        prisma.registro.groupBy({ where: activeFilter, by: ["parroquia"], _count: { _all: true } }),
+        prisma.registro.groupBy({ where: activeFilter, by: ["genero"],    _count: { _all: true } }),
+        prisma.registro.groupBy({ where: activeFilter, by: ["estadoFisico"], _count: { _all: true } }),
+        prisma.registro.groupBy({ where: activeFilter, by: ["patologia"], _count: { _all: true } })
       ]);
 
     const n = (v: unknown) => Number(v ?? 0);
@@ -66,6 +71,7 @@ export async function GET() {
         success: true,
         stats: {
           total,
+          totalRetirados,
           menores:      n(aggregates.menores),
           adultos:      n(aggregates.adultos),
           mayores:      n(aggregates.mayores),

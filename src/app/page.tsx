@@ -115,10 +115,23 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string; role: string } | null>(null);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [loadingAuth, setLoadingAuth] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [personalTrabajo, setPersonalTrabajo] = useState(84);
+  const [entes, setEntes] = useState<string[]>([
+    "Ministerio de Alimentación y sus entes",
+    "Gobernación",
+    "MPP Educación",
+    "MPP Indistria y Comercio",
+    "MPP Proceso Social del Trabajo",
+    "MPP Juventud",
+    "MPP para la Defensa",
+    "Alcaldía",
+    "Vicepresidencia de Obras Publicad y Servicios",
+    "Juventud Socialista (brigadas de solidaridad)"
+  ]);
+  const [newEnte, setNewEnte] = useState("");
 
   // Tab View Routing State
   const [activeTab, setActiveTab] = useState<"censo" | "dashboard" | "usuarios" | "config" | "asignaciones">("censo");
@@ -1169,6 +1182,7 @@ export default function Home() {
     if (total === 0) {
       return {
         total: 0,
+        totalRetirados: 0,
         menores: 0,
         adultos: 0,
         mayores: 0,
@@ -1247,6 +1261,7 @@ export default function Home() {
 
     return {
       total,
+      totalRetirados: 0,
       menores,
       adultos,
       mayores,
@@ -1257,6 +1272,76 @@ export default function Home() {
       byPatologia,
       promedioEdad
     };
+  };
+
+  // Helper to generate the WhatsApp report text
+  const generateReportText = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const dateTimeStr = `${day}/${month} || Hora: ${hours}:${minutes}hrs`;
+
+    const t = currentStats.total || 0;
+    const may = currentStats.mayores || 0;
+    const mayM = currentStats.matrix?.mayores?.masculino || 0;
+    const mayF = currentStats.matrix?.mayores?.femenino || 0;
+
+    const ad = currentStats.adultos || 0;
+    const adM = currentStats.matrix?.adultos?.masculino || 0;
+    const adF = currentStats.matrix?.adultos?.femenino || 0;
+
+    const men = currentStats.menores || 0;
+    const menF = currentStats.matrix?.menores?.femenino || 0;
+    const menM = currentStats.matrix?.menores?.masculino || 0;
+
+    const entesList = entes.map(e => `- ${e}`).join("\n");
+
+    return `*Campamento de Transición Complejo Educativo República de Panamá.*
+
+Fecha y Hora: ${dateTimeStr}
+Ubicación: https://maps.app.goo.gl/aNtWU1M5Di3u9NAV7?g_st=ic
+
+Total general: ${t} personas
+Adultos Mayores: ${may}
+${String(mayM).padStart(2, '0')} masculinos
+${String(mayF).padStart(2, '0')} femeninos 
+
+Adultos: ${ad}
+${String(adM).padStart(2, '0')} masculino
+${String(adF).padStart(2, '0')} femenino
+
+Niños: ${men}
+${String(menF).padStart(2, '0')} niñas
+${String(menM).padStart(2, '0')} niños
+
+Personal de trabajo: ${personalTrabajo} personas.  
+Entes Presentes: 
+${entesList}`;
+  };
+
+  const handleShareReport = () => {
+    const text = generateReportText();
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("Reporte copiado al portapapeles.", "success");
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+    }).catch(() => {
+      showToast("No se pudo copiar el texto automáticamente. Cópielo manualmente.", "error");
+    });
+  };
+
+  const handleAddEnte = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newEnte.trim()) {
+      setEntes(prev => [...prev, newEnte.trim()]);
+      setNewEnte("");
+    }
+  };
+
+  const handleRemoveEnte = (index: number) => {
+    setEntes(prev => prev.filter((_, i) => i !== index));
   };
 
   const filteredRegistros = useMemo(() => {
@@ -2021,6 +2106,19 @@ export default function Home() {
       {activeTab === "dashboard" && currentUser.role === "ADMIN" && (
         <div className="tab-view tab-view--dashboard">
 
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
+            <h2 className="dashboard-section-title" style={{ margin: 0 }}>Panel de Estadísticas</h2>
+            <button
+              type="button"
+              className="btn-submit"
+              style={{ width: "auto", margin: 0, padding: "0 1.25rem", height: "var(--element-height, 42px)", display: "flex", alignItems: "center", gap: "0.5rem" }}
+              onClick={() => setShowReportModal(true)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              Generar Reporte WhatsApp
+            </button>
+          </div>
+
           {/* Connection status notification for stats */}
           {!isOnline && (
             <div className="status-bar status-bar--warning">
@@ -2089,6 +2187,13 @@ export default function Home() {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-muted"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                   </div>
                   <span className="stat-value">{currentStats.promedioEdad || 0} años</span>
+                </div>
+                <div className="stat-card stat-card--danger">
+                  <div className="stat-card-header">
+                    <span className="stat-label">Personas Retiradas</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-danger" style={{ color: "var(--color-danger)" }}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="17" y1="8" x2="22" y2="13" /><line x1="22" y1="8" x2="17" y2="13" /></svg>
+                  </div>
+                  <span className="stat-value">{currentStats.totalRetirados || 0}</span>
                 </div>
               </div>
 
@@ -3123,6 +3228,80 @@ export default function Home() {
                   <div className="qr-name">{code.name}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Report Generator Modal */}
+      {showReportModal && (
+        <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "600px" }}>
+            <div className="modal-header">
+              <span className="modal-title">Generador de Reporte para WhatsApp</span>
+              <button className="modal-close" onClick={() => setShowReportModal(false)}>✕</button>
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1rem", maxHeight: "70vh", overflowY: "auto", paddingRight: "5px" }}>
+              <div className="form-group">
+                <label htmlFor="rep-personal">Personal de Trabajo</label>
+                <input
+                  type="number"
+                  id="rep-personal"
+                  value={personalTrabajo}
+                  onChange={e => setPersonalTrabajo(parseInt(e.target.value, 10) || 0)}
+                  min="0"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Entes Presentes</label>
+                <form onSubmit={handleAddEnte} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <input
+                    type="text"
+                    placeholder="Agregar nuevo ente..."
+                    value={newEnte}
+                    onChange={e => setNewEnte(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button type="submit" className="btn-submit" style={{ width: "auto", margin: 0 }}>Agregar</button>
+                </form>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", maxHeight: "150px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "6px", padding: "0.5rem" }}>
+                  {entes.map((ente, index) => (
+                    <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", padding: "2px 0" }}>
+                      <span>• {ente}</span>
+                      <button type="button" onClick={() => handleRemoveEnte(index)} style={{ background: "none", border: "none", color: "var(--color-danger)", cursor: "pointer", fontWeight: "bold" }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Vista Previa del Mensaje</label>
+                <pre style={{
+                  whiteSpace: "pre-wrap",
+                  fontFamily: "var(--font-system)",
+                  fontSize: "0.8rem",
+                  backgroundColor: "var(--input-bg)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "6px",
+                  padding: "0.75rem",
+                  color: "var(--text-primary)",
+                  maxHeight: "200px",
+                  overflowY: "auto"
+                }}>
+                  {generateReportText()}
+                </pre>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowReportModal(false)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-submit" style={{ flex: 1, margin: 0 }} onClick={handleShareReport}>
+                Copiar y Abrir WhatsApp
+              </button>
             </div>
           </div>
         </div>
