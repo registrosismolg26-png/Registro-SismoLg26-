@@ -115,6 +115,8 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string; role: string } | null>(null);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loadingAuth, setLoadingAuth] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
