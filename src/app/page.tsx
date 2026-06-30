@@ -3519,11 +3519,11 @@ ${entesList}`;
                           style={{ width: "auto", margin: 0, padding: "0 1rem", fontSize: "0.8rem", height: "auto" }}
                           onClick={async () => {
                             if (!editData.cedula) return;
-                            const citizen = await buscarCedulaEnCliente(editData.cedula);
+                            const citizen = await buscarCedulaEnCliente(String(editData.cedula));
                             if (citizen) {
                               setEditData(prev => ({
                                 ...prev,
-                                nombreApellido: citizen.nombre || prev.nombreApellido,
+                                nombreApellido: citizen.nombreCompleto || prev.nombreApellido,
                                 genero: citizen.sexo === "F" || citizen.sexo === "FEMENINO" ? "FEMENINO" : "MASCULINO"
                               }));
                               showToast("Datos cargados del padrón local", "success");
