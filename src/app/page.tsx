@@ -287,6 +287,8 @@ export default function Home() {
         clearInterval(interval);
       };
     }
+  }, []);
+
   // Load cached stats and registrations on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
