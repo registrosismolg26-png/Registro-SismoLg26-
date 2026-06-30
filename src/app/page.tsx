@@ -117,6 +117,8 @@ export default function Home() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loadingAuth, setLoadingAuth] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   // Tab View Routing State
   const [activeTab, setActiveTab] = useState<"censo" | "dashboard" | "usuarios" | "config" | "asignaciones">("censo");
@@ -209,12 +211,13 @@ export default function Home() {
       setIsOnline(navigator.onLine);
       
       // Load user session
-      const savedUser = localStorage.getItem("sismo_operator");
+      const savedUser = localStorage.getItem("sismo_operator") || sessionStorage.getItem("sismo_operator");
       if (savedUser) {
         try {
           setCurrentUser(JSON.parse(savedUser));
         } catch (e) {
           localStorage.removeItem("sismo_operator");
+          sessionStorage.removeItem("sismo_operator");
         }
       }
 
@@ -273,13 +276,15 @@ export default function Home() {
 
   // Fetch Dashboard Stats and Users when active tab changes
   useEffect(() => {
-    if (currentUser && currentUser.role === "ADMIN") {
+    if (!currentUser) return;
+    if (activeTab === "asignaciones") {
+      fetchRegistros();
+    }
+    if (currentUser.role === "ADMIN") {
       if (activeTab === "dashboard") {
         fetchStats();
       } else if (activeTab === "usuarios") {
         fetchUsers();
-      } else if (activeTab === "asignaciones") {
-        fetchRegistros();
       }
     }
   }, [activeTab, currentUser]);
@@ -627,7 +632,13 @@ export default function Home() {
         if (match) {
           const userSession = { id: match.id, email: match.email, nombre: match.nombre, role: match.role };
           setCurrentUser(userSession);
-          localStorage.setItem("sismo_operator", JSON.stringify(userSession));
+          if (rememberMe) {
+            localStorage.setItem("sismo_operator", JSON.stringify(userSession));
+            sessionStorage.removeItem("sismo_operator");
+          } else {
+            sessionStorage.setItem("sismo_operator", JSON.stringify(userSession));
+            localStorage.removeItem("sismo_operator");
+          }
           showToast(`Sesión local iniciada: ${match.nombre}`, "success");
         } else {
           setLoginError("Credenciales inválidas sin conexión. Inicie sesión online primero.");
@@ -652,7 +663,13 @@ export default function Home() {
 
       if (data.success && data.user) {
         setCurrentUser(data.user);
-        localStorage.setItem("sismo_operator", JSON.stringify(data.user));
+        if (rememberMe) {
+          localStorage.setItem("sismo_operator", JSON.stringify(data.user));
+          sessionStorage.removeItem("sismo_operator");
+        } else {
+          sessionStorage.setItem("sismo_operator", JSON.stringify(data.user));
+          localStorage.removeItem("sismo_operator");
+        }
 
         // Save credential hash locally for offline fallback authentication
         const cachedStr = localStorage.getItem("sismo_cached_operators") || "[]";
@@ -682,6 +699,7 @@ export default function Home() {
   // Logout Handler
   const handleLogout = () => {
     localStorage.removeItem("sismo_operator");
+    sessionStorage.removeItem("sismo_operator");
     setCurrentUser(null);
     setActiveTab("censo");
     showToast("Sesión cerrada.", "info");
@@ -1289,23 +1307,66 @@ export default function Home() {
 
             <div className="form-group">
               <label htmlFor="login-password">Contraseña</label>
+              <div className="password-input-container" style={{ position: "relative", width: "100%" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="login-password"
+                  placeholder="Contraseña"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  required
+                  style={{ paddingRight: "2.5rem" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: "absolute",
+                    right: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--text-muted, #888)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0"
+                  }}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group remember-me-container" style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1rem", marginBottom: "1rem" }}>
               <input
-                type="password"
-                id="login-password"
-                placeholder="Contraseña"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                required
+                type="checkbox"
+                id="remember-me"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{ width: "auto", height: "auto", cursor: "pointer" }}
               />
+              <label htmlFor="remember-me" style={{ margin: 0, cursor: "pointer", fontSize: "0.875rem", userSelect: "none" }}>
+                Recordarme en este dispositivo
+              </label>
             </div>
 
             <button type="submit" className="btn-submit" disabled={loadingAuth}>
               {loadingAuth ? "Verificando..." : "Entrar al Sistema"}
             </button>
-
-            <div className="login-info-box">
-              <strong>Nota:</strong> Para el primer inicio de sesión se creará la cuenta administradora por defecto (<strong>admin@sismo.gob.ve</strong> / <strong>admin123456</strong>) si la base de datos se encuentra vacía. Requiere conexión.
-            </div>
           </form>
         </div>
 
@@ -1418,16 +1479,14 @@ export default function Home() {
                 Estadísticas del Censo
               </button>
             )}
-            {currentUser.role === "ADMIN" && (
-              <button
-                type="button"
-                className={`nav-drawer-btn ${activeTab === "asignaciones" ? "active" : ""}`}
-                onClick={() => { setActiveTab("asignaciones"); setMenuOpen(false); }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Tabla de Registrados
-              </button>
-            )}
+            <button
+              type="button"
+              className={`nav-drawer-btn ${activeTab === "asignaciones" ? "active" : ""}`}
+              onClick={() => { setActiveTab("asignaciones"); setMenuOpen(false); }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Tabla de Registrados
+            </button>
             {currentUser.role === "ADMIN" && (
               <button
                 type="button"
@@ -2638,8 +2697,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* TAB 4: ASIGNACIONES (ADMIN ONLY) */}
-      {activeTab === "asignaciones" && currentUser.role === "ADMIN" && (
+      {/* TAB 4: ASIGNACIONES */}
+      {activeTab === "asignaciones" && (
         <div className="tab-view">
           <div className="dashboard-section">
             <div className="asign-header">
@@ -2838,29 +2897,31 @@ export default function Home() {
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setEditMode(true);
-                    setEditData({
-                      nombreApellido: selectedRegistro.nombreApellido,
-                      parroquia: selectedRegistro.parroquia,
-                      sector: selectedRegistro.sector,
-                      comunidad: selectedRegistro.comunidad,
-                      direccionExacta: selectedRegistro.direccionExacta,
-                      genero: selectedRegistro.genero,
-                      estadoFisico: selectedRegistro.estadoFisico,
-                      patologia: selectedRegistro.patologia,
-                      patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
-                      telefono: selectedRegistro.telefono || "",
-                    });
-                    setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Editar Datos del Registro
-                </button>
+                {currentUser.role === "ADMIN" && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setEditMode(true);
+                      setEditData({
+                        nombreApellido: selectedRegistro.nombreApellido,
+                        parroquia: selectedRegistro.parroquia,
+                        sector: selectedRegistro.sector,
+                        comunidad: selectedRegistro.comunidad,
+                        direccionExacta: selectedRegistro.direccionExacta,
+                        genero: selectedRegistro.genero,
+                        estadoFisico: selectedRegistro.estadoFisico,
+                        patologia: selectedRegistro.patologia,
+                        patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
+                        telefono: selectedRegistro.telefono || "",
+                      });
+                      setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Editar Datos del Registro
+                  </button>
+                )}
               </>
             )}
 
@@ -2978,26 +3039,28 @@ export default function Home() {
               </>
             )}
 
-            {/* ── ASIGNAR CUARTO (siempre visible) ── */}
-            <div className="modal-cuarto-section">
-              <div className="section-title" style={{ margin: "0 0 0.625rem" }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Asignación de Alojamiento
+            {/* ── ASIGNAR CUARTO (solo visible para ADMIN) ── */}
+            {currentUser.role === "ADMIN" && (
+              <div className="modal-cuarto-section">
+                <div className="section-title" style={{ margin: "0 0 0.625rem" }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  Asignación de Alojamiento
+                </div>
+                <div className="form-group">
+                  <label htmlFor="cuarto-select">Cuarto / Salón</label>
+                  <select id="cuarto-select" value={asignCuarto}
+                    onChange={e => setAsignCuarto(e.target.value)}>
+                    <option value="">— Seleccionar cuarto —</option>
+                    {CUARTOS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <button type="button" className="btn-submit" style={{ marginTop: "0.625rem" }}
+                  onClick={handleAsignarCuarto}
+                  disabled={savingCuarto || !asignCuarto || asignCuarto === selectedRegistro.cuarto}>
+                  {savingCuarto ? "Guardando..." : selectedRegistro.cuarto ? "Reasignar Cuarto" : "Confirmar Asignación"}
+                </button>
               </div>
-              <div className="form-group">
-                <label htmlFor="cuarto-select">Cuarto / Salón</label>
-                <select id="cuarto-select" value={asignCuarto}
-                  onChange={e => setAsignCuarto(e.target.value)}>
-                  <option value="">— Seleccionar cuarto —</option>
-                  {CUARTOS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <button type="button" className="btn-submit" style={{ marginTop: "0.625rem" }}
-                onClick={handleAsignarCuarto}
-                disabled={savingCuarto || !asignCuarto || asignCuarto === selectedRegistro.cuarto}>
-                {savingCuarto ? "Guardando..." : selectedRegistro.cuarto ? "Reasignar Cuarto" : "Confirmar Asignación"}
-              </button>
-            </div>
+            )}
 
           </div>
         </div>
