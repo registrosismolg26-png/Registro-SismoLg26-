@@ -160,24 +160,69 @@ export default function Home() {
     try { return JSON.parse(localStorage.getItem("customCuartos") || "[]"); }
     catch { return []; }
   });
+
   useEffect(() => {
     localStorage.setItem("customCuartos", JSON.stringify(customCuartos));
   }, [customCuartos]);
+
+  const refreshCustomRooms = async () => {
+    if (typeof window === "undefined" || !navigator.onLine) return;
+    try {
+      const res = await fetch("/api/cuartos");
+      if (res.ok) {
+        const data = await res.json();
+        const roomNames = data.map((r: any) => r.name);
+        setCustomCuartos(roomNames);
+      }
+    } catch (err) {
+      console.error("Error refreshing custom rooms:", err);
+    }
+  };
+
+  useEffect(() => {
+    refreshCustomRooms();
+  }, []);
+
   const allCuartos = useMemo(() => [...CUARTOS, ...customCuartos], [customCuartos]);
   const [newBuilding, setNewBuilding] = useState("");
   const [newSalon, setNewSalon] = useState("");
-  const addCustomCuarto = () => {
+
+  const addCustomCuarto = async () => {
     const b = newBuilding.trim().toUpperCase();
     const s = newSalon.trim().toUpperCase();
     if (!b || !s) return;
     const key = `EDIFICIO ${b} SALON ${s}`;
     if (allCuartos.includes(key)) return;
+
+    // Optimistic UI update
     setCustomCuartos(prev => [...prev, key]);
     setNewBuilding("");
     setNewSalon("");
+
+    if (navigator.onLine) {
+      try {
+        await fetch("/api/cuartos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: key })
+        });
+      } catch (err) {
+        console.error("Error creating custom room in DB:", err);
+      }
+    }
   };
-  const removeCustomCuarto = (key: string) => {
+
+  const removeCustomCuarto = async (key: string) => {
     setCustomCuartos(prev => prev.filter(c => c !== key));
+    if (navigator.onLine) {
+      try {
+        await fetch(`/api/cuartos?name=${encodeURIComponent(key)}`, {
+          method: "DELETE"
+        });
+      } catch (err) {
+        console.error("Error deleting custom room in DB:", err);
+      }
+    }
   };
 
   // Tab View Routing State
@@ -718,6 +763,7 @@ export default function Home() {
       }
 
       await refreshLocalRecords();
+      await refreshCustomRooms();
     } catch (e) {
       console.error("Error en el ciclo de sincronización:", e);
     } finally {

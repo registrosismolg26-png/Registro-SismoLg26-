@@ -69,3 +69,9 @@ model PushSubscription {
   keysP256dh String
   createdAt DateTime @default(now())
 }
+
+model CustomRoom {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
