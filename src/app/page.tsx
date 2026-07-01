@@ -1199,7 +1199,7 @@ export default function Home() {
       </head>
       <body>
         <div class="header">
-          <img class="logo" src="/logo_pwa.png" alt="Gobernación La Guaira">
+          <img class="logo" src="/logo_gob.webp" alt="Gobernación La Guaira">
           <div class="title-container">
             <h1>LISTADO DE PERSONAS PRESENTES</h1>
             <h2>Censo de Campamento Transitorio - Sismo La Guaira 2026</h2>
@@ -2196,7 +2196,7 @@ ${entesList}`;
     return (
       <div className="container">
         <div className="app-header app-header--centered" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <img src="/logo_pwa.png" alt="Logo Gobernación La Guaira" style={{ width: "90px", height: "90px", objectFit: "contain" }} />
+          <img src="/logo_gob.webp" alt="Logo Gobernación La Guaira" style={{ width: "90px", height: "90px", objectFit: "contain" }} />
           <div className="title-area title-area--centered">
             <h1>REGISTRO DE AFECTADOS</h1>
             <p className="subtitle">Censo Sismológico PWA 100% Offline</p>
@@ -2328,7 +2328,7 @@ ${entesList}`;
         <div className="header-main">
           <div className="header-identity">
             <div className="header-seal" aria-hidden="true" style={{ overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src="/logo_pwa.png" alt="Escudo Gobernación La Guaira" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              <img src="/logo_gob.webp" alt="Escudo Gobernación La Guaira" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             <div className="header-title-group">
               <span className="header-org-name">GOBERNACIÓN DEL ESTADO LA GUAIRA</span>

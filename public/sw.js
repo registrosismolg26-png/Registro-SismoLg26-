@@ -1,5 +1,5 @@
 // Update this string on every production deploy to bust the cache on all clients.
-const BUILD_TS = "20260701-2";
+const BUILD_TS = "20260701-3";
 const CACHE_NAME = `registro-sismo-v${BUILD_TS}`;
 
 const PRECACHE = [
@@ -109,7 +109,7 @@ self.addEventListener("push", (event) => {
       const title = data.title || "Nuevo Afectado";
       const options = {
         body: data.body || "Se ha registrado un afectado en el censo.",
-        icon: "/logo_pwa.png",
+        icon: "/logo_gob.webp",
         badge: "/favicon.ico",
         vibrate: [200, 100, 200],
         data: {
