@@ -38,10 +38,14 @@ export async function PATCH(
     const data: Record<string, any> = {};
 
     if ("cedula" in body) {
-      if (!cedula?.trim()) {
+      if (!cedula || !String(cedula).trim()) {
         return NextResponse.json({ error: "La cédula no puede estar vacía" }, { status: 400 });
       }
-      data.cedula = String(cedula).trim().replace(/\D/g, "");
+      const cleanCed = String(cedula).trim().toUpperCase();
+      const normalizedCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-"))
+        ? cleanCed
+        : `V-${cleanCed}`;
+      data.cedula = normalizedCedula;
     }
     if ("cuarto" in body) {
       data.cuarto = cuarto ? String(cuarto).trim() : null;

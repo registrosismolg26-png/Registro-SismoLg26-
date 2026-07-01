@@ -778,8 +778,9 @@ export default function Home() {
     if (!selectedRegistro) return;
     setSavingEdit(true);
 
-    const cleanCed = editData.cedula ? String(editData.cedula).trim().toUpperCase() : selectedRegistro.cedula.toUpperCase();
-    const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-")) ? cleanCed : `V-${cleanCed}`;
+    const nac = editData.nacionalidad || (selectedRegistro.cedula.startsWith("E-") ? "E" : "V");
+    const cleanCedNum = editData.cedula ? String(editData.cedula).trim().replace(/\D/g, "") : selectedRegistro.cedula.replace(/\D/g, "");
+    const finalCedula = `${nac}-${cleanCedNum}`;
 
     const rawJefeCed = editData.cedulaJefeFamilia ? String(editData.cedulaJefeFamilia).trim().toUpperCase() : (selectedRegistro.cedulaJefeFamilia || "");
     const finalJefeCedula = rawJefeCed
@@ -3891,64 +3892,99 @@ ${entesList}`;
                 </div>
 
                  {currentUser.role === "ADMIN" && (
-                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", width: "100%" }}>
-                     <button
-                       type="button"
-                       className="btn-secondary"
-                       style={{ flex: 1, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", height: "var(--element-height, 42px)" }}
-                       onClick={() => {
-                         setEditMode(true);
-                         const isoDateStr = selectedRegistro.fechaNacimiento;
-                         let formattedBirthDate = "";
-                         if (isoDateStr) {
-                           const dObj = new Date(isoDateStr);
-                           if (!isNaN(dObj.getTime())) {
-                             const day = String(dObj.getDate()).padStart(2, "0");
-                             const month = String(dObj.getMonth() + 1).padStart(2, "0");
-                             const year = dObj.getFullYear();
-                             formattedBirthDate = `${day}/${month}/${year}`;
-                           }
-                         }
-                         setEditData({
-                           cedula: selectedRegistro.cedula,
-                           nombreApellido: selectedRegistro.nombreApellido,
-                           parroquia: selectedRegistro.parroquia,
-                           sector: selectedRegistro.sector,
-                           comunidad: selectedRegistro.comunidad,
-                           direccionExacta: selectedRegistro.direccionExacta,
-                           genero: selectedRegistro.genero,
-                           estadoFisico: selectedRegistro.estadoFisico,
-                           patologia: selectedRegistro.patologia,
-                           patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
-                           telefono: selectedRegistro.telefono || "",
-                           retirado: selectedRegistro.retirado || "NO",
-                           retiradoRazon: selectedRegistro.retiradoRazon || "",
-                           fechaNacimiento: formattedBirthDate,
-                           jefeFamilia: selectedRegistro.jefeFamilia || "NO",
-                           perteneceNucleo: selectedRegistro.perteneceNucleo || "NO",
-                           cedulaJefeFamilia: selectedRegistro.cedulaJefeFamilia || "",
-                         });
-                         setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
-                       }}
-                     >
-                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                       Editar Datos
-                     </button>
-                     <button
-                       type="button"
-                       className="btn-submit"
-                       style={{ flex: 1, margin: 0, backgroundColor: "var(--color-danger, #ef4444)", borderColor: "var(--color-danger, #ef4444)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", height: "var(--element-height, 42px)" }}
-                       onClick={() => {
-                         const confirmDel = window.confirm(`¿Está seguro de que desea eliminar permanentemente a ${selectedRegistro.nombreApellido} de los registros? Esta acción no se puede deshacer.`);
-                         if (confirmDel) {
-                           handleDeleteRegistro(selectedRegistro.id);
-                         }
-                       }}
-                     >
-                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                       Eliminar
-                     </button>
-                   </div>
+                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", width: "100%" }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{
+                          flex: 1,
+                          margin: 0,
+                          backgroundColor: "var(--color-danger-light)",
+                          color: "var(--color-danger)",
+                          borderColor: "rgba(220, 38, 38, 0.2)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "0.5rem",
+                          height: "var(--element-height, 42px)"
+                        }}
+                        onClick={() => {
+                          const confirmDel = window.confirm(`¿Está seguro de que desea eliminar permanentemente a ${selectedRegistro.nombreApellido} de los registros? Esta acción no se puede deshacer.`);
+                          if (confirmDel) {
+                            handleDeleteRegistro(selectedRegistro.id);
+                          }
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        Eliminar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ flex: 1, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", height: "var(--element-height, 42px)" }}
+                        onClick={() => {
+                          setEditMode(true);
+                          const isoDateStr = selectedRegistro.fechaNacimiento;
+                          let formattedBirthDate = "";
+                          if (isoDateStr) {
+                            const dObj = new Date(isoDateStr);
+                            if (!isNaN(dObj.getTime())) {
+                              const day = String(dObj.getDate()).padStart(2, "0");
+                              const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                              const year = dObj.getFullYear();
+                              formattedBirthDate = `${day}/${month}/${year}`;
+                            }
+                          }
+                          let nac = "V";
+                          let num = selectedRegistro.cedula;
+                          if (selectedRegistro.cedula.startsWith("V-")) {
+                            nac = "V";
+                            num = selectedRegistro.cedula.slice(2);
+                          } else if (selectedRegistro.cedula.startsWith("E-")) {
+                            nac = "E";
+                            num = selectedRegistro.cedula.slice(2);
+                          } else if (selectedRegistro.cedula.startsWith("V")) {
+                            nac = "V";
+                            num = selectedRegistro.cedula.slice(1);
+                          } else if (selectedRegistro.cedula.startsWith("E")) {
+                            nac = "E";
+                            num = selectedRegistro.cedula.slice(1);
+                          }
+
+                          let jefeNum = selectedRegistro.cedulaJefeFamilia || "";
+                          if (jefeNum.startsWith("V-") || jefeNum.startsWith("E-")) {
+                            jefeNum = jefeNum.slice(2);
+                          } else if (jefeNum.startsWith("V") || jefeNum.startsWith("E")) {
+                            jefeNum = jefeNum.slice(1);
+                          }
+
+                          setEditData({
+                            nacionalidad: nac,
+                            cedula: num,
+                            nombreApellido: selectedRegistro.nombreApellido,
+                            parroquia: selectedRegistro.parroquia,
+                            sector: selectedRegistro.sector,
+                            comunidad: selectedRegistro.comunidad,
+                            direccionExacta: selectedRegistro.direccionExacta,
+                            genero: selectedRegistro.genero,
+                            estadoFisico: selectedRegistro.estadoFisico,
+                            patologia: selectedRegistro.patologia,
+                            patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
+                            telefono: selectedRegistro.telefono || "",
+                            retirado: selectedRegistro.retirado || "NO",
+                            retiradoRazon: selectedRegistro.retiradoRazon || "",
+                            fechaNacimiento: formattedBirthDate,
+                            jefeFamilia: selectedRegistro.jefeFamilia || "NO",
+                            perteneceNucleo: selectedRegistro.perteneceNucleo || "NO",
+                            cedulaJefeFamilia: jefeNum,
+                          });
+                          setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Editar Datos
+                      </button>
+                    </div>
                  )}
               </>
             )}
@@ -3961,6 +3997,14 @@ ${entesList}`;
                     <div className="form-group detail-field--full">
                       <label>Cédula de Identidad</label>
                       <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
+                        <select
+                          value={editData.nacionalidad || "V"}
+                          onChange={e => setEditData(prev => ({ ...prev, nacionalidad: e.target.value }))}
+                          style={{ width: "80px", height: "42px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
+                        >
+                          <option value="V">V</option>
+                          <option value="E">E</option>
+                        </select>
                         <input
                           type="text"
                           value={editData.cedula || ""}
