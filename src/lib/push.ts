@@ -1,15 +1,19 @@
 import webpush from "web-push";
 import { prisma } from "./prisma";
 
-const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
-const privateKey = process.env.VAPID_PRIVATE_KEY || "";
+const publicKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "").replace(/^["']|["']$/g, "").trim();
+const privateKey = (process.env.VAPID_PRIVATE_KEY || "").replace(/^["']|["']$/g, "").trim();
 
 if (publicKey && privateKey) {
-  webpush.setVapidDetails(
-    "mailto:admin@registrosismolg26.gob.ve",
-    publicKey,
-    privateKey
-  );
+  try {
+    webpush.setVapidDetails(
+      "mailto:admin@registrosismolg26.gob.ve",
+      publicKey,
+      privateKey
+    );
+  } catch (err) {
+    console.error("Error setting VAPID details:", err);
+  }
 }
 
 export async function sendPushToAdmins(registro: { id: string; nombreApellido: string; cedula: string }) {
