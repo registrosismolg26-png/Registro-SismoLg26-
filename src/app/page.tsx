@@ -98,7 +98,20 @@ function ToastIcon({ type }: { type: ToastType }) {
   }
 }
 
-const CUARTOS = Array.from({ length: 22 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`);
+const CUARTOS = [
+  ...Array.from({ length: 22 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`),
+  ...Array.from({ length: 10 }, (_, i) => `EDIFICIO 2 SALON ${i + 23}`)
+];
+
+const formatRoomLabel = (room: string) => {
+  return room
+    .toLowerCase()
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+    .replace("Edificio", "Edif.")
+    .replace("Salon", "Salón");
+};
 
 export default function Home() {
   // Connection state
@@ -140,6 +153,32 @@ export default function Home() {
     "Juventud Socialista (brigadas de solidaridad)"
   ]);
   const [newEnte, setNewEnte] = useState("");
+
+  // Cuartos dinámicos (base + personalizados por admin)
+  const [customCuartos, setCustomCuartos] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("customCuartos") || "[]"); }
+    catch { return []; }
+  });
+  useEffect(() => {
+    localStorage.setItem("customCuartos", JSON.stringify(customCuartos));
+  }, [customCuartos]);
+  const allCuartos = useMemo(() => [...CUARTOS, ...customCuartos], [customCuartos]);
+  const [newBuilding, setNewBuilding] = useState("");
+  const [newSalon, setNewSalon] = useState("");
+  const addCustomCuarto = () => {
+    const b = newBuilding.trim().toUpperCase();
+    const s = newSalon.trim().toUpperCase();
+    if (!b || !s) return;
+    const key = `EDIFICIO ${b} SALON ${s}`;
+    if (allCuartos.includes(key)) return;
+    setCustomCuartos(prev => [...prev, key]);
+    setNewBuilding("");
+    setNewSalon("");
+  };
+  const removeCustomCuarto = (key: string) => {
+    setCustomCuartos(prev => prev.filter(c => c !== key));
+  };
 
   // Tab View Routing State
   const [activeTab, setActiveTab] = useState<"censo" | "dashboard" | "usuarios" | "config" | "asignaciones">("censo");
@@ -2175,7 +2214,7 @@ ${entesList}`;
 
   const roomCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    CUARTOS.forEach(room => {
+    allCuartos.forEach(room => {
       counts[room] = 0;
     });
     registros.filter(r => r.retirado !== "SI" && r.cuarto).forEach(r => {
@@ -2184,7 +2223,7 @@ ${entesList}`;
       }
     });
     return counts;
-  }, [registros]);
+  }, [registros, allCuartos]);
 
   const currentStats = useMemo(
     () => (isOnline && stats) ? stats : getLocalStats(),
@@ -3431,8 +3470,7 @@ ${entesList}`;
               <div className="dashboard-section" style={{ gridColumn: "span 3", marginTop: "1rem" }}>
                 <h3 className="dashboard-section-title">Distribución por Habitación / Salón</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem" }}>
-                  {CUARTOS.map(room => {
-                    const roomNum = room.replace("EDIFICIO 1 SALON ", "");
+                  {allCuartos.map(room => {
                     const count = roomCounts[room] || 0;
                     
                     let colorClass = "salon-green";
@@ -3448,7 +3486,7 @@ ${entesList}`;
                         className={`stat-card ${colorClass}`}
                         style={{ padding: "0.75rem", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                       >
-                        <span style={{ fontSize: "0.85rem", fontWeight: "700" }}>Salón {roomNum}</span>
+                        <span style={{ fontSize: "0.85rem", fontWeight: "700" }}>{formatRoomLabel(room)}</span>
                         <span style={{
                           fontWeight: "800",
                           fontSize: "0.95rem"
@@ -3772,6 +3810,84 @@ ${entesList}`;
               </div>
             )}
           </div>
+
+          {/* Gestión de Habitaciones — solo ADMIN */}
+          {currentUser.role === "ADMIN" && (
+            <div className="history-card history-card--gap-sm">
+              <span className="history-title">GESTIÓN DE EDIFICIOS Y SALONES</span>
+
+              {/* Formulario para agregar */}
+              <div className="room-add-form">
+                <div className="room-add-inputs">
+                  <div className="room-add-field">
+                    <label className="room-add-label">Edificio</label>
+                    <input
+                      className="room-add-input"
+                      placeholder="ej: 3"
+                      value={newBuilding}
+                      onChange={e => setNewBuilding(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && addCustomCuarto()}
+                    />
+                  </div>
+                  <div className="room-add-field">
+                    <label className="room-add-label">Salón</label>
+                    <input
+                      className="room-add-input"
+                      placeholder="ej: 33"
+                      value={newSalon}
+                      onChange={e => setNewSalon(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && addCustomCuarto()}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-submit btn-submit--sm"
+                    onClick={addCustomCuarto}
+                    disabled={!newBuilding.trim() || !newSalon.trim()}
+                  >
+                    Agregar
+                  </button>
+                </div>
+                {newBuilding.trim() && newSalon.trim() && (
+                  <p className="room-add-preview">
+                    Se agregará: <strong>Edif. {newBuilding.trim()} &mdash; Salón {newSalon.trim()}</strong>
+                  </p>
+                )}
+              </div>
+
+              {/* Salones predeterminados */}
+              <div className="room-list-section">
+                <span className="room-list-label">Predeterminados ({CUARTOS.length})</span>
+                <div className="room-chip-list">
+                  {CUARTOS.map(c => (
+                    <span key={c} className="room-chip room-chip--base">{formatRoomLabel(c)}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Salones personalizados */}
+              {customCuartos.length > 0 && (
+                <div className="room-list-section">
+                  <span className="room-list-label">Agregados por administrador ({customCuartos.length})</span>
+                  <div className="room-chip-list">
+                    {customCuartos.map(c => (
+                      <span key={c} className="room-chip room-chip--custom">
+                        {formatRoomLabel(c)}
+                        <button
+                          type="button"
+                          className="room-chip-remove"
+                          onClick={() => removeCustomCuarto(c)}
+                          title="Eliminar"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -3957,8 +4073,8 @@ ${entesList}`;
                   >
                     <option value="">Todos</option>
                     <option value="sin_asignar">Sin asignar</option>
-                    {CUARTOS.map(c => (
-                      <option key={c} value={c}>Salón {c.replace("EDIFICIO 1 SALON ", "")}</option>
+                    {allCuartos.map(c => (
+                      <option key={c} value={c}>{formatRoomLabel(c)}</option>
                     ))}
                   </select>
                 </div>
@@ -4583,7 +4699,7 @@ ${entesList}`;
                   <select id="cuarto-select" value={asignCuarto}
                     onChange={e => setAsignCuarto(e.target.value)}>
                     <option value="">— Seleccionar cuarto —</option>
-                    {CUARTOS.map(c => {
+                    {allCuartos.map(c => {
                       const count = roomCounts[c] || 0;
                       let emoji = "🟢";
                       if (count >= 17) {
