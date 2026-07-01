@@ -3135,23 +3135,21 @@ html[data-theme="dark"] .spinner {
 }
 
 /* Classroom occupancy color classes (semaforo) */
-.salon-green {
+.stat-card.salon-green,
+.presentation-mode .stat-card.salon-green {
   background: rgba(16, 185, 129, 0.08) !important;
   color: #065f46 !important;
   border: 1.5px solid #10b981 !important;
 }
-.salon-yellow {
+.stat-card.salon-yellow,
+.presentation-mode .stat-card.salon-yellow {
   background: rgba(245, 158, 11, 0.08) !important;
   color: #92400e !important;
   border: 1.5px solid #f59e0b !important;
 }
-.salon-red {
+.stat-card.salon-red,
+.presentation-mode .stat-card.salon-red {
   background: rgba(239, 68, 68, 0.08) !important;
   color: #991b1b !important;
   border: 1.5px solid #ef4444 !important;
-}
-.salon-empty {
-  background: var(--bg-secondary) !important;
-  color: var(--text-secondary) !important;
-  border: 1px solid var(--border-color) !important;
 }
