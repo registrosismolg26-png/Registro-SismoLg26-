@@ -21,7 +21,10 @@ export async function GET() {
         COUNT(*) FILTER (WHERE edad >= 60 AND genero = 'MASCULINO' AND retirado = 'NO') AS may_masc,
         COUNT(*) FILTER (WHERE edad >= 60 AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS may_otro,
         COUNT(*) FILTER (WHERE retirado = 'SI')                                         AS total_retirados,
-        COUNT(*) FILTER (WHERE intermitente = 'SI' AND retirado = 'NO')                  AS intermitentes
+        COUNT(*) FILTER (WHERE intermitente = 'SI' AND retirado = 'NO')                  AS intermitentes,
+        COUNT(*) FILTER (WHERE "estadoFisico" = 'LESIONADO' AND retirado = 'NO')         AS lesionados,
+        COUNT(*) FILTER (WHERE patologia = 'SI' AND retirado = 'NO')                     AS con_patologia,
+        COUNT(*) FILTER (WHERE cuarto IS NULL AND retirado = 'NO')                        AS sin_cuarto
       FROM "Registro"
     `;
 
@@ -80,7 +83,10 @@ export async function GET() {
             byEstadoFisico: [],
             byPatologia: [],
             promedioEdad: 0,
-            intermitentes: 0
+            intermitentes: 0,
+            lesionados: 0,
+            conPatologia: 0,
+            sinCuarto: 0
           }
         },
         { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } }
@@ -119,6 +125,9 @@ export async function GET() {
             mayores: { femenino: n(aggregates.may_fem),  masculino: n(aggregates.may_masc),  otro: n(aggregates.may_otro) }
           },
           intermitentes:  n(aggregates.intermitentes),
+          lesionados:     n(aggregates.lesionados),
+          conPatologia:   n(aggregates.con_patologia),
+          sinCuarto:      n(aggregates.sin_cuarto),
           byParroquia:    parroquiaGroup.map((g: { parroquia: string; _count: { _all: number } }) => ({ name: g.parroquia,    count: g._count._all })),
           byGenero:       generoGroup.map((g: { genero: string; _count: { _all: number } }) =>       ({ name: g.genero,       count: g._count._all })),
           byEstadoFisico: estadoFisicoGroup.map((g: { estadoFisico: string; _count: { _all: number } }) => ({ name: g.estadoFisico, count: g._count._all })),
