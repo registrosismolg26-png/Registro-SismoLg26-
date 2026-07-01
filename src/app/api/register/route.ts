@@ -164,9 +164,9 @@ export async function POST(req: Request) {
       },
     });
 
-    // Notify admins in the background
-    sendPushToAdmins(newRegistro).catch((err) => {
-      console.error("Error trigger push notifications to admins:", err);
+    // Notify admins
+    await sendPushToAdmins(newRegistro).catch((err) => {
+      console.error("Error triggering push notifications to admins:", err);
     });
 
     return NextResponse.json({ success: true, id: newRegistro.id }, { status: 201 });

@@ -41,7 +41,14 @@ export async function sendPushToAdmins(registro: { id: string; nombreApellido: s
         }
       };
 
-      return webpush.sendNotification(pushSubscription, payload)
+      const options = {
+        TTL: 86400, // Keep in queue for 24 hours if offline
+        headers: {
+          "Urgency": "high" // Wake up Android devices immediately from sleep mode
+        }
+      };
+
+      return webpush.sendNotification(pushSubscription, payload, options)
         .catch(err => {
           // Clean up invalid or expired subscriptions
           if (err.statusCode === 404 || err.statusCode === 410) {
