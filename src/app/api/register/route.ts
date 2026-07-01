@@ -32,6 +32,8 @@ export async function POST(req: Request) {
       telefono,
       medicamentos,
       refugio,
+      intermitente,
+      motivoIntermitente,
     } = body;
 
     // Required field presence check
@@ -59,6 +61,12 @@ export async function POST(req: Request) {
     }
     if (!VALID_SI_NO.includes(patologia)) {
       return NextResponse.json({ error: "Valor de patología inválido" }, { status: 400 });
+    }
+
+    // Validar campo intermitente
+    const intermitenteVal = intermitente && VALID_SI_NO.includes(intermitente) ? intermitente : "NO";
+    if (intermitenteVal === "SI" && (!motivoIntermitente || String(motivoIntermitente).trim() === "")) {
+      return NextResponse.json({ error: "El motivo es obligatorio cuando el residente es intermitente" }, { status: 400 });
     }
 
     // Date validation
@@ -131,6 +139,8 @@ export async function POST(req: Request) {
           cuarto: body.cuarto || undefined,
           retirado: body.retirado || undefined,
           retiradoRazon: body.retiradoRazon || undefined,
+          intermitente: intermitenteVal,
+          motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
           syncedAt: new Date(),
         }
       });
@@ -160,6 +170,8 @@ export async function POST(req: Request) {
         telefono: telefono ? String(telefono).trim() : null,
         medicamentos: Array.isArray(medicamentos) ? medicamentos : [],
         refugio: refugio ? String(refugio).trim() : "Complejo Educativo República de Panamá",
+        intermitente: intermitenteVal,
+        motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
         syncedAt: new Date(),
       },
     });

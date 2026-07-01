@@ -38,6 +38,8 @@ model Registro {
   retiradoFecha        DateTime?
   createdAt            DateTime  @default(now())
   syncedAt             DateTime? @default(now())
+  intermitente         String    @default("NO") // "SI" or "NO"
+  motivoIntermitente   String?   // Required when intermitente = "SI"
   refugio              String    @default("Complejo Educativo República de Panamá")
 }
 

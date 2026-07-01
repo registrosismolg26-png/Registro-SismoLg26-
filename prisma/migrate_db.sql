@@ -6,3 +6,7 @@ ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "campamentoTransitorio" TEXT NOT NUL
 UPDATE "Registro"
 SET "cedula" = 'V-' || "cedula"
 WHERE "cedula" NOT LIKE 'V-%' AND "cedula" NOT LIKE 'E-%';
+
+-- 3. Añadir columnas para residentes intermitentes
+ALTER TABLE "Registro" ADD COLUMN IF NOT EXISTS "intermitente" TEXT NOT NULL DEFAULT 'NO'; -- "SI" o "NO"
+ALTER TABLE "Registro" ADD COLUMN IF NOT EXISTS "motivoIntermitente" TEXT; -- Obligatorio si intermitente = 'SI'

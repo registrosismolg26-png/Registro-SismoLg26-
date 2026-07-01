@@ -820,7 +820,8 @@ export default function Home() {
   };
 
   // Download padron via NDJSON stream — writes to IndexedDB in 500-record
-  // batches as data arrives, so progress is visible immediately even on 2G.
+  // batches as data arrives. Verifica el total contra X-Padron-Total y
+  // reintenta automáticamente si faltan registros (hasta 3 veces).
   const downloadFullPadron = async () => {
     if (!isOnline) {
       showToast("Se requiere conexión a internet para descargar el padrón.", "warning");
@@ -832,48 +833,90 @@ export default function Home() {
     setSyncTotal(0);
     showToast("Descargando padrón electoral...", "info");
 
+    const MAX_RETRIES = 3;
+    let totalInserted = 0;
+    let serverTotal = 0;
+
     try {
-      const res = await fetch("/api/padron/download", { method: "POST" });
-      if (!res.ok || !res.body) throw new Error("Fallo al descargar padrón");
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        // En el primer intento limpiamos e iniciamos desde 0
+        // En reintentos, saltamos lo que ya tenemos
+        const skipAlreadyInserted = attempt > 0 ? totalInserted : 0;
 
-      setSyncStatus("saving");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let pending: any[][] = [];
-      let total = 0;
-      const WRITE_EVERY = 500;
-
-      const flushPending = async () => {
-        if (pending.length === 0) return;
-        const chunk = pending.splice(0);
-        await cargarPadronEnCliente(chunk, () => {});
-        total += chunk.length;
-        setSyncProgress(total);
-      };
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop()!;
-        for (const line of lines) {
-          if (line.trim()) pending.push(JSON.parse(line));
+        if (attempt > 0) {
+          showToast(`Padrón incompleto. Reintentando (${attempt}/${MAX_RETRIES})...`, "warning");
         }
-        if (pending.length >= WRITE_EVERY) await flushPending();
+
+        const res = await fetch("/api/padron/download", { method: "POST" });
+        if (!res.ok || !res.body) throw new Error("Fallo al descargar padrón");
+
+        // Leer el total del servidor desde el header
+        const headerTotal = res.headers.get("X-Padron-Total");
+        if (headerTotal) {
+          serverTotal = parseInt(headerTotal, 10);
+          setSyncTotal(serverTotal);
+        }
+
+        setSyncStatus("saving");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let pending: any[][] = [];
+        const WRITE_EVERY = 500;
+        let linesSkipped = 0;
+
+        const flushPending = async () => {
+          if (pending.length === 0) return;
+          const chunk = pending.splice(0);
+          await cargarPadronEnCliente(chunk, () => {});
+          totalInserted += chunk.length;
+          setSyncProgress(totalInserted);
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop()!;
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            // En reintentos, saltar los registros ya guardados en IndexedDB
+            if (linesSkipped < skipAlreadyInserted) {
+              linesSkipped++;
+              continue;
+            }
+            try { pending.push(JSON.parse(line)); } catch {}
+          }
+          if (pending.length >= WRITE_EVERY) await flushPending();
+        }
+
+        // Flush línea residual
+        if (buffer.trim()) {
+          try { pending.push(JSON.parse(buffer)); } catch {}
+        }
+        await flushPending();
+
+        // Si el servidor no envió el header total, asumir completado
+        if (!serverTotal || totalInserted >= serverTotal) break;
       }
 
-      // flush any leftover line
-      if (buffer.trim()) {
-        try { pending.push(JSON.parse(buffer)); } catch {}
-      }
-      await flushPending();
+      // Verificar conteo final en IndexedDB para máxima precisión
+      const finalCount = await getLocalPadronCount();
 
-      setSyncTotal(total);
+      setSyncTotal(serverTotal || finalCount);
       setSyncStatus("completed");
-      showToast(`Padrón descargado: ${total.toLocaleString()} registros.`, "success");
+
+      if (serverTotal && finalCount < serverTotal) {
+        showToast(
+          `Padrón descargado parcialmente: ${finalCount.toLocaleString()} de ${serverTotal.toLocaleString()} registros. Intenta de nuevo.`,
+          "warning"
+        );
+      } else {
+        showToast(`Padrón descargado: ${finalCount.toLocaleString()} registros.`, "success");
+      }
+
       await refreshVotersCount();
 
       setTimeout(() => {
@@ -889,6 +932,7 @@ export default function Home() {
       setTimeout(() => setSyncStatus("idle"), 5000);
     }
   };
+
 
   const deletePadronLocal = async () => {
     if (confirm("¿Estás seguro de borrar el padrón electoral local de este dispositivo?")) {
@@ -1036,6 +1080,8 @@ export default function Home() {
           cuarto: updated.cuarto,
           retirado: updated.retirado || "NO",
           retiradoRazon: updated.retiradoRazon || undefined,
+          intermitente: updated.intermitente || "NO",
+          motivoIntermitente: updated.motivoIntermitente || undefined,
           refugio: updated.refugio || "Complejo Educativo República de Panamá"
         }
       };
@@ -1137,6 +1183,8 @@ export default function Home() {
           cuarto: updated.cuarto || undefined,
           retirado: updated.retirado || "NO",
           retiradoRazon: updated.retirado === "SI" ? updated.retiradoRazon : undefined,
+          intermitente: updated.intermitente || "NO",
+          motivoIntermitente: updated.intermitente === "SI" ? updated.motivoIntermitente : undefined,
           refugio: updated.refugio || "Complejo Educativo República de Panamá"
         }
       };
@@ -4306,6 +4354,11 @@ ${entesList}`;
                                 RETIRADO
                               </span>
                             )}
+                            {reg.intermitente === "SI" && (
+                              <span className="estado-pill" style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", border: "1px solid rgba(245, 158, 11, 0.4)" }}>
+                                INTERMITENTE
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="col-cuarto">
@@ -4483,6 +4536,20 @@ ${entesList}`;
                       </span>
                     </div>
                   )}
+                  {selectedRegistro.intermitente === "SI" && (
+                    <div className="detail-field detail-field--full" style={{ borderLeft: "3px solid #f59e0b", paddingLeft: "8px" }}>
+                      <span className="detail-label" style={{ color: "#f59e0b", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        Residente Intermitente
+                      </span>
+                      <span className="detail-value">
+                        Residente intermitente por el siguiente motivo: {selectedRegistro.motivoIntermitente}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                  {currentUser.role === "ADMIN" && (
@@ -4571,6 +4638,8 @@ ${entesList}`;
                             jefeFamilia: selectedRegistro.jefeFamilia || "NO",
                             perteneceNucleo: selectedRegistro.perteneceNucleo || "NO",
                             cedulaJefeFamilia: jefeNum,
+                            intermitente: selectedRegistro.intermitente || "NO",
+                            motivoIntermitente: selectedRegistro.motivoIntermitente || "",
                           });
                           setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
                         }}
@@ -4840,6 +4909,33 @@ ${entesList}`;
                       <label>Razón de Retiro</label>
                       <input type="text" placeholder="ej: Retornado a vivienda, alta médica, etc." value={editData.retiradoRazon || ""}
                         onChange={e => setEditData(prev => ({ ...prev, retiradoRazon: e.target.value }))} />
+                    </div>
+                  )}
+                  <div className="form-group">
+                    <label>Residente Intermitente</label>
+                    <select value={editData.intermitente || "NO"}
+                      onChange={e => setEditData(prev => ({ ...prev, intermitente: e.target.value, motivoIntermitente: e.target.value === "NO" ? "" : prev.motivoIntermitente }))}>
+                      <option value="NO">No</option>
+                      <option value="SI">Sí</option>
+                    </select>
+                  </div>
+                  {editData.intermitente === "SI" && (
+                    <div className="form-group detail-field--full">
+                      <label>
+                        Motivo del Intermitente <span style={{ color: "var(--color-danger, #e53e3e)" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej: Sale a trabajar de lunes a viernes, regresa los fines de semana."
+                        value={editData.motivoIntermitente || ""}
+                        onChange={e => setEditData(prev => ({ ...prev, motivoIntermitente: e.target.value }))}
+                        style={{ borderColor: editData.intermitente === "SI" && !editData.motivoIntermitente?.trim() ? "var(--color-danger, #e53e3e)" : undefined }}
+                      />
+                      {editData.intermitente === "SI" && !editData.motivoIntermitente?.trim() && (
+                        <span style={{ fontSize: "0.78rem", color: "var(--color-danger, #e53e3e)", marginTop: "2px" }}>
+                          El motivo es obligatorio para residentes intermitentes
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

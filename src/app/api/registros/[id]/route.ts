@@ -32,6 +32,8 @@ export async function PATCH(
       jefeFamilia,
       perteneceNucleo,
       cedulaJefeFamilia,
+      intermitente,
+      motivoIntermitente,
     } = body;
 
     // Build update payload — only include fields present in the request body
@@ -140,6 +142,21 @@ export async function PATCH(
     }
     if ("medicamentos" in body) {
       data.medicamentos = Array.isArray(body.medicamentos) ? body.medicamentos : [];
+    }
+
+    // Intermitente y motivo
+    if ("intermitente" in body) {
+      if (!VALID_SI_NO.includes(intermitente)) {
+        return NextResponse.json({ error: "Valor de intermitente inválido" }, { status: 400 });
+      }
+      if (intermitente === "SI" && (!motivoIntermitente || String(motivoIntermitente).trim() === "")) {
+        return NextResponse.json({ error: "El motivo es obligatorio cuando el residente es intermitente" }, { status: 400 });
+      }
+      data.intermitente = intermitente;
+      data.motivoIntermitente = intermitente === "SI" ? String(motivoIntermitente).trim() : null;
+    } else if ("motivoIntermitente" in body) {
+      // Allow updating just the motivo without changing intermitente state
+      data.motivoIntermitente = motivoIntermitente ? String(motivoIntermitente).trim() : null;
     }
 
     if (Object.keys(data).length === 0) {

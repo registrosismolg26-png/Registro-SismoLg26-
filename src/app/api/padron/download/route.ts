@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 export async function POST() {
   const encoder = new TextEncoder();
 
+  // Obtener el total antes de iniciar el stream para que el cliente pueda
+  // verificar que recibió todos los registros y reintentar si faltan.
+  const total = await prisma.padron.count();
+
   // Stream records as NDJSON in server-side batches of 500.
   // The client writes each batch to IndexedDB as it arrives, so even on a
   // 2G connection the padrón builds up progressively instead of waiting
@@ -59,6 +63,9 @@ export async function POST() {
       "Content-Type": "application/x-ndjson",
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
+      // Total de registros para que el cliente verifique integridad
+      "X-Padron-Total": String(total),
+      "Access-Control-Expose-Headers": "X-Padron-Total",
     },
   });
 }
