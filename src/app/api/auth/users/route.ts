@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Todos los campos son obligatorios" }, { status: 400 });
     }
 
-    const validRoles = ["ADMIN", "REGISTRADOR"];
+    const validRoles = ["ADMIN", "REGISTRADOR", "VISUALIZADOR"];
     if (!validRoles.includes(role)) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }
@@ -102,7 +102,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Todos los campos obligatorios deben estar presentes" }, { status: 400 });
     }
 
-    const validRoles = ["ADMIN", "REGISTRADOR"];
+    const validRoles = ["ADMIN", "REGISTRADOR", "VISUALIZADOR"];
     if (!validRoles.includes(role)) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }

@@ -159,6 +159,7 @@ export default function Home() {
     nombre: "",
     email: "",
     password: "",
+    confirmPassword: "",
     role: "REGISTRADOR",
     campamentoTransitorio: "Complejo Educativo República de Panamá"
   });
@@ -166,6 +167,10 @@ export default function Home() {
   const [userErrors, setUserErrors] = useState<Record<string, string>>({});
   const [systemUsers, setSystemUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
+  const [editUserModalOpen, setEditUserModalOpen] = useState(false);
+  const [userShowPassword, setUserShowPassword] = useState(false);
+  const [userShowConfirmPassword, setUserShowConfirmPassword] = useState(false);
 
   // Asignaciones Module State (Admin only)
   const [registros, setRegistros] = useState<any[]>([]);
@@ -781,9 +786,36 @@ export default function Home() {
       ? ((rawJefeCed.startsWith("V-") || rawJefeCed.startsWith("E-")) ? rawJefeCed : `V-${rawJefeCed}`)
       : null;
 
+    let finalFechaNac = selectedRegistro.fechaNacimiento;
+    let finalEdad = selectedRegistro.edad;
+
+    if (editData.fechaNacimiento) {
+      const dateParts = editData.fechaNacimiento.split("/");
+      if (dateParts.length === 3) {
+        const d = parseInt(dateParts[0], 10);
+        const m = parseInt(dateParts[1], 10);
+        const y = parseInt(dateParts[2], 10);
+        const tempDate = new Date(y, m - 1, d);
+        if (!isNaN(tempDate.getTime())) {
+          finalFechaNac = tempDate.toISOString();
+          
+          // Calculate age
+          const today = new Date();
+          let calculatedAge = today.getFullYear() - tempDate.getFullYear();
+          const monthDiff = today.getMonth() - tempDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < tempDate.getDate())) {
+            calculatedAge--;
+          }
+          finalEdad = calculatedAge >= 0 ? calculatedAge : 0;
+        }
+      }
+    }
+
     const updated = {
       ...selectedRegistro,
       ...editData,
+      fechaNacimiento: finalFechaNac,
+      edad: finalEdad,
       cedula: finalCedula,
       cedulaJefeFamilia: finalJefeCedula,
       medicamentos: editMedicamentos
@@ -1111,6 +1143,11 @@ export default function Home() {
             campamentoTransitorio: match.campamentoTransitorio || "Complejo Educativo República de Panamá"
           };
           setCurrentUser(userSession);
+          if (userSession.role === "VISUALIZADOR") {
+            setActiveTab("dashboard");
+          } else {
+            setActiveTab("censo");
+          }
           if (rememberMe) {
             localStorage.setItem("sismo_operator", JSON.stringify(userSession));
             sessionStorage.removeItem("sismo_operator");
@@ -1142,6 +1179,11 @@ export default function Home() {
 
       if (data.success && data.user) {
         setCurrentUser(data.user);
+        if (data.user.role === "VISUALIZADOR") {
+          setActiveTab("dashboard");
+        } else {
+          setActiveTab("censo");
+        }
         if (rememberMe) {
           localStorage.setItem("sismo_operator", JSON.stringify(data.user));
           sessionStorage.removeItem("sismo_operator");
@@ -1205,6 +1247,9 @@ export default function Home() {
     } else if (userForm.password.length < 6) {
       errs.password = "La contraseña debe tener al menos 6 caracteres.";
     }
+    if (userForm.password !== userForm.confirmPassword) {
+      errs.confirmPassword = "Las contraseñas no coinciden.";
+    }
 
     if (Object.keys(errs).length > 0) {
       setUserErrors(errs);
@@ -1230,13 +1275,17 @@ export default function Home() {
       }
 
       showToast("Usuario creado con éxito.", "success");
+      setCreateUserModalOpen(false);
       setUserForm({
         nombre: "",
         email: "",
         password: "",
+        confirmPassword: "",
         role: "REGISTRADOR",
         campamentoTransitorio: "Complejo Educativo República de Panamá"
       });
+      setUserShowPassword(false);
+      setUserShowConfirmPassword(false);
       fetchUsers();
     } catch (err) {
       console.error(err);
@@ -1257,6 +1306,14 @@ export default function Home() {
       errs.email = "El correo es obligatorio.";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userForm.email)) {
       errs.email = "El correo no es válido.";
+    }
+    if (userForm.password) {
+      if (userForm.password.length < 6) {
+        errs.password = "La contraseña debe tener al menos 6 caracteres.";
+      }
+      if (userForm.password !== userForm.confirmPassword) {
+        errs.confirmPassword = "Las contraseñas no coinciden.";
+      }
     }
 
     if (Object.keys(errs).length > 0) {
@@ -1288,13 +1345,17 @@ export default function Home() {
 
       showToast("Usuario actualizado con éxito.", "success");
       setEditingUserId(null);
+      setEditUserModalOpen(false);
       setUserForm({
         nombre: "",
         email: "",
         password: "",
+        confirmPassword: "",
         role: "REGISTRADOR",
         campamentoTransitorio: "Complejo Educativo República de Panamá"
       });
+      setUserShowPassword(false);
+      setUserShowConfirmPassword(false);
       fetchUsers();
     } catch (err) {
       console.error(err);
@@ -2161,14 +2222,16 @@ ${entesList}`;
       {/* Navigation */}
       <div className="app-nav">
         <div className="app-nav-primary">
-          <button
-            type="button"
-            className={`nav-primary-btn ${activeTab === "censo" ? "active" : ""}`}
-            onClick={() => { setActiveTab("censo"); setMenuOpen(false); }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            Registrar
-          </button>
+          {currentUser.role !== "VISUALIZADOR" && (
+            <button
+              type="button"
+              className={`nav-primary-btn ${activeTab === "censo" ? "active" : ""}`}
+              onClick={() => { setActiveTab("censo"); setMenuOpen(false); }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              Registrar
+            </button>
+          )}
           <button
             type="button"
             className={`nav-hamburger ${menuOpen ? "open" : ""}`}
@@ -2181,7 +2244,7 @@ ${entesList}`;
           </button>
         </div>
         <div className={`nav-drawer${menuOpen ? "" : " nav-drawer--closed"}`}>
-            {currentUser.role === "ADMIN" && (
+            {(currentUser.role === "ADMIN" || currentUser.role === "VISUALIZADOR") && (
               <button
                 type="button"
                 className={`nav-drawer-btn ${activeTab === "dashboard" ? "active" : ""}`}
@@ -2209,14 +2272,16 @@ ${entesList}`;
                 Gestión de Usuarios
               </button>
             )}
-            <button
-              type="button"
-              className={`nav-drawer-btn ${activeTab === "config" ? "active" : ""}`}
-              onClick={() => { setActiveTab("config"); setMenuOpen(false); }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
-              Configuración del Sistema
-            </button>
+            {currentUser.role !== "VISUALIZADOR" && (
+              <button
+                type="button"
+                className={`nav-drawer-btn ${activeTab === "config" ? "active" : ""}`}
+                onClick={() => { setActiveTab("config"); setMenuOpen(false); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
+                Configuración del Sistema
+              </button>
+            )}
           </div>
       </div>
 
@@ -3241,194 +3306,117 @@ ${entesList}`;
 
       {/* TAB 3: USER ADMINISTRATION (ADMIN ONLY) */}
       {activeTab === "usuarios" && isPowerAdmin && (
-        <div className="tab-view">
+        <div className="tab-view" style={{ display: "flex", flexDirection: "column" }}>
           
-          {/* User Registration / Edit Form Card */}
-          <form onSubmit={editingUserId ? handleUpdateUser : handleCreateUser} className="form-card">
-            <div className="form-section form-section--gap-md">
-              <div className="section-title">
-                {editingUserId ? "Editar Usuario / Operador" : "Crear Nuevo Usuario"}
+          {/* Registered Users Table Card (Spacious Layout) */}
+          <div className="history-card" style={{ width: "100%", maxWidth: "100%", margin: 0, padding: "1.5rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
+              <div>
+                <span className="history-title" style={{ display: "block", marginBottom: "0.25rem" }}>OPERADORES DEL SISTEMA</span>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>
+                  Gestione las cuentas de operadores, asignación de campamentos y niveles de acceso administrativo y consulta.
+                </p>
               </div>
-
-              <div className="form-group">
-                <label htmlFor="user-nombre">Nombre y Apellido del Operador</label>
-                <input
-                  type="text"
-                  id="user-nombre"
-                  placeholder="ej: Juan Pérez"
-                  value={userForm.nombre}
-                  onChange={(e) => {
-                    setUserForm(prev => ({ ...prev, nombre: e.target.value }));
-                    setUserErrors(prev => ({ ...prev, nombre: "" }));
+              {isOnline && (
+                <button
+                  type="button"
+                  className="btn-submit"
+                  style={{ width: "auto", margin: 0, padding: "0 1.25rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+                  onClick={() => {
+                    setCreateUserModalOpen(true);
+                    setUserForm({
+                      nombre: "",
+                      email: "",
+                      password: "",
+                      confirmPassword: "",
+                      role: "REGISTRADOR",
+                      campamentoTransitorio: "Complejo Educativo República de Panamá"
+                    });
+                    setUserErrors({});
                   }}
-                  className={userErrors.nombre ? "has-error" : ""}
-                />
-                <div className="error-container">
-                  {userErrors.nombre && <span className="field-error-message">{userErrors.nombre}</span>}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="user-email">Correo Electrónico</label>
-                <input
-                  type="email"
-                  id="user-email"
-                  placeholder="ej: juan.perez@sismo.gob.ve"
-                  value={userForm.email}
-                  onChange={(e) => {
-                    setUserForm(prev => ({ ...prev, email: e.target.value }));
-                    setUserErrors(prev => ({ ...prev, email: "" }));
-                  }}
-                  className={userErrors.email ? "has-error" : ""}
-                />
-                <div className="error-container">
-                  {userErrors.email && <span className="field-error-message">{userErrors.email}</span>}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="user-password">
-                  {editingUserId ? "Nueva Contraseña (dejar en blanco para no cambiar)" : "Contraseña (Mínimo 6 caracteres)"}
-                </label>
-                <input
-                  type="password"
-                  id="user-password"
-                  placeholder={editingUserId ? "Dejar en blanco para no cambiar" : "Contraseña del operador"}
-                  value={userForm.password}
-                  onChange={(e) => {
-                    setUserForm(prev => ({ ...prev, password: e.target.value }));
-                    setUserErrors(prev => ({ ...prev, password: "" }));
-                  }}
-                  className={userErrors.password ? "has-error" : ""}
-                />
-                <div className="error-container">
-                  {userErrors.password && <span className="field-error-message">{userErrors.password}</span>}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="user-campamento">Campamento Transitorio</label>
-                <input
-                  type="text"
-                  id="user-campamento"
-                  placeholder="ej: Complejo Educativo República de Panamá"
-                  value={userForm.campamentoTransitorio}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Rol asignado</label>
-                <div className="radio-group">
-                  <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`}>
-                    <input 
-                      type="radio" 
-                      name="role" 
-                      value="REGISTRADOR" 
-                      checked={userForm.role === "REGISTRADOR"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
-                    />
-                    REGISTRADOR
-                  </label>
-                  <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`}>
-                    <input 
-                      type="radio" 
-                      name="role" 
-                      value="ADMIN" 
-                      checked={userForm.role === "ADMIN"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
-                    />
-                    ADMINISTRADOR
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-                <button type="submit" className="btn-submit" style={{ flex: 1, margin: 0 }}>
-                  {editingUserId ? "Guardar Cambios" : "Registrar Operador"}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Registrar Nuevo Operador
                 </button>
-                {editingUserId && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{ margin: 0, width: "auto", padding: "0 1.25rem" }}
-                    onClick={() => {
-                      setEditingUserId(null);
-                      setUserForm({
-                        nombre: "",
-                        email: "",
-                        password: "",
-                        role: "REGISTRADOR",
-                        campamentoTransitorio: "Complejo Educativo República de Panamá"
-                      });
-                      setUserErrors({});
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                )}
-              </div>
+              )}
             </div>
-          </form>
 
-          {/* Registered Users List Card */}
-          <div className="history-card">
-            <span className="history-title">OPERADORES DEL SISTEMA</span>
             {!isOnline && (
               <p className="status-msg status-msg--warning" style={{ margin: "0.5rem 0" }}>
-                Sin conexión. No es posible listar o actualizar operadores.
+                Sin conexión. No es posible listar o registrar operadores.
               </p>
             )}
             
             {loadingUsers ? (
-              <div className="loading-center" style={{ minHeight: "unset", padding: "1rem 0" }}>
+              <div className="loading-center" style={{ minHeight: "200px" }}>
                 <span className="spinner"></span>
               </div>
             ) : systemUsers.length === 0 ? (
-              <p className="data-empty">
+              <p className="data-empty" style={{ padding: "3rem 1rem" }}>
                 No hay operadores cargados o se requiere conexión para consultar.
               </p>
             ) : (
-              <div className="history-list history-list--mt">
-                {systemUsers.map((usr) => (
-                  <div className="history-item" key={usr.id}>
-                    <div className="history-item-info">
-                      <span className="history-item-name">{usr.nombre}</span>
-                      <span className="history-item-meta">{usr.email} • {usr.campamentoTransitorio || "Sin campamento"}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <span className={`queue-badge ${usr.role === "ADMIN" ? "queue-badge--role-admin" : "queue-badge--role-registrador"}`}>
-                        {usr.role}
-                      </span>
-                      <button
-                        type="button"
-                        style={{
-                          padding: "0.25rem 0.5rem",
-                          fontSize: "0.7rem",
-                          fontWeight: "700",
-                          backgroundColor: "var(--color-primary-light)",
-                          color: "var(--color-primary)",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer"
-                        }}
-                        onClick={() => {
-                          setEditingUserId(usr.id);
-                          setUserForm({
-                            nombre: usr.nombre,
-                            email: usr.email,
-                            password: "",
-                            role: usr.role,
-                            campamentoTransitorio: usr.campamentoTransitorio || "Complejo Educativo República de Panamá"
-                          });
-                          setUserErrors({});
-                        }}
-                      >
-                        Editar
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="registro-table-wrapper">
+                <table className="registro-table">
+                  <thead>
+                    <tr>
+                      <th>Nombre y Apellido</th>
+                      <th>Correo de Acceso</th>
+                      <th>Rol</th>
+                      <th>Campamento Asignado</th>
+                      <th style={{ textAlign: "right" }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {systemUsers.map((usr) => (
+                      <tr key={usr.id}>
+                        <td><strong>{usr.nombre}</strong></td>
+                        <td>{usr.email}</td>
+                        <td>
+                          <span className={`queue-badge ${
+                            usr.role === "ADMIN" 
+                              ? "queue-badge--role-admin" 
+                              : usr.role === "VISUALIZADOR"
+                              ? "queue-badge--role-visualizador"
+                              : "queue-badge--role-registrador"
+                          }`} style={usr.role === "VISUALIZADOR" ? {
+                            backgroundColor: "rgba(99, 102, 241, 0.1)",
+                            color: "#818cf8",
+                            border: "1px solid rgba(99, 102, 241, 0.2)"
+                          } : undefined}>
+                            {usr.role === "ADMIN" ? "ADMINISTRADOR" : usr.role === "VISUALIZADOR" ? "VISUALIZADOR" : "REGISTRADOR"}
+                          </span>
+                        </td>
+                        <td>{usr.campamentoTransitorio || "Sin campamento"}</td>
+                        <td style={{ textAlign: "right" }}>
+                          {isOnline && (
+                            <button
+                              type="button"
+                              className="btn-ver"
+                              style={{ padding: "0.35rem 0.75rem", fontSize: "0.775rem", display: "inline-flex", alignItems: "center", gap: "0.25rem", height: "auto" }}
+                              onClick={() => {
+                                setEditingUserId(usr.id);
+                                setUserForm({
+                                  nombre: usr.nombre,
+                                  email: usr.email,
+                                  password: "",
+                                  confirmPassword: "",
+                                  role: usr.role,
+                                  campamentoTransitorio: usr.campamentoTransitorio || "Complejo Educativo República de Panamá"
+                                });
+                                setUserErrors({});
+                                setEditUserModalOpen(true);
+                              }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              Editar
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -3805,6 +3793,16 @@ ${entesList}`;
                     <span className="detail-label">Jefe de Familia</span>
                     <span className="detail-value">{selectedRegistro.jefeFamilia}</span>
                   </div>
+                  <div className="detail-field">
+                    <span className="detail-label">Pertenece a Núcleo</span>
+                    <span className="detail-value">{selectedRegistro.perteneceNucleo || "NO"}</span>
+                  </div>
+                  {selectedRegistro.perteneceNucleo === "SI" && selectedRegistro.jefeFamilia === "NO" && selectedRegistro.cedulaJefeFamilia && (
+                    <div className="detail-field">
+                      <span className="detail-label">Cédula Jefe de Familia</span>
+                      <span className="detail-value">{selectedRegistro.cedulaJefeFamilia}</span>
+                    </div>
+                  )}
                   <div className="detail-field detail-field--full">
                     <span className="detail-label">Parroquia</span>
                     <span className="detail-value">{selectedRegistro.parroquia}</span>
@@ -3877,6 +3875,17 @@ ${entesList}`;
                        style={{ flex: 1, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", height: "var(--element-height, 42px)" }}
                        onClick={() => {
                          setEditMode(true);
+                         const isoDateStr = selectedRegistro.fechaNacimiento;
+                         let formattedBirthDate = "";
+                         if (isoDateStr) {
+                           const dObj = new Date(isoDateStr);
+                           if (!isNaN(dObj.getTime())) {
+                             const day = String(dObj.getDate()).padStart(2, "0");
+                             const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                             const year = dObj.getFullYear();
+                             formattedBirthDate = `${day}/${month}/${year}`;
+                           }
+                         }
                          setEditData({
                            cedula: selectedRegistro.cedula,
                            nombreApellido: selectedRegistro.nombreApellido,
@@ -3891,6 +3900,10 @@ ${entesList}`;
                            telefono: selectedRegistro.telefono || "",
                            retirado: selectedRegistro.retirado || "NO",
                            retiradoRazon: selectedRegistro.retiradoRazon || "",
+                           fechaNacimiento: formattedBirthDate,
+                           jefeFamilia: selectedRegistro.jefeFamilia || "NO",
+                           perteneceNucleo: selectedRegistro.perteneceNucleo || "NO",
+                           cedulaJefeFamilia: selectedRegistro.cedulaJefeFamilia || "",
                          });
                          setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
                        }}
@@ -3960,6 +3973,76 @@ ${entesList}`;
                     <input type="text" value={editData.nombreApellido || ""}
                       onChange={e => setEditData(prev => ({ ...prev, nombreApellido: e.target.value }))} />
                   </div>
+                  <div className="form-group">
+                    <label>Fecha de Nacimiento (DD/MM/AAAA)</label>
+                    <input 
+                      type="text" 
+                      value={editData.fechaNacimiento || ""}
+                      onChange={e => {
+                        const rawVal = e.target.value.replace(/\D/g, "");
+                        let formatted = rawVal.slice(0, 2);
+                        if (rawVal.length > 2) formatted += "/" + rawVal.slice(2, 4);
+                        if (rawVal.length > 4) formatted += "/" + rawVal.slice(4, 8);
+                        setEditData(prev => ({ ...prev, fechaNacimiento: formatted }));
+                      }}
+                      placeholder="DD/MM/AAAA"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Edad Calculada</label>
+                    <input 
+                      type="text" 
+                      value={(() => {
+                        if (!editData.fechaNacimiento) return selectedRegistro.edad;
+                        const dateParts = editData.fechaNacimiento.split("/");
+                        if (dateParts.length === 3) {
+                          const d = parseInt(dateParts[0], 10);
+                          const m = parseInt(dateParts[1], 10);
+                          const y = parseInt(dateParts[2], 10);
+                          const tempDate = new Date(y, m - 1, d);
+                          if (!isNaN(tempDate.getTime())) {
+                            const today = new Date();
+                            let calculatedAge = today.getFullYear() - tempDate.getFullYear();
+                            const monthDiff = today.getMonth() - tempDate.getMonth();
+                            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < tempDate.getDate())) {
+                              calculatedAge--;
+                            }
+                            return calculatedAge >= 0 ? calculatedAge : 0;
+                          }
+                        }
+                        return selectedRegistro.edad;
+                      })() + " años"}
+                      disabled
+                      style={{ backgroundColor: "var(--bg-primary)", cursor: "not-allowed" }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>¿Es Jefe de Familia?</label>
+                    <select value={editData.jefeFamilia || "NO"}
+                      onChange={e => setEditData(prev => ({ ...prev, jefeFamilia: e.target.value }))}>
+                      <option value="NO">No</option>
+                      <option value="SI">Sí</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>¿Pertenece a un Núcleo Familiar?</label>
+                    <select value={editData.perteneceNucleo || "NO"}
+                      onChange={e => setEditData(prev => ({ ...prev, perteneceNucleo: e.target.value }))}>
+                      <option value="NO">No</option>
+                      <option value="SI">Sí</option>
+                    </select>
+                  </div>
+                  {editData.perteneceNucleo === "SI" && editData.jefeFamilia === "NO" && (
+                    <div className="form-group detail-field--full">
+                      <label>Cédula del Jefe de Familia</label>
+                      <input 
+                        type="text" 
+                        value={editData.cedulaJefeFamilia || ""}
+                        onChange={e => setEditData(prev => ({ ...prev, cedulaJefeFamilia: e.target.value.replace(/\D/g, "") }))}
+                        placeholder="Ingrese la cédula del jefe de familia"
+                      />
+                    </div>
+                  )}
                   <div className="form-group">
                     <label>Parroquia</label>
                     <input type="text" value={editData.parroquia || ""}
@@ -4282,6 +4365,350 @@ ${entesList}`;
                 Copiar y Abrir WhatsApp
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Crear Nuevo Usuario */}
+      {createUserModalOpen && (
+        <div className="modal-overlay" onClick={() => setCreateUserModalOpen(false)}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+            <div className="modal-header">
+              <span className="modal-title">Crear Nuevo Usuario / Operador</span>
+              <button className="modal-close" onClick={() => setCreateUserModalOpen(false)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateUser} className="detail-edit-grid" style={{ gridTemplateColumns: "1fr", gap: "0.75rem", padding: "0.5rem 0" }}>
+              <div className="form-group">
+                <label htmlFor="user-create-nombre">Nombre y Apellido del Operador</label>
+                <input
+                  type="text"
+                  id="user-create-nombre"
+                  placeholder="ej: Juan Pérez"
+                  value={userForm.nombre}
+                  onChange={(e) => {
+                    setUserForm(prev => ({ ...prev, nombre: e.target.value }));
+                    setUserErrors(prev => ({ ...prev, nombre: "" }));
+                  }}
+                  className={userErrors.nombre ? "has-error" : ""}
+                />
+                <div className="error-container">
+                  {userErrors.nombre && <span className="field-error-message">{userErrors.nombre}</span>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-create-email">Correo Electrónico</label>
+                <input
+                  type="email"
+                  id="user-create-email"
+                  placeholder="ej: juan.perez@sismo.gob.ve"
+                  value={userForm.email}
+                  onChange={(e) => {
+                    setUserForm(prev => ({ ...prev, email: e.target.value }));
+                    setUserErrors(prev => ({ ...prev, email: "" }));
+                  }}
+                  className={userErrors.email ? "has-error" : ""}
+                />
+                <div className="error-container">
+                  {userErrors.email && <span className="field-error-message">{userErrors.email}</span>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-create-password">Contraseña (Mínimo 6 caracteres)</label>
+                <div style={{ display: "flex", gap: "0.25rem", width: "100%", position: "relative" }}>
+                  <input
+                    type={userShowPassword ? "text" : "password"}
+                    id="user-create-password"
+                    placeholder="Contraseña del operador"
+                    value={userForm.password}
+                    onChange={(e) => {
+                      setUserForm(prev => ({ ...prev, password: e.target.value }));
+                      setUserErrors(prev => ({ ...prev, password: "" }));
+                    }}
+                    className={userErrors.password ? "has-error" : ""}
+                    style={{ paddingRight: "40px" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setUserShowPassword(p => !p)}
+                    style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  >
+                    {userShowPassword ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+                <div className="error-container">
+                  {userErrors.password && <span className="field-error-message">{userErrors.password}</span>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-create-confirm">Confirmar Contraseña</label>
+                <div style={{ display: "flex", gap: "0.25rem", width: "100%", position: "relative" }}>
+                  <input
+                    type={userShowConfirmPassword ? "text" : "password"}
+                    id="user-create-confirm"
+                    placeholder="Repita la contraseña"
+                    value={userForm.confirmPassword}
+                    onChange={(e) => {
+                      setUserForm(prev => ({ ...prev, confirmPassword: e.target.value }));
+                      setUserErrors(prev => ({ ...prev, confirmPassword: "" }));
+                    }}
+                    className={userErrors.confirmPassword ? "has-error" : ""}
+                    style={{ paddingRight: "40px" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setUserShowConfirmPassword(p => !p)}
+                    style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  >
+                    {userShowConfirmPassword ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+                <div className="error-container">
+                  {userErrors.confirmPassword && <span className="field-error-message">{userErrors.confirmPassword}</span>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-create-campamento">Campamento Transitorio</label>
+                <input
+                  type="text"
+                  id="user-create-campamento"
+                  placeholder="ej: Complejo Educativo República de Panamá"
+                  value={userForm.campamentoTransitorio}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Rol asignado</label>
+                <div className="radio-group" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
+                  <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                    <input 
+                      type="radio" 
+                      name="role-create" 
+                      value="REGISTRADOR" 
+                      checked={userForm.role === "REGISTRADOR"}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                    />
+                    REGISTRADOR
+                  </label>
+                  <label className={`radio-card ${userForm.role === "VISUALIZADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                    <input 
+                      type="radio" 
+                      name="role-create" 
+                      value="VISUALIZADOR" 
+                      checked={userForm.role === "VISUALIZADOR"}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                    />
+                    VISUALIZADOR
+                  </label>
+                  <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                    <input 
+                      type="radio" 
+                      name="role-create" 
+                      value="ADMIN" 
+                      checked={userForm.role === "ADMIN"}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                    />
+                    ADMIN
+                  </label>
+                </div>
+              </div>
+
+              <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+                <button type="button" className="btn-secondary" onClick={() => setCreateUserModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-submit" style={{ flex: 1 }}>
+                  Registrar Operador
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Usuario */}
+      {editUserModalOpen && (
+        <div className="modal-overlay" onClick={() => setEditUserModalOpen(false)}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+            <div className="modal-header">
+              <span className="modal-title">Editar Usuario / Operador</span>
+              <button className="modal-close" onClick={() => setEditUserModalOpen(false)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateUser} className="detail-edit-grid" style={{ gridTemplateColumns: "1fr", gap: "0.75rem", padding: "0.5rem 0" }}>
+              <div className="form-group">
+                <label htmlFor="user-edit-nombre">Nombre y Apellido del Operador</label>
+                <input
+                  type="text"
+                  id="user-edit-nombre"
+                  placeholder="ej: Juan Pérez"
+                  value={userForm.nombre}
+                  onChange={(e) => {
+                    setUserForm(prev => ({ ...prev, nombre: e.target.value }));
+                    setUserErrors(prev => ({ ...prev, nombre: "" }));
+                  }}
+                  className={userErrors.nombre ? "has-error" : ""}
+                />
+                <div className="error-container">
+                  {userErrors.nombre && <span className="field-error-message">{userErrors.nombre}</span>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-edit-email">Correo Electrónico</label>
+                <input
+                  type="email"
+                  id="user-edit-email"
+                  placeholder="ej: juan.perez@sismo.gob.ve"
+                  value={userForm.email}
+                  onChange={(e) => {
+                    setUserForm(prev => ({ ...prev, email: e.target.value }));
+                    setUserErrors(prev => ({ ...prev, email: "" }));
+                  }}
+                  className={userErrors.email ? "has-error" : ""}
+                />
+                <div className="error-container">
+                  {userErrors.email && <span className="field-error-message">{userErrors.email}</span>}
+                </div>
+              </div>
+
+              <div className="form-group" style={{ position: "relative" }}>
+                <label htmlFor="user-edit-password">Nueva Contraseña (dejar en blanco para no cambiar)</label>
+                <div style={{ display: "flex", gap: "0.25rem", width: "100%", position: "relative" }}>
+                  <input
+                    type={userShowPassword ? "text" : "password"}
+                    id="user-edit-password"
+                    placeholder="Nueva contraseña"
+                    value={userForm.password}
+                    onChange={(e) => {
+                      setUserForm(prev => ({ ...prev, password: e.target.value }));
+                      setUserErrors(prev => ({ ...prev, password: "" }));
+                    }}
+                    className={userErrors.password ? "has-error" : ""}
+                    style={{ paddingRight: "40px" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setUserShowPassword(p => !p)}
+                    style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  >
+                    {userShowPassword ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+                <div className="error-container">
+                  {userErrors.password && <span className="field-error-message">{userErrors.password}</span>}
+                </div>
+              </div>
+
+              <div className="form-group" style={{ position: "relative" }}>
+                <label htmlFor="user-edit-confirm">Confirmar Nueva Contraseña</label>
+                <div style={{ display: "flex", gap: "0.25rem", width: "100%", position: "relative" }}>
+                  <input
+                    type={userShowConfirmPassword ? "text" : "password"}
+                    id="user-edit-confirm"
+                    placeholder="Repita la nueva contraseña"
+                    value={userForm.confirmPassword}
+                    onChange={(e) => {
+                      setUserForm(prev => ({ ...prev, confirmPassword: e.target.value }));
+                      setUserErrors(prev => ({ ...prev, confirmPassword: "" }));
+                    }}
+                    className={userErrors.confirmPassword ? "has-error" : ""}
+                    style={{ paddingRight: "40px" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setUserShowConfirmPassword(p => !p)}
+                    style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  >
+                    {userShowConfirmPassword ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+                <div className="error-container">
+                  {userErrors.confirmPassword && <span className="field-error-message">{userErrors.confirmPassword}</span>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-edit-campamento">Campamento Transitorio</label>
+                <input
+                  type="text"
+                  id="user-edit-campamento"
+                  placeholder="ej: Complejo Educativo República de Panamá"
+                  value={userForm.campamentoTransitorio}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Rol asignado</label>
+                <div className="radio-group" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
+                  <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                    <input 
+                      type="radio" 
+                      name="role-edit" 
+                      value="REGISTRADOR" 
+                      checked={userForm.role === "REGISTRADOR"}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                    />
+                    REGISTRADOR
+                  </label>
+                  <label className={`radio-card ${userForm.role === "VISUALIZADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                    <input 
+                      type="radio" 
+                      name="role-edit" 
+                      value="VISUALIZADOR" 
+                      checked={userForm.role === "VISUALIZADOR"}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                    />
+                    VISUALIZADOR
+                  </label>
+                  <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                    <input 
+                      type="radio" 
+                      name="role-edit" 
+                      value="ADMIN" 
+                      checked={userForm.role === "ADMIN"}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                    />
+                    ADMIN
+                  </label>
+                </div>
+              </div>
+
+              <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+                <button type="button" className="btn-secondary" onClick={() => setEditUserModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-submit" style={{ flex: 1 }}>
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

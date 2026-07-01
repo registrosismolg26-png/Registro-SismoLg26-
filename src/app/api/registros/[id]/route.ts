@@ -28,6 +28,10 @@ export async function PATCH(
       telefono,
       retirado,
       retiradoRazon,
+      fechaNacimiento,
+      jefeFamilia,
+      perteneceNucleo,
+      cedulaJefeFamilia,
     } = body;
 
     // Build update payload — only include fields present in the request body
@@ -91,6 +95,44 @@ export async function PATCH(
     }
     if ("retiradoRazon" in body) {
       data.retiradoRazon = retiradoRazon ? String(retiradoRazon).trim() : null;
+    }
+    if ("fechaNacimiento" in body) {
+      if (!fechaNacimiento) {
+        return NextResponse.json({ error: "La fecha de nacimiento no puede estar vacía" }, { status: 400 });
+      }
+      const date = new Date(fechaNacimiento);
+      if (isNaN(date.getTime())) {
+        return NextResponse.json({ error: "Fecha de nacimiento inválida" }, { status: 400 });
+      }
+      data.fechaNacimiento = date;
+      
+      // Calculate age
+      const today = new Date();
+      let age = today.getFullYear() - date.getFullYear();
+      const m = today.getMonth() - date.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
+        age--;
+      }
+      data.edad = age >= 0 ? age : 0;
+    }
+    if ("jefeFamilia" in body) {
+      if (!VALID_SI_NO.includes(jefeFamilia)) {
+        return NextResponse.json({ error: "Valor de jefeFamilia inválido" }, { status: 400 });
+      }
+      data.jefeFamilia = jefeFamilia;
+    }
+    if ("perteneceNucleo" in body) {
+      if (!VALID_SI_NO.includes(perteneceNucleo)) {
+        return NextResponse.json({ error: "Valor de perteneceNucleo inválido" }, { status: 400 });
+      }
+      data.perteneceNucleo = perteneceNucleo;
+    }
+    if ("cedulaJefeFamilia" in body) {
+      const cleanJefeCedula = cedulaJefeFamilia ? String(cedulaJefeFamilia).trim().toUpperCase() : null;
+      const normalizedJefeCedula = cleanJefeCedula
+        ? ((cleanJefeCedula.startsWith("V-") || cleanJefeCedula.startsWith("E-")) ? cleanJefeCedula : `V-${cleanJefeCedula}`)
+        : null;
+      data.cedulaJefeFamilia = normalizedJefeCedula;
     }
     if ("medicamentos" in body) {
       data.medicamentos = Array.isArray(body.medicamentos) ? body.medicamentos : [];

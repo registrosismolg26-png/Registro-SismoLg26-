@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     if (
       !parroquia || !sector || !comunidad || !direccionExacta ||
       !nombreApellido || !cedula || !jefeFamilia || !genero ||
-      !fechaNacimiento || edad === undefined || !perteneceNucleo ||
+      !fechaNacimiento || !perteneceNucleo ||
       !estadoFisico || !patologia
     ) {
       return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
@@ -70,8 +70,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "La fecha de nacimiento no puede ser futura" }, { status: 400 });
     }
 
+    // Calculate age if not provided
+    let edadNum = Number(edad);
+    if (edad === undefined || edad === null) {
+      let age = now.getFullYear() - fechaObj.getFullYear();
+      const m = now.getMonth() - fechaObj.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < fechaObj.getDate())) {
+        age--;
+      }
+      edadNum = age >= 0 ? age : 0;
+    }
+
     // Age sanity check
-    const edadNum = Number(edad);
     if (!Number.isInteger(edadNum) || edadNum < 0 || edadNum > 120) {
       return NextResponse.json({ error: "Edad fuera de rango válido" }, { status: 400 });
     }

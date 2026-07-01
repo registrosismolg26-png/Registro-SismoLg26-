@@ -1039,6 +1039,12 @@ html[data-theme="dark"] .toast--info {
   flex-direction: column;
 }
 
+.modal-content--detail {
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -2612,12 +2618,7 @@ html[data-theme="dark"] .spinner {
   cursor: not-allowed;
 }
 
-/* Wider modal for record detail */
-.modal-content--detail {
-  max-width: 520px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
+
 
 /* Record list */
 .registro-list {
