@@ -232,6 +232,7 @@ export default function Home() {
   const [qrCodes, setQrCodes] = useState<Array<{ id: string; name: string; url: string }>>([]);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
+  const [internalNotification, setInternalNotification] = useState<{ registroId: string; nombreApellido: string } | null>(null);
 
   // Toast Notification State
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -440,6 +441,11 @@ export default function Home() {
         if (registroId) {
           setPendingSelectId(registroId);
           fetchRegistros(); // Refetch to make sure registration exists
+        }
+      } else if (event.data?.type === "NEW_REGISTRO_NOTIFICATION") {
+        const { registroId, nombreApellido } = event.data;
+        if (registroId && nombreApellido) {
+          setInternalNotification({ registroId, nombreApellido });
         }
       }
     };
@@ -5111,6 +5117,81 @@ ${entesList}`;
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Real-time internal PWA notification banner */}
+      {internalNotification && (
+        <div style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          backgroundColor: "var(--bg-secondary, #1a202c)",
+          borderLeft: "4px solid var(--color-primary, #6366f1)",
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)",
+          borderRadius: "8px",
+          padding: "1rem",
+          zIndex: 99999,
+          maxWidth: "350px",
+          width: "90%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.75rem",
+          color: "var(--text-primary)",
+          border: "1px solid var(--border-color)"
+        }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+            <span style={{ fontSize: "1.25rem" }}>🔔</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: "700", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-primary)" }}>
+                Nuevo Afectado
+              </div>
+              <p style={{ fontSize: "0.85rem", margin: "4px 0 0 0", color: "var(--text-secondary)", lineHeight: "1.4" }}>
+                <strong>{internalNotification.nombreApellido}</strong> ha sido registrado en el censo.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem" }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{
+                width: "auto",
+                margin: 0,
+                padding: "0 0.75rem",
+                fontSize: "0.75rem",
+                height: "28px",
+                backgroundColor: "transparent",
+                border: "none",
+                color: "var(--text-secondary)"
+              }}
+              onClick={() => setInternalNotification(null)}
+            >
+              Ignorar
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{
+                width: "auto",
+                margin: 0,
+                padding: "0 0.75rem",
+                fontSize: "0.75rem",
+                height: "28px",
+                backgroundColor: "var(--color-primary)",
+                color: "#ffffff",
+                borderColor: "var(--color-primary)",
+                fontWeight: "600"
+              }}
+              onClick={() => {
+                setPendingSelectId(internalNotification.registroId);
+                fetchRegistros();
+                setInternalNotification(null);
+              }}
+            >
+              Asignar Habitación
+            </button>
           </div>
         </div>
       )}

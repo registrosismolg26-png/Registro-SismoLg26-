@@ -81,13 +81,6 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("push", (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // Check if the app is open and visible
-      const isAppOpen = clientList.some((client) => client.visibilityState === "visible");
-      if (isAppOpen) {
-        // App is open and active; do not show push notification
-        return;
-      }
-
       let data = {};
       try {
         data = event.data ? event.data.json() : {};
@@ -95,10 +88,28 @@ self.addEventListener("push", (event) => {
         data = { title: "Nuevo Afectado Registrado", body: event.data ? event.data.text() : "" };
       }
 
+      // Check if the app is open and visible
+      const isAppOpen = clientList.some((client) => client.visibilityState === "visible");
+      if (isAppOpen) {
+        // App is open and active; send a postMessage to open clients to display an internal notification
+        clientList.forEach((client) => {
+          if (client.visibilityState === "visible") {
+            const registroId = data.url ? new URL(data.url, self.location.origin).searchParams.get("registroId") : null;
+            const name = data.body ? data.body.split(" (")[0] : "un nuevo afectado";
+            client.postMessage({
+              type: "NEW_REGISTRO_NOTIFICATION",
+              registroId,
+              nombreApellido: name
+            });
+          }
+        });
+        return;
+      }
+
       const title = data.title || "Nuevo Afectado";
       const options = {
         body: data.body || "Se ha registrado un afectado en el censo.",
-        icon: "/logo_gob.webp",
+        icon: "/logo_pwa.png",
         badge: "/favicon.ico",
         vibrate: [200, 100, 200],
         data: {
