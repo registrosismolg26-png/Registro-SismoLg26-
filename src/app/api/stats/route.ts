@@ -27,13 +27,45 @@ export async function GET() {
     const total = Number(aggregates.total ?? 0);
     const totalRetirados = Number(aggregates.total_retirados ?? 0);
 
+    // Family nuclei calculations
+    const presentRegistros = await prisma.registro.findMany({
+      where: { retirado: "NO" },
+      select: { cedula: true, jefeFamilia: true, cedulaJefeFamilia: true }
+    });
+
+    const familyGroups: Record<string, number> = {};
+    presentRegistros.forEach(r => {
+      let familyId = "";
+      if (r.jefeFamilia === "SI") {
+        familyId = r.cedula;
+      } else if (r.cedulaJefeFamilia) {
+        familyId = r.cedulaJefeFamilia;
+      } else {
+        familyId = r.cedula;
+      }
+      familyGroups[familyId] = (familyGroups[familyId] || 0) + 1;
+    });
+
+    let nucleosFamiliares = 0;
+    let individuosSolos = 0;
+    Object.values(familyGroups).forEach(size => {
+      if (size >= 2) {
+        nucleosFamiliares++;
+      } else {
+        individuosSolos++;
+      }
+    });
+
     if (total === 0) {
       return NextResponse.json(
         {
           success: true,
           stats: {
             total: 0,
+            totalRegistrados: totalRetirados,
             totalRetirados,
+            nucleosFamiliares: 0,
+            individuosSolos: 0,
             menores: 0,
             adultos: 0,
             mayores: 0,
@@ -71,7 +103,10 @@ export async function GET() {
         success: true,
         stats: {
           total,
+          totalRegistrados: total + totalRetirados,
           totalRetirados,
+          nucleosFamiliares,
+          individuosSolos,
           menores:      n(aggregates.menores),
           adultos:      n(aggregates.adultos),
           mayores:      n(aggregates.mayores),

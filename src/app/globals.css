@@ -2894,20 +2894,21 @@ html[data-theme="dark"] .spinner {
 @media print {
   @page {
     size: landscape;
-    margin: 10mm;
+    margin: 8mm;
   }
   
   html, body {
     background: #fff !important;
-    color: #000 !important;
+    color: #0f172a !important;
   }
 
-  /* Hide everything except the dashboard tab container */
+  /* Hide navigation, buttons and tabs */
   body * {
     visibility: hidden;
     box-shadow: none !important;
   }
 
+  /* Only make dashboard container visible */
   .tab-view--dashboard, .tab-view--dashboard * {
     visibility: visible;
   }
@@ -2922,7 +2923,7 @@ html[data-theme="dark"] .spinner {
     display: block !important;
   }
 
-  /* Hide buttons, status bars and spinners when printing */
+  /* Hide non-printable widgets */
   .tab-view--dashboard button,
   .tab-view--dashboard .status-bar,
   .tab-view--dashboard .loading-center,
@@ -2930,52 +2931,53 @@ html[data-theme="dark"] .spinner {
     display: none !important;
   }
 
-  /* Optimize dashboard layout for landscape print */
+  /* Print Grid optimization */
   .stats-grid {
     display: grid !important;
     grid-template-columns: repeat(4, 1fr) !important;
-    gap: 10px !important;
-    margin-bottom: 20px !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
     width: 100% !important;
   }
 
   .stat-card {
-    border: 1px solid #ccc !important;
-    background: #fff !important;
-    padding: 10px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    padding: 8px !important;
     page-break-inside: avoid;
   }
 
   .stat-card .stat-label {
-    color: #444 !important;
+    color: #475569 !important;
+    font-size: 0.75rem !important;
   }
 
   .stat-card .stat-value {
-    color: #000 !important;
+    color: #0f172a !important;
+    font-size: 1.25rem !important;
   }
 
-  /* Grid layout for SVGs and chart boxes */
   .tab-view--dashboard .stats-charts-grid {
     display: grid !important;
     grid-template-columns: repeat(3, 1fr) !important;
-    gap: 15px !important;
+    gap: 10px !important;
     width: 100% !important;
   }
 
   .dashboard-section {
-    border: 1px solid #ccc !important;
-    background: #fff !important;
-    padding: 15px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    padding: 10px !important;
     page-break-inside: avoid;
     height: auto !important;
   }
 
   .dashboard-section-title {
     color: #1e3a8a !important;
-    font-size: 1rem !important;
+    font-size: 0.85rem !important;
   }
 
-  /* Force browsers to print backgrounds of SVG and chart elements */
+  /* Force system color adjustments */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -2986,28 +2988,91 @@ html[data-theme="dark"] .spinner {
   display: contents;
 }
 
+/* ── Presentation Mode 100% Adaptive Light Mode ───────────────────────── */
 .presentation-mode {
-  background: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
-  padding: 2rem !important;
+  background: #f8fafc !important; /* light slate bg */
+  color: #0f172a !important; /* slate 900 */
+  padding: 1.5rem 2.5rem !important;
   overflow-y: auto !important;
   height: 100vh !important;
   width: 100vw !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 1.5rem !important;
+  gap: 1.25rem !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
+/* Presentation Grid Layout for charts */
 .presentation-mode .stats-charts-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)) !important;
-  gap: 1.5rem !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 1.25rem !important;
+}
+
+/* Fallback for smaller fullscreen screens */
+@media (max-width: 1200px) {
+  .presentation-mode .stats-charts-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
 }
 
 .presentation-mode .stats-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
   gap: 1rem !important;
-  margin-bottom: 0.5rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.presentation-mode .stat-card {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 1.25rem !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+.presentation-mode .stat-card .stat-label {
+  color: #475569 !important; /* slate 600 */
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+}
+
+.presentation-mode .stat-card .stat-value {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  font-size: 1.85rem !important;
+}
+
+.presentation-mode .dashboard-section {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 1.25rem !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.presentation-mode .dashboard-section-title {
+  color: #1e3a8a !important; /* deep primary blue */
+  font-weight: 700 !important;
+  font-size: 1.05rem !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  padding-bottom: 0.5rem !important;
+  margin-bottom: 1rem !important;
+}
+
+/* Force dark SVG text labels for charts in presentation mode */
+.presentation-mode svg text {
+  fill: #475569 !important; /* slate 600 */
+  font-weight: 600 !important;
+}
+
+.presentation-mode svg {
+  background: #ffffff !important;
 }
 
 .presentation-mode .status-bar,
@@ -3017,7 +3082,7 @@ html[data-theme="dark"] .spinner {
 
 @keyframes statPulse {
   0% { transform: scale(1); }
-  50% { transform: scale(1.15); color: var(--color-success); }
+  50% { transform: scale(1.1); color: var(--color-success-hover, #16a34a); }
   100% { transform: scale(1); }
 }
 

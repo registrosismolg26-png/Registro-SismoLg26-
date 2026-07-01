@@ -18,6 +18,7 @@ type PublicRegistro = {
   retirado: string;
   retiradoRazon: string | null;
   telefono: string | null;
+  refugio: string;
 };
 
 export default function PublicSearch() {
@@ -26,17 +27,53 @@ export default function PublicSearch() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [isOperator, setIsOperator] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" | "warning" } | null>(null);
 
-  // Load theme on mount
+  // Load theme and operator session on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedTheme = localStorage.getItem("theme") as "dark" | "light" | null;
       const initialTheme = savedTheme || "dark";
       setTheme(initialTheme);
       document.documentElement.setAttribute("data-theme", initialTheme);
+
+      const savedUser = localStorage.getItem("sismo_operator") || sessionStorage.getItem("sismo_operator");
+      if (savedUser) {
+        setIsOperator(true);
+      }
     }
   }, []);
+
+  // Debounced search trigger as user types
+  useEffect(() => {
+    const cleanQ = query.trim();
+    if (cleanQ.length < 3) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/public-search?q=${encodeURIComponent(cleanQ)}`);
+        const data = await res.json();
+        if (data.success) {
+          setResults(data.registros || []);
+          setSearched(true);
+        } else {
+          showToast("Error al realizar la búsqueda", "error");
+        }
+      } catch {
+        showToast("Error de conexión", "error");
+      } finally {
+        setLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -50,36 +87,12 @@ export default function PublicSearch() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanQ = query.trim();
-    if (cleanQ.length < 3) {
-      showToast("Ingrese al menos 3 caracteres para buscar", "warning");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/public-search?q=${encodeURIComponent(cleanQ)}`);
-      const data = await res.json();
-      if (data.success) {
-        setResults(data.registros || []);
-        setSearched(true);
-      } else {
-        showToast("Error al realizar la búsqueda", "error");
-      }
-    } catch {
-      showToast("Error de conexión", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Mask ID slightly for basic privacy while keeping it searchable (e.g. V-12345678 -> V-12***678)
+  // Mask Cédula slightly for basic privacy (e.g. V-26597356 -> V-26***356)
   const maskCedula = (ced: string) => {
-    const clean = ced.replace(/\D/g, "");
-    if (clean.length <= 4) return ced;
-    return `${clean.slice(0, 2)}***${clean.slice(-3)}`;
+    const prefix = ced.slice(0, 2); // E.g. "V-" or "E-"
+    const numberPart = ced.replace(/^[VE]-/, "");
+    if (numberPart.length <= 4) return ced;
+    return `${prefix}${numberPart.slice(0, 2)}***${numberPart.slice(-3)}`;
   };
 
   return (
@@ -120,44 +133,44 @@ export default function PublicSearch() {
       {/* Main Search Panel */}
       <div className="tab-view" style={{ marginTop: "1rem" }}>
         <div className="form-card" style={{ padding: "1.5rem" }}>
-          <form onSubmit={handleSearch}>
-            <div className="form-section">
-              <div className="section-title">Buscar Familiar Afectado</div>
-              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
-                Consulte el estado actual de su familiar ingresando su nombre y apellido, número de cédula, teléfono de contacto o dirección.
-              </p>
-              
-              <div style={{ display: "flex", gap: "0.5rem", width: "100%", flexWrap: "wrap" }}>
-                <input
-                  type="text"
-                  placeholder="Ej: Juan Pérez, 12345678, Los Cocos..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  style={{ flex: 1, minWidth: "200px" }}
-                  required
-                />
-                <button type="submit" className="btn-submit" style={{ width: "auto", margin: 0, padding: "0 1.5rem" }} disabled={loading}>
-                  {loading ? "Buscando..." : "Buscar"}
-                </button>
-              </div>
+          <div className="form-section">
+            <div className="section-title">Buscar Familiar Afectado</div>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
+              Consulte el estado actual de su familiar ingresando su nombre y apellido, número de cédula, teléfono de contacto o dirección.
+            </p>
+            
+            <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
+              <input
+                type="text"
+                placeholder="Escriba aquí para buscar (Ej: Juan Pérez, 12345678, Los Cocos...)"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                style={{ flex: 1 }}
+                required
+              />
             </div>
-          </form>
-
-          <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "flex-start" }}>
-            <a href="/" className="btn-ver" style={{ padding: "0.5rem 1rem", textDecoration: "none" }}>
-              ← Volver al Acceso de Operadores
-            </a>
           </div>
+
+          {isOperator && (
+            <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "flex-start" }}>
+              <a href="/" className="btn-ver" style={{ padding: "0.5rem 1rem", textDecoration: "none" }}>
+                ← Volver al Acceso de Operadores
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Results Container */}
-        {searched && (
+        {(searched || loading) && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1.5rem" }}>
-            <h3 style={{ fontSize: "1.1rem", color: "var(--text-primary)", fontWeight: "600" }}>
-              Resultados de Búsqueda ({results.length})
-            </h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontSize: "1.1rem", color: "var(--text-primary)", fontWeight: "600", margin: 0 }}>
+                {loading ? "Buscando coincidencias..." : `Resultados de Búsqueda (${results.length})`}
+              </h3>
+              {loading && <span className="spinner"></span>}
+            </div>
 
-            {results.length === 0 ? (
+            {!loading && results.length === 0 ? (
               <div className="form-card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
                 No se encontraron familiares que coincidan con la búsqueda. Por favor verifique los datos ingresados o contacte a los coordinadores del refugio.
               </div>
@@ -180,16 +193,16 @@ export default function PublicSearch() {
                     </div>
 
                     <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.25rem", borderTop: "1px solid var(--border-color)", paddingTop: "0.5rem" }}>
+                      <div><strong>Campamento Transitorio:</strong> <span style={{ color: "var(--color-primary-hover)", fontWeight: "600" }}>{reg.refugio || "Complejo Educativo República de Panamá"}</span></div>
                       <div><strong>Comunidad:</strong> {reg.comunidad} ({reg.parroquia})</div>
                       <div><strong>Sector:</strong> {reg.sector}</div>
-                      {reg.cuarto && <div><strong>Habitación / Salón:</strong> <span className="cuarto-badge cuarto-badge--assigned" style={{ fontSize: "0.75rem" }}>{reg.cuarto}</span></div>}
                       {reg.telefono && <div><strong>Contacto Autorizado:</strong> <a href={`tel:${reg.telefono}`} style={{ color: "var(--color-primary-hover)", fontWeight: "600", textDecoration: "underline" }}>{reg.telefono}</a></div>}
                     </div>
 
                     {reg.retirado === "SI" && (
                       <div style={{ fontSize: "0.8rem", color: "#ef4444", backgroundColor: "rgba(239, 68, 68, 0.1)", padding: "0.5rem", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
                         <strong>ESTADO: EGRESADO / RETIRADO</strong>
-                        {reg.retiradoRazon && <div>Razon: {reg.retiradoRazon}</div>}
+                        {reg.retiradoRazon && <div>Razón: {reg.retiradoRazon}</div>}
                       </div>
                     )}
                   </div>

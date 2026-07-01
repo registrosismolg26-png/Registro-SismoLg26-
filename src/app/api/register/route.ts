@@ -10,6 +10,7 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const {
+      id,
       parroquia,
       sector,
       comunidad,
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
       gpsLng,
       telefono,
       medicamentos,
+      refugio,
     } = body;
 
     // Required field presence check
@@ -74,20 +76,71 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Edad fuera de rango válido" }, { status: 400 });
     }
 
+    // Normalize Cédulas (V- / E-)
+    const cleanCedula = String(cedula).trim().toUpperCase();
+    const normalizedCedula = (cleanCedula.startsWith("V-") || cleanCedula.startsWith("E-"))
+      ? cleanCedula
+      : `V-${cleanCedula}`;
+
+    const cleanJefeCedula = cedulaJefeFamilia ? String(cedulaJefeFamilia).trim().toUpperCase() : null;
+    const normalizedJefeCedula = cleanJefeCedula
+      ? ((cleanJefeCedula.startsWith("V-") || cleanJefeCedula.startsWith("E-")) ? cleanJefeCedula : `V-${cleanJefeCedula}`)
+      : null;
+
+    // Check if record already exists by ID (for offline updates)
+    let existing = null;
+    if (id) {
+      existing = await prisma.registro.findUnique({ where: { id } });
+    }
+
+    if (existing) {
+      const updated = await prisma.registro.update({
+        where: { id },
+        data: {
+          parroquia,
+          sector,
+          comunidad,
+          direccionExacta,
+          nombreApellido: nombreApellido.toUpperCase().trim(),
+          cedula: normalizedCedula,
+          jefeFamilia,
+          genero,
+          fechaNacimiento: fechaObj,
+          edad: edadNum,
+          perteneceNucleo,
+          cedulaJefeFamilia: normalizedJefeCedula,
+          estadoFisico,
+          patologia,
+          patologiaDescripcion: patologiaDescripcion || null,
+          gpsLat: gpsLat ? Number(gpsLat) : null,
+          gpsLng: gpsLng ? Number(gpsLng) : null,
+          telefono: telefono ? String(telefono).trim() : null,
+          medicamentos: Array.isArray(medicamentos) ? medicamentos : [],
+          refugio: refugio ? String(refugio).trim() : undefined,
+          cuarto: body.cuarto || undefined,
+          retirado: body.retirado || undefined,
+          retiradoRazon: body.retiradoRazon || undefined,
+          syncedAt: new Date(),
+        }
+      });
+      return NextResponse.json({ success: true, id: updated.id, updated: true }, { status: 200 });
+    }
+
     const newRegistro = await prisma.registro.create({
       data: {
+        id: id || undefined,
         parroquia,
         sector,
         comunidad,
         direccionExacta,
-        nombreApellido,
-        cedula: String(cedula).trim(),
+        nombreApellido: nombreApellido.toUpperCase().trim(),
+        cedula: normalizedCedula,
         jefeFamilia,
         genero,
         fechaNacimiento: fechaObj,
         edad: edadNum,
         perteneceNucleo,
-        cedulaJefeFamilia: cedulaJefeFamilia ? String(cedulaJefeFamilia).trim() : null,
+        cedulaJefeFamilia: normalizedJefeCedula,
         estadoFisico,
         patologia,
         patologiaDescripcion: patologiaDescripcion || null,
@@ -95,6 +148,7 @@ export async function POST(req: Request) {
         gpsLng: gpsLng ? Number(gpsLng) : null,
         telefono: telefono ? String(telefono).trim() : null,
         medicamentos: Array.isArray(medicamentos) ? medicamentos : [],
+        refugio: refugio ? String(refugio).trim() : "Complejo Educativo República de Panamá",
         syncedAt: new Date(),
       },
     });

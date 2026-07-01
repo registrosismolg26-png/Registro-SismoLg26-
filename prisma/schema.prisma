@@ -38,6 +38,7 @@ model Registro {
   retiradoFecha        DateTime?
   createdAt            DateTime  @default(now())
   syncedAt             DateTime? @default(now())
+  refugio              String    @default("Complejo Educativo República de Panamá")
 }
 
 model Padron {
@@ -51,10 +52,11 @@ model Padron {
   @@index([parroquia])
 }
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  nombre    String
-  password  String
-  role      String   // "ADMIN" | "REGISTRADOR"
-  createdAt DateTime @default(now())
+  id                    String   @id @default(uuid())
+  email                 String   @unique
+  nombre                String
+  password              String
+  role                  String   // "ADMIN" | "REGISTRADOR"
+  campamentoTransitorio String   @default("Complejo Educativo República de Panamá")
+  createdAt             DateTime @default(now())
 }

@@ -25,10 +25,11 @@ type FormData = {
   fechaNacimiento: string; edad: string; perteneceNucleo: string; jefeFamilia: string;
   cedulaJefeFamilia: string; estadoFisico: string; patologia: string;
   patologiaDescripcion: string; telefonoCod: string; telefonoNum: string;
+  isChildDependent: boolean; dependentNumber: string;
 };
 
 type FormAction =
-  | { type: "SET"; field: keyof FormData; value: string }
+  | { type: "SET"; field: keyof FormData; value: any }
   | { type: "SET_MANY"; patch: Partial<FormData> }
   | { type: "RESET" };
 
@@ -38,6 +39,7 @@ const INITIAL_FORM: FormData = {
   fechaNacimiento: "", edad: "", perteneceNucleo: "", jefeFamilia: "",
   cedulaJefeFamilia: "", estadoFisico: "", patologia: "", patologiaDescripcion: "",
   telefonoCod: "0412", telefonoNum: "",
+  isChildDependent: false, dependentNumber: "1",
 };
 
 function formReducer(state: FormData, action: FormAction): FormData {
@@ -112,7 +114,7 @@ export default function Home() {
   const [syncTotal, setSyncTotal] = useState<number>(0);
 
   // Auth States
-  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string; role: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string; role: string; campamentoTransitorio: string } | null>(null);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -200,6 +202,13 @@ export default function Home() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncQueueProgress, setSyncQueueProgress] = useState<{ done: number; total: number } | null>(null);
 
+  // Local edit states for offline correction
+  const [selectedLocalRecord, setSelectedLocalRecord] = useState<LocalRegistro | null>(null);
+  const [showLocalEditModal, setShowLocalEditModal] = useState(false);
+  const [localEditCedula, setLocalEditCedula] = useState("");
+  const [localEditNombre, setLocalEditNombre] = useState("");
+  const [localEditNacionalidad, setLocalEditNacionalidad] = useState("V");
+
   // QR Transfer Modal States
   const [qrCodes, setQrCodes] = useState<Array<{ id: string; name: string; url: string }>>([]);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
@@ -233,7 +242,13 @@ export default function Home() {
       const savedUser = localStorage.getItem("sismo_operator") || sessionStorage.getItem("sismo_operator");
       if (savedUser) {
         try {
-          setCurrentUser(JSON.parse(savedUser));
+          const parsed = JSON.parse(savedUser);
+          if (parsed && typeof parsed === "object") {
+            if (!parsed.campamentoTransitorio) {
+              parsed.campamentoTransitorio = "Complejo Educativo República de Panamá";
+            }
+            setCurrentUser(parsed);
+          }
         } catch (e) {
           localStorage.removeItem("sismo_operator");
           sessionStorage.removeItem("sismo_operator");
@@ -464,7 +479,7 @@ export default function Home() {
             fetch("/api/register", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(record.data)
+              body: JSON.stringify({ ...record.data, id: record.id })
             })
           )
         );
@@ -477,7 +492,7 @@ export default function Home() {
               return;
             }
             const res = result.value;
-            if (res.status === 201) {
+            if (res.status === 201 || res.status === 200) {
               await markSynced(record.id, "registrado");
             } else if (res.status === 409) {
               await markSynced(record.id, "duplicado");
@@ -679,28 +694,56 @@ export default function Home() {
   const handleAsignarCuarto = async () => {
     if (!selectedRegistro || !asignCuarto) return;
     setSavingCuarto(true);
-    try {
-      const res = await fetch(`/api/registros/${selectedRegistro.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cuarto: asignCuarto }),
-      });
-      if (res.ok) {
-        const updated = { ...selectedRegistro, cuarto: asignCuarto };
-        setRegistros(prev => {
-          const next = prev.map(r => r.id === updated.id ? updated : r);
-          if (typeof window !== "undefined") {
-            localStorage.setItem("cached_registros", JSON.stringify(next));
-          }
-          return next;
-        });
-        setSelectedRegistro(updated);
-        showToast("Cuarto asignado correctamente", "success");
-      } else {
-        showToast("Error al asignar el cuarto", "error");
+
+    const updated = { ...selectedRegistro, cuarto: asignCuarto };
+    
+    // 1. Optimistic UI update
+    setRegistros(prev => {
+      const next = prev.map(r => r.id === updated.id ? updated : r);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("cached_registros", JSON.stringify(next));
       }
-    } catch {
-      showToast("Error de conexión", "error");
+      return next;
+    });
+    setSelectedRegistro(updated);
+
+    // 2. Queue in IndexedDB in the background
+    try {
+      const localRec = {
+        id: updated.id,
+        data: {
+          parroquia: updated.parroquia,
+          sector: updated.sector,
+          comunidad: updated.comunidad,
+          direccionExacta: updated.direccionExacta,
+          nombreApellido: updated.nombreApellido,
+          cedula: updated.cedula,
+          jefeFamilia: updated.jefeFamilia,
+          genero: updated.genero,
+          fechaNacimiento: updated.fechaNacimiento,
+          edad: updated.edad,
+          perteneceNucleo: updated.perteneceNucleo,
+          cedulaJefeFamilia: updated.cedulaJefeFamilia,
+          estadoFisico: updated.estadoFisico,
+          patologia: updated.patologia,
+          patologiaDescripcion: updated.patologiaDescripcion || undefined,
+          telefono: updated.telefono || undefined,
+          medicamentos: updated.medicamentos || [],
+          cuarto: updated.cuarto,
+          retirado: updated.retirado || "NO",
+          retiradoRazon: updated.retiradoRazon || undefined,
+          refugio: updated.refugio || "Complejo Educativo República de Panamá"
+        }
+      };
+      await saveLocal(localRec);
+      await refreshLocalRecords();
+      showToast("Habitación asignada correctamente (sincronizando en segundo plano)", "success");
+      if (navigator.onLine) {
+        triggerSync();
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Error al procesar en segundo plano", "error");
     } finally {
       setSavingCuarto(false);
     }
@@ -709,30 +752,71 @@ export default function Home() {
   const handleSaveEdit = async () => {
     if (!selectedRegistro) return;
     setSavingEdit(true);
-    try {
-      const res = await fetch(`/api/registros/${selectedRegistro.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...editData, medicamentos: editMedicamentos }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const updated = data.registro || { ...selectedRegistro, ...editData, medicamentos: editMedicamentos };
-        setRegistros(prev => {
-          const next = prev.map(r => r.id === updated.id ? updated : r);
-          if (typeof window !== "undefined") {
-            localStorage.setItem("cached_registros", JSON.stringify(next));
-          }
-          return next;
-        });
-        setSelectedRegistro(updated);
-        setEditMode(false);
-        showToast("Registro actualizado correctamente", "success");
-      } else {
-        showToast("Error al guardar los cambios", "error");
+
+    const cleanCed = editData.cedula ? String(editData.cedula).trim().toUpperCase() : selectedRegistro.cedula.toUpperCase();
+    const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-")) ? cleanCed : `V-${cleanCed}`;
+
+    const rawJefeCed = editData.cedulaJefeFamilia ? String(editData.cedulaJefeFamilia).trim().toUpperCase() : (selectedRegistro.cedulaJefeFamilia || "");
+    const finalJefeCedula = rawJefeCed
+      ? ((rawJefeCed.startsWith("V-") || rawJefeCed.startsWith("E-")) ? rawJefeCed : `V-${rawJefeCed}`)
+      : null;
+
+    const updated = {
+      ...selectedRegistro,
+      ...editData,
+      cedula: finalCedula,
+      cedulaJefeFamilia: finalJefeCedula,
+      medicamentos: editMedicamentos
+    };
+
+    // 1. Optimistic UI update
+    setRegistros(prev => {
+      const next = prev.map(r => r.id === updated.id ? updated : r);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("cached_registros", JSON.stringify(next));
       }
-    } catch {
-      showToast("Error de conexión", "error");
+      return next;
+    });
+    setSelectedRegistro(updated);
+    setEditMode(false);
+
+    // 2. Queue in IndexedDB in the background
+    try {
+      const localRec = {
+        id: updated.id,
+        data: {
+          parroquia: updated.parroquia,
+          sector: updated.sector,
+          comunidad: updated.comunidad,
+          direccionExacta: updated.direccionExacta,
+          nombreApellido: updated.nombreApellido.toUpperCase().trim(),
+          cedula: updated.cedula,
+          jefeFamilia: updated.jefeFamilia,
+          genero: updated.genero,
+          fechaNacimiento: updated.fechaNacimiento,
+          edad: parseInt(String(updated.edad), 10),
+          perteneceNucleo: updated.perteneceNucleo,
+          cedulaJefeFamilia: updated.cedulaJefeFamilia || undefined,
+          estadoFisico: updated.estadoFisico,
+          patologia: updated.patologia,
+          patologiaDescripcion: updated.patologia === "SI" ? updated.patologiaDescripcion : undefined,
+          telefono: updated.telefono || undefined,
+          medicamentos: updated.medicamentos || [],
+          cuarto: updated.cuarto || undefined,
+          retirado: updated.retirado || "NO",
+          retiradoRazon: updated.retirado === "SI" ? updated.retiradoRazon : undefined,
+          refugio: updated.refugio || "Complejo Educativo República de Panamá"
+        }
+      };
+      await saveLocal(localRec);
+      await refreshLocalRecords();
+      showToast("Registro guardado (sincronizando en segundo plano)", "success");
+      if (navigator.onLine) {
+        triggerSync();
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Error al guardar cambios locales", "error");
     } finally {
       setSavingEdit(false);
     }
@@ -759,6 +843,31 @@ export default function Home() {
       }
     } catch {
       showToast("Error de conexión", "error");
+    }
+  };
+
+  const handleSaveLocalEdit = async () => {
+    if (!selectedLocalRecord) return;
+    const cleanCed = localEditCedula.trim().toUpperCase();
+    const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-")) ? cleanCed : `${localEditNacionalidad}-${cleanCed}`;
+    const updatedRecord = {
+      ...selectedLocalRecord,
+      data: {
+        ...selectedLocalRecord.data,
+        cedula: finalCedula,
+        nombreApellido: localEditNombre.trim().toUpperCase()
+      },
+      status: "pending" as const,
+      attempts: 0,
+      syncResult: undefined
+    };
+    await saveLocal(updatedRecord);
+    setShowLocalEditModal(false);
+    setSelectedLocalRecord(null);
+    showToast("Registro local corregido y en cola", "success");
+    await refreshLocalRecords();
+    if (navigator.onLine) {
+      triggerSync();
     }
   };
 
@@ -974,7 +1083,13 @@ export default function Home() {
         );
 
         if (match) {
-          const userSession = { id: match.id, email: match.email, nombre: match.nombre, role: match.role };
+          const userSession = {
+            id: match.id,
+            email: match.email,
+            nombre: match.nombre,
+            role: match.role,
+            campamentoTransitorio: match.campamentoTransitorio || "Complejo Educativo República de Panamá"
+          };
           setCurrentUser(userSession);
           if (rememberMe) {
             localStorage.setItem("sismo_operator", JSON.stringify(userSession));
@@ -1024,6 +1139,7 @@ export default function Home() {
           email: data.user.email,
           nombre: data.user.nombre,
           role: data.user.role,
+          campamentoTransitorio: data.user.campamentoTransitorio || "Complejo Educativo República de Panamá",
           passwordHash: pHash
         });
         localStorage.setItem("sismo_cached_operators", JSON.stringify(filtered));
@@ -1190,7 +1306,7 @@ export default function Home() {
     ];
 
     requiredKeys.forEach(key => {
-      const val = formData[key as keyof typeof formData];
+      const val = formData[key as keyof typeof formData] as string;
       const err = validateField(key, val);
       if (err) {
         newErrors[key] = err;
@@ -1390,7 +1506,22 @@ export default function Home() {
     }
 
     try {
-      const finalCedula = `${formData.nacionalidad}-${formData.cedula}`;
+      let rawCedula = formData.cedula.trim();
+      if (formData.isChildDependent) {
+        rawCedula = `${rawCedula}-${formData.dependentNumber}`;
+      }
+      const cleanCed = rawCedula.toUpperCase();
+      const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-"))
+        ? cleanCed
+        : `${formData.nacionalidad}-${cleanCed}`;
+
+      const rawJefeCed = (formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") 
+        ? formData.cedulaJefeFamilia.trim().toUpperCase()
+        : "";
+      const finalJefeCedula = rawJefeCed
+        ? ((rawJefeCed.startsWith("V-") || rawJefeCed.startsWith("E-")) ? rawJefeCed : `V-${rawJefeCed}`)
+        : undefined;
+
       const finalTelefono = formData.telefonoNum ? `${formData.telefonoCod}-${formData.telefonoNum}` : null;
       
       let finalFechaNac = new Date();
@@ -1417,9 +1548,7 @@ export default function Home() {
           fechaNacimiento: finalFechaNac.toISOString(),
           edad: parseInt(formData.edad, 10),
           perteneceNucleo: formData.perteneceNucleo,
-          cedulaJefeFamilia: (formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") 
-            ? formData.cedulaJefeFamilia 
-            : undefined,
+          cedulaJefeFamilia: finalJefeCedula,
           estadoFisico: formData.estadoFisico,
           patologia: formData.patologia,
           patologiaDescripcion: formData.patologia === "SI" ? formData.patologiaDescripcion.trim() : undefined,
@@ -1427,6 +1556,7 @@ export default function Home() {
           gpsLng: coords.lng !== null ? coords.lng : undefined,
           telefono: finalTelefono !== null ? finalTelefono : undefined,
           medicamentos: medicamentos.filter(m => m.nombre.trim()),
+          refugio: currentUser?.campamentoTransitorio || "Complejo Educativo República de Panamá"
         }
       };
 
@@ -1529,11 +1659,44 @@ export default function Home() {
 
   // Local Offline statistics calculation helper
   const getLocalStats = () => {
-    const total = localRecords.length;
+    const activeRecords = localRecords.filter(r => (r.data as any).retirado !== "SI");
+    const retiredRecords = localRecords.filter(r => (r.data as any).retirado === "SI");
+
+    const total = activeRecords.length;
+    const totalRetirados = retiredRecords.length;
+    const totalRegistrados = total + totalRetirados;
+
+    // Calculate families
+    const familyGroups: Record<string, number> = {};
+    activeRecords.forEach(r => {
+      let familyId = "";
+      if (r.data.jefeFamilia === "SI") {
+        familyId = r.data.cedula;
+      } else if (r.data.cedulaJefeFamilia) {
+        familyId = r.data.cedulaJefeFamilia;
+      } else {
+        familyId = r.data.cedula;
+      }
+      familyGroups[familyId] = (familyGroups[familyId] || 0) + 1;
+    });
+
+    let nucleosFamiliares = 0;
+    let individuosSolos = 0;
+    Object.values(familyGroups).forEach(size => {
+      if (size >= 2) {
+        nucleosFamiliares++;
+      } else {
+        individuosSolos++;
+      }
+    });
+
     if (total === 0) {
       return {
         total: 0,
-        totalRetirados: 0,
+        totalRegistrados,
+        totalRetirados,
+        nucleosFamiliares: 0,
+        individuosSolos: 0,
         menores: 0,
         adultos: 0,
         mayores: 0,
@@ -1565,7 +1728,7 @@ export default function Home() {
       mayores: { femenino: 0, masculino: 0, otro: 0 }
     };
 
-    localRecords.forEach(r => {
+    activeRecords.forEach(r => {
       const p = r.data.parroquia || "DESCONOCIDO";
       byParroquiaMap[p] = (byParroquiaMap[p] || 0) + 1;
 
@@ -1612,7 +1775,10 @@ export default function Home() {
 
     return {
       total,
-      totalRetirados: 0,
+      totalRegistrados,
+      totalRetirados,
+      nucleosFamiliares,
+      individuosSolos,
       menores,
       adultos,
       mayores,
@@ -1704,6 +1870,19 @@ ${entesList}`;
       r.parroquia?.toLowerCase().includes(q)
     );
   }, [registros, registroSearch]);
+
+  const roomCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    CUARTOS.forEach(room => {
+      counts[room] = 0;
+    });
+    registros.filter(r => r.retirado !== "SI" && r.cuarto).forEach(r => {
+      if (r.cuarto && counts[r.cuarto] !== undefined) {
+        counts[r.cuarto]++;
+      }
+    });
+    return counts;
+  }, [registros]);
 
   const currentStats = useMemo(
     () => (isOnline && stats) ? stats : getLocalStats(),
@@ -2135,8 +2314,26 @@ ${entesList}`;
               {/* PASO 3: Identificación Personal */}
               {step === 3 && (
                 <div className="form-section form-step-content">
+                  <div className="form-group" style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem", fontWeight: "normal" }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.isChildDependent}
+                        onChange={(e) => {
+                          dispatch({ type: "SET", field: "isChildDependent", value: e.target.checked });
+                          if (e.target.checked && formData.cedulaJefeFamilia) {
+                            const numOnly = formData.cedulaJefeFamilia.replace(/^[VE]-/, "");
+                            dispatch({ type: "SET", field: "cedula", value: numOnly });
+                          }
+                        }}
+                        style={{ width: "auto", height: "auto" }}
+                      />
+                      Menor de edad sin cédula (asociar a representante)
+                    </label>
+                  </div>
+
                   <div className="form-group">
-                    <label htmlFor="cedula">Cédula de Identidad<span className="required-star">*</span></label>
+                    <label htmlFor="cedula">{formData.isChildDependent ? "Cédula del Representante" : "Cédula de Identidad"}<span className="required-star">*</span></label>
                     <div className="field-row-cedula">
                       <div className="nat-toggle">
                         <button
@@ -2164,6 +2361,24 @@ ${entesList}`;
                         className={errors.cedula ? "has-error" : ""}
                       />
                     </div>
+                    {formData.isChildDependent && (
+                      <div className="form-group" style={{ marginTop: "0.75rem", marginBottom: "0.5rem" }}>
+                        <label htmlFor="dependentNumber" style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Número correlativo de hijo/dependiente</label>
+                        <select
+                          id="dependentNumber"
+                          value={formData.dependentNumber}
+                          onChange={(e) => dispatch({ type: "SET", field: "dependentNumber", value: e.target.value })}
+                          style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", background: "var(--bg-secondary)", color: "var(--text-primary)" }}
+                        >
+                          <option value="1">1er Hijo/Representado (-1)</option>
+                          <option value="2">2do Hijo/Representado (-2)</option>
+                          <option value="3">3er Hijo/Representado (-3)</option>
+                          <option value="4">4to Hijo/Representado (-4)</option>
+                          <option value="5">5to Hijo/Representado (-5)</option>
+                          <option value="6">6to Hijo/Representado (-6)</option>
+                        </select>
+                      </div>
+                    )}
                     <div className="helper-box">
                       <span className={`helper-text ${lookupStatus !== "idle" ? "active" : ""} ${lookupStatus}`}>
                         {lookupStatus === "searching" && "Buscando cédula en padrón local..."}
@@ -2545,7 +2760,28 @@ ${entesList}`;
                     <span className="stat-label">Total Registrados</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-primary"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                   </div>
-                  <span key={currentStats.total} className="stat-value stat-card-value-animate">{currentStats.total}</span>
+                  <span key={currentStats.totalRegistrados} className="stat-value stat-card-value-animate">{currentStats.totalRegistrados || 0}</span>
+                </div>
+                <div className="stat-card stat-card--success">
+                  <div className="stat-card-header">
+                    <span className="stat-label">Presentes en Refugio</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-success"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  </div>
+                  <span key={currentStats.total} className="stat-value stat-card-value-animate">{currentStats.total || 0}</span>
+                </div>
+                <div className="stat-card stat-card--violet">
+                  <div className="stat-card-header">
+                    <span className="stat-label">Núcleos Familiares</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-violet"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /></svg>
+                  </div>
+                  <span key={currentStats.nucleosFamiliares} className="stat-value stat-card-value-animate">{currentStats.nucleosFamiliares || 0}</span>
+                </div>
+                <div className="stat-card stat-card--muted">
+                  <div className="stat-card-header">
+                    <span className="stat-label">Individuos Solos</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-muted"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8"/></svg>
+                  </div>
+                  <span key={currentStats.individuosSolos} className="stat-value stat-card-value-animate">{currentStats.individuosSolos || 0}</span>
                 </div>
                 <div className="stat-card stat-card--warning">
                   <div className="stat-card-header">
@@ -2582,13 +2818,6 @@ ${entesList}`;
                       ({currentStats.total > 0 ? ((currentStats.mayores / currentStats.total) * 100).toFixed(1) : 0}%)
                     </span>
                   </span>
-                </div>
-                <div className="stat-card stat-card--muted">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Edad Promedio</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-muted"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                  </div>
-                  <span key={currentStats.promedioEdad} className="stat-value stat-card-value-animate">{currentStats.promedioEdad || 0} años</span>
                 </div>
                 <div className="stat-card stat-card--danger">
                   <div className="stat-card-header">
@@ -2891,6 +3120,36 @@ ${entesList}`;
                   </div>
                 </div>
               </div>
+
+              {/* Distribución por Habitación / Salón */}
+              <div className="dashboard-section" style={{ gridColumn: "span 3", marginTop: "1rem" }}>
+                <h3 className="dashboard-section-title">Distribución por Habitación / Salón</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem" }}>
+                  {CUARTOS.map(room => {
+                    const roomNum = room.replace("EDIFICIO 1 SALON ", "");
+                    const count = roomCounts[room] || 0;
+                    return (
+                      <div
+                        key={room}
+                        className={`stat-card ${count > 0 ? "stat-card--success" : "stat-card--muted"}`}
+                        style={{ padding: "0.75rem", border: "1px solid var(--border-color)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                      >
+                        <span style={{ fontSize: "0.85rem", fontWeight: "600" }}>Salón {roomNum}</span>
+                        <span style={{
+                          backgroundColor: count > 0 ? "var(--color-success)" : "var(--bg-secondary)",
+                          color: count > 0 ? "#fff" : "var(--text-secondary)",
+                          padding: "0.25rem 0.5rem",
+                          borderRadius: "12px",
+                          fontSize: "0.8rem",
+                          fontWeight: "700"
+                        }}>
+                          {count} pers.
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -3190,7 +3449,20 @@ ${entesList}`;
                   }
 
                   return (
-                    <div className="sync-log-item" key={r.id}>
+                    <div
+                      className="sync-log-item"
+                      key={r.id}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        setSelectedLocalRecord(r);
+                        const cleanCed = r.data.cedula.replace(/^[VE]-/, "");
+                        const nac = r.data.cedula.startsWith("E") ? "E" : "V";
+                        setLocalEditCedula(cleanCed);
+                        setLocalEditNombre(r.data.nombreApellido);
+                        setLocalEditNacionalidad(nac);
+                        setShowLocalEditModal(true);
+                      }}
+                    >
                       <div>
                         <div className="sync-log-name">{r.data.nombreApellido}</div>
                         <div className="sync-log-meta">
@@ -3708,6 +3980,62 @@ ${entesList}`;
                   <div className="qr-name">{code.name}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Local Queue Edit Modal for corrections (duplicate Cédula errors) */}
+      {showLocalEditModal && selectedLocalRecord && (
+        <div className="modal-overlay" onClick={() => { setShowLocalEditModal(false); setSelectedLocalRecord(null); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px", width: "90%" }}>
+            <div className="modal-header">
+              <span className="modal-title">CORREGIR CÉDULA / NOMBRE</span>
+              <button className="modal-close" onClick={() => { setShowLocalEditModal(false); setSelectedLocalRecord(null); }}>✕</button>
+            </div>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
+              Modifique los datos principales del registro local para intentar la sincronización nuevamente.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div className="form-group">
+                <label>Nombre y Apellido</label>
+                <input
+                  type="text"
+                  value={localEditNombre}
+                  onChange={(e) => setLocalEditNombre(e.target.value)}
+                  style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Cédula de Identidad</label>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <select
+                    value={localEditNacionalidad}
+                    onChange={(e) => setLocalEditNacionalidad(e.target.value)}
+                    style={{ width: "80px", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
+                  >
+                    <option value="V">V</option>
+                    <option value="E">E</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={localEditCedula}
+                    onChange={(e) => setLocalEditCedula(e.target.value)}
+                    style={{ flex: 1, height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn-submit"
+                onClick={handleSaveLocalEdit}
+                style={{ marginTop: "0.5rem" }}
+              >
+                Guardar y Sincronizar
+              </button>
             </div>
           </div>
         </div>

@@ -28,7 +28,7 @@ function verifyPassword(input: string, stored: string): boolean {
   return legacyHash === stored;
 }
 
-type UserRow = { id: string; email: string; nombre: string; password: string; role: string };
+type UserRow = { id: string; email: string; nombre: string; password: string; role: string; campamentoTransitorio: string };
 
 // Retry once on transient TCP errors caused by VPN/NAT connection drops
 async function dbWithRetry<T>(fn: () => Promise<T>): Promise<T> {
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     const user = await dbWithRetry<UserRow | null>(() =>
       prisma.user.findUnique({
         where: { email: cleanEmail },
-        select: { id: true, email: true, nombre: true, password: true, role: true },
+        select: { id: true, email: true, nombre: true, password: true, role: true, campamentoTransitorio: true },
       }) as Promise<UserRow | null>
     );
 
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      user: { id: user.id, email: user.email, nombre: user.nombre, role: user.role },
+      user: { id: user.id, email: user.email, nombre: user.nombre, role: user.role, campamentoTransitorio: user.campamentoTransitorio },
     });
   } catch (error: any) {
     console.error("Error en login API:", error);
