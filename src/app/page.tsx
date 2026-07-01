@@ -355,7 +355,7 @@ export default function Home() {
   useEffect(() => {
     if (!currentUser || currentUser.role !== "ADMIN") return;
 
-    const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BBklTIPZhS7ziGhVXKTdMFyXPrAE5qmdh12TbUtPxczuVm_al9Qq0ua8EFCCow7xrJI3p6lhaEQI-4OS1v2qTNI";
     if (!VAPID_PUBLIC_KEY) {
       console.warn("VAPID public key not found in env.");
       return;
