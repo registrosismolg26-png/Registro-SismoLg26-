@@ -418,8 +418,13 @@ h1 {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border: 1px solid var(--color-primary);
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
+  align-self: flex-start;
+  width: fit-content;
+  white-space: nowrap;
   gap: 0.25rem;
 }
 
@@ -1140,6 +1145,13 @@ html[data-theme="dark"] .toast--info {
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
   text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  align-self: flex-start;
+  width: fit-content;
+  white-space: nowrap;
 }
 
 /* Spinner */
@@ -1641,6 +1653,13 @@ html[data-theme="dark"] .spinner {
   color: var(--color-primary);
   text-transform: uppercase;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  align-self: flex-start;
+  width: fit-content;
+  white-space: nowrap;
 }
 .role-badge.admin {
   background: var(--color-violet-light);
@@ -1815,6 +1834,13 @@ html[data-theme="dark"] .spinner {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  align-self: flex-start;
+  width: fit-content;
+  white-space: nowrap;
 }
 .sync-badge.pending {
   background-color: var(--color-primary-light);
@@ -2671,6 +2697,12 @@ html[data-theme="dark"] .spinner {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  align-self: flex-start;
+  width: fit-content;
 }
 .cuarto-badge--assigned {
   background-color: var(--color-success-light);
@@ -2850,7 +2882,12 @@ html[data-theme="dark"] .spinner {
 
 /* Estado Físico pills */
 .estado-pill {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  align-self: flex-start;
+  width: fit-content;
   padding: 0.2rem 0.55rem;
   border-radius: 100px;
   font-size: 0.675rem;

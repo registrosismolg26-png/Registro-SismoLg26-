@@ -3753,10 +3753,17 @@ ${entesList}`;
                 <span className="modal-title">
                   {editMode ? "Editar Registro" : selectedRegistro.nombreApellido}
                 </span>
-                <div className="modal-subtitle">
+                <div className="modal-subtitle" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                   <span>C.I. {selectedRegistro.cedula}</span>
                   {!editMode && (
-                    <span className={`estado-pill ${selectedRegistro.estadoFisico === "LESIONADO" ? "estado-pill--danger" : "estado-pill--ok"}`}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontSize: "0.75rem", fontWeight: "700", color: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
+                      <span style={{
+                        width: "7px",
+                        height: "7px",
+                        borderRadius: "50%",
+                        backgroundColor: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)",
+                        display: "inline-block"
+                      }}></span>
                       {selectedRegistro.estadoFisico}
                     </span>
                   )}
@@ -3785,7 +3792,14 @@ ${entesList}`;
                   </div>
                   <div className="detail-field">
                     <span className="detail-label">Estado Físico</span>
-                    <span className={`estado-pill ${selectedRegistro.estadoFisico === "LESIONADO" ? "estado-pill--danger" : "estado-pill--ok"}`}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontWeight: "700", color: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
+                      <span style={{
+                        width: "7px",
+                        height: "7px",
+                        borderRadius: "50%",
+                        backgroundColor: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)",
+                        display: "inline-block"
+                      }}></span>
                       {selectedRegistro.estadoFisico}
                     </span>
                   </div>
@@ -3849,7 +3863,16 @@ ${entesList}`;
                   {selectedRegistro.cuarto && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Cuarto Asignado</span>
-                      <span className="cuarto-badge cuarto-badge--assigned">{selectedRegistro.cuarto}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontWeight: "700", color: "var(--color-success)" }}>
+                        <span style={{
+                          width: "7px",
+                          height: "7px",
+                          borderRadius: "50%",
+                          backgroundColor: "var(--color-success)",
+                          display: "inline-block"
+                        }}></span>
+                        {selectedRegistro.cuarto}
+                      </span>
                     </div>
                   )}
                   {selectedRegistro.retirado === "SI" && (
