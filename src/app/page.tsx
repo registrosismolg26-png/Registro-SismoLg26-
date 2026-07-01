@@ -115,6 +115,10 @@ export default function Home() {
 
   // Auth States
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string; role: string; campamentoTransitorio: string } | null>(null);
+  const ALLOWED_ADMINS = useMemo(() => ["yender.umc@gmail.com", "juventudlgelectoral@gmail.com", "abelenviso@gmail.com"], []);
+  const isPowerAdmin = useMemo(() => {
+    return currentUser && currentUser.role === "ADMIN" && ALLOWED_ADMINS.includes(currentUser.email.toLowerCase());
+  }, [currentUser, ALLOWED_ADMINS]);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -155,8 +159,10 @@ export default function Home() {
     nombre: "",
     email: "",
     password: "",
-    role: "REGISTRADOR"
+    role: "REGISTRADOR",
+    campamentoTransitorio: "Complejo Educativo República de Panamá"
   });
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userErrors, setUserErrors] = useState<Record<string, string>>({});
   const [systemUsers, setSystemUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -337,6 +343,20 @@ export default function Home() {
       if (currentUser.role === "ADMIN") {
         fetchStats(true);
       }
+    }
+  }, [currentUser]);
+
+  // Intercept browser back button when logged in to prevent returning to login page
+  useEffect(() => {
+    if (currentUser) {
+      window.history.pushState(null, "", window.location.href);
+      const handlePopState = () => {
+        window.history.pushState(null, "", window.location.href);
+      };
+      window.addEventListener("popstate", handlePopState);
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+      };
     }
   }, [currentUser]);
 
@@ -1023,11 +1043,11 @@ export default function Home() {
           <img class="logo" src="/logo_gob.webp" alt="Gobernación La Guaira">
           <div class="title-container">
             <h1>LISTADO DE PERSONAS PRESENTES</h1>
-            <h2>Censo de Refugiados - Sismo La Guaira 2026</h2>
+            <h2>Censo de Campamento Transitorio - Sismo La Guaira 2026</h2>
           </div>
         </div>
         <p style="font-size: 0.85rem; color: #555;">
-          <strong>Total Presentes:</strong> ${present.length} refugiados. 
+          <strong>Total Presentes:</strong> ${present.length} personas. 
           <strong>Fecha de Generación:</strong> ${new Date().toLocaleString("es-VE")}
         </p>
         <table>
@@ -1214,7 +1234,66 @@ export default function Home() {
         nombre: "",
         email: "",
         password: "",
-        role: "REGISTRADOR"
+        role: "REGISTRADOR",
+        campamentoTransitorio: "Complejo Educativo República de Panamá"
+      });
+      fetchUsers();
+    } catch (err) {
+      console.error(err);
+      showToast("Error de conexión al guardar el usuario.", "warning");
+    }
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUserErrors({});
+
+    if (!currentUser || !isPowerAdmin) return;
+
+    // Validation
+    const errs: Record<string, string> = {};
+    if (!userForm.nombre.trim()) errs.nombre = "El nombre es obligatorio.";
+    if (!userForm.email.trim()) {
+      errs.email = "El correo es obligatorio.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userForm.email)) {
+      errs.email = "El correo no es válido.";
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setUserErrors(errs);
+      return;
+    }
+
+    if (!isOnline) {
+      showToast("Se requiere conexión a internet para actualizar usuarios.", "warning");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/auth/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingUserId,
+          ...userForm,
+          adminId: currentUser.id
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Error al actualizar usuario.", "warning");
+        return;
+      }
+
+      showToast("Usuario actualizado con éxito.", "success");
+      setEditingUserId(null);
+      setUserForm({
+        nombre: "",
+        email: "",
+        password: "",
+        role: "REGISTRADOR",
+        campamentoTransitorio: "Complejo Educativo República de Panamá"
       });
       fetchUsers();
     } catch (err) {
@@ -2120,7 +2199,7 @@ ${entesList}`;
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
               Tabla de Registrados
             </button>
-            {currentUser.role === "ADMIN" && (
+            {isPowerAdmin && (
               <button
                 type="button"
                 className={`nav-drawer-btn ${activeTab === "usuarios" ? "active" : ""}`}
@@ -2689,7 +2768,7 @@ ${entesList}`;
       {activeTab === "dashboard" && currentUser.role === "ADMIN" && (
         <div ref={dashboardRef} className={`tab-view tab-view--dashboard ${isFullscreen ? "presentation-mode" : ""}`}>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
+          <div className="dashboard-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
               <h2 className="dashboard-section-title" style={{ margin: 0 }}>Panel de Estadísticas</h2>
               {isUpdatingPresentation && (
@@ -2764,7 +2843,7 @@ ${entesList}`;
                 </div>
                 <div className="stat-card stat-card--success">
                   <div className="stat-card-header">
-                    <span className="stat-label">Presentes en Refugio</span>
+                    <span className="stat-label">Presentes en Campamento</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-success"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                   </div>
                   <span key={currentStats.total} className="stat-value stat-card-value-animate">{currentStats.total || 0}</span>
@@ -3128,22 +3207,28 @@ ${entesList}`;
                   {CUARTOS.map(room => {
                     const roomNum = room.replace("EDIFICIO 1 SALON ", "");
                     const count = roomCounts[room] || 0;
+                    
+                    let colorClass = "salon-empty";
+                    if (count > 15) {
+                      colorClass = "salon-red";
+                    } else if (count >= 11) {
+                      colorClass = "salon-yellow";
+                    } else if (count > 0) {
+                      colorClass = "salon-green";
+                    }
+
                     return (
                       <div
                         key={room}
-                        className={`stat-card ${count > 0 ? "stat-card--success" : "stat-card--muted"}`}
-                        style={{ padding: "0.75rem", border: "1px solid var(--border-color)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                        className={`stat-card ${colorClass}`}
+                        style={{ padding: "0.75rem", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                       >
-                        <span style={{ fontSize: "0.85rem", fontWeight: "600" }}>Salón {roomNum}</span>
+                        <span style={{ fontSize: "0.85rem", fontWeight: "700" }}>Salón {roomNum}</span>
                         <span style={{
-                          backgroundColor: count > 0 ? "var(--color-success)" : "var(--bg-secondary)",
-                          color: count > 0 ? "#fff" : "var(--text-secondary)",
-                          padding: "0.25rem 0.5rem",
-                          borderRadius: "12px",
-                          fontSize: "0.8rem",
-                          fontWeight: "700"
+                          fontWeight: "800",
+                          fontSize: "0.95rem"
                         }}>
-                          {count} pers.
+                          {count} / 18
                         </span>
                       </div>
                     );
@@ -3157,14 +3242,14 @@ ${entesList}`;
       )}
 
       {/* TAB 3: USER ADMINISTRATION (ADMIN ONLY) */}
-      {activeTab === "usuarios" && currentUser.role === "ADMIN" && (
+      {activeTab === "usuarios" && isPowerAdmin && (
         <div className="tab-view">
           
-          {/* User Registration Form Card */}
-          <form onSubmit={handleCreateUser} className="form-card">
+          {/* User Registration / Edit Form Card */}
+          <form onSubmit={editingUserId ? handleUpdateUser : handleCreateUser} className="form-card">
             <div className="form-section form-section--gap-md">
               <div className="section-title">
-                Crear Nuevo Usuario
+                {editingUserId ? "Editar Usuario / Operador" : "Crear Nuevo Usuario"}
               </div>
 
               <div className="form-group">
@@ -3204,11 +3289,13 @@ ${entesList}`;
               </div>
 
               <div className="form-group">
-                <label htmlFor="user-password">Contraseña (Mínimo 6 caracteres)</label>
+                <label htmlFor="user-password">
+                  {editingUserId ? "Nueva Contraseña (dejar en blanco para no cambiar)" : "Contraseña (Mínimo 6 caracteres)"}
+                </label>
                 <input
                   type="password"
                   id="user-password"
-                  placeholder="Nueva contraseña"
+                  placeholder={editingUserId ? "Dejar en blanco para no cambiar" : "Contraseña del operador"}
                   value={userForm.password}
                   onChange={(e) => {
                     setUserForm(prev => ({ ...prev, password: e.target.value }));
@@ -3219,6 +3306,17 @@ ${entesList}`;
                 <div className="error-container">
                   {userErrors.password && <span className="field-error-message">{userErrors.password}</span>}
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-campamento">Campamento Transitorio</label>
+                <input
+                  type="text"
+                  id="user-campamento"
+                  placeholder="ej: Complejo Educativo República de Panamá"
+                  value={userForm.campamentoTransitorio}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
+                />
               </div>
 
               <div className="form-group">
@@ -3247,9 +3345,31 @@ ${entesList}`;
                 </div>
               </div>
 
-              <button type="submit" className="btn-submit">
-                Registrar Operador
-              </button>
+              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                <button type="submit" className="btn-submit" style={{ flex: 1, margin: 0 }}>
+                  {editingUserId ? "Guardar Cambios" : "Registrar Operador"}
+                </button>
+                {editingUserId && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ margin: 0, width: "auto", padding: "0 1.25rem" }}
+                    onClick={() => {
+                      setEditingUserId(null);
+                      setUserForm({
+                        nombre: "",
+                        email: "",
+                        password: "",
+                        role: "REGISTRADOR",
+                        campamentoTransitorio: "Complejo Educativo República de Panamá"
+                      });
+                      setUserErrors({});
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                )}
+              </div>
             </div>
           </form>
 
@@ -3276,11 +3396,39 @@ ${entesList}`;
                   <div className="history-item" key={usr.id}>
                     <div className="history-item-info">
                       <span className="history-item-name">{usr.nombre}</span>
-                      <span className="history-item-meta">{usr.email}</span>
+                      <span className="history-item-meta">{usr.email} • {usr.campamentoTransitorio || "Sin campamento"}</span>
                     </div>
-                    <span className={`queue-badge ${usr.role === "ADMIN" ? "queue-badge--role-admin" : "queue-badge--role-registrador"}`}>
-                      {usr.role}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span className={`queue-badge ${usr.role === "ADMIN" ? "queue-badge--role-admin" : "queue-badge--role-registrador"}`}>
+                        {usr.role}
+                      </span>
+                      <button
+                        type="button"
+                        style={{
+                          padding: "0.25rem 0.5rem",
+                          fontSize: "0.7rem",
+                          fontWeight: "700",
+                          backgroundColor: "var(--color-primary-light)",
+                          color: "var(--color-primary)",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer"
+                        }}
+                        onClick={() => {
+                          setEditingUserId(usr.id);
+                          setUserForm({
+                            nombre: usr.nombre,
+                            email: usr.email,
+                            password: "",
+                            role: usr.role,
+                            campamentoTransitorio: usr.campamentoTransitorio || "Complejo Educativo República de Panamá"
+                          });
+                          setUserErrors({});
+                        }}
+                      >
+                        Editar
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -3946,8 +4094,16 @@ ${entesList}`;
                   <select id="cuarto-select" value={asignCuarto}
                     onChange={e => setAsignCuarto(e.target.value)}>
                     <option value="">— Seleccionar cuarto —</option>
-                    {CUARTOS.map(c => <option key={c} value={c}>{c}</option>)}
+                    {CUARTOS.map(c => {
+                      const count = roomCounts[c] || 0;
+                      return <option key={c} value={c}>{c} ({count} {count === 1 ? 'ocupante' : 'ocupantes'})</option>;
+                    })}
                   </select>
+                  {asignCuarto && (
+                    <div style={{ marginTop: "0.4rem", fontSize: "0.825rem", fontWeight: "700", color: "var(--text-secondary)" }}>
+                      Ocupación actual: {(roomCounts[asignCuarto] || 0)} / 18 personas
+                    </div>
+                  )}
                 </div>
                 <button type="button" className="btn-submit" style={{ marginTop: "0.625rem" }}
                   onClick={handleAsignarCuarto}

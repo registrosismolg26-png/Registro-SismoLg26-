@@ -172,7 +172,7 @@ export default function PublicSearch() {
 
             {!loading && results.length === 0 ? (
               <div className="form-card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-                No se encontraron familiares que coincidan con la búsqueda. Por favor verifique los datos ingresados o contacte a los coordinadores del refugio.
+                No se encontraron familiares que coincidan con la búsqueda. Por favor verifique los datos ingresados o contacte a los coordinadores del campamento.
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>

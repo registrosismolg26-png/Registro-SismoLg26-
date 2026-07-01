@@ -83,8 +83,8 @@
   --chart-menores: var(--color-cyan);       /* youngest → cyan                */
   --chart-adultos: var(--color-primary);    /* main group → brand navy        */
   --chart-mayores: var(--color-slate-deep); /* elder → dignified slate        */
-  --chart-femenino: var(--color-teal);      /* teal — distinct from navy      */
-  --chart-masculino: #1d4ed8;               /* blue-700 — close to primary    */
+  --chart-femenino: #f472b6;      /* non-saturated pink             */
+  --chart-masculino: #60a5fa;     /* non-saturated blue             */
   --chart-otro: var(--color-muted-accent);  /* neutral slate                  */
   --chart-ileso: #059669;
   --chart-ileso-track: rgba(5, 150, 105, 0.12);
@@ -3002,6 +3002,10 @@ html[data-theme="dark"] .spinner {
   font-family: 'Inter', sans-serif !important;
 }
 
+.presentation-mode .dashboard-header-row {
+  display: none !important;
+}
+
 /* Presentation Grid Layout for charts */
 .presentation-mode .stats-charts-grid {
   display: grid !important;
@@ -3075,9 +3079,48 @@ html[data-theme="dark"] .spinner {
   background: #ffffff !important;
 }
 
+.presentation-mode .donut-chart-wrapper > svg {
+  width: 140px !important;
+  height: 140px !important;
+}
+
 .presentation-mode .status-bar,
 .presentation-mode .theme-toggle-btn {
   display: none !important;
+}
+
+/* ── TV / Extra Wide screens optimization ──────────────────────────────── */
+@media (min-width: 1400px) {
+  .presentation-mode {
+    padding: 2.5rem 4rem !important;
+    gap: 2rem !important;
+  }
+  .presentation-mode .stats-grid {
+    gap: 1.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+  .presentation-mode .stats-charts-grid {
+    gap: 1.75rem !important;
+  }
+  .presentation-mode .stat-card {
+    padding: 1.5rem 2rem !important;
+  }
+  .presentation-mode .stat-card .stat-value {
+    font-size: 2.5rem !important;
+  }
+  .presentation-mode .dashboard-section {
+    padding: 2rem !important;
+  }
+  .presentation-mode .dashboard-section-title {
+    font-size: 1.25rem !important;
+  }
+  .presentation-mode .donut-chart-wrapper > svg {
+    width: 160px !important;
+    height: 160px !important;
+  }
+  .presentation-mode .donut-legend-item {
+    font-size: 0.9rem !important;
+  }
 }
 
 @keyframes statPulse {
@@ -3089,4 +3132,26 @@ html[data-theme="dark"] .spinner {
 .stat-card-value-animate {
   display: inline-block;
   animation: statPulse 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Classroom occupancy color classes (semaforo) */
+.salon-green {
+  background: rgba(16, 185, 129, 0.08) !important;
+  color: #065f46 !important;
+  border: 1.5px solid #10b981 !important;
+}
+.salon-yellow {
+  background: rgba(245, 158, 11, 0.08) !important;
+  color: #92400e !important;
+  border: 1.5px solid #f59e0b !important;
+}
+.salon-red {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #991b1b !important;
+  border: 1.5px solid #ef4444 !important;
+}
+.salon-empty {
+  background: var(--bg-secondary) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
 }
