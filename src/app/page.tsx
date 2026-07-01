@@ -182,6 +182,14 @@ export default function Home() {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  // Filters State for search table
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterGenero, setFilterGenero] = useState("");
+  const [filterEdad, setFilterEdad] = useState("");
+  const [filterParroquia, setFilterParroquia] = useState("");
+  const [filterEstadoFisico, setFilterEstadoFisico] = useState("");
+  const [filterCuarto, setFilterCuarto] = useState("");
+  const [filterRetirado, setFilterRetirado] = useState("NO");
 
   // Form State — useReducer eliminates stale-closure bugs from useState in callbacks
   const [formData, dispatch] = useReducer(formReducer, INITIAL_FORM);
@@ -2003,14 +2011,49 @@ ${entesList}`;
   };
 
   const filteredRegistros = useMemo(() => {
-    if (!registroSearch.trim()) return registros;
-    const q = registroSearch.toLowerCase();
-    return registros.filter(r =>
-      r.nombreApellido?.toLowerCase().includes(q) ||
-      r.cedula?.toLowerCase().includes(q) ||
-      r.parroquia?.toLowerCase().includes(q)
-    );
-  }, [registros, registroSearch]);
+    let result = registros;
+
+    // Apply text search
+    if (registroSearch.trim()) {
+      const q = registroSearch.toLowerCase();
+      result = result.filter(r =>
+        r.nombreApellido?.toLowerCase().includes(q) ||
+        r.cedula?.toLowerCase().includes(q) ||
+        r.parroquia?.toLowerCase().includes(q)
+      );
+    }
+
+    // Apply filters
+    if (filterGenero) {
+      result = result.filter(r => r.genero === filterGenero);
+    }
+    if (filterEdad) {
+      result = result.filter(r => {
+        const edad = r.edad || 0;
+        if (filterEdad === "menores") return edad < 18;
+        if (filterEdad === "adultos") return edad >= 18 && edad < 60;
+        if (filterEdad === "mayores") return edad >= 60;
+        return true;
+      });
+    }
+    if (filterParroquia) {
+      result = result.filter(r => r.parroquia === filterParroquia);
+    }
+    if (filterEstadoFisico) {
+      result = result.filter(r => r.estadoFisico === filterEstadoFisico);
+    }
+    if (filterCuarto) {
+      result = result.filter(r => {
+        if (filterCuarto === "sin_asignar") return !r.cuarto;
+        return r.cuarto === filterCuarto;
+      });
+    }
+    if (filterRetirado) {
+      result = result.filter(r => (r.retirado || "NO") === filterRetirado);
+    }
+
+    return result;
+  }, [registros, registroSearch, filterGenero, filterEdad, filterParroquia, filterEstadoFisico, filterCuarto, filterRetirado]);
 
   const roomCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -3651,7 +3694,7 @@ ${entesList}`;
               )}
             </div>
 
-            <div className="asign-search-wrap">
+            <div className="asign-search-wrap" style={{ marginBottom: "0.5rem" }}>
               <input
                 type="text"
                 placeholder="Buscar por nombre, cédula o parroquia..."
@@ -3668,6 +3711,154 @@ ${entesList}`;
                 </button>
               )}
             </div>
+
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{
+                  width: "auto",
+                  margin: 0,
+                  padding: "0 0.75rem",
+                  fontSize: "0.75rem",
+                  height: "32px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.25rem",
+                  backgroundColor: filtersOpen ? "var(--color-primary-light)" : undefined,
+                  color: filtersOpen ? "var(--color-primary)" : undefined
+                }}
+                onClick={() => setFiltersOpen(o => !o)}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                {filtersOpen ? "Ocultar Filtros" : "Filtros Avanzados"}
+              </button>
+
+              {(filterGenero || filterEdad || filterParroquia || filterEstadoFisico || filterCuarto || filterRetirado !== "NO") && (
+                <button
+                  type="button"
+                  className="btn-ver"
+                  style={{
+                    width: "auto",
+                    margin: 0,
+                    padding: "0 0.75rem",
+                    fontSize: "0.75rem",
+                    height: "32px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                    backgroundColor: "rgba(220, 38, 38, 0.08)",
+                    color: "var(--color-danger)",
+                    border: "1px solid rgba(220, 38, 38, 0.25)"
+                  }}
+                  onClick={() => {
+                    setFilterGenero("");
+                    setFilterEdad("");
+                    setFilterParroquia("");
+                    setFilterEstadoFisico("");
+                    setFilterCuarto("");
+                    setFilterRetirado("NO");
+                  }}
+                >
+                  Limpiar Filtros
+                </button>
+              )}
+            </div>
+
+            {filtersOpen && (
+              <div style={{
+                marginBottom: "1rem",
+                padding: "1rem",
+                backgroundColor: "var(--input-bg)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "8px",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                gap: "1rem"
+              }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Género</label>
+                  <select
+                    value={filterGenero}
+                    onChange={e => setFilterGenero(e.target.value)}
+                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
+                  >
+                    <option value="">Todos</option>
+                    <option value="MASCULINO">Masculino</option>
+                    <option value="FEMENINO">Femenino</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Grupo de Edad</label>
+                  <select
+                    value={filterEdad}
+                    onChange={e => setFilterEdad(e.target.value)}
+                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
+                  >
+                    <option value="">Todos</option>
+                    <option value="menores">Menores de edad (&lt;18)</option>
+                    <option value="adultos">Adultos (18-59)</option>
+                    <option value="mayores">Adultos mayores (60+)</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Parroquia</label>
+                  <select
+                    value={filterParroquia}
+                    onChange={e => setFilterParroquia(e.target.value)}
+                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
+                  >
+                    <option value="">Todas</option>
+                    {PARROQUIAS.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Estado Físico</label>
+                  <select
+                    value={filterEstadoFisico}
+                    onChange={e => setFilterEstadoFisico(e.target.value)}
+                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
+                  >
+                    <option value="">Todos</option>
+                    <option value="ILESO">Ileso</option>
+                    <option value="LESIONADO">Lesionado</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Habitación / Salón</label>
+                  <select
+                    value={filterCuarto}
+                    onChange={e => setFilterCuarto(e.target.value)}
+                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
+                  >
+                    <option value="">Todos</option>
+                    <option value="sin_asignar">Sin asignar</option>
+                    {CUARTOS.map(c => (
+                      <option key={c} value={c}>Salón {c.replace("EDIFICIO 1 SALON ", "")}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Estatus de Permanencia</label>
+                  <select
+                    value={filterRetirado}
+                    onChange={e => setFilterRetirado(e.target.value)}
+                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
+                  >
+                    <option value="">Todos (Presentes y Egresados)</option>
+                    <option value="NO">Presentes actualmente</option>
+                    <option value="SI">Egresados / Retirados</option>
+                  </select>
+                </div>
+              </div>
+            )}
 
             {loadingRegistros ? (
               <div className="text-muted" style={{ textAlign: "center", padding: "2rem" }}>
@@ -3994,46 +4185,78 @@ ${entesList}`;
               <>
                 <div className="detail-edit-grid">
                   {currentUser.role === "ADMIN" && (
-                    <div className="form-group detail-field--full">
-                      <label>Cédula de Identidad</label>
-                      <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
-                        <select
-                          value={editData.nacionalidad || "V"}
-                          onChange={e => setEditData(prev => ({ ...prev, nacionalidad: e.target.value }))}
-                          style={{ width: "80px", height: "42px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
-                        >
-                          <option value="V">V</option>
-                          <option value="E">E</option>
-                        </select>
-                        <input
-                          type="text"
-                          value={editData.cedula || ""}
-                          onChange={e => setEditData(prev => ({ ...prev, cedula: e.target.value.replace(/\D/g, "") }))}
-                          style={{ flex: 1 }}
-                        />
-                        <button
-                          type="button"
-                          className="btn-submit"
-                          style={{ width: "auto", margin: 0, padding: "0 1rem", fontSize: "0.8rem", height: "auto" }}
-                          onClick={async () => {
-                            if (!editData.cedula) return;
-                            const citizen = await buscarCedulaEnCliente(String(editData.cedula));
-                            if (citizen) {
-                              setEditData(prev => ({
-                                ...prev,
-                                nombreApellido: citizen.nombreCompleto || prev.nombreApellido,
-                                genero: citizen.sexo === "F" || citizen.sexo === "FEMENINO" ? "FEMENINO" : "MASCULINO"
-                              }));
-                              showToast("Datos cargados del padrón local", "success");
-                            } else {
-                              showToast("Cédula no encontrada en el padrón local", "warning");
-                            }
-                          }}
-                        >
-                          Consultar Padrón
-                        </button>
+                    <>
+                      <div className="form-group detail-field--full" style={{ marginBottom: "0.25rem" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "700", cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={editData.isChildDependent || false}
+                            onChange={(e) => {
+                              setEditData(prev => ({ ...prev, isChildDependent: e.target.checked }));
+                            }}
+                          />
+                          Menor de edad sin cédula (hijo/dependiente)
+                        </label>
                       </div>
-                    </div>
+
+                      <div className="form-group detail-field--full">
+                        <label>{editData.isChildDependent ? "Cédula del Representante" : "Cédula de Identidad"}</label>
+                        <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
+                          <select
+                            value={editData.nacionalidad || "V"}
+                            onChange={e => setEditData(prev => ({ ...prev, nacionalidad: e.target.value }))}
+                            style={{ width: "80px", height: "42px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
+                          >
+                            <option value="V">V</option>
+                            <option value="E">E</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={editData.cedula || ""}
+                            onChange={e => setEditData(prev => ({ ...prev, cedula: e.target.value.replace(/\D/g, "") }))}
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            type="button"
+                            className="btn-submit"
+                            style={{ width: "auto", margin: 0, padding: "0 1rem", fontSize: "0.8rem", height: "auto" }}
+                            onClick={async () => {
+                              if (!editData.cedula) return;
+                              const citizen = await buscarCedulaEnCliente(String(editData.cedula));
+                              if (citizen) {
+                                setEditData(prev => ({
+                                  ...prev,
+                                  nombreApellido: citizen.nombreCompleto || prev.nombreApellido,
+                                  genero: citizen.sexo === "F" || citizen.sexo === "FEMENINO" ? "FEMENINO" : "MASCULINO"
+                                }));
+                                showToast("Datos cargados del padrón local", "success");
+                              } else {
+                                showToast("Cédula no encontrada en el padrón local", "warning");
+                              }
+                            }}
+                          >
+                            Consultar Padrón
+                          </button>
+                        </div>
+                      </div>
+
+                      {editData.isChildDependent && (
+                        <div className="form-group detail-field--full">
+                          <label>Número correlativo de hijo/dependiente</label>
+                          <select
+                            value={editData.dependentNumber || "1"}
+                            onChange={(e) => setEditData(prev => ({ ...prev, dependentNumber: e.target.value }))}
+                            style={{ width: "100%", height: "42px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
+                          >
+                            <option value="1">1er Hijo/Representado (-1)</option>
+                            <option value="2">2do Hijo/Representado (-2)</option>
+                            <option value="3">3er Hijo/Representado (-3)</option>
+                            <option value="4">4to Hijo/Representado (-4)</option>
+                            <option value="5">5to Hijo/Representado (-5)</option>
+                          </select>
+                        </div>
+                      )}
+                    </>
                   )}
                   <div className="form-group detail-field--full">
                     <label>Nombre y Apellido</label>
