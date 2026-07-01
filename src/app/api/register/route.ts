@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendPushToAdmins } from "@/lib/push";
 
 const VALID_GENERO = ["MASCULINO", "FEMENINO"];
 const VALID_ESTADO_FISICO = ["ILESO", "LESIONADO"];
@@ -161,6 +162,11 @@ export async function POST(req: Request) {
         refugio: refugio ? String(refugio).trim() : "Complejo Educativo República de Panamá",
         syncedAt: new Date(),
       },
+    });
+
+    // Notify admins in the background
+    sendPushToAdmins(newRegistro).catch((err) => {
+      console.error("Error trigger push notifications to admins:", err);
     });
 
     return NextResponse.json({ success: true, id: newRegistro.id }, { status: 201 });

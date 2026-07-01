@@ -25,10 +25,10 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "Registro de Afectados — Sismo La Guaira 2026",
   description: "Sistema de censo de familias afectadas por el sismo. Operación 100% offline en campo.",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=2",
   icons: {
-    icon: "/logo_gob.webp",
-    apple: "/logo_gob.webp",
+    icon: "/logo_pwa.png",
+    apple: "/logo_pwa.png",
   },
   appleWebApp: {
     capable: true,
@@ -55,19 +55,11 @@ export default function RootLayout({
     >
       <body>
         {children}
-        {process.env.NODE_ENV === "production" ? (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `if('serviceWorker'in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').then(function(r){console.log('SW:',r.scope)}).catch(function(e){console.warn('SW fail:',e)})})}`,
-            }}
-          />
-        ) : (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.unregister()})})}`,
-            }}
-          />
-        )}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker'in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').then(function(r){console.log('SW:',r.scope)}).catch(function(e){console.warn('SW fail:',e)})})}`,
+          }}
+        />
       </body>
     </html>
   );

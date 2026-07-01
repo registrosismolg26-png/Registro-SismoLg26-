@@ -60,3 +60,12 @@ model User {
   campamentoTransitorio String   @default("Complejo Educativo República de Panamá")
   createdAt             DateTime @default(now())
 }
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  keysAuth  String
+  keysP256dh String
+  createdAt DateTime @default(now())
+}

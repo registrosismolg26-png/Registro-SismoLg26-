@@ -231,6 +231,7 @@ export default function Home() {
   // QR Transfer Modal States
   const [qrCodes, setQrCodes] = useState<Array<{ id: string; name: string; url: string }>>([]);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
+  const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
 
   // Toast Notification State
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -348,6 +349,117 @@ export default function Home() {
       }
     }
   }, []);
+
+  // Web Push Subscription for Admins
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== "ADMIN") return;
+
+    const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!VAPID_PUBLIC_KEY) {
+      console.warn("VAPID public key not found in env.");
+      return;
+    }
+
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      console.warn("Push notifications not supported in this browser.");
+      return;
+    }
+
+    const initSubscription = async () => {
+      try {
+        if (Notification.permission === "default") {
+          await Notification.requestPermission();
+        }
+
+        if (Notification.permission !== "granted") {
+          console.warn("Notification permission denied.");
+          return;
+        }
+
+        const reg = await navigator.serviceWorker.ready;
+        
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            subscription: sub,
+            userId: currentUser.id
+          })
+        });
+
+        console.log("Push subscription registered successfully.");
+      } catch (err) {
+        console.error("Failed to register push subscription:", err);
+      }
+    };
+
+    function urlBase64ToUint8Array(base64String: string) {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    const timeout = setTimeout(initSubscription, 1000);
+    return () => clearTimeout(timeout);
+  }, [currentUser]);
+
+  // Check query parameters for cold start navigation from notifications
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const registroId = urlParams.get("registroId");
+      if (registroId) {
+        setPendingSelectId(registroId);
+        // Clean URL query parameters
+        const newUrl = window.location.pathname + window.location.search.replace(/[\?&]registroId=[^&]+/, "");
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+  }, []);
+
+  // Listen for real-time navigation messages from service worker
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "NAVIGATE_TO_REGISTRO") {
+        const url = new URL(event.data.url, window.location.href);
+        const registroId = url.searchParams.get("registroId");
+        if (registroId) {
+          setPendingSelectId(registroId);
+          fetchRegistros(); // Refetch to make sure registration exists
+        }
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleMessage);
+    };
+  }, []);
+
+  // Auto-select registration when pendingSelectId is found in loaded registros
+  useEffect(() => {
+    if (!pendingSelectId || !registros.length) return;
+    const match = registros.find(r => r.id === pendingSelectId);
+    if (match) {
+      setActiveTab("asignaciones");
+      setSelectedRegistro(match);
+      setPendingSelectId(null);
+    }
+  }, [registros, pendingSelectId]);
 
   // Fetch registrations from database on login/refresh to keep local cache up-to-date
   useEffect(() => {
@@ -1081,7 +1193,7 @@ export default function Home() {
       </head>
       <body>
         <div class="header">
-          <img class="logo" src="/logo_gob.webp" alt="Gobernación La Guaira">
+          <img class="logo" src="/logo_pwa.png" alt="Gobernación La Guaira">
           <div class="title-container">
             <h1>LISTADO DE PERSONAS PRESENTES</h1>
             <h2>Censo de Campamento Transitorio - Sismo La Guaira 2026</h2>
@@ -2078,7 +2190,7 @@ ${entesList}`;
     return (
       <div className="container">
         <div className="app-header app-header--centered" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <img src="/logo_gob.webp" alt="Logo Gobernación La Guaira" style={{ width: "90px", height: "90px", objectFit: "contain" }} />
+          <img src="/logo_pwa.png" alt="Logo Gobernación La Guaira" style={{ width: "90px", height: "90px", objectFit: "contain" }} />
           <div className="title-area title-area--centered">
             <h1>REGISTRO DE AFECTADOS</h1>
             <p className="subtitle">Censo Sismológico PWA 100% Offline</p>
@@ -2210,7 +2322,7 @@ ${entesList}`;
         <div className="header-main">
           <div className="header-identity">
             <div className="header-seal" aria-hidden="true" style={{ overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src="/logo_gob.webp" alt="Escudo Gobernación La Guaira" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              <img src="/logo_pwa.png" alt="Escudo Gobernación La Guaira" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             <div className="header-title-group">
               <span className="header-org-name">GOBERNACIÓN DEL ESTADO LA GUAIRA</span>
