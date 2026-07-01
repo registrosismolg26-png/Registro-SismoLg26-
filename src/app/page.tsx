@@ -2317,7 +2317,6 @@ Fecha y Hora: ${dateTimeStr}
 Ubicación: https://maps.app.goo.gl/aNtWU1M5Di3u9NAV7?g_st=ic
 
 Total general: ${t} personas
-Familias: ${familias}
 Adultos Mayores: ${may}
 ${String(mayM).padStart(2, '0')} masculinos
 ${String(mayF).padStart(2, '0')} femeninos 
@@ -2329,6 +2328,8 @@ ${String(adF).padStart(2, '0')} femenino
 Niños: ${men}
 ${String(menF).padStart(2, '0')} niñas
 ${String(menM).padStart(2, '0')} niños
+
+Cantidad de Familias: ${familias}
 
 Personal de trabajo: ${personalTrabajo} personas.  
 Entes Presentes: 
