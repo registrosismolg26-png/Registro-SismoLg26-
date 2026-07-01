@@ -30,6 +30,7 @@ export default function PublicSearch() {
   const [searched, setSearched] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [isOperator, setIsOperator] = useState(false);
+  const [padronHit, setPadronHit] = useState<{ nombreCompleto: string; cedula: string; nacionalidad: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" | "warning" } | null>(null);
 
   // Load theme and operator session on mount
@@ -52,6 +53,7 @@ export default function PublicSearch() {
     const cleanQ = query.trim();
     if (cleanQ.length < 3) {
       setResults([]);
+      setPadronHit(null);
       setSearched(false);
       return;
     }
@@ -63,6 +65,7 @@ export default function PublicSearch() {
         const data = await res.json();
         if (data.success) {
           setResults(data.registros || []);
+          setPadronHit(data.padronHit ?? null);
           setSearched(true);
         } else {
           showToast("Error al realizar la búsqueda", "error");
@@ -174,7 +177,26 @@ export default function PublicSearch() {
 
             {!loading && results.length === 0 ? (
               <div className="form-card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-                No se encontraron familiares que coincidan con la búsqueda. Por favor verifique los datos ingresados o contacte a los coordinadores del campamento.
+                {padronHit ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <p style={{ margin: 0, fontWeight: "700", fontSize: "1rem", color: "var(--text-primary)" }}>
+                      {padronHit.nombreCompleto}
+                    </p>
+                    <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-secondary)" }}>
+                      C.I. {padronHit.nacionalidad}-{padronHit.cedula}
+                    </p>
+                    <p style={{ margin: 0, fontSize: "0.85rem", color: "#f59e0b", fontStyle: "italic" }}>
+                      {padronHit.nombreCompleto} no ha sido registrada en este campamento transitorio.
+                    </p>
+                  </div>
+                ) : (
+                  <>No se encontraron familiares que coincidan con la búsqueda. Por favor verifique los datos ingresados o contacte a los coordinadores del campamento.</>
+                )}
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
