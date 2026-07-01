@@ -180,7 +180,14 @@ export default function Home() {
     refreshCustomRooms();
   }, []);
 
-  const allCuartos = useMemo(() => [...CUARTOS, ...customCuartos], [customCuartos]);
+  const allCuartos = useMemo(() => {
+    return [...CUARTOS, ...customCuartos].sort((a, b) => b.localeCompare(a));
+  }, [customCuartos]);
+
+  const sortedCustomCuartos = useMemo(() => {
+    return [...customCuartos].sort((a, b) => b.localeCompare(a));
+  }, [customCuartos]);
+
   const [newBuilding, setNewBuilding] = useState("");
   const [newSalon, setNewSalon] = useState("");
 
@@ -4000,14 +4007,14 @@ ${entesList}`;
 
               {/* Listado de todas las habitaciones */}
               <div className="room-list-section">
-                <span className="room-list-label">Habitaciones Registradas en el Sistema ({customCuartos.length})</span>
-                {customCuartos.length === 0 ? (
+                <span className="room-list-label">Habitaciones Registradas en el Sistema ({sortedCustomCuartos.length})</span>
+                {sortedCustomCuartos.length === 0 ? (
                   <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.5rem 0 0 0" }}>
                     No hay habitaciones registradas en la base de datos.
                   </p>
                 ) : (
                   <div className="room-chip-list" style={{ marginTop: "0.5rem" }}>
-                    {customCuartos.map(c => (
+                    {sortedCustomCuartos.map(c => (
                       <span key={c} className="room-chip room-chip--custom">
                         {formatRoomLabel(c)}
                         <button

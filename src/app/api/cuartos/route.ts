@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     let rooms = await prisma.customRoom.findMany({
-      orderBy: { name: "asc" } // Order alphabetically for neat list
+      orderBy: { name: "desc" } // Order alphabetically DESC
     });
 
     // Auto-seed table if it is currently empty
@@ -20,7 +20,7 @@ export async function GET() {
       });
 
       rooms = await prisma.customRoom.findMany({
-        orderBy: { name: "asc" }
+        orderBy: { name: "desc" }
       });
     }
 
