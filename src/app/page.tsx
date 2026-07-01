@@ -3208,13 +3208,11 @@ ${entesList}`;
                     const roomNum = room.replace("EDIFICIO 1 SALON ", "");
                     const count = roomCounts[room] || 0;
                     
-                    let colorClass = "salon-empty";
-                    if (count > 15) {
+                    let colorClass = "salon-green";
+                    if (count >= 17) {
                       colorClass = "salon-red";
                     } else if (count >= 11) {
                       colorClass = "salon-yellow";
-                    } else if (count > 0) {
-                      colorClass = "salon-green";
                     }
 
                     return (
@@ -3228,7 +3226,7 @@ ${entesList}`;
                           fontWeight: "800",
                           fontSize: "0.95rem"
                         }}>
-                          {count} / 18
+                          {count} {count === 1 ? 'ocupante' : 'ocupantes'}
                         </span>
                       </div>
                     );
@@ -4096,14 +4094,29 @@ ${entesList}`;
                     <option value="">— Seleccionar cuarto —</option>
                     {CUARTOS.map(c => {
                       const count = roomCounts[c] || 0;
-                      return <option key={c} value={c}>{c} ({count} {count === 1 ? 'ocupante' : 'ocupantes'})</option>;
+                      let emoji = "🟢";
+                      if (count >= 17) {
+                        emoji = "🔴";
+                      } else if (count >= 11) {
+                        emoji = "🟡";
+                      }
+                      return <option key={c} value={c}>{emoji} {c} ({count} {count === 1 ? 'ocupante' : 'ocupantes'})</option>;
                     })}
                   </select>
-                  {asignCuarto && (
-                    <div style={{ marginTop: "0.4rem", fontSize: "0.825rem", fontWeight: "700", color: "var(--text-secondary)" }}>
-                      Ocupación actual: {(roomCounts[asignCuarto] || 0)} / 18 personas
-                    </div>
-                  )}
+                  {asignCuarto && (() => {
+                    const count = roomCounts[asignCuarto] || 0;
+                    let color = "#10b981"; // Green
+                    if (count >= 17) {
+                      color = "#ef4444"; // Red
+                    } else if (count >= 11) {
+                      color = "#f59e0b"; // Yellow/Amber
+                    }
+                    return (
+                      <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", fontWeight: "800", color: color }}>
+                        Ocupantes: {count}/18
+                      </div>
+                    );
+                  })()}
                 </div>
                 <button type="button" className="btn-submit" style={{ marginTop: "0.625rem" }}
                   onClick={handleAsignarCuarto}
