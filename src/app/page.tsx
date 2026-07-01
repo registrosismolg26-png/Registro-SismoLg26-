@@ -184,17 +184,25 @@ export default function Home() {
   const [newBuilding, setNewBuilding] = useState("");
   const [newSalon, setNewSalon] = useState("");
 
-  const addCustomCuarto = async () => {
+  const addCustomCuarto = () => {
     const b = newBuilding.trim().toUpperCase();
     const s = newSalon.trim().toUpperCase();
     if (!b || !s) return;
     const key = `EDIFICIO ${b} SALON ${s}`;
     if (allCuartos.includes(key)) return;
+    setRoomToConfirmAdd({ building: b, salon: s });
+  };
+
+  const addCustomCuartoConfirmed = async () => {
+    if (!roomToConfirmAdd) return;
+    const { building, salon } = roomToConfirmAdd;
+    const key = `EDIFICIO ${building} SALON ${salon}`;
 
     // Optimistic UI update
     setCustomCuartos(prev => [...prev, key]);
     setNewBuilding("");
     setNewSalon("");
+    setRoomToConfirmAdd(null);
 
     if (navigator.onLine) {
       try {
@@ -209,8 +217,17 @@ export default function Home() {
     }
   };
 
-  const removeCustomCuarto = async (key: string) => {
+  const removeCustomCuarto = (key: string) => {
+    setRoomToConfirmDelete(key);
+  };
+
+  const removeCustomCuartoConfirmed = async () => {
+    if (!roomToConfirmDelete) return;
+    const key = roomToConfirmDelete;
+
     setCustomCuartos(prev => prev.filter(c => c !== key));
+    setRoomToConfirmDelete(null);
+
     if (navigator.onLine) {
       try {
         await fetch(`/api/cuartos?name=${encodeURIComponent(key)}`, {
@@ -317,6 +334,11 @@ export default function Home() {
 
   // Notification Diagnostics (helper state)
   const [permissionState, setPermissionState] = useState<string>("default");
+  
+  // Confirmation Modals for Room Management
+  const [roomToConfirmAdd, setRoomToConfirmAdd] = useState<{ building: string; salon: string } | null>(null);
+  const [roomToConfirmDelete, setRoomToConfirmDelete] = useState<string | null>(null);
+
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       setPermissionState(Notification.permission);
@@ -5423,6 +5445,92 @@ ${entesList}`;
             >
               Asignar Habitación
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmar Agregar Habitación */}
+      {roomToConfirmAdd && (
+        <div className="modal-overlay" onClick={() => setRoomToConfirmAdd(null)}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+            <div className="modal-header">
+              <span className="modal-title">Confirmar Nueva Habitación</span>
+              <button className="modal-close" onClick={() => setRoomToConfirmAdd(null)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            
+            <div style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: "1.5" }}>
+              <p>¿Estás seguro de que deseas agregar la siguiente habitación al censo?</p>
+              <div style={{
+                margin: "1rem 0",
+                padding: "0.75rem",
+                backgroundColor: "var(--bg-primary)",
+                borderRadius: "6px",
+                border: "1px dashed var(--border-color)",
+                textAlign: "center",
+                fontSize: "0.95rem",
+                color: "var(--color-primary)",
+                fontWeight: "700"
+              }}>
+                Edificio {roomToConfirmAdd.building} &mdash; Salón {roomToConfirmAdd.salon}
+              </div>
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                Esta habitación estará disponible inmediatamente para todos los registradores.
+              </p>
+            </div>
+
+            <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" onClick={() => setRoomToConfirmAdd(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-submit" style={{ flex: 1 }} onClick={addCustomCuartoConfirmed}>
+                Confirmar y Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmar Eliminar Habitación */}
+      {roomToConfirmDelete && (
+        <div className="modal-overlay" onClick={() => setRoomToConfirmDelete(null)}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+            <div className="modal-header">
+              <span className="modal-title" style={{ color: "#ef4444" }}>⚠️ Confirmar Eliminación</span>
+              <button className="modal-close" onClick={() => setRoomToConfirmDelete(null)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            
+            <div style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: "1.5" }}>
+              <p>¿Estás seguro de que deseas eliminar la siguiente habitación de la base de datos?</p>
+              <div style={{
+                margin: "1rem 0",
+                padding: "0.75rem",
+                backgroundColor: "var(--bg-primary)",
+                borderRadius: "6px",
+                border: "1px dashed #fca5a5",
+                textAlign: "center",
+                fontSize: "0.95rem",
+                color: "#ef4444",
+                fontWeight: "700"
+              }}>
+                {formatRoomLabel(roomToConfirmDelete)}
+              </div>
+              <p style={{ fontSize: "0.75rem", color: "#ef4444", fontWeight: "600" }}>
+                ¡Advertencia: Esta acción removerá el salón del listado y no podrá deshacerse!
+              </p>
+            </div>
+
+            <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" onClick={() => setRoomToConfirmDelete(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-submit" style={{ flex: 1, backgroundColor: "#ef4444", borderColor: "#ef4444" }} onClick={removeCustomCuartoConfirmed}>
+                Sí, Eliminar Salón
+              </button>
+            </div>
           </div>
         </div>
       )}
