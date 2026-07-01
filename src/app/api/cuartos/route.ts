@@ -3,9 +3,27 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const rooms = await prisma.customRoom.findMany({
-      orderBy: { createdAt: "asc" }
+    let rooms = await prisma.customRoom.findMany({
+      orderBy: { name: "asc" } // Order alphabetically for neat list
     });
+
+    // Auto-seed table if it is currently empty
+    if (rooms.length === 0) {
+      const defaultNames = [
+        ...Array.from({ length: 22 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`),
+        ...Array.from({ length: 10 }, (_, i) => `EDIFICIO 2 SALON ${i + 23}`)
+      ];
+
+      await prisma.customRoom.createMany({
+        data: defaultNames.map(name => ({ name })),
+        skipDuplicates: true
+      });
+
+      rooms = await prisma.customRoom.findMany({
+        orderBy: { name: "asc" }
+      });
+    }
+
     return NextResponse.json(rooms);
   } catch (error: any) {
     console.error("Error in GET /api/cuartos:", error);

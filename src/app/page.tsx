@@ -98,10 +98,7 @@ function ToastIcon({ type }: { type: ToastType }) {
   }
 }
 
-const CUARTOS = [
-  ...Array.from({ length: 22 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`),
-  ...Array.from({ length: 10 }, (_, i) => `EDIFICIO 2 SALON ${i + 23}`)
-];
+const CUARTOS: string[] = [];
 
 const formatRoomLabel = (room: string) => {
   return room
@@ -3979,21 +3976,15 @@ ${entesList}`;
                 )}
               </div>
 
-              {/* Salones predeterminados */}
+              {/* Listado de todas las habitaciones */}
               <div className="room-list-section">
-                <span className="room-list-label">Predeterminados ({CUARTOS.length})</span>
-                <div className="room-chip-list">
-                  {CUARTOS.map(c => (
-                    <span key={c} className="room-chip room-chip--base">{formatRoomLabel(c)}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Salones personalizados */}
-              {customCuartos.length > 0 && (
-                <div className="room-list-section">
-                  <span className="room-list-label">Agregados por administrador ({customCuartos.length})</span>
-                  <div className="room-chip-list">
+                <span className="room-list-label">Habitaciones Registradas en el Sistema ({customCuartos.length})</span>
+                {customCuartos.length === 0 ? (
+                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.5rem 0 0 0" }}>
+                    No hay habitaciones registradas en la base de datos.
+                  </p>
+                ) : (
+                  <div className="room-chip-list" style={{ marginTop: "0.5rem" }}>
                     {customCuartos.map(c => (
                       <span key={c} className="room-chip room-chip--custom">
                         {formatRoomLabel(c)}
@@ -4001,15 +3992,15 @@ ${entesList}`;
                           type="button"
                           className="room-chip-remove"
                           onClick={() => removeCustomCuarto(c)}
-                          title="Eliminar"
+                          title="Eliminar Habitación"
                         >
                           ×
                         </button>
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
