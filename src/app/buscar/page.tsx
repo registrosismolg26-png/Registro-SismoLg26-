@@ -19,6 +19,8 @@ type PublicRegistro = {
   retiradoRazon: string | null;
   telefono: string | null;
   refugio: string;
+  intermitente: string;
+  motivoIntermitente: string | null;
 };
 
 export default function PublicSearch() {
@@ -177,7 +179,15 @@ export default function PublicSearch() {
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
                 {results.map((reg) => (
-                  <div key={reg.id} className="form-card" style={{ padding: "1.25rem", borderLeft: reg.retirado === "SI" ? "4px solid #ef4444" : "4px solid var(--color-success)", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <div key={reg.id} className="form-card" style={{
+                    padding: "1.25rem",
+                    borderLeft: reg.retirado === "SI"
+                      ? "4px solid #ef4444"
+                      : reg.intermitente === "SI"
+                        ? "4px solid #f59e0b"
+                        : "4px solid var(--color-success)",
+                    display: "flex", flexDirection: "column", gap: "0.75rem"
+                  }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div>
                         <h4 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>
@@ -203,6 +213,15 @@ export default function PublicSearch() {
                       <div style={{ fontSize: "0.8rem", color: "#ef4444", backgroundColor: "rgba(239, 68, 68, 0.1)", padding: "0.5rem", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
                         <strong>ESTADO: EGRESADO / RETIRADO</strong>
                         {reg.retiradoRazon && <div>Razón: {reg.retiradoRazon}</div>}
+                      </div>
+                    )}
+                    {reg.intermitente === "SI" && reg.motivoIntermitente && (
+                      <div style={{ fontSize: "0.8rem", color: "#f59e0b", backgroundColor: "rgba(245, 158, 11, 0.08)", padding: "0.5rem", borderRadius: "6px", border: "1px solid rgba(245, 158, 11, 0.25)", display: "flex", gap: "0.4rem", alignItems: "flex-start" }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: "2px", flexShrink: 0 }}>
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        <span>Residente intermitente por el siguiente motivo: <strong>{reg.motivoIntermitente}</strong></span>
                       </div>
                     )}
                   </div>

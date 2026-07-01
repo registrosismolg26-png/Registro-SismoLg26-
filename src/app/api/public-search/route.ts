@@ -37,7 +37,10 @@ export async function GET(req: Request) {
         cuarto: true,
         retirado: true,
         retiradoRazon: true,
-        telefono: true
+        telefono: true,
+        refugio: true,
+        intermitente: true,
+        motivoIntermitente: true
       },
       take: 20
     });
