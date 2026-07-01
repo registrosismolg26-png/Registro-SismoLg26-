@@ -2309,6 +2309,7 @@ export default function Home() {
     const menM = currentStats.matrix?.menores?.masculino || 0;
 
     const familias = currentStats.nucleosFamiliares || 0;
+    const solos = currentStats.individuosSolos || 0;
     const entesList = entes.map(e => `- ${e}`).join("\n");
 
     return `*Campamento de Transición Complejo Educativo República de Panamá.*
@@ -2317,9 +2318,12 @@ Fecha y Hora: ${dateTimeStr}
 Ubicación: https://maps.app.goo.gl/aNtWU1M5Di3u9NAV7?g_st=ic
 
 Total general: ${t} personas
+Núcleos Familiares: ${familias}
+Personas solas: ${solos}
+
 Adultos Mayores: ${may}
 ${String(mayM).padStart(2, '0')} masculinos
-${String(mayF).padStart(2, '0')} femeninos 
+${String(mayF).padStart(2, '0')} femeninos
 
 Adultos: ${ad}
 ${String(adM).padStart(2, '0')} masculino
@@ -2329,10 +2333,8 @@ Niños: ${men}
 ${String(menF).padStart(2, '0')} niñas
 ${String(menM).padStart(2, '0')} niños
 
-Cantidad de Familias: ${familias}
-
-Personal de trabajo: ${personalTrabajo} personas.  
-Entes Presentes: 
+Personal de trabajo: ${personalTrabajo} personas.
+Entes Presentes:
 ${entesList}`;
   };
 
