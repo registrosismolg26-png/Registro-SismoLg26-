@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     let rooms = await prisma.customRoom.findMany({
-      orderBy: { name: "desc" } // Order alphabetically DESC
+      orderBy: { createdAt: "desc" } // Order by creation date DESC
     });
 
     // Auto-seed table if it is currently empty
@@ -14,13 +14,17 @@ export async function GET() {
         ...Array.from({ length: 10 }, (_, i) => `EDIFICIO 2 SALON ${i + 23}`)
       ];
 
-      await prisma.customRoom.createMany({
-        data: defaultNames.map(name => ({ name })),
-        skipDuplicates: true
-      });
+      // To keep correct order (SALON 1 first up to SALON 32 last) when ordering desc by createdAt,
+      // we must create them sequentially.
+      for (const name of defaultNames) {
+        await prisma.customRoom.create({
+          data: { name },
+          select: { id: true }
+        }).catch(() => {});
+      }
 
       rooms = await prisma.customRoom.findMany({
-        orderBy: { name: "desc" }
+        orderBy: { createdAt: "desc" }
       });
     }
 

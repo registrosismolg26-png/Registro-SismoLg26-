@@ -181,12 +181,14 @@ export default function Home() {
   }, []);
 
   const allCuartos = useMemo(() => {
-    return [...CUARTOS, ...customCuartos].sort((a, b) => b.localeCompare(a));
+    return [...CUARTOS, ...customCuartos]; // Already sorted by DB (createdAt desc)
   }, [customCuartos]);
 
   const sortedCustomCuartos = useMemo(() => {
-    return [...customCuartos].sort((a, b) => b.localeCompare(a));
+    return [...customCuartos]; // Keep DB order (createdAt desc)
   }, [customCuartos]);
+
+
 
   const [newBuilding, setNewBuilding] = useState("");
   const [newSalon, setNewSalon] = useState("");
@@ -279,6 +281,24 @@ export default function Home() {
 
   // Asignaciones Module State (Admin only)
   const [registros, setRegistros] = useState<any[]>([]);
+
+  // All rooms including deleted-but-still-assigned ones for graphic stats display
+  const dashboardRooms = useMemo(() => {
+    const activeRooms = [...CUARTOS, ...customCuartos];
+    const activeSet = new Set(activeRooms);
+    
+    // Find unique assigned rooms that are not currently in the DB
+    const missingRooms: string[] = [];
+    registros.forEach(r => {
+      if (r.cuarto && r.cuarto.trim() && !activeSet.has(r.cuarto)) {
+        missingRooms.push(r.cuarto);
+      }
+    });
+
+    const uniqueMissing = Array.from(new Set(missingRooms)).sort((a, b) => b.localeCompare(a));
+    return [...activeRooms, ...uniqueMissing];
+  }, [customCuartos, registros]);
+
   const [loadingRegistros, setLoadingRegistros] = useState(false);
   const [registroSearch, setRegistroSearch] = useState("");
   const [selectedRegistro, setSelectedRegistro] = useState<any | null>(null);
@@ -3608,11 +3628,14 @@ ${entesList}`;
               <div className="dashboard-section" style={{ gridColumn: "span 3", marginTop: "1rem" }}>
                 <h3 className="dashboard-section-title">Distribución por Habitación / Salón</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem" }}>
-                  {allCuartos.map(room => {
+                  {dashboardRooms.map(room => {
                     const count = roomCounts[room] || 0;
+                    const isDeleted = !allCuartos.includes(room);
                     
                     let colorClass = "salon-green";
-                    if (count >= 17) {
+                    if (isDeleted) {
+                      colorClass = "salon-gray";
+                    } else if (count >= 17) {
                       colorClass = "salon-red";
                     } else if (count >= 11) {
                       colorClass = "salon-yellow";
@@ -3624,7 +3647,9 @@ ${entesList}`;
                         className={`stat-card ${colorClass}`}
                         style={{ padding: "0.75rem", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                       >
-                        <span style={{ fontSize: "0.85rem", fontWeight: "700" }}>{formatRoomLabel(room)}</span>
+                        <span style={{ fontSize: "0.85rem", fontWeight: "700" }}>
+                          {formatRoomLabel(room)} {isDeleted && <span style={{ opacity: 0.7, fontWeight: "500", fontSize: "0.75rem" }}>(Inactiva)</span>}
+                        </span>
                         <span style={{
                           fontWeight: "800",
                           fontSize: "0.95rem"

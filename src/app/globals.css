@@ -3379,3 +3379,10 @@ html[data-theme="dark"] .spinner {
   color: #991b1b !important;
   border: 1.5px solid #ef4444 !important;
 }
+
+.stat-card.salon-gray,
+.presentation-mode .stat-card.salon-gray {
+  background: rgba(148, 163, 184, 0.08) !important;
+  color: #475569 !important;
+  border: 1.5px dashed #94a3b8 !important;
+}
