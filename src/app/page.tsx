@@ -26,6 +26,7 @@ type FormData = {
   cedulaJefeFamilia: string; estadoFisico: string; patologia: string;
   patologiaDescripcion: string; telefonoCod: string; telefonoNum: string;
   isChildDependent: boolean; dependentNumber: string;
+  intermitente: string; motivoIntermitente: string;
 };
 
 type FormAction =
@@ -40,6 +41,7 @@ const INITIAL_FORM: FormData = {
   cedulaJefeFamilia: "", estadoFisico: "", patologia: "", patologiaDescripcion: "",
   telefonoCod: "0412", telefonoNum: "",
   isChildDependent: false, dependentNumber: "1",
+  intermitente: "NO", motivoIntermitente: "",
 };
 
 function formReducer(state: FormData, action: FormAction): FormData {
@@ -1754,6 +1756,11 @@ export default function Home() {
           return "Describa la patología crónica";
         }
         return "";
+      case "motivoIntermitente":
+        if (formData.intermitente === "SI" && !value.trim()) {
+          return "El motivo es obligatorio para residentes intermitentes";
+        }
+        return "";
       default:
         return "";
     }
@@ -1790,6 +1797,11 @@ export default function Home() {
     if (formData.patologia === "SI") {
       const err = validateField("patologiaDescripcion", formData.patologiaDescripcion);
       if (err) newErrors.patologiaDescripcion = err;
+    }
+
+    if (formData.intermitente === "SI") {
+      const err = validateField("motivoIntermitente", formData.motivoIntermitente);
+      if (err) newErrors.motivoIntermitente = err;
     }
 
     // Required toggles
@@ -2024,6 +2036,8 @@ export default function Home() {
           gpsLng: coords.lng !== null ? coords.lng : undefined,
           telefono: finalTelefono !== null ? finalTelefono : undefined,
           medicamentos: medicamentos.filter(m => m.nombre.trim()),
+          intermitente: formData.intermitente || "NO",
+          motivoIntermitente: formData.intermitente === "SI" ? formData.motivoIntermitente.trim() : undefined,
           refugio: currentUser?.campamentoTransitorio || "Complejo Educativo República de Panamá"
         }
       };
@@ -3180,6 +3194,50 @@ ${entesList}`;
                             ))}
                           </>
                         )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Residente Intermitente */}
+                  <div className="form-group">
+                    <label>¿Es un residente intermitente?<span className="required-star">*</span></label>
+                    <div className="radio-group">
+                      <label
+                        className={`radio-card ${formData.intermitente === "NO" ? "selected" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="intermitente" value="NO"
+                          checked={formData.intermitente === "NO"}
+                          onChange={() => dispatch({ type: "SET_MANY", patch: { intermitente: "NO", motivoIntermitente: "" } })} />
+                        NO
+                      </label>
+                      <label
+                        className={`radio-card ${formData.intermitente === "SI" ? "selected" : ""}`}
+                        onPointerDown={(e) => e.preventDefault()}
+                      >
+                        <input type="radio" name="intermitente" value="SI"
+                          checked={formData.intermitente === "SI"}
+                          onChange={() => dispatch({ type: "SET", field: "intermitente", value: "SI" })} />
+                        SI
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className={`conditional-wrapper ${formData.intermitente === "SI" ? "open" : ""}`}>
+                    <div className="conditional-inner">
+                      <label htmlFor="motivoIntermitente">
+                        Motivo del intermitente<span className="required-star">*</span>
+                      </label>
+                      <textarea
+                        name="motivoIntermitente"
+                        id="motivoIntermitente"
+                        placeholder="Ej: Sale a trabajar de lunes a viernes, regresa los fines de semana."
+                        value={formData.motivoIntermitente}
+                        onChange={handleInputChange}
+                        className={errors.motivoIntermitente ? "has-error" : ""}
+                      />
+                      <div className="error-container">
+                        {errors.motivoIntermitente && <span className="field-error-message">{errors.motivoIntermitente}</span>}
                       </div>
                     </div>
                   </div>
