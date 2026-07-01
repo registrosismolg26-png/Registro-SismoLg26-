@@ -2515,22 +2515,17 @@ ${entesList}`;
               {loadingAuth ? "Verificando..." : "Entrar al Sistema"}
             </button>
 
-            <div style={{ marginTop: "1.5rem", textAlign: "center", borderTop: "1px solid var(--border-color)", paddingTop: "1rem" }}>
-              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: 0 }}>
+            <div style={{ marginTop: "1.25rem", borderTop: "1px solid var(--border-color)", paddingTop: "1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, textAlign: "center" }}>
                 ¿Busca a un familiar afectado?
               </p>
               <a
                 href="/buscar"
-                style={{
-                  display: "inline-block",
-                  marginTop: "0.5rem",
-                  fontSize: "0.875rem",
-                  color: "var(--color-primary-hover, #2563eb)",
-                  fontWeight: "600",
-                  textDecoration: "underline",
-                }}
+                className="btn-secondary"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", textDecoration: "none" }}
               >
-                Consultar Buscador Público de Familiares
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Buscar Familiar Afectado
               </a>
             </div>
           </form>
@@ -2660,6 +2655,10 @@ ${entesList}`;
               <span>Configuración</span>
             </button>
           )}
+          <a href="/buscar" className="nav-btn nav-btn--buscar" style={{ textDecoration: "none" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>Buscar</span>
+          </a>
         </div>
 
         <div className="nav-mobile-menu">
@@ -2714,6 +2713,10 @@ ${entesList}`;
                   Configuración
                 </button>
               )}
+              <a href="/buscar" className="nav-dropdown-item" style={{ textDecoration: "none" }} onClick={() => setMenuOpen(false)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Buscar Familiar
+              </a>
             </div>
           )}
         </div>
