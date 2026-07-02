@@ -1927,6 +1927,8 @@ html[data-theme="dark"] .spinner {
   letter-spacing: 0.02em;
 }
 
+.presentation-mode .dashboard-header-card { display: none; }
+
 /* Barra de cabecera del dashboard — estilo nav secundario */
 .dashboard-header-card {
   grid-column: 1 / -1;
