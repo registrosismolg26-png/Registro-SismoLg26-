@@ -3560,6 +3560,11 @@ h2.dashboard-section-title {
   color: #6366f1;
   border: 1px solid rgba(99, 102, 241, 0.22);
 }
+.user-role-badge--master {
+  background: var(--color-gold-light);
+  color: var(--color-gold);
+  border: 1px solid rgba(180, 83, 9, 0.30);
+}
 
 /* Edit icon button in table */
 .btn-edit-user {

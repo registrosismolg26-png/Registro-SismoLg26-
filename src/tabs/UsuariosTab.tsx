@@ -349,7 +349,7 @@ export default function UsuariosTab() {
                       <td style={{ color: "var(--text-secondary)", fontSize: "0.825rem" }}>{usr.email}</td>
                       <td>
                         <span className={`user-role-badge user-role-badge--${usr.role.toLowerCase()}`}>
-                          {usr.role === "ADMIN" ? "ADMIN" : usr.role === "VISUALIZADOR" ? "VISUALIZADOR" : "REGISTRADOR"}
+                          {usr.role}
                         </span>
                       </td>
                       <td style={{ color: "var(--text-secondary)", fontSize: "0.825rem" }}>
@@ -736,7 +736,7 @@ export default function UsuariosTab() {
               <div className="form-group">
                 <label>Rol asignado</label>
                 {userForm.role === "MASTER" ? (
-                  <span className="user-role-badge" style={{ background: "var(--color-danger-light, rgba(220, 38, 38, 0.1))", color: "var(--color-danger)", border: "1px solid rgba(220, 38, 38, 0.25)" }}>MASTER</span>
+                  <span className="user-role-badge user-role-badge--master">MASTER</span>
                 ) : (
                   <div className="radio-group" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
                     <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
