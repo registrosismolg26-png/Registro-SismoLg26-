@@ -321,7 +321,7 @@ h1 {
   padding: 0.35rem 0.75rem;
   background: transparent;
   border: 1px solid rgba(220, 38, 38, 0.4);
-  border-radius: 6px;
+  border-radius: 100px;
   color: var(--color-danger);
   font-family: var(--font-system);
   font-size: 0.7rem;
@@ -813,7 +813,7 @@ html[data-theme="dark"] select {
   height: var(--element-height);
   background-color: var(--color-primary);
   border: 1px solid var(--color-primary);
-  border-radius: 6px;
+  border-radius: 100px;
   color: #ffffff;
   font-family: var(--font-heading);
   font-weight: 700;
@@ -1987,7 +1987,7 @@ html[data-theme="dark"] .spinner {
 .dash-icon-btn {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 50%;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -2104,6 +2104,7 @@ h2.dashboard-section-title {
   gap: 0.5rem;
   max-height: 280px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .sync-log-name {
   font-weight: 700;
@@ -2384,7 +2385,7 @@ h2.dashboard-section-title {
   padding: 0 1.125rem;
   background: transparent;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 100px;
   color: var(--text-secondary);
   font-family: var(--font-system);
   font-size: 0.875rem;
@@ -2820,7 +2821,7 @@ h2.dashboard-section-title {
   margin-top: 0.25rem;
 }
 .transfer-btn {
-  border-radius: 6px;
+  border-radius: 100px;
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
   cursor: pointer;
@@ -3030,7 +3031,7 @@ h2.dashboard-section-title {
   height: var(--element-height);
   background: transparent;
   border: 1px solid var(--color-primary);
-  border-radius: 6px;
+  border-radius: 100px;
   color: var(--color-primary);
   font-family: var(--font-heading);
   font-weight: 700;
@@ -3322,7 +3323,7 @@ h2.dashboard-section-title {
   color: var(--color-primary);
   background: var(--color-primary-light);
   border: none;
-  border-radius: 8px;
+  border-radius: 50%;
   cursor: pointer;
   position: relative;
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
@@ -3406,13 +3407,13 @@ h2.dashboard-section-title {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   padding-bottom: 0.4rem;
   border-bottom: 1px solid var(--border-color);
 }
 .sync-subgroup-count {
   background: var(--border-color);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   border-radius: 100px;
   padding: 0.1rem 0.5rem;
   font-size: 0.65rem;
@@ -3457,7 +3458,7 @@ h2.dashboard-section-title {
   padding: 0.2rem 0.55rem;
   font-size: 0.65rem;
   font-weight: 700;
-  border-radius: 6px;
+  border-radius: 100px;
   border: 1px solid rgba(220, 38, 38, 0.3);
   background: var(--color-danger-light, #fee2e2);
   color: var(--color-danger, #dc2626);
@@ -3482,11 +3483,11 @@ h2.dashboard-section-title {
   border-radius: 8px;
   font-size: 0.775rem;
   cursor: pointer;
-  transition: background 0.15s, transform 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
 }
 .sync-log-item:hover {
   background: var(--color-primary-light);
-  transform: translateX(3px);
+  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
 /* ── Registrados Tab — Redesign ─────────────────────────────────────────── */
