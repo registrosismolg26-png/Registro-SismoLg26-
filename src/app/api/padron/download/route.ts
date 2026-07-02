@@ -1,6 +1,13 @@
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser, canManagePadron } from "@/lib/auth";
 
-export async function POST() {
+export async function POST(req: Request) {
+  const auth = await getAuthUser(req);
+  if (!auth || !canManagePadron(auth)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
+
   const encoder = new TextEncoder();
 
   // Obtener el total antes de iniciar el stream para que el cliente pueda

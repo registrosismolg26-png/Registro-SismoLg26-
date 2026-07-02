@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser, isMaster } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const auth = await getAuthUser(req);
+    if (!auth) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    // Scoping por refugio: Master ve todo; el resto solo su refugio.
+    // Fragmento SQL que se inyecta en el WHERE del $queryRaw.
+    const refugioSql = isMaster(auth)
+      ? Prisma.empty
+      : Prisma.sql`WHERE refugio = ${auth.refugio}`;
+    // Filtro Prisma para groupBy/findMany.
+    const refugioFilter: { refugio?: string } = isMaster(auth)
+      ? {}
+      : { refugio: auth.refugio };
+
     // Single SQL pass for all numeric aggregates (replaces 14 sequential queries)
     const [aggregates] = await prisma.$queryRaw<any[]>`
       SELECT
@@ -26,6 +43,7 @@ export async function GET() {
         COUNT(*) FILTER (WHERE patologia = 'SI' AND retirado = 'NO')                     AS con_patologia,
         COUNT(*) FILTER (WHERE cuarto IS NULL AND retirado = 'NO')                        AS sin_cuarto
       FROM "Registro"
+      ${refugioSql}
     `;
 
     const total = Number(aggregates.total ?? 0);
@@ -33,7 +51,7 @@ export async function GET() {
 
     // Family nuclei calculations
     const presentRegistros = await prisma.registro.findMany({
-      where: { retirado: "NO" },
+      where: { retirado: "NO", ...refugioFilter },
       select: { cedula: true, jefeFamilia: true, cedulaJefeFamilia: true }
     });
 
@@ -93,7 +111,7 @@ export async function GET() {
       );
     }
 
-    const activeFilter = { retirado: "NO" };
+    const activeFilter = { retirado: "NO", ...refugioFilter };
 
     // 4 groupBy queries running in parallel, filtering active people
     const [parroquiaGroup, generoGroup, estadoFisicoGroup, patologiaGroup] =

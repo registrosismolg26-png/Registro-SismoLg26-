@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendPushToAdmins } from "@/lib/push";
+import { getAuthUser, canRegister, canActOnRefugio, isMaster } from "@/lib/auth";
 
 const VALID_GENERO = ["MASCULINO", "FEMENINO"];
 const VALID_ESTADO_FISICO = ["ILESO", "LESIONADO"];
@@ -8,6 +9,14 @@ const VALID_SI_NO = ["SI", "NO"];
 
 export async function POST(req: Request) {
   try {
+    const auth = await getAuthUser(req);
+    if (!auth) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    if (!canRegister(auth)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const {
@@ -112,6 +121,21 @@ export async function POST(req: Request) {
       existing = await prisma.registro.findUnique({ where: { id } });
     }
 
+    // Refugio efectivo: el servidor nunca confía en el body.
+    // - Master: respeta body.refugio (o el default al crear).
+    // - Resto: se fuerza a su propio refugio, ignorando el body.
+    const refugioForCreate = isMaster(auth)
+      ? (refugio ? String(refugio).trim() : "Complejo Educativo República de Panamá")
+      : auth.refugio;
+
+    if (existing) {
+      // Al actualizar un registro existente, verificar que el usuario pueda
+      // actuar sobre el refugio ACTUAL del registro (no master → solo el suyo).
+      if (!canActOnRefugio(auth, existing.refugio)) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
+    }
+
     if (existing) {
       const updated = await prisma.registro.update({
         where: { id },
@@ -135,7 +159,7 @@ export async function POST(req: Request) {
           gpsLng: gpsLng ? Number(gpsLng) : null,
           telefono: telefono ? String(telefono).trim() : null,
           medicamentos: Array.isArray(medicamentos) ? medicamentos : [],
-          refugio: refugio ? String(refugio).trim() : undefined,
+          refugio: isMaster(auth) ? refugioForCreate : auth.refugio,
           cuarto: body.cuarto || undefined,
           retirado: body.retirado || undefined,
           retiradoRazon: body.retiradoRazon || undefined,
@@ -169,7 +193,7 @@ export async function POST(req: Request) {
         gpsLng: gpsLng ? Number(gpsLng) : null,
         telefono: telefono ? String(telefono).trim() : null,
         medicamentos: Array.isArray(medicamentos) ? medicamentos : [],
-        refugio: refugio ? String(refugio).trim() : "Complejo Educativo República de Panamá",
+        refugio: refugioForCreate,
         intermitente: intermitenteVal,
         motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
         syncedAt: new Date(),

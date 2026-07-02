@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser, canManagePadron } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
+    const auth = await getAuthUser(req);
+    if (!auth || !canManagePadron(auth)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
     const list = await req.json();
 
     if (!Array.isArray(list)) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser, canRegister, canDeleteRegistro, canActOnRefugio } from "@/lib/auth";
 
 const VALID_GENERO = ["MASCULINO", "FEMENINO"];
 const VALID_ESTADO_FISICO = ["ILESO", "LESIONADO"];
@@ -10,7 +11,25 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getAuthUser(req);
+    if (!auth) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    if (!canRegister(auth)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
     const { id } = await params;
+
+    // Cargar el registro y verificar pertenencia al refugio del usuario.
+    const registro = await prisma.registro.findUnique({ where: { id } });
+    if (!registro) {
+      return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    if (!canActOnRefugio(auth, registro.refugio)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const {
@@ -192,7 +211,25 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getAuthUser(req);
+    if (!auth) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    if (!canDeleteRegistro(auth)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
     const { id } = await params;
+
+    // Cargar el registro y verificar pertenencia al refugio del usuario.
+    const registro = await prisma.registro.findUnique({ where: { id } });
+    if (!registro) {
+      return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    if (!canActOnRefugio(auth, registro.refugio)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
     const deleted = await prisma.registro.delete({
       where: { id },
     });
