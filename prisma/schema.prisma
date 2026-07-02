@@ -76,6 +76,7 @@ model CustomRoom {
   id        String   @id @default(uuid())
   name      String
   refugio   String   @default("Complejo Educativo República de Panamá")
+  capacidad Int      @default(18) // camas disponibles en el salón
   createdAt DateTime @default(now())
 
   @@unique([name, refugio])

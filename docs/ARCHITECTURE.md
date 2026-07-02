@@ -58,12 +58,12 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 
 - **Registro:** datos del afectado + `refugio` + `cuarto` + `medicamentos` (Json) + `retirado` + `intermitente` + `cedulaJefeFamilia`.
 - **User:** `email`, `nombre`, `password` (scrypt), `role`, `campamentoTransitorio` (= refugio).
-- **Refugio:** `id`, `nombre` @unique. **CustomRoom:** `name`, `refugio`, `@@unique([name, refugio])`.
+- **Refugio:** `id`, `nombre` @unique. **CustomRoom:** `name`, `refugio`, `capacidad` (camas, `Int @default(18)`), `@@unique([name, refugio])`.
 - **Padron:** cédulas del CNE (lookup offline). **PushSubscription:** web push (admin).
 
 ## Rutas API (`src/app/api`)
 
-`auth/login` (pre-sesión), `auth/users` (GET/POST/PUT/DELETE con guardas por rol+refugio), `registros` (GET scoped), `registros/[id]` (PATCH/DELETE), `register` (crea/actualiza censo, fuerza el refugio del operador), `stats` (scoped), `cuartos` (scoped), `refugios` (CRUD Master, renombra en cascada), `padron/download|count|upload-cne`, `public-search` (pública; busca en `cedula` **y** `cedulaJefeFamilia`), `lookup`, `push/subscribe`. `public-search` y la página `/buscar` son públicas.
+`auth/login` (pre-sesión), `auth/users` (GET/POST/PUT/DELETE con guardas por rol+refugio), `registros` (GET scoped), `registros/[id]` (PATCH/DELETE), `register` (crea/actualiza censo, fuerza el refugio del operador), `stats` (scoped), `cuartos` (GET/POST/PATCH/DELETE scoped por refugio; PATCH edita la `capacidad` de camas), `refugios` (CRUD Master, renombra en cascada), `padron/download|count|upload-cne`, `public-search` (pública; busca en `cedula` **y** `cedulaJefeFamilia`), `lookup`, `push/subscribe`. `public-search` y la página `/buscar` son públicas.
 
 ## Esquemas de trabajo (cómo trabajar aquí)
 
@@ -91,3 +91,4 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 - `saveLocal` debe preservar TODOS los campos (`type`, `refugio`, `userId`) o se pierden.
 - Badges/gating nuevos: **incluir MASTER** (varios ternarios asumían solo 3 roles).
 - El padrón NO debe restringirse a Master/Admin en `download` (el Registrador lo necesita para lookup).
+- **Salones/capacidad:** los `CustomRoom` se distribuyen al cliente como `customCuartos` (string[] de nombres, para no romper `allCuartos`) **+** `roomCapacities` (mapa nombre→camas, default 18), ambos en `page.tsx` y por el context. El cache local se **sella por refugio** (`cuartos_owner`) y el fetch pide `?refugio` del usuario para que Master no vea los salones de todos los refugios. La capacidad se lee en el select de asignación y en la distribución por habitación (color proporcional vía `roomFillLevel` en `helpers.ts`, no un 18 fijo).

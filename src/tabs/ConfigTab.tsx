@@ -39,6 +39,8 @@ export default function ConfigTab() {
     setCustomCuartos,
     allCuartos,
     sortedCustomCuartos,
+    roomCapacities,
+    setRoomCapacities,
     votersCount,
     syncStatus,
     syncProgress,
@@ -63,8 +65,13 @@ export default function ConfigTab() {
   // Confirmation Modals for Room Management
   const [newBuilding, setNewBuilding] = useState("");
   const [newSalon, setNewSalon] = useState("");
-  const [roomToConfirmAdd, setRoomToConfirmAdd] = useState<{ building: string; salon: string } | null>(null);
+  const [newCapacidad, setNewCapacidad] = useState("18");
+  const [roomToConfirmAdd, setRoomToConfirmAdd] = useState<{ building: string; salon: string; capacidad: number } | null>(null);
   const [roomToConfirmDelete, setRoomToConfirmDelete] = useState<string | null>(null);
+  // Editar capacidad de camas de un salón existente
+  const [roomToEditCap, setRoomToEditCap] = useState<string | null>(null);
+  const [editCapValue, setEditCapValue] = useState("18");
+  const [savingCap, setSavingCap] = useState(false);
 
   // ── Gestión de Refugios (solo MASTER) ──
   interface Refugio { id: string; nombre: string; createdAt?: string }
@@ -204,24 +211,32 @@ export default function ConfigTab() {
     }
   };
 
+  // Normaliza el input de camas: entero 1..999; si es inválido, 18 por defecto.
+  const normalizeCap = (raw: string): number => {
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 1 && n <= 999 ? n : 18;
+  };
+
   const addCustomCuarto = () => {
     const b = newBuilding.trim().toUpperCase();
     const s = newSalon.trim().toUpperCase();
     if (!b || !s) return;
     const key = `EDIFICIO ${b} SALON ${s}`;
     if (allCuartos.includes(key)) return;
-    setRoomToConfirmAdd({ building: b, salon: s });
+    setRoomToConfirmAdd({ building: b, salon: s, capacidad: normalizeCap(newCapacidad) });
   };
 
   const addCustomCuartoConfirmed = async () => {
     if (!roomToConfirmAdd) return;
-    const { building, salon } = roomToConfirmAdd;
+    const { building, salon, capacidad } = roomToConfirmAdd;
     const key = `EDIFICIO ${building} SALON ${salon}`;
 
     // Optimistic UI update
     setCustomCuartos(prev => [...prev, key]);
+    setRoomCapacities(prev => ({ ...prev, [key]: capacidad }));
     setNewBuilding("");
     setNewSalon("");
+    setNewCapacidad("18");
     setRoomToConfirmAdd(null);
 
     if (navigator.onLine) {
@@ -229,11 +244,52 @@ export default function ConfigTab() {
         await apiFetch("/api/cuartos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: key })
+          body: JSON.stringify({ name: key, capacidad })
         });
       } catch (err) {
         console.error("Error creating custom room in DB:", err);
       }
+    }
+  };
+
+  // Abre el modal de edición de capacidad con el valor actual del salón.
+  const openEditCap = (key: string) => {
+    setRoomToEditCap(key);
+    setEditCapValue(String(roomCapacities[key] ?? 18));
+  };
+
+  const saveEditCap = async () => {
+    if (!roomToEditCap) return;
+    const key = roomToEditCap;
+    const cap = parseInt(editCapValue, 10);
+    if (!Number.isFinite(cap) || cap < 1 || cap > 999) {
+      showToast("Capacidad inválida (entre 1 y 999).", "error");
+      return;
+    }
+    if (!navigator.onLine) {
+      showToast("Sin conexión. Editar la capacidad requiere señal.", "warning");
+      return;
+    }
+    setSavingCap(true);
+    try {
+      const res = await apiFetch("/api/cuartos", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: key, capacidad: cap })
+      });
+      if (res.ok) {
+        setRoomCapacities(prev => ({ ...prev, [key]: cap }));
+        showToast("Capacidad actualizada.", "success");
+        setRoomToEditCap(null);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || "No se pudo actualizar la capacidad.", "error");
+      }
+    } catch (err) {
+      console.error("Error updating room capacity:", err);
+      showToast("Error de conexión al actualizar la capacidad.", "error");
+    } finally {
+      setSavingCap(false);
     }
   };
 
@@ -246,6 +302,11 @@ export default function ConfigTab() {
     const key = roomToConfirmDelete;
 
     setCustomCuartos(prev => prev.filter(c => c !== key));
+    setRoomCapacities(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setRoomToConfirmDelete(null);
 
     if (navigator.onLine) {
@@ -639,6 +700,11 @@ export default function ConfigTab() {
                   <input className="room-add-input" placeholder="ej: 33" value={newSalon}
                     onChange={e => setNewSalon(e.target.value)} onKeyDown={e => e.key === "Enter" && addCustomCuarto()} />
                 </div>
+                <div className="room-add-field room-add-field--cap">
+                  <label className="room-add-label">Camas</label>
+                  <input className="room-add-input" type="number" min={1} max={999} placeholder="18" value={newCapacidad}
+                    onChange={e => setNewCapacidad(e.target.value)} onKeyDown={e => e.key === "Enter" && addCustomCuarto()} />
+                </div>
                 <button type="button" className="btn-submit btn-submit--sm" onClick={addCustomCuarto}
                   disabled={!newBuilding.trim() || !newSalon.trim()}>
                   Agregar
@@ -646,7 +712,7 @@ export default function ConfigTab() {
               </div>
               {newBuilding.trim() && newSalon.trim() && (
                 <p className="room-add-preview">
-                  Se agregará: <strong>Edif. {newBuilding.trim()} &mdash; Salón {newSalon.trim()}</strong>
+                  Se agregará: <strong>Edif. {newBuilding.trim()} &mdash; Salón {newSalon.trim()}</strong> &middot; {normalizeCap(newCapacidad)} camas
                 </p>
               )}
             </div>
@@ -661,6 +727,9 @@ export default function ConfigTab() {
                   {sortedCustomCuartos.map(c => (
                     <span key={c} className="room-chip room-chip--custom">
                       {formatRoomLabel(c)}
+                      <button type="button" className="room-chip-cap" onClick={() => openEditCap(c)} title="Editar capacidad de camas">
+                        🛏 {roomCapacities[c] ?? 18}
+                      </button>
                       <button type="button" className="room-chip-remove" onClick={() => removeCustomCuarto(c)} title="Eliminar Habitación">×</button>
                     </span>
                   ))}
@@ -921,6 +990,47 @@ export default function ConfigTab() {
               </button>
               <button type="button" className="btn-submit" style={{ flex: 1, backgroundColor: "#ef4444", borderColor: "#ef4444" }} onClick={removeCustomCuartoConfirmed}>
                 Sí, Eliminar Salón
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Capacidad de Camas */}
+      {roomToEditCap && (
+        <div className="modal-overlay" onClick={() => setRoomToEditCap(null)}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+            <div className="modal-header">
+              <span className="modal-title">Capacidad de Camas</span>
+              <button className="modal-close" onClick={() => setRoomToEditCap(null)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: "1.5" }}>
+              <p>Número de camas disponibles en <strong>{formatRoomLabel(roomToEditCap)}</strong>:</p>
+              <input
+                className="room-add-input"
+                type="number"
+                min={1}
+                max={999}
+                value={editCapValue}
+                onChange={e => setEditCapValue(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && saveEditCap()}
+                autoFocus
+                style={{ margin: "0.75rem 0", width: "100%" }}
+              />
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                Se usa en el select de asignación y en la estadística por habitación.
+              </p>
+            </div>
+
+            <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" onClick={() => setRoomToEditCap(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-submit" style={{ flex: 1 }} onClick={saveEditCap} disabled={savingCap}>
+                {savingCap ? "Guardando..." : "Guardar"}
               </button>
             </div>
           </div>

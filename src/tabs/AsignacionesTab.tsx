@@ -18,7 +18,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { PARROQUIAS } from "@/lib/constants";
-import { formatRoomLabel } from "@/lib/helpers";
+import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -31,6 +31,7 @@ export default function AsignacionesTab() {
     fetchRegistros,
     loadingRegistros,
     allCuartos,
+    roomCapacities,
     showToast,
     currentUser,
     triggerSync,
@@ -1380,26 +1381,20 @@ export default function AsignacionesTab() {
                     <option value="">— Seleccionar cuarto —</option>
                     {allCuartos.map(c => {
                       const count = roomCounts[c] || 0;
-                      let emoji = "🟢";
-                      if (count >= 17) {
-                        emoji = "🔴";
-                      } else if (count >= 11) {
-                        emoji = "🟡";
-                      }
-                      return <option key={c} value={c}>{emoji} {c} ({count} {count === 1 ? 'ocupante' : 'ocupantes'})</option>;
+                      const cap = roomCapacities[c] ?? 18;
+                      const level = roomFillLevel(count, cap);
+                      const emoji = level === "red" ? "🔴" : level === "yellow" ? "🟡" : "🟢";
+                      return <option key={c} value={c}>{emoji} {c} ({count}/{cap})</option>;
                     })}
                   </select>
                   {asignCuarto && (() => {
                     const count = roomCounts[asignCuarto] || 0;
-                    let color = "#10b981"; // Green
-                    if (count >= 17) {
-                      color = "#ef4444"; // Red
-                    } else if (count >= 11) {
-                      color = "#f59e0b"; // Yellow/Amber
-                    }
+                    const cap = roomCapacities[asignCuarto] ?? 18;
+                    const level = roomFillLevel(count, cap);
+                    const color = level === "red" ? "#ef4444" : level === "yellow" ? "#f59e0b" : "#10b981";
                     return (
                       <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", fontWeight: "800", color: color }}>
-                        Ocupantes: {count}/18
+                        Ocupantes: {count}/{cap}
                       </div>
                     );
                   })()}

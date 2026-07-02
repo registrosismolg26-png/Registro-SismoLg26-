@@ -50,25 +50,60 @@ export default function Home() {
   // se renderiza fuera del Provider). Header/nav (estado + useLayoutEffect de la
   // píldora) → src/components/AppHeader.tsx.
 
-  // Cuartos dinámicos (base + personalizados por admin)
+  // Cuartos dinámicos (personalizados por admin, cargados desde la BD por refugio)
   const [customCuartos, setCustomCuartos] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
     try { return JSON.parse(localStorage.getItem("customCuartos") || "[]"); }
     catch { return []; }
   });
 
+  // Capacidad de camas por salón (nombre → nº de camas). Mapa paralelo a
+  // customCuartos para no romper allCuartos (string[]); default 18 si falta.
+  const [roomCapacities, setRoomCapacities] = useState<Record<string, number>>(() => {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(localStorage.getItem("roomCapacities") || "{}"); }
+    catch { return {}; }
+  });
+
   useEffect(() => {
     localStorage.setItem("customCuartos", JSON.stringify(customCuartos));
   }, [customCuartos]);
 
+  useEffect(() => {
+    localStorage.setItem("roomCapacities", JSON.stringify(roomCapacities));
+  }, [roomCapacities]);
+
+  // Sellado por refugio: en un dispositivo compartido, si el cache de salones es
+  // de otro refugio se limpia (el fetch traerá los del refugio actual). Evita
+  // "ver los de todos los refugios" al reutilizar el equipo entre refugios.
+  useEffect(() => {
+    if (!currentUser) return;
+    const owner = localStorage.getItem("cuartos_owner");
+    if (owner && owner !== currentUser.campamentoTransitorio) {
+      setCustomCuartos([]);
+      setRoomCapacities({});
+    }
+    localStorage.setItem("cuartos_owner", currentUser.campamentoTransitorio);
+  }, [currentUser?.campamentoTransitorio]);
+
   const refreshCustomRooms = async () => {
     if (typeof window === "undefined" || !navigator.onLine) return;
     try {
-      const res = await apiFetch("/api/cuartos");
+      // Se pide el refugio del usuario: Master obtiene SOLO el suyo (no todos);
+      // el resto ya está limitado a su refugio por el backend.
+      const q = currentUser?.campamentoTransitorio
+        ? `?refugio=${encodeURIComponent(currentUser.campamentoTransitorio)}`
+        : "";
+      const res = await apiFetch(`/api/cuartos${q}`);
       if (res.ok) {
         const data = await res.json();
         const roomNames = data.map((r: any) => r.name);
+        const caps: Record<string, number> = {};
+        data.forEach((r: any) => {
+          caps[r.name] = typeof r.capacidad === "number" ? r.capacidad : 18;
+        });
         setCustomCuartos(roomNames);
+        setRoomCapacities(caps);
       }
     } catch (err) {
       console.error("Error refreshing custom rooms:", err);
@@ -841,6 +876,7 @@ export default function Home() {
     localRecords, refreshLocalRecords,
     pendingSelectId, setPendingSelectId,
     customCuartos, setCustomCuartos, allCuartos, sortedCustomCuartos, dashboardRooms,
+    roomCapacities, setRoomCapacities,
     stats, loadingStats, fetchStats,
     votersCount, coords,
     syncStatus, syncProgress, syncTotal,

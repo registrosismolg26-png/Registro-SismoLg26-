@@ -2976,6 +2976,35 @@ h2.dashboard-section-title {
 }
 .room-chip-remove:hover { background: var(--color-danger-light); }
 
+/* Campo de camas (más estrecho que Edificio/Salón) */
+.room-add-field--cap {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 84px;
+}
+
+/* Botón/etiqueta de capacidad de camas dentro de un chip de salón */
+.room-chip-cap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--color-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.room-chip-cap:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
 /* --- Inline offline warning (status bar modifier) --- */
 .status-bar--warning {
   border-left-color: var(--color-warning);

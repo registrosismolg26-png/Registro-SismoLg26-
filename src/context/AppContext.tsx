@@ -50,6 +50,9 @@ export interface AppContextValue {
   allCuartos: string[];
   sortedCustomCuartos: string[];
   dashboardRooms: string[];
+  // Capacidad de camas por salón (nombre → nº camas); default 18 si no está.
+  roomCapacities: Record<string, number>;
+  setRoomCapacities: React.Dispatch<React.SetStateAction<Record<string, number>>>;
 
   // Estadísticas
   stats: any;

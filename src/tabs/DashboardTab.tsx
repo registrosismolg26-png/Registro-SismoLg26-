@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { formatRoomLabel } from "@/lib/helpers";
+import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import { DEFAULT_ENTES } from "@/lib/constants";
 
 export default function DashboardTab() {
@@ -20,6 +20,7 @@ export default function DashboardTab() {
     fetchStats,
     dashboardRooms,
     allCuartos,
+    roomCapacities,
     registros,
     localRecords,
     showToast,
@@ -807,14 +808,14 @@ ${entesList}`;
                   {dashboardRooms.map(room => {
                     const count = roomCounts[room] || 0;
                     const isDeleted = !allCuartos.includes(room);
+                    const cap = roomCapacities[room] ?? 18;
 
                     let colorClass = "salon-green";
                     if (isDeleted) {
                       colorClass = "salon-gray";
-                    } else if (count >= 17) {
-                      colorClass = "salon-red";
-                    } else if (count >= 11) {
-                      colorClass = "salon-yellow";
+                    } else {
+                      const level = roomFillLevel(count, cap);
+                      colorClass = level === "red" ? "salon-red" : level === "yellow" ? "salon-yellow" : "salon-green";
                     }
 
                     return (
@@ -830,7 +831,7 @@ ${entesList}`;
                           fontWeight: "800",
                           fontSize: "0.95rem"
                         }}>
-                          {count} {count === 1 ? 'ocupante' : 'ocupantes'}
+                          {isDeleted ? `${count} ${count === 1 ? 'ocupante' : 'ocupantes'}` : `${count}/${cap}`}
                         </span>
                       </div>
                     );
