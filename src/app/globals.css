@@ -1580,12 +1580,34 @@ html[data-theme="dark"] .spinner {
   padding: 0.35rem;
 }
 
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tab-enter {
+  animation: tabFadeIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Píldora deslizante del nav */
+.nav-pill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 40px;
+  background-color: var(--color-primary);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .nav-desktop-menu {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.35rem;
   width: 100%;
+  position: relative;
 }
 
 .nav-btn {
@@ -1603,6 +1625,8 @@ html[data-theme="dark"] .spinner {
   justify-content: center;
   gap: 0.5rem;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 1;
 }
 
 .nav-btn:hover {
@@ -1611,9 +1635,7 @@ html[data-theme="dark"] .spinner {
 }
 
 .nav-btn.active {
-  background-color: var(--color-primary);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
 }
 
 /* Mobile Menu Styles */

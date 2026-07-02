@@ -139,6 +139,9 @@ export default function Home() {
   const [rememberMe, setRememberMe] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
   const [personalTrabajo, setPersonalTrabajo] = useState(84);
+  const navDesktopRef = useRef<HTMLDivElement>(null);
+  const [pillReady, setPillReady] = useState(false);
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
   const [incluirDistribucion, setIncluirDistribucion] = useState(true);
   const [entes, setEntes] = useState<string[]>([
     "Ministerio de Alimentación y sus entes",
@@ -716,6 +719,15 @@ export default function Home() {
       clearInterval(guard);
     };
   }, [currentUser]);
+
+  useEffect(() => {
+    const nav = navDesktopRef.current;
+    if (!nav) return;
+    const active = nav.querySelector<HTMLElement>(`[data-tab="${activeTab}"]`);
+    if (!active) return;
+    setPillStyle({ left: active.offsetLeft, width: active.offsetWidth });
+    setPillReady(true);
+  }, [activeTab]);
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -2626,10 +2638,22 @@ ${entesList}`;
 
       {/* Navigation — Floating Sticky Bubble */}
       <div className="app-nav">
-        <div className="nav-desktop-menu">
+        <div className="nav-desktop-menu" ref={navDesktopRef}>
+          {/* Píldora deslizante */}
+          <div
+            className="nav-pill"
+            style={{
+              left: pillStyle.left,
+              width: pillStyle.width,
+              transition: pillReady
+                ? "left 0.32s cubic-bezier(0.4,0,0.2,1), width 0.32s cubic-bezier(0.4,0,0.2,1)"
+                : "none",
+            }}
+          />
           {currentUser.role !== "VISUALIZADOR" && (
             <button
               type="button"
+              data-tab="censo"
               className={`nav-btn ${activeTab === "censo" ? "active" : ""}`}
               onClick={() => setActiveTab("censo")}
             >
@@ -2640,6 +2664,7 @@ ${entesList}`;
           {(currentUser.role === "ADMIN" || currentUser.role === "VISUALIZADOR") && (
             <button
               type="button"
+              data-tab="dashboard"
               className={`nav-btn ${activeTab === "dashboard" ? "active" : ""}`}
               onClick={() => setActiveTab("dashboard")}
             >
@@ -2649,6 +2674,7 @@ ${entesList}`;
           )}
           <button
             type="button"
+            data-tab="asignaciones"
             className={`nav-btn ${activeTab === "asignaciones" ? "active" : ""}`}
             onClick={() => setActiveTab("asignaciones")}
           >
@@ -2658,6 +2684,7 @@ ${entesList}`;
           {isPowerAdmin && (
             <button
               type="button"
+              data-tab="usuarios"
               className={`nav-btn ${activeTab === "usuarios" ? "active" : ""}`}
               onClick={() => setActiveTab("usuarios")}
             >
@@ -2668,6 +2695,7 @@ ${entesList}`;
           {currentUser.role !== "VISUALIZADOR" && (
             <button
               type="button"
+              data-tab="config"
               className={`nav-btn ${activeTab === "config" ? "active" : ""}`}
               onClick={() => setActiveTab("config")}
             >
@@ -2744,7 +2772,7 @@ ${entesList}`;
 
       {/* TAB 1: FORM VIEW (CENSO) */}
       {activeTab === "censo" && (
-        <>
+        <div className="tab-enter">
           {currentUser.role === "REGISTRADOR" || currentUser.role === "ADMIN" ? (
             <form onSubmit={handleSubmit} className="form-card">
               {/* Wizard Progress Bar */}
@@ -3327,12 +3355,12 @@ ${entesList}`;
               <p style={{ fontWeight: "bold" }}>Acceso no permitido.</p>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
       {activeTab === "dashboard" && currentUser.role === "ADMIN" && (
-        <div ref={dashboardRef} className={`tab-view tab-view--dashboard ${isFullscreen ? "presentation-mode" : ""}`}>
+        <div ref={dashboardRef} className={`tab-view tab-view--dashboard tab-enter ${isFullscreen ? "presentation-mode" : ""}`}>
 
           <div className="dashboard-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -3864,7 +3892,7 @@ ${entesList}`;
 
       {/* TAB 3: USER ADMINISTRATION (ADMIN ONLY) */}
       {activeTab === "usuarios" && isPowerAdmin && (
-        <div className="tab-view" style={{ display: "flex", flexDirection: "column" }}>
+        <div className="tab-view tab-enter" style={{ display: "flex", flexDirection: "column" }}>
           
           {/* Registered Users Table Card (Spacious Layout) */}
           <div className="history-card" style={{ width: "100%", maxWidth: "100%", margin: 0, padding: "1.5rem" }}>
@@ -3983,7 +4011,7 @@ ${entesList}`;
 
       {/* TAB 4: CONFIGURATION & DATABASE STATS VIEW */}
       {activeTab === "config" && (
-        <div className="tab-view">
+        <div className="tab-view tab-enter">
           
           {/* Operator Profile Details */}
           <div className="history-card history-card--gap-sm">
@@ -4257,7 +4285,7 @@ ${entesList}`;
 
       {/* TAB 4: ASIGNACIONES */}
       {activeTab === "asignaciones" && (
-        <div className="tab-view">
+        <div className="tab-view tab-enter">
           <div className="dashboard-section">
             <div className="asign-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: "0.75rem" }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
