@@ -71,6 +71,7 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 - **Next 16:** `params`/`headers()` async; leer `node_modules/next/dist/docs/` antes de rutas/páginas.
 - **Commits por fase**, descriptivos. Se trabaja en `main` (preferencia del dueño), con cuidado y verificación por fase.
 - **Antes de cada `push`:** `git pull --rebase origin main` para integrar el trabajo de otros devs y no sobrescribir ni omitir sus cambios; resolver conflictos antes de pushear.
+- **Mantén esta guía viva:** consúltala al **iniciar** cualquier tarea (partir del estado real), y **actualízala al terminar un cambio importante** (nuevo patrón, ruta, dependencia, convención o decisión de arquitectura). La usan Claude y Gemini Antigravity — si aplica, actualiza también el skill de Claude (`.claude/skills/registro-sismo/SKILL.md`). No la dejes desactualizada.
 - **Preview / service worker:** `public/sw.js` cachea agresivo; se registra **solo en producción** (`layout.tsx`). El navegador headless del preview puede servir chunks viejos → si el cambio no se refleja, borrar `.next` y reiniciar.
 - **Vercel serverless:** no confiar en estado en memoria entre requests; el cache de sesión de auth es por-instancia (ver [[project-deployment-vercel]] en la memoria).
 

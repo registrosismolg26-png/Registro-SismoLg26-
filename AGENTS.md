@@ -11,3 +11,5 @@ Antes de escribir o modificar código, lee **`docs/ARCHITECTURE.md`** — arquit
 Reglas base innegociables:
 - `npx tsc --noEmit` debe quedar limpio antes de cada commit.
 - **Antes de cada `push`, hacer `git pull --rebase origin main`** para integrar el trabajo de otros devs y no dejar ninguna actualización fuera; resolver conflictos antes de pushear.
+- **Antes de iniciar un cambio:** consulta `docs/ARCHITECTURE.md` para partir del estado real del proyecto (no de suposiciones).
+- **Al terminar un cambio importante** (nuevo patrón, ruta API, dependencia, decisión de arquitectura o convención): **actualiza `docs/ARCHITECTURE.md`** — y el skill `.claude/skills/registro-sismo/SKILL.md` si aplica — para que la guía refleje el estado nuevo. La consultan Claude y Gemini Antigravity al empezar la próxima tarea; mantenerla viva evita que trabajen con información obsoleta.
