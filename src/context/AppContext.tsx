@@ -30,6 +30,7 @@ export interface AppContextValue {
   triggerSync: () => void;
   isSyncing: boolean;
   syncQueueProgress: { done: number; total: number } | null;
+  pendingCount: number;
 
   // Datos compartidos
   registros: any[];
@@ -39,6 +40,7 @@ export interface AppContextValue {
 
   // Habitaciones
   customCuartos: string[];
+  setCustomCuartos: React.Dispatch<React.SetStateAction<string[]>>;
   allCuartos: string[];
   sortedCustomCuartos: string[];
   dashboardRooms: string[];
@@ -51,6 +53,15 @@ export interface AppContextValue {
   // Padrón / GPS
   votersCount: number;
   coords: { lat: number | null; lng: number | null };
+
+  // Padrón — control de descarga (la lógica vive en Home por el effect de
+  // auto-descarga al login; ConfigTab consume estado y acciones desde aquí).
+  syncStatus: "idle" | "downloading" | "saving" | "completed" | "error";
+  syncProgress: number;
+  syncTotal: number;
+  downloadFullPadron: () => void;
+  deletePadronLocal: () => void;
+  refreshVotersCount: () => void;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);
