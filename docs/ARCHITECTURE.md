@@ -70,6 +70,7 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 - **Antes de cada commit:** `npx tsc --noEmit` limpio. `tsc` valida tipos, NO comportamiento — para runtime, correr la app.
 - **Next 16:** `params`/`headers()` async; leer `node_modules/next/dist/docs/` antes de rutas/páginas.
 - **Commits por fase**, descriptivos. Se trabaja en `main` (preferencia del dueño), con cuidado y verificación por fase.
+- **Antes de cada `push`:** `git pull --rebase origin main` para integrar el trabajo de otros devs y no sobrescribir ni omitir sus cambios; resolver conflictos antes de pushear.
 - **Preview / service worker:** `public/sw.js` cachea agresivo; se registra **solo en producción** (`layout.tsx`). El navegador headless del preview puede servir chunks viejos → si el cambio no se refleja, borrar `.next` y reiniciar.
 - **Vercel serverless:** no confiar en estado en memoria entre requests; el cache de sesión de auth es por-instancia (ver [[project-deployment-vercel]] en la memoria).
 
