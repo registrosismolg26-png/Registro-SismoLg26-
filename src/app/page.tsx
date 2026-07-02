@@ -3584,9 +3584,9 @@ ${entesList}`;
                             ))}
                           </div>
                           <div className="segmented-bar-legend">
-                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-menores)" }}></span> Menores ({pMen.toFixed(1)}%)</span>
-                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-adultos)" }}></span> Adultos ({pAd.toFixed(1)}%)</span>
-                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-mayores)" }}></span> Mayores ({pMay.toFixed(1)}%)</span>
+                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-menores)" }}></span> Menores · <strong>{currentStats.menores || 0}</strong> ({pMen.toFixed(1)}%)</span>
+                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-adultos)" }}></span> Adultos · <strong>{currentStats.adultos || 0}</strong> ({pAd.toFixed(1)}%)</span>
+                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-mayores)" }}></span> Mayores · <strong>{currentStats.mayores || 0}</strong> ({pMay.toFixed(1)}%)</span>
                           </div>
                         </>
                       );
@@ -3605,10 +3605,8 @@ ${entesList}`;
                     const t = currentStats.total || 1;
                     const f = currentStats.byGenero.find((g: any) => g.name === "FEMENINO")?.count || 0;
                     const m = currentStats.byGenero.find((g: any) => g.name === "MASCULINO")?.count || 0;
-                    const o = Math.max(0, currentStats.total - f - m);
                     const pFem  = f / t * 100;
                     const pMasc = m / t * 100;
-                    const pOtro = o / t * 100;
 
                     // SVG donut: r=38, circumference ≈ 238.76
                     const r = 38;
@@ -3618,7 +3616,6 @@ ${entesList}`;
                     const segments = [
                       { count: f, pct: pFem,  color: "var(--chart-femenino)",  label: "Femenino"  },
                       { count: m, pct: pMasc, color: "var(--chart-masculino)", label: "Masculino" },
-                      { count: o, pct: pOtro, color: "var(--chart-otro)",      label: "No especif." }
                     ];
                     let offset = 0;
                     const arcs = segments.map(seg => {
@@ -3695,7 +3692,6 @@ ${entesList}`;
                             <th>Grupo de Edad</th>
                             <th>Femenino</th>
                             <th>Masculino</th>
-                            <th>No Espec.</th>
                             <th style={{ textAlign: "right" }}>Total</th>
                           </tr>
                         </thead>
@@ -3704,28 +3700,24 @@ ${entesList}`;
                             <td><strong>Menores (&lt;18)</strong></td>
                             <td className="cell-fem"  style={hFem(mx.menores.femenino)}>{mx.menores.femenino}</td>
                             <td className="cell-masc" style={hMasc(mx.menores.masculino)}>{mx.menores.masculino}</td>
-                            <td className="cell-otro" style={hOtr(mx.menores.otro)}>{mx.menores.otro}</td>
                             <td style={{ textAlign: "right" }}><strong>{tMen}</strong></td>
                           </tr>
                           <tr>
                             <td><strong>Adultos (18-59)</strong></td>
                             <td className="cell-fem"  style={hFem(mx.adultos.femenino)}>{mx.adultos.femenino}</td>
                             <td className="cell-masc" style={hMasc(mx.adultos.masculino)}>{mx.adultos.masculino}</td>
-                            <td className="cell-otro" style={hOtr(mx.adultos.otro)}>{mx.adultos.otro}</td>
                             <td style={{ textAlign: "right" }}><strong>{tAd}</strong></td>
                           </tr>
                           <tr>
                             <td><strong>Mayores (60+)</strong></td>
                             <td className="cell-fem"  style={hFem(mx.mayores.femenino)}>{mx.mayores.femenino}</td>
                             <td className="cell-masc" style={hMasc(mx.mayores.masculino)}>{mx.mayores.masculino}</td>
-                            <td className="cell-otro" style={hOtr(mx.mayores.otro)}>{mx.mayores.otro}</td>
                             <td style={{ textAlign: "right" }}><strong>{tMay}</strong></td>
                           </tr>
                           <tr style={{ borderTop: "2px solid var(--border-color)" }}>
                             <td><strong>Total General</strong></td>
                             <td><strong>{tFem}</strong></td>
                             <td><strong>{tMasc}</strong></td>
-                            <td><strong>{tOtr}</strong></td>
                             <td style={{ textAlign: "right" }}><strong>{currentStats.total}</strong></td>
                           </tr>
                         </tbody>
