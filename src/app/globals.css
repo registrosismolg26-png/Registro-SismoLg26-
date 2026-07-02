@@ -3490,6 +3490,193 @@ h2.dashboard-section-title {
   box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
+/* ── Usuarios Tab — Redesign ────────────────────────────────────────────── */
+
+/* Count badge in section header */
+.users-count-badge {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-radius: 100px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* Offline notice */
+.users-offline-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.875rem;
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  border-radius: 100px;
+  font-size: 0.775rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+/* Avatar in table rows */
+.user-table-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+/* Role badges — pill style */
+.user-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.7rem;
+  border-radius: 100px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.user-role-badge--admin {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+.user-role-badge--registrador {
+  background: var(--color-success-light);
+  color: var(--color-success);
+  border: 1px solid rgba(5, 150, 105, 0.22);
+}
+.user-role-badge--visualizador {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+}
+
+/* Edit icon button in table */
+.btn-edit-user {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
+}
+.btn-edit-user:hover {
+  background: var(--color-primary);
+  color: #ffffff;
+  transform: scale(1.08);
+}
+.btn-edit-user::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--text-primary);
+  color: var(--bg-secondary);
+  font-size: 0.67rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+}
+.btn-edit-user:hover::after { opacity: 1; }
+
+/* Password show/hide toggle */
+.pwd-toggle-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  transition: color 0.15s, background-color 0.15s;
+  flex-shrink: 0;
+}
+.pwd-toggle-btn:hover {
+  color: var(--color-primary);
+  background-color: var(--color-primary-light);
+}
+
+/* Row entrance animation */
+@keyframes userRowIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.user-row-enter {
+  animation: userRowIn 0.22s ease both;
+}
+
+/* Skeleton list for loading state */
+.users-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+.user-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border-radius: 10px;
+  animation: fadeIn 0.3s ease both;
+}
+.user-skeleton-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--border-color);
+  flex-shrink: 0;
+  animation: shimmer 1.4s ease infinite;
+  background: linear-gradient(90deg, var(--border-color) 0%, var(--color-primary-light) 50%, var(--border-color) 100%);
+  background-size: 400px 100%;
+}
+
+/* Empty state */
+.users-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+.users-empty-state svg { opacity: 0.35; }
+.users-empty-state p {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0;
+}
+
 /* ── Registrados Tab — Redesign ─────────────────────────────────────────── */
 
 /* Skeleton shimmer */

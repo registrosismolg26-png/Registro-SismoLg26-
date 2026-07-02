@@ -282,7 +282,9 @@ export default function Home() {
   const [systemUsers, setSystemUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
+  const [createUserClosing, setCreateUserClosing] = useState(false);
   const [editUserModalOpen, setEditUserModalOpen] = useState(false);
+  const [editUserClosing, setEditUserClosing] = useState(false);
   const [userShowPassword, setUserShowPassword] = useState(false);
   const [userShowConfirmPassword, setUserShowConfirmPassword] = useState(false);
 
@@ -1226,6 +1228,22 @@ export default function Home() {
       setSelectedRegistro(null);
       setEditMode(false);
       setModalClosing(false);
+    }, 200);
+  };
+
+  const closeCreateUserModal = () => {
+    setCreateUserClosing(true);
+    setTimeout(() => {
+      setCreateUserModalOpen(false);
+      setCreateUserClosing(false);
+    }, 200);
+  };
+
+  const closeEditUserModal = () => {
+    setEditUserClosing(true);
+    setTimeout(() => {
+      setEditUserModalOpen(false);
+      setEditUserClosing(false);
     }, 200);
   };
 
@@ -3905,22 +3923,28 @@ ${entesList}`;
 
       {/* TAB 3: USER ADMINISTRATION (ADMIN ONLY) */}
       {activeTab === "usuarios" && isPowerAdmin && (
-        <div className="tab-view tab-enter" style={{ display: "flex", flexDirection: "column" }}>
-          
-          {/* Registered Users Table Card (Spacious Layout) */}
-          <div className="history-card" style={{ width: "100%", maxWidth: "100%", margin: 0, padding: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
-              <div>
-                <span className="history-title" style={{ display: "block", marginBottom: "0.25rem" }}>OPERADORES DEL SISTEMA</span>
+        <div className="tab-view tab-enter">
+
+          <div className="dashboard-section">
+
+            {/* Header */}
+            <div className="config-section-header" style={{ marginBottom: "1.25rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <span className="dashboard-section-label">OPERADORES DEL SISTEMA</span>
+                  {systemUsers.length > 0 && (
+                    <span className="users-count-badge">{systemUsers.length}</span>
+                  )}
+                </div>
                 <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>
-                  Gestione las cuentas de operadores, asignación de campamentos y niveles de acceso administrativo y consulta.
+                  Gestione cuentas de operadores, campamentos y niveles de acceso.
                 </p>
               </div>
               {isOnline && (
                 <button
                   type="button"
                   className="btn-submit"
-                  style={{ width: "auto", margin: 0, padding: "0 1.25rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+                  style={{ width: "auto", padding: "0 1.25rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", height: "var(--element-height)", flexShrink: 0 }}
                   onClick={() => {
                     setCreateUserModalOpen(true);
                     setUserForm({
@@ -3935,31 +3959,43 @@ ${entesList}`;
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  Registrar Nuevo Operador
+                  Nuevo Operador
                 </button>
               )}
             </div>
 
             {!isOnline && (
-              <p className="status-msg status-msg--warning" style={{ margin: "0.5rem 0" }}>
-                Sin conexión. No es posible listar o registrar operadores.
-              </p>
+              <div className="users-offline-notice">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+                Sin conexión — no es posible listar o registrar operadores.
+              </div>
             )}
-            
+
             {loadingUsers ? (
-              <div className="loading-center" style={{ minHeight: "200px" }}>
-                <span className="spinner"></span>
+              <div className="users-skeleton-list">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="user-skeleton-row" style={{ animationDelay: `${i * 80}ms` }}>
+                    <div className="user-skeleton-avatar"></div>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                      <span className="skeleton-cell" style={{ width: "40%", height: "12px" }}></span>
+                      <span className="skeleton-cell" style={{ width: "60%", height: "10px" }}></span>
+                    </div>
+                    <span className="skeleton-cell skeleton-cell--pill" style={{ width: "80px" }}></span>
+                    <span className="skeleton-cell" style={{ width: "32px", height: "32px", borderRadius: "50%" }}></span>
+                  </div>
+                ))}
               </div>
             ) : systemUsers.length === 0 ? (
-              <p className="data-empty" style={{ padding: "3rem 1rem" }}>
-                No hay operadores cargados o se requiere conexión para consultar.
-              </p>
+              <div className="users-empty-state">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <p>No hay operadores registrados en el sistema.</p>
+              </div>
             ) : (
               <div className="registro-table-wrapper">
                 <table className="registro-table">
                   <thead>
                     <tr>
-                      <th>Nombre y Apellido</th>
+                      <th>Operador</th>
                       <th>Correo de Acceso</th>
                       <th>Rol</th>
                       <th>Campamento Asignado</th>
@@ -3967,32 +4003,31 @@ ${entesList}`;
                     </tr>
                   </thead>
                   <tbody>
-                    {systemUsers.map((usr) => (
-                      <tr key={usr.id}>
-                        <td><strong>{usr.nombre}</strong></td>
-                        <td>{usr.email}</td>
+                    {systemUsers.map((usr, i) => (
+                      <tr key={usr.id} className="user-row-enter" style={{ animationDelay: `${i * 40}ms` }}>
                         <td>
-                          <span className={`queue-badge ${
-                            usr.role === "ADMIN" 
-                              ? "queue-badge--role-admin" 
-                              : usr.role === "VISUALIZADOR"
-                              ? "queue-badge--role-visualizador"
-                              : "queue-badge--role-registrador"
-                          }`} style={usr.role === "VISUALIZADOR" ? {
-                            backgroundColor: "rgba(99, 102, 241, 0.1)",
-                            color: "#818cf8",
-                            border: "1px solid rgba(99, 102, 241, 0.2)"
-                          } : undefined}>
-                            {usr.role === "ADMIN" ? "ADMINISTRADOR" : usr.role === "VISUALIZADOR" ? "VISUALIZADOR" : "REGISTRADOR"}
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                            <div className="user-table-avatar">
+                              {usr.nombre.trim().split(/\s+/).slice(0,2).map((w: string) => w[0]||"").join("").toUpperCase()}
+                            </div>
+                            <strong style={{ fontSize: "0.875rem" }}>{usr.nombre}</strong>
+                          </div>
+                        </td>
+                        <td style={{ color: "var(--text-secondary)", fontSize: "0.825rem" }}>{usr.email}</td>
+                        <td>
+                          <span className={`user-role-badge user-role-badge--${usr.role.toLowerCase()}`}>
+                            {usr.role === "ADMIN" ? "ADMIN" : usr.role === "VISUALIZADOR" ? "VISUALIZADOR" : "REGISTRADOR"}
                           </span>
                         </td>
-                        <td>{usr.campamentoTransitorio || "Sin campamento"}</td>
+                        <td style={{ color: "var(--text-secondary)", fontSize: "0.825rem" }}>
+                          {usr.campamentoTransitorio || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Sin campamento</span>}
+                        </td>
                         <td style={{ textAlign: "right" }}>
                           {isOnline && (
                             <button
                               type="button"
-                              className="btn-ver"
-                              style={{ padding: "0.35rem 0.75rem", fontSize: "0.775rem", display: "inline-flex", alignItems: "center", gap: "0.25rem", height: "auto" }}
+                              className="btn-edit-user"
+                              data-tip="Editar operador"
                               onClick={() => {
                                 setEditingUserId(usr.id);
                                 setUserForm({
@@ -4007,8 +4042,7 @@ ${entesList}`;
                                 setEditUserModalOpen(true);
                               }}
                             >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                              Editar
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             </button>
                           )}
                         </td>
@@ -4019,6 +4053,7 @@ ${entesList}`;
               </div>
             )}
           </div>
+
         </div>
       )}
 
@@ -5400,11 +5435,19 @@ ${entesList}`;
 
       {/* Modal: Crear Nuevo Usuario */}
       {createUserModalOpen && (
-        <div className="modal-overlay" onClick={() => setCreateUserModalOpen(false)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+        <div className={`modal-overlay${createUserClosing ? " modal-overlay--closing" : ""}`} onClick={closeCreateUserModal}>
+          <div className={`modal-content modal-content--detail${createUserClosing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
             <div className="modal-header">
-              <span className="modal-title">Crear Nuevo Usuario / Operador</span>
-              <button className="modal-close" onClick={() => setCreateUserModalOpen(false)}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <div className="modal-avatar" style={{ background: "var(--color-success-light)", color: "var(--color-success)" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <div>
+                  <span className="modal-title">Nuevo Operador</span>
+                  <p style={{ margin: 0, fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>Complete los datos del nuevo acceso</p>
+                </div>
+              </div>
+              <button className="modal-close" onClick={closeCreateUserModal}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -5461,15 +5504,11 @@ ${entesList}`;
                     className={userErrors.password ? "has-error" : ""}
                     style={{ paddingRight: "40px" }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setUserShowPassword(p => !p)}
-                    style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
-                  >
+                  <button type="button" className="pwd-toggle-btn" onClick={() => setUserShowPassword(p => !p)}>
                     {userShowPassword ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                     ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     )}
                   </button>
                 </div>
@@ -5493,15 +5532,11 @@ ${entesList}`;
                     className={userErrors.confirmPassword ? "has-error" : ""}
                     style={{ paddingRight: "40px" }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setUserShowConfirmPassword(p => !p)}
-                    style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
-                  >
+                  <button type="button" className="pwd-toggle-btn" onClick={() => setUserShowConfirmPassword(p => !p)}>
                     {userShowConfirmPassword ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                     ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     )}
                   </button>
                 </div>
@@ -5525,32 +5560,32 @@ ${entesList}`;
                 <label>Rol asignado</label>
                 <div className="radio-group" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
                   <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input 
-                      type="radio" 
-                      name="role-create" 
-                      value="REGISTRADOR" 
+                    <input
+                      type="radio"
+                      name="role-create"
+                      value="REGISTRADOR"
                       checked={userForm.role === "REGISTRADOR"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
                     />
                     REGISTRADOR
                   </label>
                   <label className={`radio-card ${userForm.role === "VISUALIZADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input 
-                      type="radio" 
-                      name="role-create" 
-                      value="VISUALIZADOR" 
+                    <input
+                      type="radio"
+                      name="role-create"
+                      value="VISUALIZADOR"
                       checked={userForm.role === "VISUALIZADOR"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
                     />
                     VISUALIZADOR
                   </label>
                   <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input 
-                      type="radio" 
-                      name="role-create" 
-                      value="ADMIN" 
+                    <input
+                      type="radio"
+                      name="role-create"
+                      value="ADMIN"
                       checked={userForm.role === "ADMIN"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
                     />
                     ADMIN
                   </label>
@@ -5558,7 +5593,7 @@ ${entesList}`;
               </div>
 
               <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
-                <button type="button" className="btn-secondary" onClick={() => setCreateUserModalOpen(false)}>
+                <button type="button" className="btn-secondary" onClick={closeCreateUserModal}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn-submit" style={{ flex: 1 }}>
@@ -5572,11 +5607,19 @@ ${entesList}`;
 
       {/* Modal: Editar Usuario */}
       {editUserModalOpen && (
-        <div className="modal-overlay" onClick={() => setEditUserModalOpen(false)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+        <div className={`modal-overlay${editUserClosing ? " modal-overlay--closing" : ""}`} onClick={closeEditUserModal}>
+          <div className={`modal-content modal-content--detail${editUserClosing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
             <div className="modal-header">
-              <span className="modal-title">Editar Usuario / Operador</span>
-              <button className="modal-close" onClick={() => setEditUserModalOpen(false)}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <div className="modal-avatar">
+                  {userForm.nombre.trim().split(/\s+/).slice(0,2).map((w: string) => w[0]||"").join("").toUpperCase() || "OP"}
+                </div>
+                <div>
+                  <span className="modal-title">{userForm.nombre || "Editar Operador"}</span>
+                  <p style={{ margin: 0, fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>Modifique los datos del operador</p>
+                </div>
+              </div>
+              <button className="modal-close" onClick={closeEditUserModal}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -5633,15 +5676,11 @@ ${entesList}`;
                     className={userErrors.password ? "has-error" : ""}
                     style={{ paddingRight: "40px" }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setUserShowPassword(p => !p)}
-                    style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
-                  >
+                  <button type="button" className="pwd-toggle-btn" onClick={() => setUserShowPassword(p => !p)}>
                     {userShowPassword ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                     ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     )}
                   </button>
                 </div>
@@ -5665,15 +5704,11 @@ ${entesList}`;
                     className={userErrors.confirmPassword ? "has-error" : ""}
                     style={{ paddingRight: "40px" }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setUserShowConfirmPassword(p => !p)}
-                    style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
-                  >
+                  <button type="button" className="pwd-toggle-btn" onClick={() => setUserShowConfirmPassword(p => !p)}>
                     {userShowConfirmPassword ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                     ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     )}
                   </button>
                 </div>
@@ -5697,32 +5732,32 @@ ${entesList}`;
                 <label>Rol asignado</label>
                 <div className="radio-group" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
                   <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input 
-                      type="radio" 
-                      name="role-edit" 
-                      value="REGISTRADOR" 
+                    <input
+                      type="radio"
+                      name="role-edit"
+                      value="REGISTRADOR"
                       checked={userForm.role === "REGISTRADOR"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
                     />
                     REGISTRADOR
                   </label>
                   <label className={`radio-card ${userForm.role === "VISUALIZADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input 
-                      type="radio" 
-                      name="role-edit" 
-                      value="VISUALIZADOR" 
+                    <input
+                      type="radio"
+                      name="role-edit"
+                      value="VISUALIZADOR"
                       checked={userForm.role === "VISUALIZADOR"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
                     />
                     VISUALIZADOR
                   </label>
                   <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input 
-                      type="radio" 
-                      name="role-edit" 
-                      value="ADMIN" 
+                    <input
+                      type="radio"
+                      name="role-edit"
+                      value="ADMIN"
                       checked={userForm.role === "ADMIN"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))} 
+                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
                     />
                     ADMIN
                   </label>
@@ -5730,7 +5765,7 @@ ${entesList}`;
               </div>
 
               <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
-                <button type="button" className="btn-secondary" onClick={() => setEditUserModalOpen(false)}>
+                <button type="button" className="btn-secondary" onClick={closeEditUserModal}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn-submit" style={{ flex: 1 }}>
