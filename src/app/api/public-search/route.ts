@@ -31,17 +31,26 @@ export async function GET(req: Request) {
     }
 
     // ── Búsqueda principal en la tabla Registro ──────────────────────────────
+    // Si el término es una cédula (V-/E-/solo dígitos), busca por sus dígitos
+    // tanto en la persona como en cedulaJefeFamilia, para que al buscar la cédula
+    // de un jefe de familia aparezcan también los integrantes de su núcleo.
+    const parsed = parseCedula(cleanQ);
+    const orConditions: any[] = [
+      { nombreApellido:  { contains: cleanQ, mode: "insensitive" } },
+      { telefono:        { contains: cleanQ, mode: "insensitive" } },
+      { sector:          { contains: cleanQ, mode: "insensitive" } },
+      { comunidad:       { contains: cleanQ, mode: "insensitive" } },
+      { direccionExacta: { contains: cleanQ, mode: "insensitive" } }
+    ];
+    if (parsed) {
+      orConditions.push({ cedula:            { contains: parsed.digits } });
+      orConditions.push({ cedulaJefeFamilia: { contains: parsed.digits } });
+    } else {
+      orConditions.push({ cedula: { contains: cleanQ, mode: "insensitive" } });
+    }
+
     const registros = await prisma.registro.findMany({
-      where: {
-        OR: [
-          { nombreApellido:  { contains: cleanQ, mode: "insensitive" } },
-          { cedula:          { contains: cleanQ, mode: "insensitive" } },
-          { telefono:        { contains: cleanQ, mode: "insensitive" } },
-          { sector:          { contains: cleanQ, mode: "insensitive" } },
-          { comunidad:       { contains: cleanQ, mode: "insensitive" } },
-          { direccionExacta: { contains: cleanQ, mode: "insensitive" } }
-        ]
-      },
+      where: { OR: orConditions },
       select: {
         id: true,
         nombreApellido: true,
@@ -71,7 +80,6 @@ export async function GET(req: Request) {
     }
 
     // ── Fallback: buscar en el Padrón solo si la consulta parece una cédula ──
-    const parsed = parseCedula(cleanQ);
     let padronHit: { nombreCompleto: string; cedula: string; nacionalidad: string } | null = null;
 
     if (parsed) {

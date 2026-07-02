@@ -80,11 +80,24 @@ export default function AsignacionesTab() {
     // Apply text search
     if (registroSearch.trim()) {
       const q = registroSearch.toLowerCase();
-      result = result.filter(r =>
-        r.nombreApellido?.toLowerCase().includes(q) ||
-        r.cedula?.toLowerCase().includes(q) ||
-        r.parroquia?.toLowerCase().includes(q)
-      );
+      // Si el término parece una cédula (V-55555, E-55555 o 55555), se busca por
+      // sus dígitos tanto en la cédula propia como en cedulaJefeFamilia, para que
+      // al buscar la cédula de un jefe aparezcan los integrantes de su núcleo.
+      const qDigits = registroSearch.replace(/\D/g, "");
+      const looksLikeCedula = qDigits.length >= 5;
+      result = result.filter(r => {
+        if (
+          r.nombreApellido?.toLowerCase().includes(q) ||
+          r.cedula?.toLowerCase().includes(q) ||
+          r.parroquia?.toLowerCase().includes(q)
+        ) return true;
+        if (looksLikeCedula) {
+          const ced  = (r.cedula || "").replace(/\D/g, "");
+          const jefe = (r.cedulaJefeFamilia || "").replace(/\D/g, "");
+          return ced.includes(qDigits) || jefe.includes(qDigits);
+        }
+        return false;
+      });
     }
 
     // Apply filters

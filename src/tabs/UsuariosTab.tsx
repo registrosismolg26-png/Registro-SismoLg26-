@@ -7,7 +7,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { canManageUsers, isMaster } from "@/lib/permissions";
+import { canManageUsers, isMaster, canManageTargetUser } from "@/lib/permissions";
 
 export default function UsuariosTab() {
   const { currentUser, isOnline, showToast } = useAppContext();
@@ -31,6 +31,8 @@ export default function UsuariosTab() {
   const [editUserClosing, setEditUserClosing] = useState(false);
   const [userShowPassword, setUserShowPassword] = useState(false);
   const [userShowConfirmPassword, setUserShowConfirmPassword] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
 
   // Fetch system users (Admin only)
   const fetchUsers = async () => {
@@ -221,6 +223,37 @@ export default function UsuariosTab() {
     }
   };
 
+  // Ejecuta el borrado del operador confirmado en el modal.
+  const handleDeleteUser = async () => {
+    if (!userToDelete || !currentUser || !canManageUsers(currentUser.role)) return;
+
+    if (!isOnline) {
+      showToast("Se requiere conexión a internet para eliminar operadores.", "warning");
+      return;
+    }
+
+    setDeletingUser(true);
+    try {
+      const res = await apiFetch(`/api/auth/users?id=${userToDelete.id}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Error al eliminar operador.", "warning");
+        return;
+      }
+
+      showToast("Operador eliminado.", "success");
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (err) {
+      console.error(err);
+      showToast("Error de conexión al eliminar el operador.", "warning");
+    } finally {
+      setDeletingUser(false);
+    }
+  };
+
   return (
     <>
       <div className="tab-view tab-enter">
@@ -323,27 +356,38 @@ export default function UsuariosTab() {
                         {usr.campamentoTransitorio || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Sin campamento</span>}
                       </td>
                       <td style={{ textAlign: "right" }}>
-                        {isOnline && (
-                          <button
-                            type="button"
-                            className="btn-edit-user"
-                            data-tip="Editar operador"
-                            onClick={() => {
-                              setEditingUserId(usr.id);
-                              setUserForm({
-                                nombre: usr.nombre,
-                                email: usr.email,
-                                password: "",
-                                confirmPassword: "",
-                                role: usr.role,
-                                campamentoTransitorio: usr.campamentoTransitorio || "Complejo Educativo República de Panamá"
-                              });
-                              setUserErrors({});
-                              setEditUserModalOpen(true);
-                            }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                          </button>
+                        {isOnline && currentUser && canManageTargetUser(currentUser.role, currentUser.campamentoTransitorio, usr.role, usr.campamentoTransitorio) && (
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}>
+                            <button
+                              type="button"
+                              className="btn-edit-user"
+                              data-tip="Editar operador"
+                              onClick={() => {
+                                setEditingUserId(usr.id);
+                                setUserForm({
+                                  nombre: usr.nombre,
+                                  email: usr.email,
+                                  password: "",
+                                  confirmPassword: "",
+                                  role: usr.role,
+                                  campamentoTransitorio: usr.campamentoTransitorio || "Complejo Educativo República de Panamá"
+                                });
+                                setUserErrors({});
+                                setEditUserModalOpen(true);
+                              }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-edit-user"
+                              data-tip="Eliminar operador"
+                              style={{ color: "var(--color-danger)" }}
+                              onClick={() => setUserToDelete(usr)}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -520,16 +564,18 @@ export default function UsuariosTab() {
                     />
                     VISUALIZADOR
                   </label>
-                  <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input
-                      type="radio"
-                      name="role-create"
-                      value="ADMIN"
-                      checked={userForm.role === "ADMIN"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                    />
-                    ADMIN
-                  </label>
+                  {currentUser && isMaster(currentUser.role) && (
+                    <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                      <input
+                        type="radio"
+                        name="role-create"
+                        value="ADMIN"
+                        checked={userForm.role === "ADMIN"}
+                        onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
+                      />
+                      ADMIN
+                    </label>
+                  )}
                 </div>
               </div>
 
@@ -689,38 +735,44 @@ export default function UsuariosTab() {
 
               <div className="form-group">
                 <label>Rol asignado</label>
-                <div className="radio-group" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
-                  <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input
-                      type="radio"
-                      name="role-edit"
-                      value="REGISTRADOR"
-                      checked={userForm.role === "REGISTRADOR"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                    />
-                    REGISTRADOR
-                  </label>
-                  <label className={`radio-card ${userForm.role === "VISUALIZADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input
-                      type="radio"
-                      name="role-edit"
-                      value="VISUALIZADOR"
-                      checked={userForm.role === "VISUALIZADOR"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                    />
-                    VISUALIZADOR
-                  </label>
-                  <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input
-                      type="radio"
-                      name="role-edit"
-                      value="ADMIN"
-                      checked={userForm.role === "ADMIN"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                    />
-                    ADMIN
-                  </label>
-                </div>
+                {userForm.role === "MASTER" ? (
+                  <span className="user-role-badge" style={{ background: "var(--color-danger-light, rgba(220, 38, 38, 0.1))", color: "var(--color-danger)", border: "1px solid rgba(220, 38, 38, 0.25)" }}>MASTER</span>
+                ) : (
+                  <div className="radio-group" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
+                    <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                      <input
+                        type="radio"
+                        name="role-edit"
+                        value="REGISTRADOR"
+                        checked={userForm.role === "REGISTRADOR"}
+                        onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
+                      />
+                      REGISTRADOR
+                    </label>
+                    <label className={`radio-card ${userForm.role === "VISUALIZADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                      <input
+                        type="radio"
+                        name="role-edit"
+                        value="VISUALIZADOR"
+                        checked={userForm.role === "VISUALIZADOR"}
+                        onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
+                      />
+                      VISUALIZADOR
+                    </label>
+                    {currentUser && isMaster(currentUser.role) && (
+                      <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
+                        <input
+                          type="radio"
+                          name="role-edit"
+                          value="ADMIN"
+                          checked={userForm.role === "ADMIN"}
+                          onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
+                        />
+                        ADMIN
+                      </label>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
@@ -732,6 +784,55 @@ export default function UsuariosTab() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmar Eliminar Operador */}
+      {userToDelete && (
+        <div className="modal-overlay" onClick={() => { if (!deletingUser) setUserToDelete(null); }}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+            <div className="modal-header">
+              <span className="modal-title" style={{ color: "var(--color-danger)" }}>⚠️ Confirmar Eliminación</span>
+              <button className="modal-close" onClick={() => setUserToDelete(null)} disabled={deletingUser}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: "1.5" }}>
+              <p>¿Estás seguro de que deseas eliminar permanentemente al siguiente operador?</p>
+              <div style={{
+                margin: "1rem 0",
+                padding: "0.75rem",
+                backgroundColor: "var(--bg-primary)",
+                borderRadius: "6px",
+                border: "1px dashed #fca5a5",
+                textAlign: "center",
+                fontSize: "0.95rem",
+                color: "var(--color-danger)",
+                fontWeight: "700"
+              }}>
+                {userToDelete.nombre}
+              </div>
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+
+            <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" onClick={() => setUserToDelete(null)} disabled={deletingUser}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ flex: 1, backgroundColor: "var(--color-danger)", borderColor: "var(--color-danger)" }}
+                onClick={handleDeleteUser}
+                disabled={deletingUser}
+              >
+                {deletingUser ? <><span className="spinner spinner-sm"></span>Eliminando</> : "Sí, Eliminar Operador"}
+              </button>
+            </div>
           </div>
         </div>
       )}
