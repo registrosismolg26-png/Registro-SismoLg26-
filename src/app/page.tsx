@@ -15,103 +15,11 @@ import {
   getLocalPadronCount,
   LocalRegistro
 } from "@/lib/db";
-
-// ── Form state ──────────────────────────────────────────────────────────────
-
-type Medicamento = { nombre: string; dosis: string; periodo: string };
-
-type FormData = {
-  parroquia: string; sector: string; comunidad: string; direccionExacta: string;
-  nacionalidad: string; cedula: string; nombreApellido: string; genero: string;
-  fechaNacimiento: string; edad: string; perteneceNucleo: string; jefeFamilia: string;
-  cedulaJefeFamilia: string; estadoFisico: string; patologia: string;
-  patologiaDescripcion: string; telefonoCod: string; telefonoNum: string;
-  isChildDependent: boolean; dependentNumber: string;
-  intermitente: string; motivoIntermitente: string;
-};
-
-type FormAction =
-  | { type: "SET"; field: keyof FormData; value: any }
-  | { type: "SET_MANY"; patch: Partial<FormData> }
-  | { type: "RESET" };
-
-const INITIAL_FORM: FormData = {
-  parroquia: "", sector: "", comunidad: "", direccionExacta: "",
-  nacionalidad: "V", cedula: "", nombreApellido: "", genero: "",
-  fechaNacimiento: "", edad: "", perteneceNucleo: "", jefeFamilia: "",
-  cedulaJefeFamilia: "", estadoFisico: "", patologia: "", patologiaDescripcion: "",
-  telefonoCod: "0412", telefonoNum: "",
-  isChildDependent: false, dependentNumber: "1",
-  intermitente: "NO", motivoIntermitente: "",
-};
-
-function formReducer(state: FormData, action: FormAction): FormData {
-  switch (action.type) {
-    case "SET":      return { ...state, [action.field]: action.value };
-    case "SET_MANY": return { ...state, ...action.patch };
-    case "RESET":    return { ...INITIAL_FORM };
-    default:         return state;
-  }
-}
-
-// Parroquias de La Guaira y Caracas
-const PARROQUIAS = [
-  "EL JUNKO",
-  "CARAYACA",
-  "CATIA LA MAR",
-  "URIMARE",
-  "CARLOS SOUBLETTE",
-  "MAIQUETIA",
-  "LA GUAIRA",
-  "MACUTO",
-  "CARABALLEDA",
-  "NAIGUATA",
-  "CARUAO",
-  "CARACAS"
-];
-
-// Helper to hash password on client side (SHA-256) for offline fallback authentication
-async function sha256(message: string): Promise<string> {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-type ToastType = "success" | "error" | "info" | "warning";
-
-function ToastIcon({ type }: { type: ToastType }) {
-  const p = {
-    width: 18, height: 18, viewBox: "0 0 24 24",
-    fill: "none", stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    className: "toast-icon",
-  };
-  switch (type) {
-    case "success":
-      return <svg {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
-    case "error":
-      return <svg {...p}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
-    case "warning":
-      return <svg {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
-    default:
-      return <svg {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
-  }
-}
-
-const CUARTOS: string[] = [];
-
-const formatRoomLabel = (room: string) => {
-  return room
-    .toLowerCase()
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ")
-    .replace("Edificio", "Edif.")
-    .replace("Salon", "Salón");
-};
+import type { Medicamento, ToastType, FormData } from "@/types";
+import { PARROQUIAS, CUARTOS, INITIAL_FORM, ALLOWED_ADMINS, DEFAULT_ENTES, INACTIVITY_MS } from "@/lib/constants";
+import { formReducer } from "@/lib/formReducer";
+import { sha256, formatRoomLabel } from "@/lib/helpers";
+import { ToastIcon } from "@/components/ToastIcon";
 
 export default function Home() {
   // Connection state
@@ -128,10 +36,9 @@ export default function Home() {
 
   // Auth States
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string; role: string; campamentoTransitorio: string } | null>(null);
-  const ALLOWED_ADMINS = useMemo(() => ["yender.umc@gmail.com", "juventudlgelectoral@gmail.com", "abelenviso@gmail.com"], []);
   const isPowerAdmin = useMemo(() => {
     return currentUser && currentUser.role === "ADMIN" && ALLOWED_ADMINS.includes(currentUser.email.toLowerCase());
-  }, [currentUser, ALLOWED_ADMINS]);
+  }, [currentUser]);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -144,18 +51,7 @@ export default function Home() {
   const [pillReady, setPillReady] = useState(false);
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
   const [incluirDistribucion, setIncluirDistribucion] = useState(true);
-  const [entes, setEntes] = useState<string[]>([
-    "Ministerio de Alimentación y sus entes",
-    "Gobernación",
-    "MPP Educación",
-    "MPP Indistria y Comercio",
-    "MPP Proceso Social del Trabajo",
-    "MPP Juventud",
-    "MPP para la Defensa",
-    "Alcaldía",
-    "Vicepresidencia de Obras Publicad y Servicios",
-    "Juventud Socialista (brigadas de solidaridad)"
-  ]);
+  const [entes, setEntes] = useState<string[]>(DEFAULT_ENTES);
   const [newEnte, setNewEnte] = useState("");
 
   // Cuartos dinámicos (base + personalizados por admin)
@@ -404,7 +300,6 @@ export default function Home() {
 
   // Inactivity session timeout — updated on every pointer/key event
   const lastActivityRef = useRef<number>(Date.now());
-  const INACTIVITY_MS = 60 * 60 * 1000; // 1 hour
 
   // Initialize online status, theme, user session, local padrón count, GPS and local queue on mount
   useEffect(() => {
