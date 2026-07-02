@@ -1877,20 +1877,31 @@ html[data-theme="dark"] .spinner {
 }
 
 /* Dashboard Metrics & Visuals */
+@keyframes sectionReveal {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stats-charts-grid .dashboard-section { animation: sectionReveal 0.35s cubic-bezier(0.4,0,0.2,1) both; }
+.stats-charts-grid .dashboard-section:nth-child(1) { animation-delay: 0.06s; }
+.stats-charts-grid .dashboard-section:nth-child(2) { animation-delay: 0.12s; }
+.stats-charts-grid .dashboard-section:nth-child(3) { animation-delay: 0.18s; }
+.stats-charts-grid .dashboard-section:nth-child(4) { animation-delay: 0.24s; }
+.stats-charts-grid .dashboard-section:nth-child(5) { animation-delay: 0.30s; }
+.stats-charts-grid .dashboard-section:nth-child(6) { animation-delay: 0.36s; }
+
 .stats-grid {
   display: grid;
   gap: 0.75rem;
 }
 .stat-card {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
   border-top: 3px solid var(--color-primary);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  box-shadow: var(--card-shadow);
+  box-shadow: 0 4px 20px -4px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
 }
 /* KPI card accent borders — analogous cool palette, same family as brand */
 .stat-card--primary { border-top-color: var(--color-primary); }
@@ -1915,25 +1926,62 @@ html[data-theme="dark"] .spinner {
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
+
+/* Tarjeta de cabecera del dashboard */
+.dashboard-header-card {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  border-top: 3px solid var(--color-gold);
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  box-shadow: 0 4px 20px -4px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
+}
+
 .dashboard-section {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 1.25rem;
+  border-radius: 16px;
+  padding: 1.375rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  box-shadow: var(--card-shadow);
+  box-shadow: 0 4px 20px -4px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
 }
 .dashboard-section-title {
   font-family: var(--font-heading);
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.625rem;
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.4rem;
+  margin-bottom: 0.125rem;
+}
+h3.dashboard-section-title::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--color-primary);
+  flex-shrink: 0;
+}
+h2.dashboard-section-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: -0.01em;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
 
 /* Sync Audit Log Cards */
@@ -2057,8 +2105,7 @@ html[data-theme="dark"] .spinner {
 /* Matrix Contingency Table */
 .matrix-table-wrapper {
   overflow-x: auto;
-  margin-top: 0.5rem;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
   background-color: var(--bg-primary);
 }
@@ -2307,9 +2354,9 @@ html[data-theme="dark"] .spinner {
   to   { width: var(--bar-width); }
 }
 .parroquia-bar {
-  height: 8px;
+  height: 10px;
   background: var(--color-primary);
-  border-radius: 4px;
+  border-radius: 6px;
   animation: slideRight 0.45s ease-out both;
   width: var(--bar-width);
 }
@@ -2615,16 +2662,16 @@ html[data-theme="dark"] .spinner {
 
 .bar-track {
   width: 100%;
-  height: 8px;
+  height: 10px;
   background: var(--border-color);
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
 }
 .bar-track-sm {
   width: 100%;
-  height: 6px;
+  height: 7px;
   background: var(--border-color);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
 }
 .bar-fill {

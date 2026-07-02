@@ -3362,9 +3362,9 @@ ${entesList}`;
       {activeTab === "dashboard" && currentUser.role === "ADMIN" && (
         <div ref={dashboardRef} className={`tab-view tab-view--dashboard tab-enter ${isFullscreen ? "presentation-mode" : ""}`}>
 
-          <div className="dashboard-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
+          <div className="dashboard-header-card">
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <h2 className="dashboard-section-title" style={{ margin: 0 }}>Panel de Estadísticas</h2>
+              <h2 className="dashboard-section-title">Panel de Estadísticas</h2>
               {isUpdatingPresentation && (
                 <span className="updating-pulse-indicator" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontSize: "0.7rem", color: "var(--color-success)", fontWeight: "600" }}>
                   <span className="pulse-dot" style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "var(--color-success)" }}></span>
