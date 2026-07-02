@@ -13,7 +13,7 @@ import {
   LocalRegistro
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
-import { isMaster, canManageUsers, canRegister } from "@/lib/permissions";
+import { isMaster, canManageUsers, canRegister, canViewDashboard } from "@/lib/permissions";
 import type { ToastType } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import { ToastIcon } from "@/components/ToastIcon";
@@ -194,7 +194,7 @@ export default function Home() {
         onlineDebounceRef.current = setTimeout(() => {
           showToast("Conexión restablecida. Sincronizando...", "success");
           triggerSync();
-          if (currentUser && currentUser.role === "ADMIN") {
+          if (currentUser && canViewDashboard(currentUser.role)) {
             fetchStats();
           }
         }, 1000);
@@ -388,7 +388,7 @@ export default function Home() {
   useEffect(() => {
     if (currentUser) {
       fetchRegistros();
-      if (currentUser.role === "ADMIN") {
+      if (canViewDashboard(currentUser.role)) {
         fetchStats(true);
       }
     }
@@ -414,7 +414,7 @@ export default function Home() {
     if (activeTab === "asignaciones") {
       fetchRegistros();
     }
-    if (currentUser.role === "ADMIN") {
+    if (canViewDashboard(currentUser.role)) {
       if (activeTab === "dashboard") {
         fetchStats();
       }
@@ -846,7 +846,7 @@ export default function Home() {
       {activeTab === "censo" && <CensoTab />}
 
       {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
-      {activeTab === "dashboard" && currentUser.role === "ADMIN" && <DashboardTab />}
+      {activeTab === "dashboard" && canViewDashboard(currentUser.role) && <DashboardTab />}
 
       {/* TAB 3: USER ADMINISTRATION (MASTER o ADMIN) */}
       {activeTab === "usuarios" && canManageUsers(currentUser.role) && <UsuariosTab />}

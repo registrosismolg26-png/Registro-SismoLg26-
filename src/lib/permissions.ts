@@ -12,3 +12,4 @@ export const canDeleteRegistro = (role: string) => ["MASTER", "ADMIN"].includes(
 export const canManageUsers    = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canManageRooms    = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canManagePadron   = (role: string) => ["MASTER", "ADMIN"].includes(role);
+export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role); // panel de estadísticas

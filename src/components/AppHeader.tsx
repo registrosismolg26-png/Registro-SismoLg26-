@@ -11,7 +11,7 @@
 
 import { useState, useLayoutEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { canManageUsers } from "@/lib/permissions";
+import { canManageUsers, canViewDashboard } from "@/lib/permissions";
 
 export default function AppHeader() {
   const {
@@ -132,7 +132,7 @@ export default function AppHeader() {
               <span>Registrar</span>
             </button>
           )}
-          {(currentUser.role === "ADMIN" || currentUser.role === "VISUALIZADOR") && (
+          {canViewDashboard(currentUser.role) && (
             <button
               type="button"
               data-tab="dashboard"
@@ -208,7 +208,7 @@ export default function AppHeader() {
                   Registrar
                 </button>
               )}
-              {(currentUser.role === "ADMIN" || currentUser.role === "VISUALIZADOR") && activeTab !== "dashboard" && (
+              {canViewDashboard(currentUser.role) && activeTab !== "dashboard" && (
                 <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("dashboard"); setMenuOpen(false); }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                   Estadísticas
