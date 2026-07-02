@@ -34,9 +34,15 @@ export interface AppContextValue {
 
   // Datos compartidos
   registros: any[];
+  setRegistros: React.Dispatch<React.SetStateAction<any[]>>;
   fetchRegistros: () => void;
+  loadingRegistros: boolean;
   localRecords: LocalRegistro[];
   refreshLocalRecords: () => void;
+
+  // Navegación por notificación PWA (cold-start / service-worker → asignaciones)
+  pendingSelectId: string | null;
+  setPendingSelectId: React.Dispatch<React.SetStateAction<string | null>>;
 
   // Habitaciones
   customCuartos: string[];
