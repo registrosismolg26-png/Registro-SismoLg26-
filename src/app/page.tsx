@@ -2310,6 +2310,15 @@ export default function Home() {
 
     const familias = currentStats.nucleosFamiliares || 0;
     const solos = currentStats.individuosSolos || 0;
+    const retirados = currentStats.totalRetirados || 0;
+
+    const parroquiasSorted = [...(currentStats.byParroquia || [])].sort((a, b) => b.count - a.count);
+    const parroquiasList = parroquiasSorted.map(p => {
+      const pct = t > 0 ? Math.round(p.count / t * 100) : 0;
+      const countStr = String(p.count).padStart(2, '0');
+      return pct > 0 ? `- ${p.name}: ${countStr} (${pct}%)` : `- ${p.name}: ${countStr}`;
+    }).join("\n");
+
     const entesList = entes.map(e => `- ${e}`).join("\n");
 
     return `*Campamento de Transición Complejo Educativo República de Panamá.*
@@ -2332,6 +2341,11 @@ ${String(adF).padStart(2, '0')} femenino
 Niños: ${men}
 ${String(menF).padStart(2, '0')} niñas
 ${String(menM).padStart(2, '0')} niños
+
+Distribución territorial:
+${parroquiasList}
+
+Personas retiradas en refugios solidarios: ${String(retirados).padStart(2, '0')}
 
 Personal de trabajo: ${personalTrabajo} personas.
 Entes Presentes:
