@@ -22,6 +22,8 @@ import QRCode from "qrcode";
 import { getPending, saveLocal, resetAttempts, type LocalRegistro } from "@/lib/db";
 import { formatRoomLabel } from "@/lib/helpers";
 import { useAppContext } from "@/context/AppContext";
+import { apiFetch } from "@/lib/apiFetch";
+import { canManageRooms, canRegister } from "@/lib/permissions";
 
 export default function ConfigTab() {
   const {
@@ -96,7 +98,7 @@ export default function ConfigTab() {
 
     if (navigator.onLine) {
       try {
-        await fetch("/api/cuartos", {
+        await apiFetch("/api/cuartos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: key })
@@ -120,7 +122,7 @@ export default function ConfigTab() {
 
     if (navigator.onLine) {
       try {
-        await fetch(`/api/cuartos?name=${encodeURIComponent(key)}`, {
+        await apiFetch(`/api/cuartos?name=${encodeURIComponent(key)}`, {
           method: "DELETE"
         });
       } catch (err) {
@@ -276,7 +278,8 @@ export default function ConfigTab() {
           </div>
         </div>
 
-        {/* ── 2. PADRÓN ELECTORAL ── */}
+        {/* ── 2. PADRÓN ELECTORAL LOCAL (lo usa quien censa: MASTER/ADMIN/REGISTRADOR) ── */}
+        {canRegister(currentUser.role) && (
         <div className="dashboard-section">
           <div className="config-section-header">
             <h3 className="dashboard-section-title">Padrón Electoral Local</h3>
@@ -336,6 +339,7 @@ export default function ConfigTab() {
             </div>
           )}
         </div>
+        )}
 
         {/* ── 3. COLA DE SINCRONIZACIÓN ── */}
         {(() => {
@@ -491,8 +495,8 @@ export default function ConfigTab() {
           );
         })()}
 
-        {/* ── 4. GESTIÓN DE HABITACIONES (solo ADMIN) ── */}
-        {currentUser.role === "ADMIN" && (
+        {/* ── 4. GESTIÓN DE HABITACIONES (MASTER o ADMIN) ── */}
+        {canManageRooms(currentUser.role) && (
           <div className="dashboard-section">
             <h3 className="dashboard-section-title">Gestión de Edificios y Salones</h3>
             <div className="room-add-form">

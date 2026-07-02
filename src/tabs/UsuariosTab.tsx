@@ -6,9 +6,11 @@
 
 import { useState, useEffect, type FormEvent } from "react";
 import { useAppContext } from "@/context/AppContext";
+import { apiFetch } from "@/lib/apiFetch";
+import { canManageUsers } from "@/lib/permissions";
 
 export default function UsuariosTab() {
-  const { currentUser, isPowerAdmin, isOnline, showToast } = useAppContext();
+  const { currentUser, isOnline, showToast } = useAppContext();
 
   const [userForm, setUserForm] = useState({
     nombre: "",
@@ -31,10 +33,10 @@ export default function UsuariosTab() {
 
   // Fetch system users (Admin only)
   const fetchUsers = async () => {
-    if (!currentUser || currentUser.role !== "ADMIN" || !navigator.onLine) return;
+    if (!currentUser || !canManageUsers(currentUser.role) || !navigator.onLine) return;
     setLoadingUsers(true);
     try {
-      const res = await fetch(`/api/auth/users?adminId=${currentUser.id}`);
+      const res = await apiFetch("/api/auth/users");
       const data = await res.json();
       if (data.success) {
         setSystemUsers(data.users);
@@ -72,7 +74,7 @@ export default function UsuariosTab() {
     e.preventDefault();
     setUserErrors({});
 
-    if (!currentUser || currentUser.role !== "ADMIN") return;
+    if (!currentUser || !canManageUsers(currentUser.role)) return;
 
     // Validation
     const errs: Record<string, string> = {};
@@ -102,10 +104,10 @@ export default function UsuariosTab() {
     }
 
     try {
-      const res = await fetch("/api/auth/users", {
+      const res = await apiFetch("/api/auth/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...userForm, adminId: currentUser.id })
+        body: JSON.stringify({ ...userForm })
       });
 
       const data = await res.json();
@@ -137,7 +139,7 @@ export default function UsuariosTab() {
     e.preventDefault();
     setUserErrors({});
 
-    if (!currentUser || !isPowerAdmin) return;
+    if (!currentUser || !canManageUsers(currentUser.role)) return;
 
     // Validation
     const errs: Record<string, string> = {};
@@ -167,13 +169,12 @@ export default function UsuariosTab() {
     }
 
     try {
-      const res = await fetch("/api/auth/users", {
+      const res = await apiFetch("/api/auth/users", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: editingUserId,
-          ...userForm,
-          adminId: currentUser.id
+          ...userForm
         })
       });
 

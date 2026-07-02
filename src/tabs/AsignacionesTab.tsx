@@ -21,6 +21,8 @@ import { PARROQUIAS } from "@/lib/constants";
 import { formatRoomLabel } from "@/lib/helpers";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
+import { apiFetch } from "@/lib/apiFetch";
+import { canRegister, canDeleteRegistro } from "@/lib/permissions";
 
 export default function AsignacionesTab() {
   const {
@@ -150,6 +152,8 @@ export default function AsignacionesTab() {
     try {
       const localRec = {
         id: updated.id,
+        refugio: currentUser?.campamentoTransitorio,
+        userId: currentUser?.id,
         data: {
           parroquia: updated.parroquia,
           sector: updated.sector,
@@ -254,6 +258,8 @@ export default function AsignacionesTab() {
       const localRec = {
         id: updated.id,
         type: 'update' as const,
+        refugio: currentUser?.campamentoTransitorio,
+        userId: currentUser?.id,
         data: {
           parroquia: updated.parroquia,
           sector: updated.sector,
@@ -305,7 +311,7 @@ export default function AsignacionesTab() {
 
   const handleDeleteRegistro = async (id: string) => {
     try {
-      const res = await fetch(`/api/registros/${id}`, {
+      const res = await apiFetch(`/api/registros/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -531,7 +537,8 @@ export default function AsignacionesTab() {
                 </span>
               )}
             </div>
-            {currentUser.role === "ADMIN" && (
+            {/* Exportar: disponible para todos los roles (un Visualizador solo ve y exporta). */}
+            {(
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
                   type="button"
@@ -963,8 +970,9 @@ export default function AsignacionesTab() {
                   )}
                 </div>
 
-                 {currentUser.role === "ADMIN" && (
+                 {(canDeleteRegistro(currentUser.role) || canRegister(currentUser.role)) && (
                     <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", width: "100%" }}>
+                      {canDeleteRegistro(currentUser.role) && (
                       <button
                         type="button"
                         className="btn-secondary"
@@ -990,6 +998,8 @@ export default function AsignacionesTab() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                         Eliminar
                       </button>
+                      )}
+                      {canRegister(currentUser.role) && (
                       <button
                         type="button"
                         className="btn-secondary"
@@ -1058,6 +1068,7 @@ export default function AsignacionesTab() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         Editar Datos
                       </button>
+                      )}
                     </div>
                  )}
               </>
@@ -1067,7 +1078,7 @@ export default function AsignacionesTab() {
             {editMode && (
               <>
                 <div className="detail-edit-grid">
-                  {currentUser.role === "ADMIN" && (
+                  {canRegister(currentUser.role) && (
                     <>
                       <div className="form-group detail-field--full" style={{ marginBottom: "0.25rem" }}>
                         <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "700", cursor: "pointer" }}>
@@ -1363,8 +1374,8 @@ export default function AsignacionesTab() {
               </>
             )}
 
-            {/* ── ASIGNAR CUARTO (solo visible para ADMIN) ── */}
-            {currentUser.role === "ADMIN" && (
+            {/* ── ASIGNAR CUARTO (visible si puede registrar: MASTER/ADMIN/REGISTRADOR) ── */}
+            {canRegister(currentUser.role) && (
               <div className="modal-cuarto-section">
                 <div className="section-title" style={{ margin: "0 0 0.625rem" }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>

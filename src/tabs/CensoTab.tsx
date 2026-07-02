@@ -16,6 +16,7 @@ import type { Medicamento, FormData } from "@/types";
 import { PARROQUIAS, INITIAL_FORM } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
+import { canRegister } from "@/lib/permissions";
 
 export default function CensoTab() {
   const {
@@ -371,6 +372,8 @@ export default function CensoTab() {
       const recordId = crypto.randomUUID();
       const registroData = {
         id: recordId,
+        refugio: currentUser?.campamentoTransitorio,
+        userId: currentUser?.id,
         data: {
           parroquia: formData.parroquia,
           sector: formData.sector,
@@ -425,7 +428,7 @@ export default function CensoTab() {
   return (
     <>
         <div className="tab-enter">
-          {currentUser.role === "REGISTRADOR" || currentUser.role === "ADMIN" ? (
+          {canRegister(currentUser.role) ? (
             <form onSubmit={handleSubmit} className="form-card">
               {/* Wizard Progress Bar */}
               <div className="wizard-progress">

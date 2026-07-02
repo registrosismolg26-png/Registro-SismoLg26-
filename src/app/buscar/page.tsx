@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 
 type PublicRegistro = {
   id: string;
@@ -61,7 +62,7 @@ export default function PublicSearch() {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/public-search?q=${encodeURIComponent(cleanQ)}`);
+        const res = await apiFetch(`/api/public-search?q=${encodeURIComponent(cleanQ)}`);
         const data = await res.json();
         if (data.success) {
           setResults(data.registros || []);

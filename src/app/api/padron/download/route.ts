@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, canManagePadron } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth";
 
 export async function POST(req: Request) {
+  // Descargar el padrón a local lo puede hacer CUALQUIER operador autenticado:
+  // el Registrador lo necesita para el autocompletado de cédulas offline al censar.
+  // (Subir/reemplazar el padrón CNE sí queda restringido — ver upload-cne.)
   const auth = await getAuthUser(req);
-  if (!auth || !canManagePadron(auth)) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (!auth) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   const encoder = new TextEncoder();

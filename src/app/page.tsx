@@ -13,8 +13,9 @@ import {
   LocalRegistro
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
+import { isMaster, canManageUsers, canRegister } from "@/lib/permissions";
 import type { ToastType } from "@/types";
-import { CUARTOS, ALLOWED_ADMINS, INACTIVITY_MS } from "@/lib/constants";
+import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import { ToastIcon } from "@/components/ToastIcon";
 import AppHeader from "@/components/AppHeader";
 import LoginForm from "@/components/LoginForm";
@@ -40,8 +41,10 @@ export default function Home() {
 
   // Auth States
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string; role: string; campamentoTransitorio: string } | null>(null);
+  // "Power admin" global (super-admin) = MASTER. El backend valida de verdad;
+  // esto solo controla la UI de acciones globales.
   const isPowerAdmin = useMemo(() => {
-    return currentUser && currentUser.role === "ADMIN" && ALLOWED_ADMINS.includes(currentUser.email.toLowerCase());
+    return !!currentUser && isMaster(currentUser.role);
   }, [currentUser]);
   // Login (estado + handleLogin) → src/components/LoginForm.tsx (recibe props,
   // se renderiza fuera del Provider). Header/nav (estado + useLayoutEffect de la
@@ -61,7 +64,7 @@ export default function Home() {
   const refreshCustomRooms = async () => {
     if (typeof window === "undefined" || !navigator.onLine) return;
     try {
-      const res = await fetch("/api/cuartos");
+      const res = await apiFetch("/api/cuartos");
       if (res.ok) {
         const data = await res.json();
         const roomNames = data.map((r: any) => r.name);
@@ -295,7 +298,7 @@ export default function Home() {
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
 
-        await fetch("/api/push/subscribe", {
+        await apiFetch("/api/push/subscribe", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -418,14 +421,36 @@ export default function Home() {
     }
   }, [activeTab, currentUser]);
 
-  // Auto-download padrón if not loaded when user logs in
+  // Auto-descarga/reanudación del padrón. En CADA arranque compara el conteo
+  // local contra el total del servidor y reanuda en segundo plano si falta.
+  // (Antes solo descargaba si el conteo local era 0, así que una descarga
+  //  interrumpida a 100/200 se quedaba incompleta para siempre.)
   useEffect(() => {
     if (!currentUser || !isOnline) return;
-    getLocalPadronCount().then(count => {
-      if (count === 0 && syncStatus === "idle") {
+    if (!canRegister(currentUser.role)) return; // solo quienes censan necesitan el padrón local
+    (async () => {
+      if (syncStatus !== "idle") return;
+      const localCount = await getLocalPadronCount();
+
+      // Total del servidor (ligero). Si no hay señal, usar el último total conocido.
+      let serverTotal = 0;
+      try {
+        const res = await apiFetch("/api/padron/count");
+        if (res.ok) {
+          const d = await res.json();
+          serverTotal = d.total || 0;
+          if (serverTotal > 0) localStorage.setItem("padron_total", String(serverTotal));
+        }
+      } catch { /* sin señal: se usa el total guardado */ }
+
+      const knownTotal = serverTotal || parseInt(localStorage.getItem("padron_total") || "0", 10);
+
+      // Reanudar si la copia local está incompleta; o primera descarga si aún no
+      // hay nada y no se pudo consultar el total.
+      if ((knownTotal > 0 && localCount < knownTotal) || (localCount === 0 && knownTotal === 0)) {
         downloadFullPadron();
       }
-    });
+    })();
   }, [currentUser]);
 
   // Inactivity session expiry: logout after INACTIVITY_MS of no pointer/key events
@@ -576,25 +601,30 @@ export default function Home() {
     }
 
     setSyncStatus("downloading");
-    setSyncProgress(0);
+    // Reanudar desde lo que ya haya en IndexedDB (una descarga previa pudo quedar
+    // interrumpida por recarga/cambio de sección). No se reinicia desde 0.
+    const alreadyLocal = await getLocalPadronCount();
+    setSyncProgress(alreadyLocal);
     setSyncTotal(0);
-    showToast("Descargando padrón electoral...", "info");
+    showToast(alreadyLocal > 0 ? "Reanudando descarga del padrón..." : "Descargando padrón electoral...", "info");
 
     const MAX_RETRIES = 3;
-    let totalInserted = 0;
+    let totalInserted = alreadyLocal;
     let serverTotal = 0;
 
     try {
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        // En el primer intento limpiamos e iniciamos desde 0
-        // En reintentos, saltamos lo que ya tenemos
-        const skipAlreadyInserted = attempt > 0 ? totalInserted : 0;
+        // Saltar en el stream los registros ya presentes en IndexedDB (tanto los
+        // de una descarga previa reanudada como los insertados en reintentos).
+        const skipAlreadyInserted = totalInserted;
 
         if (attempt > 0) {
           showToast(`Padrón incompleto. Reintentando (${attempt}/${MAX_RETRIES})...`, "warning");
         }
 
-        const res = await fetch("/api/padron/download", { method: "POST" });
+        // Descarga por streaming (NDJSON, potencialmente grande y lenta en 2G):
+        // timeout amplio para no abortar el stream a mitad de descarga.
+        const res = await apiFetch("/api/padron/download", { method: "POST", timeoutMs: 600000 });
         if (!res.ok || !res.body) throw new Error("Fallo al descargar padrón");
 
         // Leer el total del servidor desde el header
@@ -715,7 +745,7 @@ export default function Home() {
       setLoadingStats(true);
     }
     try {
-      const res = await fetch("/api/stats");
+      const res = await apiFetch("/api/stats");
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);
@@ -750,7 +780,7 @@ export default function Home() {
 
     setLoadingRegistros(true);
     try {
-      const res = await fetch("/api/registros");
+      const res = await apiFetch("/api/registros");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const newRegs = data.registros ?? [];
@@ -818,8 +848,8 @@ export default function Home() {
       {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
       {activeTab === "dashboard" && currentUser.role === "ADMIN" && <DashboardTab />}
 
-      {/* TAB 3: USER ADMINISTRATION (ADMIN ONLY) */}
-      {activeTab === "usuarios" && isPowerAdmin && <UsuariosTab />}
+      {/* TAB 3: USER ADMINISTRATION (MASTER o ADMIN) */}
+      {activeTab === "usuarios" && canManageUsers(currentUser.role) && <UsuariosTab />}
 
       {/* TAB 4: CONFIGURATION & DATABASE STATS VIEW */}
       {activeTab === "config" && <ConfigTab />}
