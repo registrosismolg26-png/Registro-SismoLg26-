@@ -1,22 +1,18 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef, useReducer, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
-  saveLocal,
   getPending,
   getAllLocal,
   markSynced,
   incrementAttempt,
   clearLocalPadron,
   cargarPadronEnCliente,
-  buscarCedulaEnCliente,
   getLocalPadronCount,
   LocalRegistro
 } from "@/lib/db";
-import type { Medicamento, ToastType, FormData } from "@/types";
-import { PARROQUIAS, CUARTOS, INITIAL_FORM, ALLOWED_ADMINS, INACTIVITY_MS } from "@/lib/constants";
-import { formReducer } from "@/lib/formReducer";
-import { sha256, formatRoomLabel } from "@/lib/helpers";
+import type { ToastType } from "@/types";
+import { CUARTOS, ALLOWED_ADMINS, INACTIVITY_MS } from "@/lib/constants";
 import { ToastIcon } from "@/components/ToastIcon";
 import AppHeader from "@/components/AppHeader";
 import LoginForm from "@/components/LoginForm";
@@ -45,12 +41,9 @@ export default function Home() {
   const isPowerAdmin = useMemo(() => {
     return currentUser && currentUser.role === "ADMIN" && ALLOWED_ADMINS.includes(currentUser.email.toLowerCase());
   }, [currentUser]);
-  // (Estado del formulario de login —loginEmail/loginPassword/loginError/
-  //  loadingAuth/showPassword/rememberMe— y handleLogin movidos a
-  //  src/components/LoginForm.tsx. LoginForm recibe props porque se renderiza
-  //  fuera del <AppContext.Provider>.)
-  // (Estado del nav —navDesktopRef/pillReady/pillStyle/menuOpen— y su
-  //  useLayoutEffect de la píldora movidos a src/components/AppHeader.tsx.)
+  // Login (estado + handleLogin) → src/components/LoginForm.tsx (recibe props,
+  // se renderiza fuera del Provider). Header/nav (estado + useLayoutEffect de la
+  // píldora) → src/components/AppHeader.tsx.
 
   // Cuartos dinámicos (base + personalizados por admin)
   const [customCuartos, setCustomCuartos] = useState<string[]>(() => {
@@ -126,13 +119,9 @@ export default function Home() {
   // context; AsignacionesTab lo consume para el skeleton de carga.
   const [loadingRegistros, setLoadingRegistros] = useState(false);
 
-  // (Estado de la tabla de asignaciones, filtros y el detail modal —
-  //  registroSearch/selectedRegistro/editData/filtros/etc.— movidos a
-  //  src/tabs/AsignacionesTab.tsx.)
-
-  // (Estado del formulario de censo —step, formData/dispatch, medicamentos,
-  //  errors, isSubmitting, lookupStatus/lookupTimeoutRef y sus handlers—
-  //  movidos a src/tabs/CensoTab.tsx.)
+  // El estado propio de cada pestaña vive en su componente:
+  //  · tabla de asignaciones + filtros + detail modal → src/tabs/AsignacionesTab.tsx
+  //  · formulario de censo (wizard, validación, lookup) → src/tabs/CensoTab.tsx
 
   // GPS state (global: se captura al montar y se expone por el context; CensoTab
   //  lo consume para adjuntar las coordenadas al registro)
@@ -456,9 +445,6 @@ export default function Home() {
     };
   }, [currentUser]);
 
-  // (El useLayoutEffect que posiciona la píldora del nav se movió a
-  //  src/components/AppHeader.tsx junto con navDesktopRef/pillStyle/pillReady.)
-
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
@@ -763,14 +749,6 @@ export default function Home() {
     }
   };
 
-  // (handleAsignarCuarto, handleSaveEdit, closeModal y handleDeleteRegistro
-  //  movidos a src/tabs/AsignacionesTab.tsx. setRegistros se expone por el
-  //  context para que el tab haga la actualización optimista.)
-
-  // (handleExportExcel y handlePrintPDFList movidos a src/tabs/AsignacionesTab.tsx.)
-
-  // (handleLogin movido a src/components/LoginForm.tsx.)
-
   // Logout Handler
   const handleLogout = () => {
     localStorage.removeItem("sismo_operator");
@@ -780,15 +758,7 @@ export default function Home() {
     showToast("Sesión cerrada.", "info");
   };
 
-  // (Handlers del censo —handleDateChange, validateField, validateForm,
-  //  handleInputChange, triggerLookup, STEP_FIELDS, handleNextStep y
-  //  handleSubmit— movidos a src/tabs/CensoTab.tsx.)
-
-  // (Exportar JSON y generar códigos QR de la cola movidos a src/tabs/ConfigTab.tsx.)
-
   const pendingCount = localRecords.filter(r => r.status === "pending").length;
-
-  // (filteredRegistros y roomCounts movidos a src/tabs/AsignacionesTab.tsx.)
 
   // Si el usuario no está autenticado, mostrar la pantalla de login.
   // OJO: LoginForm se renderiza FUERA del <AppContext.Provider>, por eso
