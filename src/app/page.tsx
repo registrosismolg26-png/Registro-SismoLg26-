@@ -4382,36 +4382,19 @@ ${entesList}`;
             </div>
 
             {filtersOpen && (
-              <div style={{
-                marginBottom: "1rem",
-                padding: "1rem",
-                backgroundColor: "var(--input-bg)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "8px",
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: "1rem"
-              }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Género</label>
-                  <select
-                    value={filterGenero}
-                    onChange={e => setFilterGenero(e.target.value)}
-                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
-                  >
+              <div className="reg-filters-panel">
+                <div className="form-group">
+                  <label>Género</label>
+                  <select value={filterGenero} onChange={e => setFilterGenero(e.target.value)}>
                     <option value="">Todos</option>
                     <option value="MASCULINO">Masculino</option>
                     <option value="FEMENINO">Femenino</option>
                   </select>
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Grupo de Edad</label>
-                  <select
-                    value={filterEdad}
-                    onChange={e => setFilterEdad(e.target.value)}
-                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
-                  >
+                <div className="form-group">
+                  <label>Grupo de Edad</label>
+                  <select value={filterEdad} onChange={e => setFilterEdad(e.target.value)}>
                     <option value="">Todos</option>
                     <option value="menores">Menores de edad (&lt;18)</option>
                     <option value="adultos">Adultos (18-59)</option>
@@ -4419,13 +4402,9 @@ ${entesList}`;
                   </select>
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Parroquia</label>
-                  <select
-                    value={filterParroquia}
-                    onChange={e => setFilterParroquia(e.target.value)}
-                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
-                  >
+                <div className="form-group">
+                  <label>Parroquia</label>
+                  <select value={filterParroquia} onChange={e => setFilterParroquia(e.target.value)}>
                     <option value="">Todas</option>
                     {PARROQUIAS.map(p => (
                       <option key={p} value={p}>{p}</option>
@@ -4433,26 +4412,18 @@ ${entesList}`;
                   </select>
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Estado Físico</label>
-                  <select
-                    value={filterEstadoFisico}
-                    onChange={e => setFilterEstadoFisico(e.target.value)}
-                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
-                  >
+                <div className="form-group">
+                  <label>Estado Físico</label>
+                  <select value={filterEstadoFisico} onChange={e => setFilterEstadoFisico(e.target.value)}>
                     <option value="">Todos</option>
                     <option value="ILESO">Ileso</option>
                     <option value="LESIONADO">Lesionado</option>
                   </select>
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Habitación / Salón</label>
-                  <select
-                    value={filterCuarto}
-                    onChange={e => setFilterCuarto(e.target.value)}
-                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
-                  >
+                <div className="form-group">
+                  <label>Habitación / Salón</label>
+                  <select value={filterCuarto} onChange={e => setFilterCuarto(e.target.value)}>
                     <option value="">Todos</option>
                     <option value="sin_asignar">Sin asignar</option>
                     {allCuartos.map(c => (
@@ -4461,13 +4432,9 @@ ${entesList}`;
                   </select>
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: "0.75rem", fontWeight: "700", marginBottom: "0.25rem" }}>Estatus de Permanencia</label>
-                  <select
-                    value={filterRetirado}
-                    onChange={e => setFilterRetirado(e.target.value)}
-                    style={{ width: "100%", height: "36px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", fontSize: "0.8rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
-                  >
+                <div className="form-group">
+                  <label>Estatus de Permanencia</label>
+                  <select value={filterRetirado} onChange={e => setFilterRetirado(e.target.value)}>
                     <option value="">Todos (Presentes y Egresados)</option>
                     <option value="NO">Presentes actualmente</option>
                     <option value="SI">Egresados / Retirados</option>
@@ -4477,16 +4444,45 @@ ${entesList}`;
             )}
 
             {loadingRegistros ? (
-              <div className="text-muted" style={{ textAlign: "center", padding: "2rem" }}>
-                Cargando registros...
+              <div className="registro-table-wrapper">
+                <table className="registro-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Nombre y Apellido</th>
+                      <th className="col-cedula">Cédula</th>
+                      <th className="col-parroquia">Parroquia</th>
+                      <th>Estado</th>
+                      <th>Cuarto</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...Array(6)].map((_, i) => (
+                      <tr key={i} style={{ animationDelay: `${i * 60}ms` }}>
+                        <td className="col-num"><span className="skeleton-cell" style={{ width: "18px", margin: "0 auto" }} /></td>
+                        <td className="col-nombre"><span className="skeleton-cell" style={{ width: `${55 + (i % 4) * 12}%` }} /></td>
+                        <td className="col-cedula"><span className="skeleton-cell" style={{ width: "72px" }} /></td>
+                        <td className="col-parroquia"><span className="skeleton-cell" style={{ width: "85px" }} /></td>
+                        <td><span className="skeleton-cell skeleton-cell--pill" style={{ width: "58px" }} /></td>
+                        <td><span className="skeleton-cell skeleton-cell--pill" style={{ width: "68px" }} /></td>
+                        <td className="col-action"><span className="skeleton-cell skeleton-cell--icon" /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : registros.length === 0 ? (
-              <div className="text-muted" style={{ textAlign: "center", padding: "2rem" }}>
-                No hay afectados registrados o no se pudo conectar a la base de datos.
+              <div className="reg-empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <p>No hay afectados registrados</p>
+                <span>Los registros aparecerán aquí una vez sincronizados</span>
               </div>
             ) : filteredRegistros.length === 0 ? (
-              <div className="text-muted" style={{ textAlign: "center", padding: "2rem" }}>
-                Sin resultados para &ldquo;{registroSearch}&rdquo;
+              <div className="reg-empty-state">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <p>Sin resultados</p>
+                <span>Ningún registro coincide con &ldquo;{registroSearch || "los filtros aplicados"}&rdquo;</span>
               </div>
             ) : (
               <div className="registro-table-wrapper">
@@ -4504,7 +4500,7 @@ ${entesList}`;
                   </thead>
                   <tbody>
                     {filteredRegistros.map((reg, i) => (
-                      <tr key={reg.id}>
+                      <tr key={reg.id} className="reg-row-enter" style={{ animationDelay: `${Math.min(i, 10) * 25}ms` }}>
                         <td className="col-num">{i + 1}</td>
                         <td className="col-nombre">{reg.nombreApellido}</td>
                         <td className="col-cedula">{reg.cedula}</td>
@@ -4535,6 +4531,7 @@ ${entesList}`;
                         <td className="col-action">
                           <button
                             className="btn-ver"
+                            aria-label="Ver detalles"
                             onClick={() => {
                               setSelectedRegistro(reg);
                               setAsignCuarto(reg.cuarto || "");
@@ -4542,7 +4539,7 @@ ${entesList}`;
                               setEditData({});
                             }}
                           >
-                            Ver
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                           </button>
                         </td>
                       </tr>
@@ -4562,24 +4559,29 @@ ${entesList}`;
 
             {/* ── Header ── */}
             <div className="modal-header">
-              <div>
-                <span className="modal-title">
-                  {editMode ? "Editar Registro" : selectedRegistro.nombreApellido}
-                </span>
-                <div className="modal-subtitle" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <span>C.I. {selectedRegistro.cedula}</span>
-                  {!editMode && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontSize: "0.75rem", fontWeight: "700", color: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
-                      <span style={{
-                        width: "7px",
-                        height: "7px",
-                        borderRadius: "50%",
-                        backgroundColor: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)",
-                        display: "inline-block"
-                      }}></span>
-                      {selectedRegistro.estadoFisico}
-                    </span>
-                  )}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
+                {!editMode && (
+                  <div className="modal-avatar">
+                    {selectedRegistro.nombreApellido.trim().split(/\s+/).slice(0, 2).map((w: string) => w[0] || "").join("").toUpperCase()}
+                  </div>
+                )}
+                <div style={{ minWidth: 0 }}>
+                  <span className="modal-title">
+                    {editMode ? "Editar Registro" : selectedRegistro.nombreApellido}
+                  </span>
+                  <div className="modal-subtitle">
+                    <span>C.I. {selectedRegistro.cedula}</span>
+                    {!editMode && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontSize: "0.75rem", fontWeight: "700", color: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
+                        <span style={{
+                          width: "6px", height: "6px", borderRadius: "50%",
+                          backgroundColor: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)",
+                          display: "inline-block"
+                        }}></span>
+                        {selectedRegistro.estadoFisico}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <button className="modal-close" onClick={() => { setSelectedRegistro(null); setEditMode(false); }}>

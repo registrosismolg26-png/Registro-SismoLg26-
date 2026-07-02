@@ -1020,6 +1020,15 @@ html[data-theme="dark"] .toast--info {
 .toast--info .toast-icon { color: var(--color-primary); }
 
 /* Modal Overlay & Dialog Styles */
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.97) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1032,18 +1041,20 @@ html[data-theme="dark"] .toast--info {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: overlayFadeIn 0.2s ease both;
 }
 
 .modal-content {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 1.5rem;
   width: 90%;
   max-width: 380px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
+  animation: modalIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .modal-content--detail {
@@ -1088,6 +1099,15 @@ html[data-theme="dark"] .toast--info {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.modal-close:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
 }
 
 .qr-carousel {
@@ -3215,8 +3235,8 @@ h2.dashboard-section-title {
 /* Scrollable wrapper so table doesn't overflow narrow screens */
 .registro-table-wrapper {
   overflow-x: auto;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px -4px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
 }
 
 /* The table itself */
@@ -3287,25 +3307,165 @@ h2.dashboard-section-title {
   border: 1px solid rgba(220, 38, 38, 0.20);
 }
 
-/* "Ver" button in table rows */
+/* "Ver" button in table rows — icon only */
 .btn-ver {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.3rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 700;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   color: var(--color-primary);
-  background: none;
-  border: 1px solid var(--color-primary);
-  border-radius: 6px;
+  background: var(--color-primary-light);
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  position: relative;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 .btn-ver:hover {
   background-color: var(--color-primary);
   color: #fff;
+  transform: scale(1.08);
+}
+.btn-ver::after {
+  content: "Ver detalles";
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: var(--bg-secondary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  transition: opacity 0.15s;
+}
+.btn-ver:hover::after { opacity: 1; }
+
+/* ── Registrados Tab — Redesign ─────────────────────────────────────────── */
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  from { background-position: -400px 0; }
+  to   { background-position:  400px 0; }
+}
+.skeleton-cell {
+  display: block;
+  height: 13px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--border-color) 0%,
+    var(--color-primary-light) 50%,
+    var(--border-color) 100%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+.skeleton-cell--pill {
+  height: 20px;
+  border-radius: 100px;
+}
+.skeleton-cell--icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+/* Row entry stagger */
+@keyframes regRowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reg-row-enter {
+  animation: regRowIn 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Empty / no-results state */
+.reg-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px -4px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
+  text-align: center;
+  animation: tabFadeIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.reg-empty-state svg { opacity: 0.28; color: var(--text-muted); }
+.reg-empty-state p {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.reg-empty-state span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Filter panel card */
+.reg-filters-panel {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 20px -4px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.875rem;
+  animation: tabFadeIn 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.reg-filters-panel .form-group { margin: 0; }
+.reg-filters-panel label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+.reg-filters-panel select {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+}
+.reg-filters-panel select:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+/* Modal avatar circle */
+.modal-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  border: 2px solid var(--color-primary);
+  letter-spacing: -0.02em;
 }
 
 /* ── Print Media Queries — optimized for Landscape PDF export ─────────── */
