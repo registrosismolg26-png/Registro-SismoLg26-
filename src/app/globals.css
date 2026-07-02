@@ -1629,7 +1629,7 @@ html[data-theme="dark"] .spinner {
   z-index: 1;
 }
 
-.nav-btn:hover {
+.nav-btn:not(.active):hover {
   background-color: var(--color-primary-light);
   color: var(--color-primary);
 }
