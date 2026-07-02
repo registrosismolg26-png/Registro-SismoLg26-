@@ -2570,7 +2570,7 @@ ${entesList}`;
         {/* ── Franja institucional ── */}
         <div className="header-main">
           <div className="header-identity">
-            <div className="header-seal" aria-hidden="true" style={{ overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div className="header-seal" aria-hidden="true">
               <img src="/logo_gob.webp" alt="Escudo Gobernación La Guaira" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             <div className="header-title-group">

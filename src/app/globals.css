@@ -159,67 +159,62 @@ body {
   gap: 1.5rem;
 }
 
-/* ── App Header — Diseño Institucional ──────────────────────────────────────
-   Estructura:
-     .app-header
-       .header-main    ← franja de identidad (fondo secundario + línea gold)
-         .header-identity
-           .header-seal         ← sello vectorial (navy bg, icono blanco)
-           .header-title-group  ← org-name + h1 + tagline
-         .theme-toggle-btn
-       .header-ops     ← franja de operación (fondo primario más claro)
-         .header-ops-status     ← punto + conn + queue
-         .header-ops-user       ← nombre + rol + logout
-   ────────────────────────────────────────────────────────────────────────── */
+/* ── App Header — Rediseño ───────────────────────────────────────────────── */
+
+@keyframes headerReveal {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes headerFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .app-header {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: var(--card-shadow);
+  box-shadow: 0 12px 30px -10px rgba(0,0,0,0.2), 0 1px 4px rgba(0,0,0,0.07);
+  border-top: 3px solid var(--color-gold);
   display: flex;
   flex-direction: column;
+  animation: headerReveal 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-/* Franja superior: identidad institucional */
 .header-main {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
-  padding: 1.125rem 1.375rem;
-  border-bottom: 2px solid var(--color-gold);
+  padding: 1rem 1.375rem;
 }
 
 .header-identity {
   display: flex;
-  align-items: flex-start;
-  gap: 0.875rem;
+  align-items: center;
+  gap: 1rem;
   min-width: 0;
+  animation: headerFadeUp 0.45s 0.1s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-/* Sello/escudo institucional */
+/* Logo libre — sin caja, sin fondo azul */
 .header-seal {
-  width: 46px;
-  height: 46px;
-  background: var(--color-primary);
-  border-radius: 8px;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(30, 58, 138, 0.25);
 }
 html[data-theme="dark"] .header-seal {
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+  filter: brightness(1.08) drop-shadow(0 0 6px rgba(59,130,246,0.2));
 }
 
 .header-title-group {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.15rem;
   min-width: 0;
 }
 
@@ -255,7 +250,7 @@ h1 {
 .theme-toggle-btn {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 7px;
+  border-radius: 50%;
   width: 36px;
   height: 36px;
   display: flex;
@@ -263,24 +258,27 @@ h1 {
   justify-content: center;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, transform 0.25s ease;
+  animation: headerFadeUp 0.45s 0.18s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 .theme-toggle-btn:hover {
   border-color: var(--color-primary);
   background-color: var(--color-primary-light);
   color: var(--color-primary);
+  transform: rotate(22deg) scale(1.08);
 }
 
-/* Franja inferior: estado operativo */
+/* Franja de operación */
 .header-ops {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.5rem 1.375rem;
-  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
   flex-wrap: wrap;
+  animation: headerFadeUp 0.45s 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .header-ops-status {
