@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { getAuthUser, canManageUsers, isMaster, type AuthUser } from "@/lib/auth";
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -8,25 +9,23 @@ function hashPassword(password: string): string {
   return `scrypt$${salt}$${hash}`;
 }
 
-async function checkAdmin(adminId: string) {
-  if (!adminId) return false;
-  const user = await prisma.user.findUnique({ where: { id: adminId } });
-  return user?.role === "ADMIN";
+// Roles que el actor puede asignar: Master cualquiera; Admin solo por debajo.
+function assignableRoles(actor: AuthUser): string[] {
+  return isMaster(actor)
+    ? ["MASTER", "ADMIN", "REGISTRADOR", "VISUALIZADOR"]
+    : ["REGISTRADOR", "VISUALIZADOR"];
 }
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const adminId = searchParams.get("adminId") || "";
-
-    if (!(await checkAdmin(adminId))) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado. Requiere rol de Administrador." },
-        { status: 403 }
-      );
+    const auth = await getAuthUser(req);
+    if (!auth || !canManageUsers(auth)) {
+      return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     }
 
+    // Master ve todos los operadores; Admin solo los de su refugio.
     const users = await prisma.user.findMany({
+      where: isMaster(auth) ? {} : { campamentoTransitorio: auth.refugio },
       select: { id: true, email: true, nombre: true, role: true, campamentoTransitorio: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     });
@@ -40,31 +39,30 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { email, nombre, password, role, campamentoTransitorio, adminId } = await req.json();
-
-    if (!(await checkAdmin(adminId))) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado. Requiere rol de Administrador." },
-        { status: 403 }
-      );
+    const auth = await getAuthUser(req);
+    if (!auth || !canManageUsers(auth)) {
+      return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     }
+
+    const { email, nombre, password, role, campamentoTransitorio } = await req.json();
 
     if (!email || !nombre || !password || !role) {
       return NextResponse.json({ error: "Todos los campos son obligatorios" }, { status: 400 });
     }
 
-    const validRoles = ["ADMIN", "REGISTRADOR", "VISUALIZADOR"];
-    if (!validRoles.includes(role)) {
-      return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+    if (!assignableRoles(auth).includes(role)) {
+      return NextResponse.json({ error: "No tiene permiso para asignar ese rol." }, { status: 403 });
     }
+
+    // Admin solo crea en su propio refugio; Master puede elegir el refugio.
+    const targetRefugio = isMaster(auth)
+      ? (campamentoTransitorio || auth.refugio)
+      : auth.refugio;
 
     const cleanEmail = String(email).trim().toLowerCase();
     const existing = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (existing) {
-      return NextResponse.json(
-        { error: "El correo ya se encuentra registrado" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "El correo ya se encuentra registrado" }, { status: 409 });
     }
 
     const newUser = await prisma.user.create({
@@ -73,7 +71,7 @@ export async function POST(req: Request) {
         nombre: String(nombre).trim(),
         password: hashPassword(password),
         role,
-        campamentoTransitorio: campamentoTransitorio || "Complejo Educativo República de Panamá"
+        campamentoTransitorio: targetRefugio,
       },
     });
 
@@ -89,63 +87,59 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    const { id, email, nombre, password, role, campamentoTransitorio, adminId } = await req.json();
-
-    if (!(await checkAdmin(adminId))) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado. Requiere rol de Administrador." },
-        { status: 403 }
-      );
+    const auth = await getAuthUser(req);
+    if (!auth || !canManageUsers(auth)) {
+      return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     }
+
+    const { id, email, nombre, password, role, campamentoTransitorio } = await req.json();
 
     if (!id || !email || !nombre || !role) {
       return NextResponse.json({ error: "Todos los campos obligatorios deben estar presentes" }, { status: 400 });
     }
 
-    const validRoles = ["ADMIN", "REGISTRADOR", "VISUALIZADOR"];
-    if (!validRoles.includes(role)) {
-      return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
 
-    const cleanEmail = String(email).trim().toLowerCase();
-    const existing = await prisma.user.findFirst({
-      where: {
-        email: cleanEmail,
-        id: { not: id }
+    // Admin solo puede editar usuarios de su propio refugio, y nunca a un Master.
+    if (!isMaster(auth)) {
+      if (target.campamentoTransitorio !== auth.refugio || target.role === "MASTER") {
+        return NextResponse.json({ error: "No puede editar usuarios de otro refugio." }, { status: 403 });
       }
-    });
+    }
+
+    if (!assignableRoles(auth).includes(role)) {
+      return NextResponse.json({ error: "No tiene permiso para asignar ese rol." }, { status: 403 });
+    }
+
+    // Admin no puede mover al usuario a otro refugio; Master sí.
+    const targetRefugio = isMaster(auth)
+      ? (campamentoTransitorio || target.campamentoTransitorio)
+      : auth.refugio;
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const existing = await prisma.user.findFirst({ where: { email: cleanEmail, id: { not: id } } });
     if (existing) {
-      return NextResponse.json(
-        { error: "El correo ya está registrado en otra cuenta" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "El correo ya está registrado en otra cuenta" }, { status: 409 });
     }
 
     const updateData: any = {
       email: cleanEmail,
       nombre: String(nombre).trim(),
       role,
-      campamentoTransitorio: campamentoTransitorio || "Complejo Educativo República de Panamá"
+      campamentoTransitorio: targetRefugio,
     };
-
     if (password && password.trim()) {
       updateData.password = hashPassword(password);
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: updateData
-    });
+    const updatedUser = await prisma.user.update({ where: { id }, data: updateData });
 
     return NextResponse.json({
       success: true,
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        nombre: updatedUser.nombre,
-        role: updatedUser.role,
-        campamentoTransitorio: updatedUser.campamentoTransitorio
-      }
+      user: { id: updatedUser.id, email: updatedUser.email, nombre: updatedUser.nombre, role: updatedUser.role, campamentoTransitorio: updatedUser.campamentoTransitorio },
     });
   } catch (error: any) {
     console.error("Error en PUT users API:", error);

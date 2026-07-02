@@ -58,7 +58,7 @@ model User {
   email                 String   @unique
   nombre                String
   password              String
-  role                  String   // "ADMIN" | "REGISTRADOR"
+  role                  String   // "MASTER" | "ADMIN" | "REGISTRADOR" | "VISUALIZADOR"
   campamentoTransitorio String   @default("Complejo Educativo República de Panamá")
   createdAt             DateTime @default(now())
 }
@@ -74,6 +74,15 @@ model PushSubscription {
 
 model CustomRoom {
   id        String   @id @default(uuid())
-  name      String   @unique
+  name      String
+  refugio   String   @default("Complejo Educativo República de Panamá")
+  createdAt DateTime @default(now())
+
+  @@unique([name, refugio])
+}
+
+model Refugio {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
   createdAt DateTime @default(now())
 }
