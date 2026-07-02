@@ -20,6 +20,7 @@ import { PARROQUIAS, CUARTOS, INITIAL_FORM, ALLOWED_ADMINS, DEFAULT_ENTES, INACT
 import { formReducer } from "@/lib/formReducer";
 import { sha256, formatRoomLabel } from "@/lib/helpers";
 import { ToastIcon } from "@/components/ToastIcon";
+import { AppContext, type AppContextValue } from "@/context/AppContext";
 
 export default function Home() {
   // Connection state
@@ -2510,7 +2511,20 @@ ${entesList}`;
   }
 
   // Authenticated Dashboard Layout
+  const appCtx: AppContextValue = {
+    isOnline, theme, toggleTheme,
+    currentUser, isPowerAdmin: !!isPowerAdmin, handleLogout,
+    activeTab, setActiveTab, showToast,
+    triggerSync, isSyncing, syncQueueProgress,
+    registros, fetchRegistros,
+    localRecords, refreshLocalRecords,
+    customCuartos, allCuartos, sortedCustomCuartos, dashboardRooms,
+    stats, loadingStats, fetchStats,
+    votersCount, coords,
+  };
+
   return (
+    <AppContext.Provider value={appCtx}>
     <div className="container">
       {/* Unified App Header */}
       <header className="app-header">
@@ -5841,5 +5855,6 @@ ${entesList}`;
         </div>
       )}
     </div>
+    </AppContext.Provider>
   );
 }
