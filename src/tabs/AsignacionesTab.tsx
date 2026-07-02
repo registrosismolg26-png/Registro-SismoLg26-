@@ -417,13 +417,22 @@ export default function AsignacionesTab() {
       return roomA.localeCompare(roomB) || a.nombreApellido.localeCompare(b.nombreApellido);
     });
 
+    // Un solo nombre + un solo apellido para ahorrar espacio (la cédula identifica
+    // de forma única). Heurística venezolana: [N1 N2 A1 A2] -> N1 A1; [N1 A1 A2] -> N1 A1.
+    const shortName = (full: string) => {
+      const p = (full || "").trim().split(/\s+/);
+      if (p.length >= 4) return `${p[0]} ${p[2]}`;
+      if (p.length === 3) return `${p[0]} ${p[1]}`;
+      return p.slice(0, 2).join(" ");
+    };
+
     const rowsHtml = sorted.map((r, i) => `
       <tr>
-        <td>${i + 1}</td>
-        <td>${r.nombreApellido}</td>
+        <td class="c">${i + 1}</td>
+        <td>${shortName(r.nombreApellido)}</td>
         <td>${r.cedula}</td>
-        <td>${r.edad}</td>
-        <td>${r.cuarto || '<span style="color: #999;">Sin asignar</span>'}</td>
+        <td class="c">${r.edad}</td>
+        <td>${r.cuarto || '<span style="color:#999">Sin asignar</span>'}</td>
       </tr>
     `).join("");
 
@@ -434,62 +443,32 @@ export default function AsignacionesTab() {
         <meta charset="utf-8">
         <title>Listado de Personas Presentes - Censo Sismológico 2026</title>
         <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            color: #333;
-          }
+          @page { size: A4 portrait; margin: 8mm 10mm; }
+          * { box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; margin: 0; color: #222; }
           .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 2px solid #1e3a8a;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 2px solid #1e3a8a; padding-bottom: 6px; margin-bottom: 8px;
           }
-          .logo {
-            height: 60px;
-            object-fit: contain;
-          }
-          .title-container {
-            text-align: right;
-          }
-          h1 {
-            font-size: 1.4rem;
-            margin: 0;
-            color: #1e3a8a;
-          }
-          h2 {
-            font-size: 1rem;
-            margin: 5px 0 0 0;
-            color: #666;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-          }
+          .logo { height: 40px; object-fit: contain; }
+          .title-container { text-align: right; }
+          h1 { font-size: 15px; margin: 0; color: #1e3a8a; letter-spacing: .02em; }
+          h2 { font-size: 10px; margin: 2px 0 0 0; color: #666; font-weight: normal; }
+          .meta { font-size: 10px; color: #555; margin: 0 0 6px 0; }
+          table { width: 100%; border-collapse: collapse; }
           th, td {
-            border: 1px solid #ddd;
-            padding: 8px 10px;
-            text-align: left;
-            font-size: 0.9rem;
+            border: 1px solid #ccc; padding: 2px 5px; text-align: left;
+            font-size: 10px; line-height: 1.25;
           }
-          th {
-            background-color: #f3f4f6;
-            color: #1e3a8a;
-            font-weight: bold;
-          }
-          tr:nth-child(even) {
-            background-color: #f9fafb;
-          }
+          td.c, th.c { text-align: center; }
+          th { background: #eef1f6; color: #1e3a8a; font-weight: bold; }
+          tr:nth-child(even) td { background: #f7f8fa; }
+          /* Repetir la cabecera en cada página y no cortar filas al paginar */
+          thead { display: table-header-group; }
+          tr { page-break-inside: avoid; }
           .footer {
-            margin-top: 30px;
-            font-size: 0.75rem;
-            text-align: center;
-            color: #777;
-            border-top: 1px solid #ddd;
-            padding-top: 10px;
+            margin-top: 10px; font-size: 8px; text-align: center; color: #888;
+            border-top: 1px solid #ddd; padding-top: 4px;
           }
         </style>
       </head>
@@ -498,21 +477,21 @@ export default function AsignacionesTab() {
           <img class="logo" src="/logo_gob.webp" alt="Gobernación La Guaira">
           <div class="title-container">
             <h1>LISTADO DE PERSONAS PRESENTES</h1>
-            <h2>Censo de Campamento Transitorio - Sismo La Guaira 2026</h2>
+            <h2>Censo de Campamento Transitorio &middot; Sismo La Guaira 2026</h2>
           </div>
         </div>
-        <p style="font-size: 0.85rem; color: #555;">
-          <strong>Total Presentes:</strong> ${present.length} personas.
-          <strong>Fecha de Generación:</strong> ${new Date().toLocaleString("es-VE")}
+        <p class="meta">
+          <strong>Total Presentes:</strong> ${present.length} &nbsp;&middot;&nbsp;
+          <strong>Generado:</strong> ${new Date().toLocaleString("es-VE")}
         </p>
         <table>
           <thead>
             <tr>
-              <th style="width: 50px;">#</th>
+              <th class="c" style="width:26px">#</th>
               <th>Nombre y Apellido</th>
-              <th style="width: 120px;">Cédula</th>
-              <th style="width: 80px;">Edad</th>
-              <th style="width: 180px;">Habitación / Salón</th>
+              <th style="width:78px">Cédula</th>
+              <th class="c" style="width:34px">Edad</th>
+              <th style="width:150px">Habitación / Salón</th>
             </tr>
           </thead>
           <tbody>

@@ -25,6 +25,6 @@ Antes de tocar código en este proyecto, lee la guía completa: **`docs/ARCHITEC
 - **Migraciones de BD:** cambio de `prisma/schema.prisma` → `npx prisma generate` + entregar SQL **idempotente** (`IF NOT EXISTS`, `ON CONFLICT DO NOTHING`…) para ejecutar **manualmente en Supabase**. Nunca `prisma migrate`/`db push` automático contra producción.
 - Next 16 tiene `params`/`headers()` **async** — lee `node_modules/next/dist/docs/` antes de escribir rutas o páginas.
 - **Tailwind v4 está instalado sin Preflight** para migración progresiva. Config en CSS (no hay `tailwind.config.js`): en `globals.css` se importan solo las capas theme+utilities (se omite `preflight.css`) + `@theme inline`; plugin `@tailwindcss/postcss` en `postcss.config.mjs`. El CSS con variables sigue siendo el sistema base; usa Tailwind para código nuevo o migra de a poco (colores mapeados: `bg-primary`, `text-danger`…). No actives Preflight (rompería el diseño). v4 requiere navegadores ~2023+.
-- Si un cambio no se refleja en el preview, es el cache de chunks de dev del service worker → borra `.next` y reinicia.
+- Si un cambio no se refleja en el preview, es el cache de chunks de dev del service worker → borra `.next` y reinicia. (El `BUILD_TS` del SW se autogenera en cada build con el commit SHA vía el script `prebuild` — no editarlo a mano.)
 
 Para el detalle (modelo de datos completo, todas las rutas API, deploy en Vercel serverless, gotchas), ve a **`docs/ARCHITECTURE.md`**.
