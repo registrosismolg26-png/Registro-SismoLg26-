@@ -1930,6 +1930,8 @@ html[data-theme="dark"] .spinner {
 /* Barra de cabecera del dashboard — estilo nav secundario */
 .dashboard-header-card {
   grid-column: 1 / -1;
+  width: fit-content;
+  margin: 0 auto;
   background: var(--nav-bg);
   border-radius: 50px;
   padding: 0.4rem 0.4rem 0.4rem 1.5rem;
