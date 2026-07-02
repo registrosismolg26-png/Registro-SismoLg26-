@@ -1,9 +1,24 @@
-/* Tailwind (migración progresiva). Preflight está desactivado en tailwind.config.js,
-   así que estas directivas NO resetean nada: el reset propio de abajo sigue mandando
-   y el diseño actual queda intacto. Las utilidades solo se generan cuando se usan. */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind v4 (migración progresiva), SIN Preflight. Se importan solo las capas
+   theme y utilities y se OMITE preflight.css (el reset global de Tailwind), así el
+   diseño actual queda intacto; las utilidades solo se generan cuando se usan. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Colores del sistema como tokens del theme, para que utilidades como bg-primary /
+   text-danger / border-success coincidan con el diseño actual y respeten claro/oscuro.
+   `inline` reutiliza las variables existentes de :root sin redefinirlas. */
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-light: var(--color-primary-light);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+  --color-gold: var(--color-gold);
+  --color-teal: var(--color-teal);
+  --color-cyan: var(--color-cyan);
+}
 
 /* Reset and Base Styles */
 *, *::before, *::after {
