@@ -12,7 +12,7 @@ PWA **offline-first** de censo de afectados por sismo, para la **Gobernación de
 - **React 19**, **Prisma v7.8** + adaptador `pg` + **Supabase/PostgreSQL**.
 - **IndexedDB** para offline (`src/lib/db.ts`).
 - **Deploy: Vercel (serverless)** — el estado en memoria del servidor es efímero por-instancia (importa para el cache de sesión de auth).
-- **CSS:** `src/app/globals.css` con variables (`--color-*`, `--element-height`) + clases semánticas (`.btn-submit`, `.user-role-badge`, `.dashboard-section`). **No usa Tailwind** (decisión tomada: no aporta en rendimiento/offline y migrar es caro).
+- **CSS:** `src/app/globals.css` con variables (`--color-*`, `--element-height`) + clases semánticas (`.btn-submit`, `.user-role-badge`, `.dashboard-section`). Es el **sistema base**. Además hay **Tailwind v3 con Preflight OFF** para migración progresiva — ver sección "Tailwind" abajo.
 
 ## Estructura
 
@@ -73,6 +73,15 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 - **Antes de cada `push`:** `git pull --rebase origin main` para integrar el trabajo de otros devs y no sobrescribir ni omitir sus cambios; resolver conflictos antes de pushear.
 - **Preview / service worker:** `public/sw.js` cachea agresivo; se registra **solo en producción** (`layout.tsx`). El navegador headless del preview puede servir chunks viejos → si el cambio no se refleja, borrar `.next` y reiniciar.
 - **Vercel serverless:** no confiar en estado en memoria entre requests; el cache de sesión de auth es por-instancia (ver [[project-deployment-vercel]] en la memoria).
+
+## Tailwind (migración progresiva)
+
+**Tailwind v3** (no v4: v3 tiene mejor soporte de navegadores viejos, lo que importa en zona de desastre) está instalado con `corePlugins.preflight = false` en `tailwind.config.js`. Con Preflight apagado, Tailwind **no resetea nada** — convive con `globals.css` sin alterar el diseño; las utilidades solo se generan cuando se usan.
+
+- **El sistema base sigue siendo el CSS con variables** (`globals.css`). Tailwind es para código **nuevo** o para migrar componentes **de a poco**. NO hacer una migración masiva de golpe.
+- **Colores mapeados** al theme (`tailwind.config.js`): `bg-primary`, `text-danger`, `border-success`, `text-warning`, `bg-gold`, etc. resuelven a las variables del sistema y respetan claro/oscuro automáticamente. Úsalos en vez de valores hardcodeados.
+- **Config:** `tailwind.config.js` (content `./src`, preflight off, colores) + `postcss.config.js` (`tailwindcss` + `autoprefixer`). Las directivas `@tailwind base/components/utilities` están al inicio de `src/app/globals.css`.
+- **Al migrar un componente:** reemplaza sus clases custom por utilidades Tailwind y borra del `globals.css` el CSS custom que quedó sin uso (evita duplicación y divergencia). Verifica que se ve igual. `npx tsc --noEmit` no valida CSS — comprueba el resultado visual.
 
 ## Gotchas / lecciones aprendidas
 

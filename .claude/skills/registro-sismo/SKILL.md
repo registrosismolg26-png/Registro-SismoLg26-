@@ -22,7 +22,7 @@ Antes de tocar código en este proyecto, lee la guía completa: **`docs/ARCHITEC
 - Deja `npx tsc --noEmit` **limpio antes de cada commit**.
 - **Antes de cada `push`:** `git pull --rebase origin main` para integrar el trabajo de otros devs y no dejar nada fuera.
 - Next 16 tiene `params`/`headers()` **async** — lee `node_modules/next/dist/docs/` antes de escribir rutas o páginas.
-- No migres a Tailwind (el sistema CSS con variables ya es maduro y offline-friendly).
+- **Tailwind v3 está instalado con Preflight OFF** para migración progresiva. El CSS con variables sigue siendo el sistema base; usa Tailwind para código nuevo o migra componentes de a poco (colores mapeados: `bg-primary`, `text-danger`…, respetan claro/oscuro). No migres todo de golpe ni actives Preflight (rompería el diseño actual).
 - Si un cambio no se refleja en el preview, es el cache de chunks de dev del service worker → borra `.next` y reinicia.
 
 Para el detalle (modelo de datos completo, todas las rutas API, deploy en Vercel serverless, gotchas), ve a **`docs/ARCHITECTURE.md`**.

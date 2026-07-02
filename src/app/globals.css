@@ -1,3 +1,10 @@
+/* Tailwind (migración progresiva). Preflight está desactivado en tailwind.config.js,
+   así que estas directivas NO resetean nada: el reset propio de abajo sigue mandando
+   y el diseño actual queda intacto. Las utilidades solo se generan cuando se usan. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Reset and Base Styles */
 *, *::before, *::after {
   box-sizing: border-box;
