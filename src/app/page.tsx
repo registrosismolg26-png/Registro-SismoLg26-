@@ -18,6 +18,8 @@ import { PARROQUIAS, CUARTOS, INITIAL_FORM, ALLOWED_ADMINS, INACTIVITY_MS } from
 import { formReducer } from "@/lib/formReducer";
 import { sha256, formatRoomLabel } from "@/lib/helpers";
 import { ToastIcon } from "@/components/ToastIcon";
+import AppHeader from "@/components/AppHeader";
+import LoginForm from "@/components/LoginForm";
 import { AppContext, type AppContextValue } from "@/context/AppContext";
 import UsuariosTab from "@/tabs/UsuariosTab";
 import DashboardTab from "@/tabs/DashboardTab";
@@ -43,15 +45,12 @@ export default function Home() {
   const isPowerAdmin = useMemo(() => {
     return currentUser && currentUser.role === "ADMIN" && ALLOWED_ADMINS.includes(currentUser.email.toLowerCase());
   }, [currentUser]);
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [loadingAuth, setLoadingAuth] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
-  const navDesktopRef = useRef<HTMLDivElement>(null);
-  const [pillReady, setPillReady] = useState(false);
-  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
+  // (Estado del formulario de login —loginEmail/loginPassword/loginError/
+  //  loadingAuth/showPassword/rememberMe— y handleLogin movidos a
+  //  src/components/LoginForm.tsx. LoginForm recibe props porque se renderiza
+  //  fuera del <AppContext.Provider>.)
+  // (Estado del nav —navDesktopRef/pillReady/pillStyle/menuOpen— y su
+  //  useLayoutEffect de la píldora movidos a src/components/AppHeader.tsx.)
 
   // Cuartos dinámicos (base + personalizados por admin)
   const [customCuartos, setCustomCuartos] = useState<string[]>(() => {
@@ -96,7 +95,6 @@ export default function Home() {
 
   // Tab View Routing State
   const [activeTab, setActiveTab] = useState<"censo" | "dashboard" | "usuarios" | "config" | "asignaciones">("censo");
-  const [menuOpen, setMenuOpen] = useState(false);
 
   // Dashboard Stats States
   const [stats, setStats] = useState<any>(null);
@@ -458,14 +456,8 @@ export default function Home() {
     };
   }, [currentUser]);
 
-  useLayoutEffect(() => {
-    const nav = navDesktopRef.current;
-    if (!nav) return;
-    const active = nav.querySelector<HTMLElement>(`[data-tab="${activeTab}"]`);
-    if (!active) return;
-    setPillStyle({ left: active.offsetLeft, width: active.offsetWidth });
-    setPillReady(true);
-  }, [activeTab, currentUser]);
+  // (El useLayoutEffect que posiciona la píldora del nav se movió a
+  //  src/components/AppHeader.tsx junto con navDesktopRef/pillStyle/pillReady.)
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -777,112 +769,7 @@ export default function Home() {
 
   // (handleExportExcel y handlePrintPDFList movidos a src/tabs/AsignacionesTab.tsx.)
 
-  // User Login Handler
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError("");
-    
-    if (!loginEmail.trim() || !loginPassword) {
-      setLoginError("Por favor ingrese correo y contraseña.");
-      return;
-    }
-
-    setLoadingAuth(true);
-
-    try {
-      const pHash = await sha256(loginPassword);
-
-      if (!navigator.onLine) {
-        // Offline Auth Fallback: Check local credentials cached in localStorage
-        const cachedStr = localStorage.getItem("sismo_cached_operators") || "[]";
-        const cachedList = JSON.parse(cachedStr);
-        const match = cachedList.find(
-          (u: any) => u.email === loginEmail.trim().toLowerCase() && u.passwordHash === pHash
-        );
-
-        if (match) {
-          const userSession = {
-            id: match.id,
-            email: match.email,
-            nombre: match.nombre,
-            role: match.role,
-            campamentoTransitorio: match.campamentoTransitorio || "Complejo Educativo República de Panamá"
-          };
-          setCurrentUser(userSession);
-          if (userSession.role === "VISUALIZADOR") {
-            setActiveTab("dashboard");
-          } else {
-            setActiveTab("censo");
-          }
-          if (rememberMe) {
-            localStorage.setItem("sismo_operator", JSON.stringify(userSession));
-            sessionStorage.removeItem("sismo_operator");
-          } else {
-            sessionStorage.setItem("sismo_operator", JSON.stringify(userSession));
-            localStorage.removeItem("sismo_operator");
-          }
-          showToast(`Sesión local iniciada: ${match.nombre}`, "success");
-        } else {
-          setLoginError("Credenciales inválidas sin conexión. Inicie sesión online primero.");
-        }
-        setLoadingAuth(false);
-        return;
-      }
-
-      // Online Auth: API Call
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setLoginError(data.error || "Fallo en la autenticación.");
-        setLoadingAuth(false);
-        return;
-      }
-
-      if (data.success && data.user) {
-        setCurrentUser(data.user);
-        if (data.user.role === "VISUALIZADOR") {
-          setActiveTab("dashboard");
-        } else {
-          setActiveTab("censo");
-        }
-        if (rememberMe) {
-          localStorage.setItem("sismo_operator", JSON.stringify(data.user));
-          sessionStorage.removeItem("sismo_operator");
-        } else {
-          sessionStorage.setItem("sismo_operator", JSON.stringify(data.user));
-          localStorage.removeItem("sismo_operator");
-        }
-
-        // Save credential hash locally for offline fallback authentication
-        const cachedStr = localStorage.getItem("sismo_cached_operators") || "[]";
-        const cachedList = JSON.parse(cachedStr);
-        const filtered = cachedList.filter((u: any) => u.email !== data.user.email);
-        filtered.push({
-          id: data.user.id,
-          email: data.user.email,
-          nombre: data.user.nombre,
-          role: data.user.role,
-          campamentoTransitorio: data.user.campamentoTransitorio || "Complejo Educativo República de Panamá",
-          passwordHash: pHash
-        });
-        localStorage.setItem("sismo_cached_operators", JSON.stringify(filtered));
-
-        showToast(`Sesión iniciada: ${data.user.nombre}.`, "success");
-        setLoginEmail("");
-        setLoginPassword("");
-      }
-    } catch (err) {
-      console.error(err);
-      setLoginError("Error de red al intentar iniciar sesión.");
-    } finally {
-      setLoadingAuth(false);
-    }
-  };
+  // (handleLogin movido a src/components/LoginForm.tsx.)
 
   // Logout Handler
   const handleLogout = () => {
@@ -903,125 +790,17 @@ export default function Home() {
 
   // (filteredRegistros y roomCounts movidos a src/tabs/AsignacionesTab.tsx.)
 
-  // If user is not authenticated, show Login Screen
+  // Si el usuario no está autenticado, mostrar la pantalla de login.
+  // OJO: LoginForm se renderiza FUERA del <AppContext.Provider>, por eso
+  // recibe props en lugar de consumir el context.
   if (!currentUser) {
     return (
-      <div className="container">
-        <div className="app-header app-header--centered" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <img src="/logo_gob.webp" alt="Logo Gobernación La Guaira" style={{ width: "90px", height: "90px", objectFit: "contain" }} />
-          <div className="title-area title-area--centered">
-            <h1>REGISTRO DE AFECTADOS</h1>
-            <p className="subtitle">Censo Sismológico PWA 100% Offline</p>
-          </div>
-        </div>
-
-        <div className="login-container">
-          <form onSubmit={handleLogin} className="login-card">
-            <div className="login-header">
-              <h2 className="login-title">Iniciar Sesión</h2>
-              <p className="login-subtitle">Ingrese sus credenciales de operador para continuar.</p>
-            </div>
-
-            {loginError && <div className="login-error">{loginError}</div>}
-
-            <div className="form-group">
-              <label htmlFor="login-email">Correo Electrónico</label>
-              <input
-                type="email"
-                id="login-email"
-                placeholder="ej: operador@sismo.gob.ve"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="login-password">Contraseña</label>
-              <div className="password-input-container" style={{ position: "relative", width: "100%" }}>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="login-password"
-                  placeholder="Contraseña"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                  style={{ paddingRight: "2.5rem" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: "absolute",
-                    right: "0.75rem",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--text-muted, #888)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "0"
-                  }}
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPassword ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="form-group remember-me-container" style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1rem", marginBottom: "1rem" }}>
-              <input
-                type="checkbox"
-                id="remember-me"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ width: "auto", height: "auto", cursor: "pointer" }}
-              />
-              <label htmlFor="remember-me" style={{ margin: 0, cursor: "pointer", fontSize: "0.875rem", userSelect: "none" }}>
-                Recordarme en este dispositivo
-              </label>
-            </div>
-
-            <button type="submit" className="btn-submit" disabled={loadingAuth}>
-              {loadingAuth ? "Verificando..." : "Entrar al Sistema"}
-            </button>
-
-            <div style={{ marginTop: "1.25rem", borderTop: "1px solid var(--border-color)", paddingTop: "1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, textAlign: "center" }}>
-                ¿Busca a un familiar afectado?
-              </p>
-              <a
-                href="/buscar"
-                className="btn-secondary"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", textDecoration: "none" }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                Buscar Familiar Afectado
-              </a>
-            </div>
-          </form>
-        </div>
-
-        {toast && (
-          <div className={`toast toast--${toast.type}`}>
-            <ToastIcon type={toast.type} />
-            <span className="toast-message">{toast.message}</span>
-          </div>
-        )}
-      </div>
+      <LoginForm
+        setCurrentUser={setCurrentUser}
+        setActiveTab={setActiveTab}
+        showToast={showToast}
+        toast={toast}
+      />
     );
   }
 
@@ -1044,199 +823,8 @@ export default function Home() {
   return (
     <AppContext.Provider value={appCtx}>
     <div className="container">
-      {/* Unified App Header */}
-      <header className="app-header">
-
-        {/* ── Franja institucional ── */}
-        <div className="header-main">
-          <div className="header-identity">
-            <div className="header-seal" aria-hidden="true">
-              <img src="/logo_gob.webp" alt="Escudo Gobernación La Guaira" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-            </div>
-            <div className="header-title-group">
-              <span className="header-org-name">GOBERNACIÓN DEL ESTADO LA GUAIRA</span>
-              <h1>REGISTRO DE AFECTADOS</h1>
-              <p className="header-tagline">Sistema de Censo Sismológico · Venezuela 2026</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="theme-toggle-btn"
-            aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-            title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-          >
-            {theme === "dark" ? (
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-              </svg>
-            ) : (
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              </svg>
-            )}
-          </button>
-        </div>
-
-        {/* ── Franja de operación ── */}
-        <div className="header-ops">
-          <div className="header-ops-status">
-            <span className={`status-dot ${isOnline ? "online" : "offline"}`}></span>
-            <span className="header-conn">{isOnline ? "En línea" : "Sin señal"}</span>
-            {(pendingCount > 0 || isSyncing) && (
-              <span className="queue-badge">
-                {isSyncing && syncQueueProgress
-                  ? <><span className="spinner spinner-sm"></span> {syncQueueProgress.done}/{syncQueueProgress.total}</>
-                  : `${pendingCount} pend.`
-                }
-              </span>
-            )}
-          </div>
-          <div className="header-ops-user">
-            <span className="header-operator">{currentUser.nombre}</span>
-            <span className={`role-badge ${currentUser.role === "ADMIN" ? "admin" : ""}`}>{currentUser.role}</span>
-            <button type="button" onClick={handleLogout} className="logout-btn" title="Cerrar sesión">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Salir
-            </button>
-          </div>
-        </div>
-
-      </header>
-
-      {/* Navigation — Floating Sticky Bubble */}
-      <div className="app-nav">
-        <div className="nav-desktop-menu" ref={navDesktopRef}>
-          {/* Píldora deslizante */}
-          <div
-            className="nav-pill"
-            style={{
-              left: pillStyle.left,
-              width: pillStyle.width,
-              transition: pillReady
-                ? "left 0.32s cubic-bezier(0.4,0,0.2,1), width 0.32s cubic-bezier(0.4,0,0.2,1)"
-                : "none",
-            }}
-          />
-          {currentUser.role !== "VISUALIZADOR" && (
-            <button
-              type="button"
-              data-tab="censo"
-              className={`nav-btn ${activeTab === "censo" ? "active" : ""}`}
-              onClick={() => setActiveTab("censo")}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-              <span>Registrar</span>
-            </button>
-          )}
-          {(currentUser.role === "ADMIN" || currentUser.role === "VISUALIZADOR") && (
-            <button
-              type="button"
-              data-tab="dashboard"
-              className={`nav-btn ${activeTab === "dashboard" ? "active" : ""}`}
-              onClick={() => setActiveTab("dashboard")}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-              <span>Estadísticas</span>
-            </button>
-          )}
-          <button
-            type="button"
-            data-tab="asignaciones"
-            className={`nav-btn ${activeTab === "asignaciones" ? "active" : ""}`}
-            onClick={() => setActiveTab("asignaciones")}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <span>Registrados</span>
-          </button>
-          {isPowerAdmin && (
-            <button
-              type="button"
-              data-tab="usuarios"
-              className={`nav-btn ${activeTab === "usuarios" ? "active" : ""}`}
-              onClick={() => setActiveTab("usuarios")}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <span>Usuarios</span>
-            </button>
-          )}
-          {currentUser.role !== "VISUALIZADOR" && (
-            <button
-              type="button"
-              data-tab="config"
-              className={`nav-btn ${activeTab === "config" ? "active" : ""}`}
-              onClick={() => setActiveTab("config")}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
-              <span>Configuración</span>
-            </button>
-          )}
-          <a href="/buscar" className="nav-btn nav-btn--buscar" style={{ textDecoration: "none" }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <span>Buscar</span>
-          </a>
-        </div>
-
-        <div className="nav-mobile-menu">
-          <div className="nav-mobile-primary">
-            <span className="nav-mobile-active-tab">
-              {activeTab === "censo" && <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Registrar</>}
-              {activeTab === "dashboard" && <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Estadísticas</>}
-              {activeTab === "asignaciones" && <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Registrados</>}
-              {activeTab === "usuarios" && <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Usuarios</>}
-              {activeTab === "config" && <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg> Configuración</>}
-            </span>
-            <button
-              type="button"
-              className={`nav-hamburger ${menuOpen ? "open" : ""}`}
-              onClick={() => setMenuOpen(m => !m)}
-              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-            >
-              <span className="nav-hamburger-line" />
-              <span className="nav-hamburger-line" />
-              <span className="nav-hamburger-line" />
-            </button>
-          </div>
-          {menuOpen && (
-            <div className="nav-mobile-dropdown">
-              {currentUser.role !== "VISUALIZADOR" && activeTab !== "censo" && (
-                <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("censo"); setMenuOpen(false); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                  Registrar
-                </button>
-              )}
-              {(currentUser.role === "ADMIN" || currentUser.role === "VISUALIZADOR") && activeTab !== "dashboard" && (
-                <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("dashboard"); setMenuOpen(false); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                  Estadísticas
-                </button>
-              )}
-              {activeTab !== "asignaciones" && (
-                <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("asignaciones"); setMenuOpen(false); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                  Registrados
-                </button>
-              )}
-              {isPowerAdmin && activeTab !== "usuarios" && (
-                <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("usuarios"); setMenuOpen(false); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  Usuarios
-                </button>
-              )}
-              {currentUser.role !== "VISUALIZADOR" && activeTab !== "config" && (
-                <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("config"); setMenuOpen(false); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
-                  Configuración
-                </button>
-              )}
-              <a href="/buscar" className="nav-dropdown-item" style={{ textDecoration: "none" }} onClick={() => setMenuOpen(false)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                Buscar Familiar
-              </a>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Cabecera institucional + navegación (dentro del Provider) */}
+      <AppHeader />
 
       {/* TAB 1: FORM VIEW (CENSO) */}
       {activeTab === "censo" && <CensoTab />}
