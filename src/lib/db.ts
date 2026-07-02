@@ -21,10 +21,14 @@ export interface LocalRegistro {
     gpsLng?: number;
     telefono?: string;
   };
-  status: 'pending' | 'synced';
+  status: 'pending' | 'synced' | 'error';
   syncResult?: 'registrado' | 'duplicado' | 'error';
   attempts: number;
   createdAt: string;
+  refugio?: string;        // refugio sellado del creador (determinismo + lookup offline)
+  userId?: string;         // operador que originó el registro
+  nextAttemptAt?: number;  // timestamp (ms) para backoff exponencial
+  permanentError?: string; // razón si el back lo rechazó definitivamente (401/403/400)
 }
 
 export interface PadrónCiudadano {
@@ -85,8 +89,13 @@ export async function saveLocal(registro: Omit<LocalRegistro, 'status' | 'attemp
         id: registro.id,
         type: registro.type ?? existing?.type,
         data: registro.data,
-        status: existing?.status || 'pending',
+        refugio: registro.refugio ?? existing?.refugio,
+        userId: registro.userId ?? existing?.userId,
+        // Al re-guardar (edición), volver a 'pending' si estaba en error y limpiar backoff.
+        status: existing?.status === 'synced' ? 'synced' : 'pending',
         attempts: existing?.attempts || 0,
+        nextAttemptAt: undefined,
+        permanentError: undefined,
         createdAt: existing?.createdAt || new Date().toISOString()
       };
       
@@ -108,7 +117,9 @@ export async function getPending(): Promise<LocalRegistro[]> {
 
     request.onsuccess = () => {
       const all = request.result as LocalRegistro[];
-      resolve(all.filter(r => r.status === 'pending'));
+      // Solo pendientes cuyo backoff ya venció (nextAttemptAt en el pasado o ausente).
+      const now = Date.now();
+      resolve(all.filter(r => r.status === 'pending' && (!r.nextAttemptAt || r.nextAttemptAt <= now)));
     };
 
     request.onerror = () => reject(request.error);
@@ -167,6 +178,10 @@ export async function incrementAttempt(id: string): Promise<void> {
       const record = request.result as LocalRegistro | undefined;
       if (record) {
         record.attempts += 1;
+        // Backoff exponencial: 15s, 30s, 60s, ... con tope de 5 min.
+        // Evita quemar la poca señal y la batería reintentando en bucle cerrado.
+        const delay = Math.min(15000 * Math.pow(2, record.attempts - 1), 300000);
+        record.nextAttemptAt = Date.now() + delay;
         const updateRequest = store.put(record);
         updateRequest.onsuccess = () => resolve();
         updateRequest.onerror = () => reject(updateRequest.error);
@@ -191,6 +206,35 @@ export async function resetAttempts(id: string): Promise<void> {
       if (record) {
         record.attempts = 0;
         record.status = 'pending';
+        record.nextAttemptAt = undefined;
+        record.permanentError = undefined;
+        const updateRequest = store.put(record);
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      } else {
+        resolve();
+      }
+    };
+
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Marca un registro con error PERMANENTE (rechazo definitivo del backend:
+// 401/403/400). No se reintenta automáticamente: sale de la cola de pendientes
+// y se muestra al operador con su razón para que decida (re-login, corregir, etc.).
+export async function markPermanentError(id: string, reason: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.get(id);
+
+    request.onsuccess = () => {
+      const record = request.result as LocalRegistro | undefined;
+      if (record) {
+        record.status = 'error';
+        record.permanentError = reason;
         const updateRequest = store.put(record);
         updateRequest.onsuccess = () => resolve();
         updateRequest.onerror = () => reject(updateRequest.error);

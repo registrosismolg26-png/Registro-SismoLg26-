@@ -9,8 +9,10 @@ import {
   clearLocalPadron,
   cargarPadronEnCliente,
   getLocalPadronCount,
+  markPermanentError,
   LocalRegistro
 } from "@/lib/db";
+import { apiFetch } from "@/lib/apiFetch";
 import type { ToastType } from "@/types";
 import { CUARTOS, ALLOWED_ADMINS, INACTIVITY_MS } from "@/lib/constants";
 import { ToastIcon } from "@/components/ToastIcon";
@@ -502,6 +504,10 @@ export default function Home() {
       const pending = await getPending();
       if (pending.length === 0) return;
 
+      // Prioridad: censos NUEVOS antes que ediciones/asignaciones. En zona de
+      // desastre, registrar a la persona afectada es más urgente que el cuarto.
+      pending.sort((a, b) => (a.type === "update" ? 1 : 0) - (b.type === "update" ? 1 : 0));
+
       const BATCH = 2;
       setSyncQueueProgress({ done: 0, total: pending.length });
 
@@ -510,10 +516,11 @@ export default function Home() {
 
         const results = await Promise.allSettled(
           batch.map(record =>
-            fetch("/api/register", {
+            apiFetch("/api/register", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...record.data, id: record.id })
+              body: JSON.stringify({ ...record.data, id: record.id, refugio: record.refugio }),
+              timeoutMs: 15000,
             })
           )
         );
@@ -522,6 +529,7 @@ export default function Home() {
           results.map(async (result, j) => {
             const record = batch[j];
             if (result.status === "rejected") {
+              // Red / timeout / abort → temporal: reintentar con backoff.
               await incrementAttempt(record.id);
               return;
             }
@@ -530,7 +538,15 @@ export default function Home() {
               await markSynced(record.id, "registrado");
             } else if (res.status === 409) {
               await markSynced(record.id, "duplicado");
+            } else if (res.status === 400 || res.status === 401 || res.status === 403) {
+              // Rechazo definitivo: reintentar no ayuda. Sale de la cola y se avisa.
+              const reason =
+                res.status === 401 ? "Sesión no válida para sincronizar. Vuelva a iniciar sesión."
+                : res.status === 403 ? "Sin permiso para sincronizar este registro (refugio o rol)."
+                : "Datos inválidos en el registro.";
+              await markPermanentError(record.id, reason);
             } else {
+              // 5xx u otros → temporal: backoff.
               await incrementAttempt(record.id);
             }
           })
