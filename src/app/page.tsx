@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useReducer, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useReducer, useMemo } from "react";
 import QRCode from "qrcode";
 import {
   saveLocal,
@@ -720,7 +720,7 @@ export default function Home() {
     };
   }, [currentUser]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const nav = navDesktopRef.current;
     if (!nav) return;
     const active = nav.querySelector<HTMLElement>(`[data-tab="${activeTab}"]`);
