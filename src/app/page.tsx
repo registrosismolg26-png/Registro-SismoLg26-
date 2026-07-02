@@ -1178,6 +1178,7 @@ export default function Home() {
     try {
       const localRec = {
         id: updated.id,
+        type: 'update' as const,
         data: {
           parroquia: updated.parroquia,
           sector: updated.sector,
@@ -4012,44 +4013,45 @@ ${entesList}`;
       {/* TAB 4: CONFIGURATION & DATABASE STATS VIEW */}
       {activeTab === "config" && (
         <div className="tab-view tab-enter">
-          
-          {/* Operator Profile Details */}
-          <div className="history-card history-card--gap-sm">
-            <span className="history-title">PERFIL DE OPERADOR</span>
-            <div className="profile-grid">
-              <span className="profile-grid-label">Nombre:</span>
-              <strong>{currentUser.nombre}</strong>
-              <span className="profile-grid-label">Usuario:</span>
-              <strong>{currentUser.email}</strong>
-              <span className="profile-grid-label">Rol:</span>
-              <strong className="profile-grid-value-accent">{currentUser.role}</strong>
-              <span className="profile-grid-label">Notificaciones PWA:</span>
-              <span>
-                {typeof window !== "undefined" && (!("serviceWorker" in navigator) || !("PushManager" in window)) ? (
-                  <span style={{ color: "#ef4444", fontWeight: "700" }}>⚠️ No soportado (Requiere HTTPS)</span>
-                ) : permissionState === "granted" ? (
-                  <span style={{ color: "#10b981", fontWeight: "700" }}>🟢 Activo (Suscrito)</span>
-                ) : permissionState === "denied" ? (
-                  <span style={{ color: "#ef4444", fontWeight: "700" }}>🔴 Bloqueado (Restablecer permisos en navegador)</span>
-                ) : (
-                  <span style={{ color: "#f59e0b", fontWeight: "700" }}>🟡 Pendiente (Inicia sesión como ADMIN para habilitar)</span>
+
+          {/* ── 1. PERFIL DE OPERADOR ── */}
+          <div className="dashboard-section">
+            <h3 className="dashboard-section-title">Perfil de Operador</h3>
+            <div className="config-profile-row">
+              <div className="modal-avatar" style={{ width: "48px", height: "48px", fontSize: "1rem", flexShrink: 0 }}>
+                {currentUser.nombre.trim().split(/\s+/).slice(0, 2).map((w: string) => w[0] || "").join("").toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: "700", fontSize: "0.9rem", color: "var(--text-primary)" }}>{currentUser.nombre}</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>{currentUser.email}</div>
+                {currentUser.campamentoTransitorio && (
+                  <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>{currentUser.campamentoTransitorio}</div>
                 )}
+              </div>
+              <span className={`config-role-badge ${currentUser.role === "ADMIN" ? "config-role-badge--admin" : "config-role-badge--reg"}`}>
+                {currentUser.role}
               </span>
+            </div>
+            <div className="config-notif-row">
+              <span style={{ fontSize: "0.73rem", fontWeight: "700", color: "var(--text-secondary)", flexShrink: 0 }}>Notif. PWA:</span>
+              {typeof window !== "undefined" && (!("serviceWorker" in navigator) || !("PushManager" in window)) ? (
+                <span style={{ fontSize: "0.73rem", color: "var(--color-danger)", fontWeight: "600" }}>No soportado — requiere HTTPS</span>
+              ) : permissionState === "granted" ? (
+                <span style={{ fontSize: "0.73rem", color: "var(--color-success)", fontWeight: "600" }}>● Activo</span>
+              ) : permissionState === "denied" ? (
+                <span style={{ fontSize: "0.73rem", color: "var(--color-danger)", fontWeight: "600" }}>● Bloqueado — restablecer en navegador</span>
+              ) : (
+                <span style={{ fontSize: "0.73rem", color: "var(--color-warning)", fontWeight: "600" }}>● Pendiente</span>
+              )}
             </div>
           </div>
 
-          {/* Voter Database Management */}
-          <div className="history-card">
-            <div className="card-header-row">
-              <span className="history-title" style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                Padrón Electoral Local
-              </span>
+          {/* ── 2. PADRÓN ELECTORAL ── */}
+          <div className="dashboard-section">
+            <div className="config-section-header">
+              <h3 className="dashboard-section-title">Padrón Electoral Local</h3>
               {votersCount > 0 && syncStatus === "idle" && (
-                <button 
-                  type="button" 
-                  onClick={deletePadronLocal}
-                  className="btn-link-danger"
-                >
+                <button type="button" onClick={deletePadronLocal} className="btn-link-danger" style={{ fontSize: "0.72rem" }}>
                   Borrar local
                 </button>
               )}
@@ -4057,7 +4059,7 @@ ${entesList}`;
 
             {votersCount > 0 ? (
               <div className="padron-installed">
-                Padrón electoral instalado ({votersCount.toLocaleString()} ciudadanos)
+                Padrón electoral instalado — <strong>{votersCount.toLocaleString()}</strong> ciudadanos
               </div>
             ) : (
               <div className="padron-missing">
@@ -4066,12 +4068,7 @@ ${entesList}`;
             )}
 
             {syncStatus === "idle" && votersCount === 0 && (
-              <button 
-                type="button" 
-                onClick={downloadFullPadron} 
-                disabled={!isOnline}
-                className="btn-submit btn-submit--sm"
-              >
+              <button type="button" onClick={downloadFullPadron} disabled={!isOnline} className="btn-submit btn-submit--sm">
                 Descargar Padrón Completo
               </button>
             )}
@@ -4083,21 +4080,16 @@ ${entesList}`;
             )}
 
             {syncStatus === "saving" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                 <div className="padron-status-count-row status-msg--warning">
                   <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
                     <span className="spinner spinner-sm"></span>
                     Guardando en dispositivo...
                   </span>
-                  <span className="tabular-num">
-                    {syncProgress.toLocaleString()} reg.
-                  </span>
+                  <span className="tabular-num">{syncProgress.toLocaleString()} reg.</span>
                 </div>
                 <div className="padron-progress-track">
-                  <div
-                    className="padron-indeterminate-bar"
-                    style={{ height: "100%", background: "var(--color-warning)" }}
-                  />
+                  <div className="padron-indeterminate-bar" style={{ height: "100%", background: "var(--color-warning)" }} />
                 </div>
               </div>
             )}
@@ -4110,139 +4102,171 @@ ${entesList}`;
 
             {syncStatus === "error" && (
               <div className="status-msg status-msg--danger">
-                Error al descargar el padrón. Verifique conexión de internet.
+                Error al descargar el padrón. Verifique conexión.
               </div>
             )}
           </div>
 
-          {/* Backup warning panels */}
-          {pendingCount > 0 && (
-            <div className="history-card history-card--alert history-card--gap-sm">
-              <span className="history-title text-warning" style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                Respaldo y Transferencia de Emergencia
-              </span>
-              <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", lineHeight: "1.3" }}>
-                Posee {pendingCount} registros locales en cola. Si necesita transferirlos a otro dispositivo offline por contingencia de red, use las siguientes opciones:
-              </p>
-              <div className="transfer-grid">
-                <button 
-                  type="button" 
-                  onClick={handleExportJSON}
-                  className="radio-card transfer-btn"
+          {/* ── 3. COLA DE SINCRONIZACIÓN ── */}
+          {(() => {
+            const pendingNew     = localRecords.filter(r => r.status === "pending" && r.type !== "update");
+            const pendingUpdates = localRecords.filter(r => r.status === "pending" && r.type === "update");
+            const syncedRecords  = localRecords.filter(r => r.status === "synced");
+
+            const renderSyncItem = (r: LocalRegistro) => {
+              const isUpdate = r.type === "update";
+              let badgeClass = "pending";
+              let badgeText  = "En cola";
+              if (r.status === "synced") {
+                if (r.syncResult === "duplicado") { badgeClass = "duplicado"; badgeText = "Duplicado"; }
+                else { badgeClass = "registrado"; badgeText = isUpdate ? "Actualizado" : "Registrado"; }
+              } else if (r.attempts > 3) { badgeClass = "error"; badgeText = "Fallo"; }
+
+              return (
+                <div
+                  key={r.id}
+                  className="sync-log-item"
+                  onClick={() => {
+                    setSelectedLocalRecord(r);
+                    const cleanCed = r.data.cedula.replace(/^[VE]-/, "");
+                    const nac = r.data.cedula.startsWith("E") ? "E" : "V";
+                    setLocalEditCedula(cleanCed);
+                    setLocalEditNombre(r.data.nombreApellido);
+                    setLocalEditNacionalidad(nac);
+                    setShowLocalEditModal(true);
+                  }}
                 >
-                  Exportar Respaldo (JSON)
-                </button>
-                <button 
-                  type="button" 
-                  onClick={handleGenerateQRs}
-                  className="radio-card transfer-btn transfer-btn--primary"
-                >
-                  Generar Lotes (QR)
-                </button>
-              </div>
-            </div>
-          )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+                      <span className="sync-log-name">{r.data.nombreApellido}</span>
+                      {isUpdate && <span className="sync-type-tag sync-type-tag--update">Edición</span>}
+                    </div>
+                    <div className="sync-log-meta">
+                      C.I. {r.data.cedula} · {r.data.parroquia}
+                      {r.attempts > 0 && r.status === "pending" && (
+                        <span className="sync-attempts-text"> · {r.attempts} intento{r.attempts !== 1 ? "s" : ""} fallido{r.attempts !== 1 ? "s" : ""}</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`sync-badge ${badgeClass}`}>{badgeText}</span>
+                </div>
+              );
+            };
 
-          {/* Sync Detailed Audit Queue List */}
-          <div className="history-card history-card--gap-sm">
-            <div className="card-header-row">
-              <span className="history-title">Auditoría y Registros Locales</span>
-              <button 
-                type="button" 
-                onClick={triggerSync} 
-                disabled={isSyncing || !isOnline}
-                className="btn-link"
-              >
-                Sincronizar cola
-              </button>
-            </div>
-
-            {localRecords.length === 0 ? (
-              <p className="data-empty">
-                No hay registros cargados en este dispositivo.
-              </p>
-            ) : (
-              <div className="sync-log-list">
-                {localRecords.map((r) => {
-                  let badgeClass = "pending";
-                  let badgeText = "En cola";
-                  
-                  if (r.status === "synced") {
-                    if (r.syncResult === "duplicado") {
-                      badgeClass = "duplicado";
-                      badgeText = "Duplicado";
-                    } else {
-                      badgeClass = "registrado";
-                      badgeText = "Registrado";
-                    }
-                  } else if (r.attempts > 3) {
-                    badgeClass = "error";
-                    badgeText = "Fallo";
-                  }
-
-                  return (
-                    <div
-                      className="sync-log-item"
-                      key={r.id}
-                      style={{ cursor: "pointer" }}
-                      onClick={() => {
-                        setSelectedLocalRecord(r);
-                        const cleanCed = r.data.cedula.replace(/^[VE]-/, "");
-                        const nac = r.data.cedula.startsWith("E") ? "E" : "V";
-                        setLocalEditCedula(cleanCed);
-                        setLocalEditNombre(r.data.nombreApellido);
-                        setLocalEditNacionalidad(nac);
-                        setShowLocalEditModal(true);
-                      }}
+            return (
+              <div className="dashboard-section">
+                <div className="config-section-header">
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                    <h3 className="dashboard-section-title">Cola de Sincronización</h3>
+                    {isSyncing && syncQueueProgress ? (
+                      <span className="asign-count" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                        <span className="spinner spinner-sm"></span>{syncQueueProgress.done}/{syncQueueProgress.total}
+                      </span>
+                    ) : pendingCount > 0 ? (
+                      <span className="asign-count">{pendingCount} pend.</span>
+                    ) : null}
+                  </div>
+                  <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
+                    {pendingCount > 0 && (
+                      <>
+                        <button type="button" className="dash-icon-btn" data-tip="Exportar JSON" onClick={handleExportJSON}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+                        </button>
+                        <button type="button" className="dash-icon-btn" data-tip="Generar QR" onClick={handleGenerateQRs}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="17" y="17" width="3" height="3"/></svg>
+                        </button>
+                        <div className="dash-action-sep"></div>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ width: "auto", margin: 0, padding: "0 0.875rem", height: "36px", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.3rem" }}
+                      onClick={triggerSync}
+                      disabled={isSyncing || !isOnline}
                     >
+                      {isSyncing ? <><span className="spinner spinner-sm"></span>Sincronizando</> : "Sincronizar cola"}
+                    </button>
+                  </div>
+                </div>
+
+                {isSyncing && syncQueueProgress && (
+                  <div className="padron-progress-track" style={{ margin: "0.25rem 0" }}>
+                    <div style={{
+                      height: "100%", background: "var(--color-primary)", borderRadius: "2px",
+                      width: `${Math.round(syncQueueProgress.done / syncQueueProgress.total * 100)}%`,
+                      transition: "width 0.3s ease"
+                    }} />
+                  </div>
+                )}
+
+                {localRecords.length === 0 ? (
+                  <div className="reg-empty-state" style={{ padding: "2rem 1rem" }}>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <p>Todo sincronizado</p>
+                    <span>No hay registros pendientes en este dispositivo</span>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {pendingNew.length > 0 && (
                       <div>
-                        <div className="sync-log-name">{r.data.nombreApellido}</div>
-                        <div className="sync-log-meta">
-                          C.I. {r.data.cedula} • {r.data.parroquia} • Tel: {r.data.telefono || "N/A"}
+                        <div className="sync-subgroup-label">
+                          <span>Registros nuevos</span>
+                          <span className="sync-subgroup-count">{pendingNew.length}</span>
+                        </div>
+                        <div className="sync-log-list" style={{ marginTop: "0.5rem" }}>
+                          {pendingNew.map(r => renderSyncItem(r))}
                         </div>
                       </div>
-                      <span className={`sync-badge ${badgeClass}`}>{badgeText}</span>
-                    </div>
-                  );
-                })}
+                    )}
+                    {pendingUpdates.length > 0 && (
+                      <div>
+                        <div className="sync-subgroup-label">
+                          <span>Actualizaciones pendientes</span>
+                          <span className="sync-subgroup-count">{pendingUpdates.length}</span>
+                        </div>
+                        <div className="sync-log-list" style={{ marginTop: "0.5rem" }}>
+                          {pendingUpdates.map(r => renderSyncItem(r))}
+                        </div>
+                      </div>
+                    )}
+                    {syncedRecords.length > 0 && (
+                      <div>
+                        <div className="sync-subgroup-label">
+                          <span>Historial sincronizado</span>
+                          <span className="sync-subgroup-count">{syncedRecords.length}</span>
+                        </div>
+                        <div className="sync-log-list sync-log-list--muted" style={{ marginTop: "0.5rem" }}>
+                          {syncedRecords.map(r => renderSyncItem(r))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
-          {/* Gestión de Habitaciones — solo ADMIN */}
+          {/* ── 4. GESTIÓN DE HABITACIONES (solo ADMIN) ── */}
           {currentUser.role === "ADMIN" && (
-            <div className="history-card history-card--gap-sm">
-              <span className="history-title">GESTIÓN DE EDIFICIOS Y SALONES</span>
-
-              {/* Formulario para agregar */}
+            <div className="dashboard-section">
+              <h3 className="dashboard-section-title">Gestión de Edificios y Salones</h3>
               <div className="room-add-form">
                 <div className="room-add-inputs">
                   <div className="room-add-field">
                     <label className="room-add-label">Edificio</label>
-                    <input
-                      className="room-add-input"
-                      placeholder="ej: 3"
-                      value={newBuilding}
-                      onChange={e => setNewBuilding(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && addCustomCuarto()}
-                    />
+                    <input className="room-add-input" placeholder="ej: 3" value={newBuilding}
+                      onChange={e => setNewBuilding(e.target.value)} onKeyDown={e => e.key === "Enter" && addCustomCuarto()} />
                   </div>
                   <div className="room-add-field">
                     <label className="room-add-label">Salón</label>
-                    <input
-                      className="room-add-input"
-                      placeholder="ej: 33"
-                      value={newSalon}
-                      onChange={e => setNewSalon(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && addCustomCuarto()}
-                    />
+                    <input className="room-add-input" placeholder="ej: 33" value={newSalon}
+                      onChange={e => setNewSalon(e.target.value)} onKeyDown={e => e.key === "Enter" && addCustomCuarto()} />
                   </div>
-                  <button
-                    type="button"
-                    className="btn-submit btn-submit--sm"
-                    onClick={addCustomCuarto}
-                    disabled={!newBuilding.trim() || !newSalon.trim()}
-                  >
+                  <button type="button" className="btn-submit btn-submit--sm" onClick={addCustomCuarto}
+                    disabled={!newBuilding.trim() || !newSalon.trim()}>
                     Agregar
                   </button>
                 </div>
@@ -4252,10 +4276,8 @@ ${entesList}`;
                   </p>
                 )}
               </div>
-
-              {/* Listado de todas las habitaciones */}
               <div className="room-list-section">
-                <span className="room-list-label">Habitaciones Registradas en el Sistema ({sortedCustomCuartos.length})</span>
+                <span className="room-list-label">Habitaciones registradas ({sortedCustomCuartos.length})</span>
                 {sortedCustomCuartos.length === 0 ? (
                   <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.5rem 0 0 0" }}>
                     No hay habitaciones registradas en la base de datos.
@@ -4265,14 +4287,7 @@ ${entesList}`;
                     {sortedCustomCuartos.map(c => (
                       <span key={c} className="room-chip room-chip--custom">
                         {formatRoomLabel(c)}
-                        <button
-                          type="button"
-                          className="room-chip-remove"
-                          onClick={() => removeCustomCuarto(c)}
-                          title="Eliminar Habitación"
-                        >
-                          ×
-                        </button>
+                        <button type="button" className="room-chip-remove" onClick={() => removeCustomCuarto(c)} title="Eliminar Habitación">×</button>
                       </span>
                     ))}
                   </div>

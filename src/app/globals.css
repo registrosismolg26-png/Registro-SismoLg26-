@@ -2102,18 +2102,8 @@ h2.dashboard-section-title {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 250px;
+  max-height: 280px;
   overflow-y: auto;
-}
-.sync-log-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.65rem 0.85rem;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  font-size: 0.775rem;
 }
 .sync-log-name {
   font-weight: 700;
@@ -3361,6 +3351,121 @@ h2.dashboard-section-title {
   transition: opacity 0.15s;
 }
 .btn-ver:hover::after { opacity: 1; }
+
+/* ── Config Tab — Redesign ───────────────────────────────────────────────── */
+
+.config-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.config-role-badge {
+  flex-shrink: 0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 100px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.config-role-badge--admin {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+.config-role-badge--reg {
+  background: var(--color-success-light);
+  color: var(--color-success);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+}
+.config-notif-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.73rem;
+}
+.config-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Sync sub-group labels */
+.sync-subgroup-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.sync-subgroup-count {
+  background: var(--border-color);
+  color: var(--text-muted);
+  border-radius: 100px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* Muted synced log */
+.sync-log-list--muted .sync-log-item { opacity: 0.55; transition: opacity 0.15s; }
+.sync-log-list--muted .sync-log-item:hover { opacity: 1; }
+
+/* Type tag — distinguishes new vs. update */
+.sync-type-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+.sync-type-tag--update {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+/* Failed attempts indicator */
+.sync-attempts-text {
+  font-size: 0.6rem;
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+/* Improved sync-log-item */
+.sync-log-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  font-size: 0.775rem;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+.sync-log-item:hover {
+  background: var(--color-primary-light);
+  transform: translateX(3px);
+}
 
 /* ── Registrados Tab — Redesign ─────────────────────────────────────────── */
 

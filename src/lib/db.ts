@@ -1,5 +1,6 @@
 export interface LocalRegistro {
   id: string;
+  type?: 'new' | 'update';
   data: {
     parroquia: string;
     sector: string;
