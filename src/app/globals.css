@@ -48,7 +48,7 @@
   --input-bg: #ffffff;
   --font-system: var(--font-poppins, "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif);
   --font-heading: var(--font-montserrat, "Segoe UI", sans-serif);
-  --nav-bg: rgba(255, 255, 255, 0.85);
+  --nav-bg: #ffffff;
   --nav-border: rgba(0, 0, 0, 0.08);
 
   /* Institutional gold accent — used for KPI values and prestige highlights */
@@ -114,7 +114,7 @@ html[data-theme="dark"] {
   --border-color: #334155;    /* Slate 700 */
   --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
   --input-bg: #1e293b;
-  --nav-bg: rgba(20, 26, 38, 0.75);
+  --nav-bg: #141a26;
   --nav-border: rgba(255, 255, 255, 0.08);
 
   /* Dark-mode palette overrides — same hue family, lighter for dark backgrounds */
@@ -1574,7 +1574,6 @@ html[data-theme="dark"] .spinner {
   z-index: 1000;
   margin: 1rem 0 1.5rem 0;
   background: var(--nav-bg);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--nav-border);
   border-radius: 50px;
