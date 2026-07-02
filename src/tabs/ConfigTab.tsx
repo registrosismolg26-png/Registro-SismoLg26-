@@ -23,7 +23,7 @@ import { getPending, saveLocal, resetAttempts, type LocalRegistro } from "@/lib/
 import { formatRoomLabel } from "@/lib/helpers";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { canManageRooms, canRegister } from "@/lib/permissions";
+import { canManageRooms, canRegister, isMaster } from "@/lib/permissions";
 
 export default function ConfigTab() {
   const {
@@ -66,6 +66,18 @@ export default function ConfigTab() {
   const [roomToConfirmAdd, setRoomToConfirmAdd] = useState<{ building: string; salon: string } | null>(null);
   const [roomToConfirmDelete, setRoomToConfirmDelete] = useState<string | null>(null);
 
+  // ── Gestión de Refugios (solo MASTER) ──
+  interface Refugio { id: string; nombre: string; createdAt?: string }
+  const [refugios, setRefugios] = useState<Refugio[]>([]);
+  const [loadingRefugios, setLoadingRefugios] = useState(false);
+  const [newRefugio, setNewRefugio] = useState("");
+  const [creatingRefugio, setCreatingRefugio] = useState(false);
+  const [refugioToRename, setRefugioToRename] = useState<Refugio | null>(null);
+  const [refugioRenameValue, setRefugioRenameValue] = useState("");
+  const [savingRefugioRename, setSavingRefugioRename] = useState(false);
+  const [refugioToDelete, setRefugioToDelete] = useState<Refugio | null>(null);
+  const [deletingRefugio, setDeletingRefugio] = useState(false);
+
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       setPermissionState(Notification.permission);
@@ -75,6 +87,122 @@ export default function ConfigTab() {
       return () => clearInterval(interval);
     }
   }, []);
+
+  // ── Refugios: carga y mutaciones (solo MASTER, todo vía apiFetch) ──
+  const fetchRefugios = async () => {
+    if (!currentUser || !isMaster(currentUser.role) || !navigator.onLine) return;
+    setLoadingRefugios(true);
+    try {
+      const res = await apiFetch("/api/refugios");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRefugios(data.refugios || []);
+      } else {
+        showToast(data.error || "Error al cargar refugios.", "error");
+      }
+    } catch (err) {
+      console.error("Error al listar refugios:", err);
+      showToast("Error de conexión al cargar refugios.", "error");
+    } finally {
+      setLoadingRefugios(false);
+    }
+  };
+
+  // Carga inicial al montar (si es Master) y recarga al recuperar conexión.
+  useEffect(() => {
+    fetchRefugios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
+
+  const handleCreateRefugio = async () => {
+    const nombre = newRefugio.trim();
+    if (!nombre || creatingRefugio) return;
+    if (!isOnline) {
+      showToast("Se requiere conexión para crear refugios.", "warning");
+      return;
+    }
+    setCreatingRefugio(true);
+    try {
+      const res = await apiFetch("/api/refugios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Error al crear el refugio.", "error");
+        return;
+      }
+      showToast("Refugio creado con éxito.", "success");
+      setNewRefugio("");
+      await fetchRefugios();
+    } catch (err) {
+      console.error("Error al crear refugio:", err);
+      showToast("Error de conexión al crear el refugio.", "error");
+    } finally {
+      setCreatingRefugio(false);
+    }
+  };
+
+  const handleRenameRefugioConfirmed = async () => {
+    if (!refugioToRename || savingRefugioRename) return;
+    const nombre = refugioRenameValue.trim();
+    if (!nombre) return;
+    if (!isOnline) {
+      showToast("Se requiere conexión para renombrar refugios.", "warning");
+      return;
+    }
+    setSavingRefugioRename(true);
+    try {
+      const res = await apiFetch("/api/refugios", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: refugioToRename.id, nombre })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "Error al renombrar el refugio.", "error");
+        return;
+      }
+      showToast("Refugio renombrado. Cambios propagados a usuarios y registros.", "success");
+      setRefugioToRename(null);
+      setRefugioRenameValue("");
+      await fetchRefugios();
+    } catch (err) {
+      console.error("Error al renombrar refugio:", err);
+      showToast("Error de conexión al renombrar el refugio.", "error");
+    } finally {
+      setSavingRefugioRename(false);
+    }
+  };
+
+  const handleDeleteRefugioConfirmed = async () => {
+    if (!refugioToDelete || deletingRefugio) return;
+    if (!isOnline) {
+      showToast("Se requiere conexión para eliminar refugios.", "warning");
+      return;
+    }
+    setDeletingRefugio(true);
+    try {
+      const res = await apiFetch(`/api/refugios?id=${encodeURIComponent(refugioToDelete.id)}`, {
+        method: "DELETE"
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // 409 → tiene usuarios/registros asociados: muestra el error del backend, no borra.
+        showToast(data.error || "No se pudo eliminar el refugio.", "error");
+        return;
+      }
+      showToast("Refugio eliminado con éxito.", "success");
+      setRefugioToDelete(null);
+      await fetchRefugios();
+    } catch (err) {
+      console.error("Error al eliminar refugio:", err);
+      showToast("Error de conexión al eliminar el refugio.", "error");
+    } finally {
+      setDeletingRefugio(false);
+    }
+  };
 
   const addCustomCuarto = () => {
     const b = newBuilding.trim().toUpperCase();
@@ -541,6 +669,96 @@ export default function ConfigTab() {
             </div>
           </div>
         )}
+
+        {/* ── 5. GESTIÓN DE REFUGIOS (solo MASTER) ── */}
+        {isMaster(currentUser.role) && (
+          <div className="dashboard-section">
+            <div className="config-section-header">
+              <h3 className="dashboard-section-title">Gestión de Refugios</h3>
+              {refugios.length > 0 && <span className="asign-count">{refugios.length}</span>}
+            </div>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem 0" }}>
+              Administre los refugios del sistema. Renombrar propaga el cambio a los operadores y registros asociados.
+            </p>
+
+            {!isOnline && (
+              <div className="users-offline-notice" style={{ marginBottom: "1rem" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+                Sin conexión — no es posible listar o gestionar refugios.
+              </div>
+            )}
+
+            {/* Crear refugio */}
+            <div className="room-add-form">
+              <div className="room-add-inputs">
+                <div className="room-add-field">
+                  <label className="room-add-label">Nuevo refugio</label>
+                  <input
+                    className="room-add-input"
+                    placeholder="ej: Complejo Educativo República de Panamá"
+                    value={newRefugio}
+                    onChange={e => setNewRefugio(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleCreateRefugio()}
+                    disabled={!isOnline || creatingRefugio}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn-submit btn-submit--sm"
+                  onClick={handleCreateRefugio}
+                  disabled={!newRefugio.trim() || !isOnline || creatingRefugio}
+                >
+                  {creatingRefugio ? <><span className="spinner spinner-sm"></span>Creando</> : "Agregar"}
+                </button>
+              </div>
+            </div>
+
+            {/* Lista de refugios */}
+            <div className="room-list-section">
+              <span className="room-list-label">Refugios registrados ({refugios.length})</span>
+              {loadingRefugios ? (
+                <div className="status-msg status-msg--warning" style={{ marginTop: "0.5rem" }}>
+                  <span className="spinner spinner-sm"></span> Cargando refugios...
+                </div>
+              ) : refugios.length === 0 ? (
+                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.5rem 0 0 0" }}>
+                  No hay refugios registrados en la base de datos.
+                </p>
+              ) : (
+                <div className="sync-log-list" style={{ marginTop: "0.5rem" }}>
+                  {refugios.map(rf => (
+                    <div key={rf.id} className="sync-log-item" style={{ cursor: "default" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span className="sync-log-name">{rf.nombre}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="dash-icon-btn"
+                          data-tip="Renombrar"
+                          disabled={!isOnline}
+                          onClick={() => { setRefugioToRename(rf); setRefugioRenameValue(rf.nombre); }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="dash-icon-btn"
+                          data-tip="Eliminar"
+                          style={{ color: "var(--color-danger)" }}
+                          disabled={!isOnline}
+                          onClick={() => setRefugioToDelete(rf)}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* QR Codes Modal */}
@@ -703,6 +921,100 @@ export default function ConfigTab() {
               </button>
               <button type="button" className="btn-submit" style={{ flex: 1, backgroundColor: "#ef4444", borderColor: "#ef4444" }} onClick={removeCustomCuartoConfirmed}>
                 Sí, Eliminar Salón
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Renombrar Refugio */}
+      {refugioToRename && (
+        <div className="modal-overlay" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); }}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "450px", width: "90%" }}>
+            <div className="modal-header">
+              <span className="modal-title">Renombrar Refugio</span>
+              <button className="modal-close" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
+              El nuevo nombre se propagará automáticamente a todos los operadores y registros asociados a este refugio.
+            </p>
+
+            <div className="form-group">
+              <label htmlFor="refugio-rename-input">Nombre del refugio</label>
+              <input
+                type="text"
+                id="refugio-rename-input"
+                value={refugioRenameValue}
+                onChange={e => setRefugioRenameValue(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleRenameRefugioConfirmed()}
+                style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
+              />
+            </div>
+
+            <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); }}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ flex: 1 }}
+                onClick={handleRenameRefugioConfirmed}
+                disabled={!refugioRenameValue.trim() || savingRefugioRename || refugioRenameValue.trim() === refugioToRename.nombre}
+              >
+                {savingRefugioRename ? <><span className="spinner spinner-sm"></span>Guardando</> : "Guardar Cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmar Eliminar Refugio */}
+      {refugioToDelete && (
+        <div className="modal-overlay" onClick={() => setRefugioToDelete(null)}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+            <div className="modal-header">
+              <span className="modal-title" style={{ color: "#ef4444" }}>⚠️ Confirmar Eliminación</span>
+              <button className="modal-close" onClick={() => setRefugioToDelete(null)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: "1.5" }}>
+              <p>¿Estás seguro de que deseas eliminar el siguiente refugio de la base de datos?</p>
+              <div style={{
+                margin: "1rem 0",
+                padding: "0.75rem",
+                backgroundColor: "var(--bg-primary)",
+                borderRadius: "6px",
+                border: "1px dashed #fca5a5",
+                textAlign: "center",
+                fontSize: "0.95rem",
+                color: "#ef4444",
+                fontWeight: "700"
+              }}>
+                {refugioToDelete.nombre}
+              </div>
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                Si el refugio tiene operadores o registros asociados, el sistema no permitirá eliminarlo.
+              </p>
+            </div>
+
+            <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" onClick={() => setRefugioToDelete(null)}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ flex: 1, backgroundColor: "#ef4444", borderColor: "#ef4444" }}
+                onClick={handleDeleteRefugioConfirmed}
+                disabled={deletingRefugio}
+              >
+                {deletingRefugio ? <><span className="spinner spinner-sm"></span>Eliminando</> : "Sí, Eliminar Refugio"}
               </button>
             </div>
           </div>

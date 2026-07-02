@@ -7,7 +7,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { canManageUsers } from "@/lib/permissions";
+import { canManageUsers, isMaster } from "@/lib/permissions";
 
 export default function UsuariosTab() {
   const { currentUser, isOnline, showToast } = useAppContext();
@@ -24,6 +24,7 @@ export default function UsuariosTab() {
   const [userErrors, setUserErrors] = useState<Record<string, string>>({});
   const [systemUsers, setSystemUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [refugios, setRefugios] = useState<Array<{ id: string; nombre: string }>>([]);
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
   const [createUserClosing, setCreateUserClosing] = useState(false);
   const [editUserModalOpen, setEditUserModalOpen] = useState(false);
@@ -48,9 +49,25 @@ export default function UsuariosTab() {
     }
   };
 
+  // Carga la lista de refugios para poblar el dropdown (solo Master lo usa,
+  // pero cargarla es inocuo; el GET lo permite cualquier autenticado).
+  const fetchRefugios = async () => {
+    if (!currentUser || !isMaster(currentUser.role) || !navigator.onLine) return;
+    try {
+      const res = await apiFetch("/api/refugios");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRefugios(data.refugios || []);
+      }
+    } catch (err) {
+      console.error("Error al listar refugios:", err);
+    }
+  };
+
   // Carga inicial al entrar al tab y recarga al recuperar conexión
   useEffect(() => {
     fetchUsers();
+    fetchRefugios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
@@ -452,14 +469,32 @@ export default function UsuariosTab() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="user-create-campamento">Campamento Transitorio</label>
-                <input
-                  type="text"
-                  id="user-create-campamento"
-                  placeholder="ej: Complejo Educativo República de Panamá"
-                  value={userForm.campamentoTransitorio}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
-                />
+                <label htmlFor="user-create-campamento">Refugio Asignado</label>
+                {currentUser && isMaster(currentUser.role) ? (
+                  <select
+                    id="user-create-campamento"
+                    value={userForm.campamentoTransitorio}
+                    onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
+                  >
+                    <option value="">Seleccione un refugio...</option>
+                    {refugios.map(rf => (
+                      <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
+                    ))}
+                    {/* Preserva un valor previo que ya no esté en la lista de refugios */}
+                    {userForm.campamentoTransitorio && !refugios.some(rf => rf.nombre === userForm.campamentoTransitorio) && (
+                      <option value={userForm.campamentoTransitorio}>{userForm.campamentoTransitorio}</option>
+                    )}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    id="user-create-campamento"
+                    value={currentUser?.campamentoTransitorio || ""}
+                    readOnly
+                    disabled
+                    title="El refugio se asigna automáticamente según su cuenta."
+                  />
+                )}
               </div>
 
               <div className="form-group">
@@ -624,14 +659,32 @@ export default function UsuariosTab() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="user-edit-campamento">Campamento Transitorio</label>
-                <input
-                  type="text"
-                  id="user-edit-campamento"
-                  placeholder="ej: Complejo Educativo República de Panamá"
-                  value={userForm.campamentoTransitorio}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
-                />
+                <label htmlFor="user-edit-campamento">Refugio Asignado</label>
+                {currentUser && isMaster(currentUser.role) ? (
+                  <select
+                    id="user-edit-campamento"
+                    value={userForm.campamentoTransitorio}
+                    onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
+                  >
+                    <option value="">Seleccione un refugio...</option>
+                    {refugios.map(rf => (
+                      <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
+                    ))}
+                    {/* Preserva el valor actual del usuario si aún no está en la lista */}
+                    {userForm.campamentoTransitorio && !refugios.some(rf => rf.nombre === userForm.campamentoTransitorio) && (
+                      <option value={userForm.campamentoTransitorio}>{userForm.campamentoTransitorio}</option>
+                    )}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    id="user-edit-campamento"
+                    value={currentUser?.campamentoTransitorio || ""}
+                    readOnly
+                    disabled
+                    title="El refugio se asigna automáticamente según su cuenta."
+                  />
+                )}
               </div>
 
               <div className="form-group">
