@@ -308,6 +308,7 @@ export default function Home() {
   const [loadingRegistros, setLoadingRegistros] = useState(false);
   const [registroSearch, setRegistroSearch] = useState("");
   const [selectedRegistro, setSelectedRegistro] = useState<any | null>(null);
+  const [modalClosing, setModalClosing] = useState(false);
   const [asignCuarto, setAsignCuarto] = useState("");
   const [savingCuarto, setSavingCuarto] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -1217,6 +1218,15 @@ export default function Home() {
     }
   };
 
+  const closeModal = () => {
+    setModalClosing(true);
+    setTimeout(() => {
+      setSelectedRegistro(null);
+      setEditMode(false);
+      setModalClosing(false);
+    }, 200);
+  };
+
   const handleDeleteRegistro = async (id: string) => {
     try {
       const res = await fetch(`/api/registros/${id}`, {
@@ -1230,7 +1240,7 @@ export default function Home() {
           }
           return next;
         });
-        setSelectedRegistro(null);
+        closeModal();
         showToast("Registro eliminado correctamente", "success");
       } else {
         const errData = await res.json();
@@ -4554,8 +4564,8 @@ ${entesList}`;
 
       {/* Registro Detail & Edit & Asignación Modal */}
       {selectedRegistro && (
-        <div className="modal-overlay" onClick={() => { setSelectedRegistro(null); setEditMode(false); }}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()}>
+        <div className={`modal-overlay${modalClosing ? " modal-overlay--closing" : ""}`} onClick={closeModal}>
+          <div className={`modal-content modal-content--detail${modalClosing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()}>
 
             {/* ── Header ── */}
             <div className="modal-header">
@@ -4584,7 +4594,7 @@ ${entesList}`;
                   </div>
                 </div>
               </div>
-              <button className="modal-close" onClick={() => { setSelectedRegistro(null); setEditMode(false); }}>
+              <button className="modal-close" onClick={closeModal}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>

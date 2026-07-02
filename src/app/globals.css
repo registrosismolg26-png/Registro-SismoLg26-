@@ -1024,9 +1024,17 @@ html[data-theme="dark"] .toast--info {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+@keyframes overlayFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
 @keyframes modalIn {
   from { opacity: 0; transform: scale(0.97) translateY(10px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes modalOut {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.97) translateY(8px); }
 }
 
 .modal-overlay {
@@ -1042,6 +1050,12 @@ html[data-theme="dark"] .toast--info {
   justify-content: center;
   z-index: 1000;
   animation: overlayFadeIn 0.2s ease both;
+}
+.modal-overlay--closing {
+  animation: overlayFadeOut 0.2s ease both;
+}
+.modal-content--closing {
+  animation: modalOut 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .modal-content {
