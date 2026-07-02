@@ -48,6 +48,9 @@ export default function CensoTab() {
 
   // Cédula local database lookup status
   const [lookupStatus, setLookupStatus] = useState<"idle" | "searching" | "found" | "not-found">("idle");
+
+  // Resultado de buscar al Jefe de Familia por su cédula (solo informativo, NO bloquea el registro).
+  const [jefeLookup, setJefeLookup] = useState<{ found: boolean; nombre?: string } | null>(null);
   const lookupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleDateChange = (dateVal: string) => {
@@ -196,6 +199,7 @@ export default function CensoTab() {
         });
 
         if (jefe) {
+          setJefeLookup({ found: true, nombre: jefe.nombreApellido });
           dispatch({
             type: "SET_MANY",
             patch: {
@@ -206,7 +210,11 @@ export default function CensoTab() {
             }
           });
           showToast(`Residencia precargada desde el Jefe: ${jefe.nombreApellido}`, "success");
+        } else {
+          setJefeLookup({ found: false });
         }
+      } else {
+        setJefeLookup(null);
       }
       return;
     }
@@ -516,6 +524,18 @@ export default function CensoTab() {
                       <div className="error-container">
                         {errors.cedulaJefeFamilia && <span className="field-error-message">{errors.cedulaJefeFamilia}</span>}
                       </div>
+                      {jefeLookup?.found && (
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--color-success)", fontSize: "0.75rem", fontWeight: 700, marginTop: "-0.15rem" }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                          {jefeLookup.nombre}
+                        </span>
+                      )}
+                      {jefeLookup && !jefeLookup.found && (
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--color-warning)", fontSize: "0.75rem", fontWeight: 700, marginTop: "-0.15rem" }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                          Jefe de Familia no registrado
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
