@@ -139,6 +139,7 @@ export default function Home() {
   const [rememberMe, setRememberMe] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
   const [personalTrabajo, setPersonalTrabajo] = useState(84);
+  const [incluirDistribucion, setIncluirDistribucion] = useState(true);
   const [entes, setEntes] = useState<string[]>([
     "Ministerio de Alimentación y sus entes",
     "Gobernación",
@@ -2341,10 +2342,10 @@ ${String(adF).padStart(2, '0')} femenino
 Niños: ${men}
 ${String(menF).padStart(2, '0')} niñas
 ${String(menM).padStart(2, '0')} niños
-
+${incluirDistribucion ? `
 Distribución territorial:
 ${parroquiasList}
-
+` : ""}
 Personas retiradas en refugios solidarios: ${String(retirados).padStart(2, '0')}
 
 Personal de trabajo: ${personalTrabajo} personas.
@@ -5269,6 +5270,30 @@ ${entesList}`;
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 0.75rem", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--input-bg)" }}>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500 }}>Incluir Distribución Territorial</span>
+                <button
+                  type="button"
+                  onClick={() => setIncluirDistribucion(v => !v)}
+                  style={{
+                    position: "relative", display: "inline-flex", alignItems: "center",
+                    width: "42px", height: "24px", borderRadius: "999px", border: "none",
+                    cursor: "pointer", padding: 0, flexShrink: 0,
+                    background: incluirDistribucion ? "var(--color-primary)" : "var(--border-color)",
+                    transition: "background 0.2s"
+                  }}
+                  aria-pressed={incluirDistribucion}
+                >
+                  <span style={{
+                    position: "absolute", top: "3px",
+                    left: incluirDistribucion ? "21px" : "3px",
+                    width: "18px", height: "18px", borderRadius: "50%",
+                    background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.25)",
+                    transition: "left 0.2s"
+                  }} />
+                </button>
               </div>
 
               <div className="form-group">
