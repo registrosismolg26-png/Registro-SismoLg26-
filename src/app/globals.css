@@ -1932,13 +1932,89 @@ html[data-theme="dark"] .spinner {
   background: var(--bg-secondary);
   border-radius: 16px;
   border-top: 3px solid var(--color-gold);
-  padding: 1rem 1.5rem;
+  padding: 0.875rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
   box-shadow: 0 4px 20px -4px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* Grupo de acciones del header del dashboard */
+.dash-action-group {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.dash-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background 0.15s, color 0.15s, transform 0.18s;
+  flex-shrink: 0;
+}
+.dash-icon-btn:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  transform: scale(1.1);
+}
+.dash-icon-btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: var(--bg-secondary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+.dash-icon-btn:hover::after { opacity: 1; }
+
+.dash-action-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-color);
+  margin: 0 0.3rem;
+  flex-shrink: 0;
+}
+.dash-wa-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.9rem;
+  height: 36px;
+  border-radius: 999px;
+  border: none;
+  background: #25d366;
+  color: #ffffff;
+  font-family: var(--font-system);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.18s;
+  flex-shrink: 0;
+}
+.dash-wa-btn:hover {
+  background: #1cb956;
+  transform: scale(1.04);
 }
 
 .dashboard-section {
