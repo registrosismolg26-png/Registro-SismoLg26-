@@ -727,7 +727,7 @@ export default function Home() {
     if (!active) return;
     setPillStyle({ left: active.offsetLeft, width: active.offsetWidth });
     setPillReady(true);
-  }, [activeTab]);
+  }, [activeTab, currentUser]);
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
