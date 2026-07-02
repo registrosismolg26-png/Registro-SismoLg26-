@@ -22,6 +22,7 @@ Antes de tocar código en este proyecto, lee la guía completa: **`docs/ARCHITEC
 - Deja `npx tsc --noEmit` **limpio antes de cada commit**.
 - **Antes de cada `push`:** `git pull --rebase origin main` para integrar el trabajo de otros devs y no dejar nada fuera.
 - **Guía viva:** consulta `docs/ARCHITECTURE.md` al iniciar la tarea; al terminar un cambio importante, actualízala (y este skill si aplica) para Claude y Gemini Antigravity.
+- **Migraciones de BD:** cambio de `prisma/schema.prisma` → `npx prisma generate` + entregar SQL **idempotente** (`IF NOT EXISTS`, `ON CONFLICT DO NOTHING`…) para ejecutar **manualmente en Supabase**. Nunca `prisma migrate`/`db push` automático contra producción.
 - Next 16 tiene `params`/`headers()` **async** — lee `node_modules/next/dist/docs/` antes de escribir rutas o páginas.
 - **Tailwind v4 está instalado sin Preflight** para migración progresiva. Config en CSS (no hay `tailwind.config.js`): en `globals.css` se importan solo las capas theme+utilities (se omite `preflight.css`) + `@theme inline`; plugin `@tailwindcss/postcss` en `postcss.config.mjs`. El CSS con variables sigue siendo el sistema base; usa Tailwind para código nuevo o migra de a poco (colores mapeados: `bg-primary`, `text-danger`…). No actives Preflight (rompería el diseño). v4 requiere navegadores ~2023+.
 - Si un cambio no se refleja en el preview, es el cache de chunks de dev del service worker → borra `.next` y reinicia.
