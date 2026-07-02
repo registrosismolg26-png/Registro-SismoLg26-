@@ -83,6 +83,7 @@ export async function saveLocal(registro: Omit<LocalRegistro, 'status' | 'attemp
       const existing = getRequest.result as LocalRegistro | undefined;
       const fullRecord: LocalRegistro = {
         id: registro.id,
+        type: registro.type ?? existing?.type,
         data: registro.data,
         status: existing?.status || 'pending',
         attempts: existing?.attempts || 0,
@@ -166,6 +167,30 @@ export async function incrementAttempt(id: string): Promise<void> {
       const record = request.result as LocalRegistro | undefined;
       if (record) {
         record.attempts += 1;
+        const updateRequest = store.put(record);
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      } else {
+        resolve();
+      }
+    };
+
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function resetAttempts(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.get(id);
+
+    request.onsuccess = () => {
+      const record = request.result as LocalRegistro | undefined;
+      if (record) {
+        record.attempts = 0;
+        record.status = 'pending';
         const updateRequest = store.put(record);
         updateRequest.onsuccess = () => resolve();
         updateRequest.onerror = () => reject(updateRequest.error);

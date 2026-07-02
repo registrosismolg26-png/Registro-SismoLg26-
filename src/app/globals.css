@@ -3449,6 +3449,28 @@ h2.dashboard-section-title {
   font-weight: 600;
 }
 
+/* Retry button for failed sync items */
+.sync-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  background: var(--color-danger-light, #fee2e2);
+  color: var(--color-danger, #dc2626);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.15s;
+}
+.sync-retry-btn:hover {
+  background: var(--color-danger, #dc2626);
+  color: #fff;
+  transform: scale(1.05);
+}
+
 /* Improved sync-log-item */
 .sync-log-item {
   display: flex;

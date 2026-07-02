@@ -8,6 +8,7 @@ import {
   getAllLocal,
   markSynced,
   incrementAttempt,
+  resetAttempts,
   clearLocalPadron,
   cargarPadronEnCliente,
   buscarCedulaEnCliente,
@@ -1226,6 +1227,17 @@ export default function Home() {
       setEditMode(false);
       setModalClosing(false);
     }, 200);
+  };
+
+  const handleRetryRecord = async (id: string) => {
+    await resetAttempts(id);
+    await refreshLocalRecords();
+    if (navigator.onLine) {
+      triggerSync();
+      showToast("Reintentando sincronización...", "success");
+    } else {
+      showToast("Sin conexión. Se reintentará al recuperar señal.", "warning");
+    }
   };
 
   const handleDeleteRegistro = async (id: string) => {
@@ -4148,7 +4160,19 @@ ${entesList}`;
                       )}
                     </div>
                   </div>
-                  <span className={`sync-badge ${badgeClass}`}>{badgeText}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+                    {r.status === "pending" && r.attempts > 3 && (
+                      <button
+                        type="button"
+                        className="sync-retry-btn"
+                        onClick={(e) => { e.stopPropagation(); handleRetryRecord(r.id); }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.76"/></svg>
+                        Reintentar
+                      </button>
+                    )}
+                    <span className={`sync-badge ${badgeClass}`}>{badgeText}</span>
+                  </div>
                 </div>
               );
             };
