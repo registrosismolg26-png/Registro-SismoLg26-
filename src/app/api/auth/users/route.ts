@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
-import { getAuthUser, canManageUsers, isMaster, type AuthUser } from "@/lib/auth";
+import { getAuthUser, canManageUsers, canManageTargetUser, invalidateSession, isMaster, type AuthUser } from "@/lib/auth";
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -12,7 +12,7 @@ function hashPassword(password: string): string {
 // Roles que el actor puede asignar: Master cualquiera; Admin solo por debajo.
 function assignableRoles(actor: AuthUser): string[] {
   return isMaster(actor)
-    ? ["MASTER", "ADMIN", "REGISTRADOR", "VISUALIZADOR"]
+    ? ["ADMIN", "REGISTRADOR", "VISUALIZADOR"]  // Master NO crea/asigna otros Master
     : ["REGISTRADOR", "VISUALIZADOR"];
 }
 
@@ -103,11 +103,10 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
 
-    // Admin solo puede editar usuarios de su propio refugio, y nunca a un Master.
-    if (!isMaster(auth)) {
-      if (target.campamentoTransitorio !== auth.refugio || target.role === "MASTER") {
-        return NextResponse.json({ error: "No puede editar usuarios de otro refugio." }, { status: 403 });
-      }
+    // Nadie edita a un Master; Admin solo a Registrador/Visualizador de su refugio;
+    // Master a cualquier no-master.
+    if (!canManageTargetUser(auth, target)) {
+      return NextResponse.json({ error: "No tiene permiso para editar este usuario." }, { status: 403 });
     }
 
     if (!assignableRoles(auth).includes(role)) {
@@ -136,6 +135,7 @@ export async function PUT(req: Request) {
     }
 
     const updatedUser = await prisma.user.update({ where: { id }, data: updateData });
+    invalidateSession(id); // refleja de inmediato el cambio de rol/refugio
 
     return NextResponse.json({
       success: true,
@@ -144,5 +144,42 @@ export async function PUT(req: Request) {
   } catch (error: any) {
     console.error("Error en PUT users API:", error);
     return NextResponse.json({ error: "Error al actualizar el usuario" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const auth = await getAuthUser(req);
+    if (!auth || !canManageUsers(auth)) {
+      return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
+    }
+
+    const id = new URL(req.url).searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Falta el id del usuario" }, { status: 400 });
+    }
+    if (id === auth.id) {
+      return NextResponse.json({ error: "No puede eliminar su propia cuenta." }, { status: 400 });
+    }
+
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    // Nadie borra a un Master; Admin solo a Registrador/Visualizador de su refugio.
+    if (!canManageTargetUser(auth, target)) {
+      return NextResponse.json({ error: "No tiene permiso para eliminar este usuario." }, { status: 403 });
+    }
+
+    // Limpiar suscripciones push huérfanas (no hay FK en cascada) y borrar.
+    await prisma.pushSubscription.deleteMany({ where: { userId: id } }).catch(() => {});
+    await prisma.user.delete({ where: { id } });
+    invalidateSession(id);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Error en DELETE users API:", error);
+    return NextResponse.json({ error: "Error al eliminar el usuario" }, { status: 500 });
   }
 }

@@ -233,24 +233,29 @@ export default function Home() {
     }
   }, []);
 
-  // Load cached stats and registrations on mount
+  // Load cached stats and registrations on mount — solo si el cache pertenece al
+  // usuario de esta sesión (mejora H segura: en un dispositivo compartido no se
+  // muestran datos del refugio de otro operador).
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const cachedRegs = localStorage.getItem("cached_registros");
-      if (cachedRegs) {
-        try {
-          setRegistros(JSON.parse(cachedRegs));
-        } catch (e) {
-          console.error(e);
+      const savedUser = localStorage.getItem("sismo_operator") || sessionStorage.getItem("sismo_operator");
+      let ownerId = "";
+      try { ownerId = savedUser ? JSON.parse(savedUser).id : ""; } catch {}
+
+      if (ownerId && localStorage.getItem("cached_owner") === ownerId) {
+        const cachedRegs = localStorage.getItem("cached_registros");
+        if (cachedRegs) {
+          try { setRegistros(JSON.parse(cachedRegs)); } catch (e) { console.error(e); }
         }
-      }
-      const cachedStats = localStorage.getItem("cached_stats");
-      if (cachedStats) {
-        try {
-          setStats(JSON.parse(cachedStats));
-        } catch (e) {
-          console.error(e);
+        const cachedStats = localStorage.getItem("cached_stats");
+        if (cachedStats) {
+          try { setStats(JSON.parse(cachedStats)); } catch (e) { console.error(e); }
         }
+      } else {
+        // Cache de otro usuario o sin dueño → descartar por seguridad.
+        localStorage.removeItem("cached_registros");
+        localStorage.removeItem("cached_stats");
+        localStorage.removeItem("cached_owner");
       }
     }
   }, []);
@@ -751,6 +756,7 @@ export default function Home() {
         setStats(data.stats);
         if (typeof window !== "undefined") {
           localStorage.setItem("cached_stats", JSON.stringify(data.stats));
+          if (currentUser) localStorage.setItem("cached_owner", currentUser.id);
         }
       }
     } catch (err) {
@@ -787,6 +793,7 @@ export default function Home() {
       setRegistros(newRegs);
       if (typeof window !== "undefined") {
         localStorage.setItem("cached_registros", JSON.stringify(newRegs));
+        if (currentUser) localStorage.setItem("cached_owner", currentUser.id);
       }
     } catch (err: any) {
       showToast("Error al cargar los registros: " + (err?.message ?? ""), "error");
@@ -799,6 +806,10 @@ export default function Home() {
   const handleLogout = () => {
     localStorage.removeItem("sismo_operator");
     sessionStorage.removeItem("sismo_operator");
+    // Descartar el cache local del operador saliente (no filtrar entre sesiones).
+    localStorage.removeItem("cached_registros");
+    localStorage.removeItem("cached_stats");
+    localStorage.removeItem("cached_owner");
     setCurrentUser(null);
     setActiveTab("censo");
     showToast("Sesión cerrada.", "info");

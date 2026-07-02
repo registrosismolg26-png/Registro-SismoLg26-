@@ -13,3 +13,18 @@ export const canManageUsers    = (role: string) => ["MASTER", "ADMIN"].includes(
 export const canManageRooms    = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canManagePadron   = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role); // panel de estadísticas
+
+/** ¿Puede el actor editar/borrar a este usuario objetivo? Espejo del back.
+ *  - A un MASTER no lo toca nadie desde la app.
+ *  - Master: cualquier no-master. Admin: solo Registrador/Visualizador de su refugio. */
+export function canManageTargetUser(
+  actorRole: string, actorRefugio: string,
+  targetRole: string, targetRefugio: string
+): boolean {
+  if (targetRole === "MASTER") return false;
+  if (isMaster(actorRole)) return true;
+  if (actorRole === "ADMIN") {
+    return ["REGISTRADOR", "VISUALIZADOR"].includes(targetRole) && targetRefugio === actorRefugio;
+  }
+  return false;
+}
