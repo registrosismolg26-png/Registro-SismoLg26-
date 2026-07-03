@@ -52,15 +52,18 @@ export function SwipeableToast({ message, type, onDismiss }: SwipeableToastProps
         transition: isDragging ? "none" : "transform 0.2s ease-out, opacity 0.2s ease-out",
         opacity: opacity,
         touchAction: "none",
-        cursor: isDragging ? "grabbing" : "grab"
+        cursor: isDragging ? "grabbing" : "grab",
+        userSelect: "none"
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onDragStart={(e) => e.preventDefault()}
+      draggable={false}
     >
       <ToastIcon type={type} />
-      <span className="toast-message" style={{ userSelect: "none" }}>{message}</span>
+      <span className="toast-message">{message}</span>
     </div>
   );
 }
