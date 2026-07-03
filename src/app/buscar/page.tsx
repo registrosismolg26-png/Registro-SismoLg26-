@@ -28,6 +28,7 @@ type ExternalResult = {
   id: string;
   nombre: string;
   estado: string | null;
+  ubicacion: string | null;
   ciudad: string | null;
   edad: number | null;
   notas: string | null;
@@ -308,6 +309,7 @@ export default function PublicSearch() {
                     <h4 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>{r.nombre}</h4>
                     <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
                       {r.estado && <div><strong>Estado:</strong> {r.estado}</div>}
+                      {r.ubicacion && <div><strong>Lugar:</strong> {r.ubicacion}</div>}
                       {r.ciudad && <div><strong>Ciudad:</strong> {r.ciudad}</div>}
                       {r.edad != null && <div><strong>Edad:</strong> {r.edad} años</div>}
                       {r.notas && <div style={{ color: "var(--text-muted)" }}>{r.notas}</div>}
