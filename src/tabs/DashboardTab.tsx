@@ -276,7 +276,7 @@ export default function DashboardTab() {
     const refugioActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
     const ubicacion = refugiosList.find(r => r.nombre === refugioActivo)?.ubicacion || "";
 
-    return `*Campamento de Transición ${refugioActivo}.*
+    return `*Campamento Transitorio ${refugioActivo}.*
 
 Fecha y Hora: ${dateTimeStr}${ubicacion ? `\nUbicación: ${ubicacion}` : ""}
 
