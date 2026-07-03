@@ -63,10 +63,11 @@ export default function ConfigTab() {
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
 
   // Confirmation Modals for Room Management
-  const [newBuilding, setNewBuilding] = useState("");
+  const [newTipo, setNewTipo] = useState<"EDIFICIO" | "PISO" | "OTRO">("EDIFICIO");
+  const [newContenedor, setNewContenedor] = useState("");
   const [newSalon, setNewSalon] = useState("");
   const [newCapacidad, setNewCapacidad] = useState("18");
-  const [roomToConfirmAdd, setRoomToConfirmAdd] = useState<{ building: string; salon: string; capacidad: number } | null>(null);
+  const [roomToConfirmAdd, setRoomToConfirmAdd] = useState<{ key: string; capacidad: number } | null>(null);
   const [roomToConfirmDelete, setRoomToConfirmDelete] = useState<string | null>(null);
   // Editar capacidad de camas de un salón existente
   const [roomToEditCap, setRoomToEditCap] = useState<string | null>(null);
@@ -217,24 +218,31 @@ export default function ConfigTab() {
     return Number.isFinite(n) && n >= 1 && n <= 999 ? n : 18;
   };
 
+  // Construye el nombre canónico del salón según el tipo de contenedor.
+  // Edificio/Piso → "EDIFICIO N SALON S" / "PISO N SALON S"; Otro → "<texto> SALON S".
+  const buildRoomKey = (tipo: string, contenedor: string, salon: string): string => {
+    const c = contenedor.trim().toUpperCase();
+    const s = salon.trim().toUpperCase();
+    return tipo === "OTRO" ? `${c} SALON ${s}` : `${tipo} ${c} SALON ${s}`;
+  };
+
   const addCustomCuarto = () => {
-    const b = newBuilding.trim().toUpperCase();
-    const s = newSalon.trim().toUpperCase();
-    if (!b || !s) return;
-    const key = `EDIFICIO ${b} SALON ${s}`;
+    const c = newContenedor.trim();
+    const s = newSalon.trim();
+    if (!c || !s) return;
+    const key = buildRoomKey(newTipo, c, s);
     if (allCuartos.includes(key)) return;
-    setRoomToConfirmAdd({ building: b, salon: s, capacidad: normalizeCap(newCapacidad) });
+    setRoomToConfirmAdd({ key, capacidad: normalizeCap(newCapacidad) });
   };
 
   const addCustomCuartoConfirmed = async () => {
     if (!roomToConfirmAdd) return;
-    const { building, salon, capacidad } = roomToConfirmAdd;
-    const key = `EDIFICIO ${building} SALON ${salon}`;
+    const { key, capacidad } = roomToConfirmAdd;
 
     // Optimistic UI update
     setCustomCuartos(prev => [...prev, key]);
     setRoomCapacities(prev => ({ ...prev, [key]: capacidad }));
-    setNewBuilding("");
+    setNewContenedor("");
     setNewSalon("");
     setNewCapacidad("18");
     setRoomToConfirmAdd(null);
@@ -688,12 +696,35 @@ export default function ConfigTab() {
         {canManageRooms(currentUser.role) && (
           <div className="dashboard-section">
             <h3 className="dashboard-section-title">Gestión de Edificios y Salones</h3>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem 0" }}>
+              Agregue salones a su refugio. Elija el tipo de contenedor y defina las camas disponibles de cada salón.
+            </p>
             <div className="room-add-form">
+              {/* Tipo de contenedor: Edificio / Piso / Otro */}
+              <div className="room-type-toggle">
+                {(["EDIFICIO", "PISO", "OTRO"] as const).map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`room-type-btn ${newTipo === t ? "room-type-btn--active" : ""}`}
+                    onClick={() => { setNewTipo(t); setNewContenedor(""); }}
+                  >
+                    {t === "EDIFICIO" ? "Edificio" : t === "PISO" ? "Piso" : "Otro"}
+                  </button>
+                ))}
+              </div>
               <div className="room-add-inputs">
                 <div className="room-add-field">
-                  <label className="room-add-label">Edificio</label>
-                  <input className="room-add-input" placeholder="ej: 3" value={newBuilding}
-                    onChange={e => setNewBuilding(e.target.value)} onKeyDown={e => e.key === "Enter" && addCustomCuarto()} />
+                  <label className="room-add-label">
+                    {newTipo === "EDIFICIO" ? "N° de Edificio" : newTipo === "PISO" ? "N° de Piso" : "Nombre del área"}
+                  </label>
+                  <input
+                    className="room-add-input"
+                    placeholder={newTipo === "OTRO" ? "ej: Anexo B" : "ej: 3"}
+                    value={newContenedor}
+                    onChange={e => setNewContenedor(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addCustomCuarto()}
+                  />
                 </div>
                 <div className="room-add-field">
                   <label className="room-add-label">Salón</label>
@@ -706,13 +737,13 @@ export default function ConfigTab() {
                     onChange={e => setNewCapacidad(e.target.value)} onKeyDown={e => e.key === "Enter" && addCustomCuarto()} />
                 </div>
                 <button type="button" className="btn-submit btn-submit--sm" onClick={addCustomCuarto}
-                  disabled={!newBuilding.trim() || !newSalon.trim()}>
+                  disabled={!newContenedor.trim() || !newSalon.trim()}>
                   Agregar
                 </button>
               </div>
-              {newBuilding.trim() && newSalon.trim() && (
+              {newContenedor.trim() && newSalon.trim() && (
                 <p className="room-add-preview">
-                  Se agregará: <strong>Edif. {newBuilding.trim()} &mdash; Salón {newSalon.trim()}</strong> &middot; {normalizeCap(newCapacidad)} camas
+                  Se agregará: <strong>{formatRoomLabel(buildRoomKey(newTipo, newContenedor, newSalon))}</strong> &middot; {normalizeCap(newCapacidad)} camas
                 </p>
               )}
             </div>
@@ -723,17 +754,39 @@ export default function ConfigTab() {
                   No hay habitaciones registradas en la base de datos.
                 </p>
               ) : (
-                <div className="room-chip-list" style={{ marginTop: "0.5rem" }}>
-                  {sortedCustomCuartos.map(c => (
-                    <span key={c} className="room-chip room-chip--custom">
-                      {formatRoomLabel(c)}
-                      <button type="button" className="room-chip-cap" onClick={() => openEditCap(c)} title="Editar capacidad de camas">
-                        🛏 {roomCapacities[c] ?? 18}
-                      </button>
-                      <button type="button" className="room-chip-remove" onClick={() => removeCustomCuarto(c)} title="Eliminar Habitación">×</button>
-                    </span>
-                  ))}
-                </div>
+                (() => {
+                  // Agrupa los salones por contenedor (la parte antes de " SALON ").
+                  const groups: Record<string, string[]> = {};
+                  sortedCustomCuartos.forEach(key => {
+                    const idx = key.lastIndexOf(" SALON ");
+                    const contenedor = idx === -1 ? key : key.slice(0, idx);
+                    if (!groups[contenedor]) groups[contenedor] = [];
+                    groups[contenedor].push(key);
+                  });
+                  return Object.entries(groups).map(([contenedor, salones]) => (
+                    <div key={contenedor} className="room-group">
+                      <div className="room-group-title">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        {formatRoomLabel(contenedor)} <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>({salones.length})</span>
+                      </div>
+                      <div className="room-group-chips">
+                        {salones.map(c => {
+                          const idx = c.lastIndexOf(" SALON ");
+                          const salonNum = idx === -1 ? c : c.slice(idx + 7);
+                          return (
+                            <span key={c} className="room-chip room-chip--custom">
+                              Salón {salonNum}
+                              <button type="button" className="room-chip-cap" onClick={() => openEditCap(c)} title="Editar capacidad de camas">
+                                🛏 {roomCapacities[c] ?? 18}
+                              </button>
+                              <button type="button" className="room-chip-remove" onClick={() => removeCustomCuarto(c)} title="Eliminar Habitación">×</button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ));
+                })()
               )}
             </div>
           </div>
@@ -934,7 +987,7 @@ export default function ConfigTab() {
                 color: "var(--color-primary)",
                 fontWeight: "700"
               }}>
-                Edificio {roomToConfirmAdd.building} &mdash; Salón {roomToConfirmAdd.salon}
+                {formatRoomLabel(roomToConfirmAdd.key)}
               </div>
               <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
                 Esta habitación estará disponible inmediatamente para todos los registradores.
