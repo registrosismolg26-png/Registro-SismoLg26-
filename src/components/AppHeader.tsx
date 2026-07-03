@@ -11,7 +11,7 @@
 
 import { useState, useLayoutEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { canManageUsers, canViewDashboard } from "@/lib/permissions";
+import { canManageUsers, canViewDashboard, isMaster } from "@/lib/permissions";
 
 export default function AppHeader() {
   const {
@@ -25,6 +25,9 @@ export default function AppHeader() {
     syncQueueProgress,
     pendingCount,
     handleLogout,
+    viewRefugio,
+    setViewRefugio,
+    refugiosList,
   } = useAppContext();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -95,6 +98,21 @@ export default function AppHeader() {
               </span>
             )}
           </div>
+          {isMaster(currentUser.role) && refugiosList.length > 0 && (
+            <div className="header-refugio" title="Refugio que estás viendo en todo el sistema">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <select
+                className="header-refugio-select"
+                value={viewRefugio}
+                onChange={e => setViewRefugio(e.target.value)}
+                aria-label="Refugio activo"
+              >
+                {refugiosList.map(rf => (
+                  <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="header-ops-user">
             <span className="header-operator">{currentUser.nombre}</span>
             <span className={`role-badge ${currentUser.role === "ADMIN" ? "admin" : ""}`}>{currentUser.role}</span>

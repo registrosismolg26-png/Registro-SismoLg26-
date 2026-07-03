@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, refugioScope } from "@/lib/auth";
+import { getAuthUser, refugioScopeFor } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
@@ -9,9 +9,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Master ve todos los refugios; el resto solo el suyo.
+    // Master respeta el "refugio de vista" (?refugio); si no lo manda, ve todos.
+    // El resto: siempre su refugio (el parámetro se ignora).
+    const requested = new URL(req.url).searchParams.get("refugio");
     const registros = await prisma.registro.findMany({
-      where: refugioScope(auth),
+      where: refugioScopeFor(auth, requested),
       orderBy: { createdAt: "desc" },
     });
 

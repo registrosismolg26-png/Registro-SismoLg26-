@@ -335,6 +335,31 @@ h1 {
   max-width: 160px;
 }
 
+/* Selector de "refugio de vista" (solo Master) en la franja de operación */
+.header-refugio {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.4rem 0.15rem 0.5rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  max-width: 230px;
+}
+.header-refugio-select {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  max-width: 175px;
+  padding: 0.1rem 0.15rem;
+  cursor: pointer;
+  outline: none;
+  text-overflow: ellipsis;
+}
+
 /* Botón de cierre de sesión */
 .logout-btn {
   display: flex;

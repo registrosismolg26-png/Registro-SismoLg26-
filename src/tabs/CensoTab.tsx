@@ -30,6 +30,7 @@ export default function CensoTab() {
     allCuartos,
     roomCapacities,
     fetchRegistros,
+    effectiveRefugio,
   } = useAppContext();
 
   const [step, setStep] = useState<1|2|3|4>(1);
@@ -354,9 +355,9 @@ export default function CensoTab() {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    // Guarda: sin refugio asignado no se puede registrar (ni online ni offline).
-    if (!hasRefugio(currentUser?.campamentoTransitorio)) {
-      showToast("Tu usuario no tiene un refugio asignado. Un administrador debe asociarte a un refugio antes de registrar.", "error");
+    // Guarda: sin refugio activo no se puede registrar (ni online ni offline).
+    if (!hasRefugio(effectiveRefugio)) {
+      showToast("No hay un refugio asignado para registrar. Un administrador debe asociarte a un refugio.", "error");
       setIsSubmitting(false);
       return;
     }
@@ -407,7 +408,7 @@ export default function CensoTab() {
       const recordId = crypto.randomUUID();
       const registroData = {
         id: recordId,
-        refugio: currentUser?.campamentoTransitorio,
+        refugio: effectiveRefugio,
         userId: currentUser?.id,
         data: {
           parroquia: formData.parroquia,
@@ -432,7 +433,7 @@ export default function CensoTab() {
           cuarto: asignCuartoCenso || undefined,
           intermitente: formData.intermitente || "NO",
           motivoIntermitente: formData.intermitente === "SI" ? formData.motivoIntermitente.trim() : undefined,
-          refugio: currentUser?.campamentoTransitorio
+          refugio: effectiveRefugio
         }
       };
 
@@ -465,7 +466,7 @@ export default function CensoTab() {
   return (
     <>
         <div className="tab-enter">
-          {!hasRefugio(currentUser.campamentoTransitorio) ? (
+          {!hasRefugio(effectiveRefugio) ? (
             <div className="form-card" style={{ textAlign: "center", padding: "2rem 1.5rem" }}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 1rem", display: "block" }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               <h3 style={{ margin: "0 0 0.5rem", color: "var(--text-primary)", fontSize: "1.1rem" }}>Sin refugio asignado</h3>

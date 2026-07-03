@@ -50,6 +50,37 @@ export default function Home() {
   // se renderiza fuera del Provider). Header/nav (estado + useLayoutEffect de la
   // píldora) → src/components/AppHeader.tsx.
 
+  // ── Refugio de vista (Master) ────────────────────────────────────────────
+  // Master puede cambiar el refugio que ve en TODO el sistema (dashboard,
+  // registrados, salones, censo). Estado local; inicia con su refugio asignado.
+  // El resto de usuarios siempre ve su propio refugio (no puede cambiarlo).
+  const [viewRefugio, setViewRefugio] = useState<string>("");
+  const [refugiosList, setRefugiosList] = useState<{ id: string; nombre: string }[]>([]);
+  const effectiveRefugio = currentUser
+    ? (isMaster(currentUser.role) ? (viewRefugio || currentUser.campamentoTransitorio) : currentUser.campamentoTransitorio)
+    : "";
+  const effectiveRefugioRef = useRef(effectiveRefugio);
+  useEffect(() => { effectiveRefugioRef.current = effectiveRefugio; }, [effectiveRefugio]);
+
+  // Inicializa el refugio de vista con el del usuario al iniciar sesión.
+  useEffect(() => {
+    if (currentUser?.campamentoTransitorio && !viewRefugio) {
+      setViewRefugio(currentUser.campamentoTransitorio);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.campamentoTransitorio]);
+
+  // Master: carga la lista de refugios para el selector del header.
+  useEffect(() => {
+    if (!currentUser || !isMaster(currentUser.role)) return;
+    if (typeof window === "undefined" || !navigator.onLine) return;
+    apiFetch("/api/refugios")
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (data?.refugios) setRefugiosList(data.refugios); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
+
   // Cuartos dinámicos (personalizados por admin, cargados desde la BD por refugio)
   const [customCuartos, setCustomCuartos] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
@@ -91,8 +122,8 @@ export default function Home() {
     try {
       // Se pide el refugio del usuario: Master obtiene SOLO el suyo (no todos);
       // el resto ya está limitado a su refugio por el backend.
-      const q = currentUser?.campamentoTransitorio
-        ? `?refugio=${encodeURIComponent(currentUser.campamentoTransitorio)}`
+      const q = effectiveRefugioRef.current
+        ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}`
         : "";
       const res = await apiFetch(`/api/cuartos${q}`);
       if (res.ok) {
@@ -785,7 +816,8 @@ export default function Home() {
       setLoadingStats(true);
     }
     try {
-      const res = await apiFetch("/api/stats");
+      const q = effectiveRefugioRef.current ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}` : "";
+      const res = await apiFetch(`/api/stats${q}`);
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);
@@ -821,7 +853,8 @@ export default function Home() {
 
     setLoadingRegistros(true);
     try {
-      const res = await apiFetch("/api/registros");
+      const q = effectiveRefugioRef.current ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}` : "";
+      const res = await apiFetch(`/api/registros${q}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const newRegs = data.registros ?? [];
@@ -837,6 +870,23 @@ export default function Home() {
     }
   };
 
+  // Master cambió el refugio de vista → recargar registros, stats y salones del
+  // nuevo refugio. Ignora la inicialización (el mount ya carga todo).
+  const prevEffRefugioRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentUser || !effectiveRefugio) return;
+    if (prevEffRefugioRef.current === null) {
+      prevEffRefugioRef.current = effectiveRefugio; // primer valor: sin refetch
+      return;
+    }
+    if (prevEffRefugioRef.current === effectiveRefugio) return;
+    prevEffRefugioRef.current = effectiveRefugio;
+    fetchRegistros();
+    if (canViewDashboard(currentUser.role)) fetchStats(true);
+    refreshCustomRooms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveRefugio]);
+
   // Logout Handler
   const handleLogout = () => {
     localStorage.removeItem("sismo_operator");
@@ -845,6 +895,9 @@ export default function Home() {
     localStorage.removeItem("cached_registros");
     localStorage.removeItem("cached_stats");
     localStorage.removeItem("cached_owner");
+    setViewRefugio("");
+    setRefugiosList([]);
+    prevEffRefugioRef.current = null;
     setCurrentUser(null);
     setActiveTab("censo");
     showToast("Sesión cerrada.", "info");
@@ -877,6 +930,7 @@ export default function Home() {
     pendingSelectId, setPendingSelectId,
     customCuartos, setCustomCuartos, allCuartos, sortedCustomCuartos, dashboardRooms,
     roomCapacities, setRoomCapacities,
+    viewRefugio, setViewRefugio, refugiosList, effectiveRefugio,
     stats, loadingStats, fetchStats,
     votersCount, coords,
     syncStatus, syncProgress, syncTotal,

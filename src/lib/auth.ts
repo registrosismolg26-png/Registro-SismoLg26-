@@ -99,6 +99,14 @@ export function refugioScope(u: AuthUser): { refugio?: string } {
   return isMaster(u) ? {} : { refugio: u.refugio };
 }
 
+/** Filtro de refugio respetando el "refugio de vista" que Master envía por
+ *  ?refugio: Master → ese refugio (o TODOS si no lo manda); el resto → siempre
+ *  su refugio (ignora el parámetro, no puede espiar otros refugios). */
+export function refugioScopeFor(u: AuthUser, requested?: string | null): { refugio?: string } {
+  if (isMaster(u)) return requested ? { refugio: requested } : {};
+  return { refugio: u.refugio };
+}
+
 /** ¿Hay un refugio válido asociado? (no null/undefined/vacío). Guarda para no
  *  crear registros ni usuarios "huérfanos" sin refugio. */
 export function hasRefugio(refugio: string | null | undefined): boolean {

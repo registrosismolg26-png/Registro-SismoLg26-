@@ -40,6 +40,7 @@ export default function ConfigTab() {
     sortedCustomCuartos,
     roomCapacities,
     setRoomCapacities,
+    effectiveRefugio,
     votersCount,
     syncStatus,
     syncProgress,
@@ -217,57 +218,16 @@ export default function ConfigTab() {
     return Number.isFinite(n) && n >= 1 && n <= 999 ? n : 18;
   };
 
-  // ── Salones por refugio ──────────────────────────────────────────────────
-  // Master gestiona los salones de CUALQUIER refugio (selector). No-master usa
-  // su propio refugio (estado global del context). El estado local de Master NO
-  // contamina el global que usa el censo/asignaciones.
+  // ── Salones del refugio activo ───────────────────────────────────────────
+  // La gestión de salones usa el "refugio de vista" global (Master lo cambia en
+  // el header; el resto ve su propio refugio). El estado global de cuartos ya
+  // sigue ese refugio (page.tsx), así que aquí solo se reusa con nombres locales.
   const masterMode = !!currentUser && isMaster(currentUser.role);
-  const [salonRefugio, setSalonRefugio] = useState("");
-  const [masterRooms, setMasterRooms] = useState<string[]>([]);
-  const [masterRoomCaps, setMasterRoomCaps] = useState<Record<string, number>>({});
-  const [loadingMasterRooms, setLoadingMasterRooms] = useState(false);
-
-  // Refugio activo + colecciones "efectivas" (local de Master vs. global).
-  const salonRefugioActivo = masterMode ? salonRefugio : (currentUser?.campamentoTransitorio ?? "");
-  const rooms = masterMode ? masterRooms : sortedCustomCuartos;
-  const roomCaps = masterMode ? masterRoomCaps : roomCapacities;
-  const applyRoomsChange = (updater: (prev: string[]) => string[]) => {
-    if (masterMode) setMasterRooms(updater); else setCustomCuartos(updater);
-  };
-  const applyCapsChange = (updater: (prev: Record<string, number>) => Record<string, number>) => {
-    if (masterMode) setMasterRoomCaps(updater); else setRoomCapacities(updater);
-  };
-
-  // Master: al llegar la lista de refugios, selecciona uno por defecto (el suyo).
-  useEffect(() => {
-    if (!masterMode || salonRefugio || refugios.length === 0) return;
-    const own = refugios.find(r => r.nombre === currentUser?.campamentoTransitorio);
-    setSalonRefugio(own ? own.nombre : refugios[0].nombre);
-  }, [masterMode, refugios, salonRefugio, currentUser?.campamentoTransitorio]);
-
-  // Master: carga los salones del refugio seleccionado (estado local).
-  useEffect(() => {
-    if (!masterMode || !salonRefugio) return;
-    let cancelled = false;
-    (async () => {
-      setLoadingMasterRooms(true);
-      try {
-        const res = await apiFetch(`/api/cuartos?refugio=${encodeURIComponent(salonRefugio)}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setMasterRooms(data.map((r: any) => r.name));
-          const caps: Record<string, number> = {};
-          data.forEach((r: any) => { caps[r.name] = typeof r.capacidad === "number" ? r.capacidad : 18; });
-          setMasterRoomCaps(caps);
-        }
-      } catch (err) {
-        console.error("Error cargando salones del refugio:", err);
-      } finally {
-        if (!cancelled) setLoadingMasterRooms(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [masterMode, salonRefugio]);
+  const salonRefugioActivo = effectiveRefugio;
+  const rooms = sortedCustomCuartos;
+  const roomCaps = roomCapacities;
+  const applyRoomsChange = setCustomCuartos;
+  const applyCapsChange = setRoomCapacities;
 
   // Construye el nombre canónico del salón según el tipo de contenedor.
   // Edificio/Piso → "EDIFICIO N SALON S" / "PISO N SALON S"; Otro → "<texto> SALON S".
@@ -748,26 +708,8 @@ export default function ConfigTab() {
           <div className="dashboard-section">
             <h3 className="dashboard-section-title">Gestión de Edificios y Salones</h3>
             <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem 0" }}>
-              Agregue salones {masterMode ? "al refugio seleccionado" : "a su refugio"}. Elija el tipo de contenedor y defina las camas disponibles de cada salón.
+              Agregue salones {masterMode ? <>al refugio <strong>{salonRefugioActivo || "activo"}</strong> (cámbialo desde el selector del encabezado)</> : "a su refugio"}. Elija el tipo de contenedor y defina las camas disponibles de cada salón.
             </p>
-            {masterMode && (
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label htmlFor="salon-refugio-select" className="room-add-label">Refugio a gestionar</label>
-                <select
-                  id="salon-refugio-select"
-                  value={salonRefugio}
-                  onChange={e => { setSalonRefugio(e.target.value); setMasterRooms([]); setMasterRoomCaps({}); }}
-                >
-                  {refugios.length === 0 && <option value="">Cargando refugios…</option>}
-                  {refugios.map(rf => (
-                    <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
-                  ))}
-                </select>
-                <p style={{ margin: "0.35rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  Los salones se administran por refugio. Selecciona uno para ver y editar solo sus salones.
-                </p>
-              </div>
-            )}
             <div className="room-add-form">
               {/* Tipo de contenedor: Edificio / Piso / Otro */}
               <div className="room-type-toggle">
@@ -818,11 +760,11 @@ export default function ConfigTab() {
             </div>
             <div className="room-list-section">
               <span className="room-list-label">
-                Habitaciones registradas ({rooms.length}){masterMode && loadingMasterRooms ? " · cargando…" : ""}
+                Habitaciones registradas ({rooms.length})
               </span>
               {rooms.length === 0 ? (
                 <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.5rem 0 0 0" }}>
-                  {masterMode && loadingMasterRooms ? "Cargando salones del refugio…" : "No hay habitaciones registradas en la base de datos."}
+                  No hay habitaciones registradas en la base de datos.
                 </p>
               ) : (
                 (() => {

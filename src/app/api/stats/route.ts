@@ -10,15 +10,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Scoping por refugio: Master ve todo; el resto solo su refugio.
+    // Scoping por refugio. Master respeta el "refugio de vista" (?refugio); si no
+    // lo manda, ve todos. El resto: siempre su refugio (ignora el parámetro).
+    const requested = new URL(req.url).searchParams.get("refugio");
+    const scopeRefugio = isMaster(auth) ? (requested || null) : auth.refugio;
     // Fragmento SQL que se inyecta en el WHERE del $queryRaw.
-    const refugioSql = isMaster(auth)
-      ? Prisma.empty
-      : Prisma.sql`WHERE refugio = ${auth.refugio}`;
+    const refugioSql = scopeRefugio
+      ? Prisma.sql`WHERE refugio = ${scopeRefugio}`
+      : Prisma.empty;
     // Filtro Prisma para groupBy/findMany.
-    const refugioFilter: { refugio?: string } = isMaster(auth)
-      ? {}
-      : { refugio: auth.refugio };
+    const refugioFilter: { refugio?: string } = scopeRefugio
+      ? { refugio: scopeRefugio }
+      : {};
 
     // Single SQL pass for all numeric aggregates (replaces 14 sequential queries)
     const [aggregates] = await prisma.$queryRaw<any[]>`

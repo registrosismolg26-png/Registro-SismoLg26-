@@ -54,6 +54,13 @@ export interface AppContextValue {
   roomCapacities: Record<string, number>;
   setRoomCapacities: React.Dispatch<React.SetStateAction<Record<string, number>>>;
 
+  // Refugio de vista: Master lo cambia y afecta todo el sistema; el resto de
+  // usuarios siempre ve su propio refugio. `effectiveRefugio` es el que aplica.
+  viewRefugio: string;
+  setViewRefugio: (r: string) => void;
+  refugiosList: { id: string; nombre: string }[];
+  effectiveRefugio: string;
+
   // Estadísticas
   stats: any;
   loadingStats: boolean;
