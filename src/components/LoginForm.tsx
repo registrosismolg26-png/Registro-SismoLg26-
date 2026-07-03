@@ -138,8 +138,8 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toa
         <div className="app-header app-header--centered" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
           <img src="/logo_gob.webp" alt="Logo Gobernación La Guaira" style={{ width: "90px", height: "90px", objectFit: "contain" }} />
           <div className="title-area title-area--centered">
-            <h1>REGISTRO DE AFECTADOS</h1>
-            <p className="subtitle">Censo Sismológico PWA 100% Offline</p>
+            <h1>CAMPAMENTOS TRANSITORIOS</h1>
+            <p className="subtitle">Sistema de Gestión · La Guaira 2026</p>
           </div>
         </div>
 

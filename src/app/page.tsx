@@ -275,7 +275,7 @@ export default function Home() {
       
       const handleOffline = () => {
         setIsOnline(false);
-        showToast("Sin conexión. Trabajando en modo local offline.", "warning");
+        showToast("Sin conexión. Trabajando en modo local.", "warning");
       };
 
       window.addEventListener("online", handleOnline);
@@ -992,7 +992,7 @@ export default function Home() {
                 Nuevo Afectado
               </div>
               <p style={{ fontSize: "0.85rem", margin: "4px 0 0 0", color: "var(--text-secondary)", lineHeight: "1.4" }}>
-                <strong>{internalNotification.nombreApellido}</strong> ha sido registrado en el censo.
+                <strong>{internalNotification.nombreApellido}</strong> ha sido registrado.
               </p>
             </div>
           </div>

@@ -1,11 +1,11 @@
 {
-  "name": "Registro de Damnificados Sismo",
-  "short_name": "RegSismo",
-  "description": "Sistema de registro offline de damnificados ante catástrofes.",
+  "name": "Campamentos Transitorios La Guaira",
+  "short_name": "Campamentos",
+  "description": "Sistema de gestión de campamentos transitorios de La Guaira.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d1117",
-  "theme_color": "#5746e3",
+  "background_color": "#0f172a",
+  "theme_color": "#1e3a8a",
   "orientation": "portrait-primary",
   "icons": [
     {

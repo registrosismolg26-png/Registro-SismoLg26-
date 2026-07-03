@@ -61,8 +61,8 @@ export default function AppHeader() {
             </div>
             <div className="header-title-group">
               <span className="header-org-name">GOBERNACIÓN DEL ESTADO LA GUAIRA</span>
-              <h1>REGISTRO DE AFECTADOS</h1>
-              <p className="header-tagline">Sistema de Censo Sismológico · Venezuela 2026</p>
+              <h1>CAMPAMENTOS TRANSITORIOS</h1>
+              <p className="header-tagline">Sistema de Gestión · La Guaira 2026</p>
             </div>
           </div>
           <button

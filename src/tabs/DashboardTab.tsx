@@ -341,7 +341,7 @@ ${entesList}`;
             <div className="print-letterhead-text">
               <span className="print-letterhead-org">Gobernación del Estado La Guaira</span>
               <h1 className="print-letterhead-title">Panel de Estadísticas</h1>
-              <span className="print-letterhead-sub">{campamentoActivo || "Campamento Transitorio"} &middot; Censo Sismológico La Guaira 2026</span>
+              <span className="print-letterhead-sub">{campamentoActivo || "Campamento Transitorio"} &middot; La Guaira 2026</span>
             </div>
             <div className="print-letterhead-meta">Generado:<br />{new Date().toLocaleString("es-VE")}</div>
           </div>
@@ -396,7 +396,7 @@ ${entesList}`;
             <div className="status-bar status-bar--warning">
               <div className="status-indicator">
                 <span className="status-dot offline"></span>
-                <span className="text-warning">Modo Offline: Estadísticas de registros locales</span>
+                <span className="text-warning">Sin conexión: Estadísticas de registros locales</span>
               </div>
             </div>
           )}

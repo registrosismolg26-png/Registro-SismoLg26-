@@ -451,7 +451,7 @@ export default function AsignacionesTab() {
       <html lang="es">
       <head>
         <meta charset="utf-8">
-        <title>Listado de Personas Presentes - Censo Sismológico 2026</title>
+        <title>Listado de Personas Presentes - Campamentos Transitorios 2026</title>
         <style>
           @page { size: A4 portrait; margin: 8mm 10mm; }
           * { box-sizing: border-box; }
@@ -488,7 +488,7 @@ export default function AsignacionesTab() {
           <div class="title-container">
             <h1>LISTADO DE PERSONAS PRESENTES</h1>
             <h2>${campamentoActivo || "Campamento Transitorio"}</h2>
-            <p style="margin:2px 0 0;font-size:9px;color:#666;font-weight:600;letter-spacing:.02em;">Censo de Campamento Transitorio &middot; Sismo La Guaira 2026</p>
+            <p style="margin:2px 0 0;font-size:9px;color:#666;font-weight:600;letter-spacing:.02em;">Campamento Transitorio &middot; La Guaira 2026</p>
           </div>
         </div>
         <p class="meta">
@@ -510,7 +510,7 @@ export default function AsignacionesTab() {
           </tbody>
         </table>
         <div class="footer">
-          Gobernación del Estado La Guaira &middot; Sistema de Censo Sismológico 2026 &middot; Impresión Oficial
+          Gobernación del Estado La Guaira &middot; Campamentos Transitorios &middot; La Guaira 2026 &middot; Impresión Oficial
         </div>
         <script>
           window.onload = function() {
