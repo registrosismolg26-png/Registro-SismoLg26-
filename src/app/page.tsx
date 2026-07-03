@@ -1021,7 +1021,7 @@ export default function Home() {
           setActiveTab={setActiveTab}
           showToast={showToast}
         />
-        <Toaster position="top-center" richColors theme={theme} closeButton />
+        <Toaster position="top-center" richColors theme={theme} />
       </>
     );
   }
@@ -1211,7 +1211,7 @@ export default function Home() {
       )}
 
       {/* Toast Notification Toaster from sonner */}
-      <Toaster position="top-center" richColors theme={theme} closeButton />
+      <Toaster position="top-center" richColors theme={theme} />
     </div>
     </AppContext.Provider>
   );
