@@ -554,40 +554,17 @@ export default function UsuariosTab() {
 
               <div className="form-group">
                 <label>Rol asignado</label>
-                <div className="radio-group" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
-                  <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input
-                      type="radio"
-                      name="role-create"
-                      value="REGISTRADOR"
-                      checked={userForm.role === "REGISTRADOR"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                    />
-                    REGISTRADOR
-                  </label>
-                  <label className={`radio-card ${userForm.role === "VISUALIZADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                    <input
-                      type="radio"
-                      name="role-create"
-                      value="VISUALIZADOR"
-                      checked={userForm.role === "VISUALIZADOR"}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                    />
-                    VISUALIZADOR
-                  </label>
-                  {currentUser && isMaster(currentUser.role) && (
-                    <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                      <input
-                        type="radio"
-                        name="role-create"
-                        value="ADMIN"
-                        checked={userForm.role === "ADMIN"}
-                        onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                      />
-                      ADMIN
-                    </label>
-                  )}
-                </div>
+                <select
+                  value={userForm.role}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
+                >
+                  <option value="REGISTRADOR">Registrador</option>
+                  <option value="VISUALIZADOR">Visualizador</option>
+                  {currentUser && isMaster(currentUser.role) && <option value="ADMIN">Administrador</option>}
+                  <option value="AdminMedico">Admin Médico</option>
+                  <option value="OperadorMedico">Operador Médico</option>
+                  <option value="AsistenteMedico">Asistente Médico</option>
+                </select>
               </div>
 
               <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
@@ -752,40 +729,17 @@ export default function UsuariosTab() {
                 {userForm.role === "MASTER" ? (
                   <span className="user-role-badge user-role-badge--master">MASTER</span>
                 ) : (
-                  <div className="radio-group" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
-                    <label className={`radio-card ${userForm.role === "REGISTRADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                      <input
-                        type="radio"
-                        name="role-edit"
-                        value="REGISTRADOR"
-                        checked={userForm.role === "REGISTRADOR"}
-                        onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                      />
-                      REGISTRADOR
-                    </label>
-                    <label className={`radio-card ${userForm.role === "VISUALIZADOR" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                      <input
-                        type="radio"
-                        name="role-edit"
-                        value="VISUALIZADOR"
-                        checked={userForm.role === "VISUALIZADOR"}
-                        onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                      />
-                      VISUALIZADOR
-                    </label>
-                    {currentUser && isMaster(currentUser.role) && (
-                      <label className={`radio-card ${userForm.role === "ADMIN" ? "selected" : ""}`} style={{ fontSize: "0.75rem", padding: "0.5rem" }}>
-                        <input
-                          type="radio"
-                          name="role-edit"
-                          value="ADMIN"
-                          checked={userForm.role === "ADMIN"}
-                          onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                        />
-                        ADMIN
-                      </label>
-                    )}
-                  </div>
+                  <select
+                    value={userForm.role}
+                    onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
+                  >
+                    <option value="REGISTRADOR">Registrador</option>
+                    <option value="VISUALIZADOR">Visualizador</option>
+                    {currentUser && isMaster(currentUser.role) && <option value="ADMIN">Administrador</option>}
+                    <option value="AdminMedico">Admin Médico</option>
+                    <option value="OperadorMedico">Operador Médico</option>
+                    <option value="AsistenteMedico">Asistente Médico</option>
+                  </select>
                 )}
               </div>
 

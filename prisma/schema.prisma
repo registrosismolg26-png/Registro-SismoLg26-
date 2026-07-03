@@ -110,3 +110,12 @@ model ConsultaMedica {
   createdAt                 DateTime @default(now())
   userId                    String
 }
+
+model MedicamentoPredefinido {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
+  dosis     String
+  periodo   String
+  nota      String?
+  createdAt DateTime @default(now())
+}

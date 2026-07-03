@@ -13,6 +13,7 @@ export const canManageUsers    = (role: string) => ["MASTER", "ADMIN"].includes(
 export const canManageRooms    = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canManagePadron   = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role); // panel de estadísticas
+export const canManageMorbilidad = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(role);
 
 /** ¿El usuario tiene un refugio válido asociado? (espejo de auth.ts hasRefugio). */
 export const hasRefugio        = (refugio: string | null | undefined): boolean =>
@@ -28,7 +29,7 @@ export function canManageTargetUser(
   if (targetRole === "MASTER") return false;
   if (isMaster(actorRole)) return true;
   if (actorRole === "ADMIN") {
-    return ["REGISTRADOR", "VISUALIZADOR"].includes(targetRole) && targetRefugio === actorRefugio;
+    return ["REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(targetRole) && targetRefugio === actorRefugio;
   }
   return false;
 }

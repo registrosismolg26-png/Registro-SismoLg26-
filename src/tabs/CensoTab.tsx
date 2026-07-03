@@ -32,7 +32,8 @@ export default function CensoTab() {
     fetchRegistros,
     effectiveRefugio,
     localRecords,
-    patologias
+    patologias,
+    predefinedMedicamentos
   } = useAppContext();
 
   const [step, setStep] = useState<1|2|3|4>(1);
@@ -48,6 +49,16 @@ export default function CensoTab() {
       current.push(pName);
     }
     dispatch({ type: "SET", field: "patologiaDescripcion", value: current.join(", ") });
+  };
+
+  const handleSelectPredefinedMed = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const medName = e.target.value;
+    if (!medName) return;
+    const match = predefinedMedicamentos.find(m => m.nombre === medName);
+    if (match) {
+      setMedicamentos(prev => [...prev, { nombre: match.nombre, dosis: match.dosis, periodo: match.periodo }]);
+    }
+    e.target.value = "";
   };
 
   // Asignación de habitación en el censo (OPCIONAL). Reusa la ocupación por
@@ -1020,11 +1031,25 @@ export default function CensoTab() {
                   <div className={`conditional-wrapper ${formData.patologia === "SI" || formData.estadoFisico === "LESIONADO" ? "open" : ""}`}>
                     <div className="conditional-inner">
                       <div className="med-section">
-                        <div className="med-section-header">
+                        <div className="med-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                           <span className="med-section-title">Medicamentos</span>
-                          <button type="button" className="btn-add-med" onClick={addMedicamento}>
-                            + Agregar
-                          </button>
+                          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                            <select
+                              onChange={handleSelectPredefinedMed}
+                              defaultValue=""
+                              style={{ width: "180px", height: "32px", fontSize: "0.75rem", padding: "0 0.5rem", margin: 0 }}
+                            >
+                              <option value="">Seleccionar predefinido...</option>
+                              {predefinedMedicamentos.map(m => (
+                                <option key={m.id} value={m.nombre}>
+                                  {m.nombre} ({m.dosis})
+                                </option>
+                              ))}
+                            </select>
+                            <button type="button" className="btn-add-med" onClick={addMedicamento} style={{ height: "32px", display: "flex", alignItems: "center", margin: 0 }}>
+                              + Agregar
+                            </button>
+                          </div>
                         </div>
                         {medicamentos.length === 0 ? (
                           <p className="med-empty">Sin medicamentos registrados. Usa "+ Agregar" para añadir uno.</p>

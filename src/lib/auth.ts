@@ -5,7 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 
-export type Role = "MASTER" | "ADMIN" | "REGISTRADOR" | "VISUALIZADOR";
+export type Role = "MASTER" | "ADMIN" | "REGISTRADOR" | "VISUALIZADOR" | "AdminMedico" | "OperadorMedico" | "AsistenteMedico";
 
 export interface AuthUser {
   id: string;
@@ -88,7 +88,7 @@ export function canManageTargetUser(
   if (target.role === "MASTER") return false;
   if (isMaster(actor)) return true;
   if (actor.role === "ADMIN") {
-    return ["REGISTRADOR", "VISUALIZADOR"].includes(target.role)
+    return ["REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(target.role)
       && target.campamentoTransitorio === actor.refugio;
   }
   return false;

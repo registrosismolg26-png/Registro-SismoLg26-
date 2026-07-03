@@ -19,7 +19,7 @@ import {
   markConsultaPermanentError
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
-import { isMaster, canManageUsers, canRegister, canViewDashboard } from "@/lib/permissions";
+import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad } from "@/lib/permissions";
 import type { ToastType, ActiveTab } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
@@ -222,6 +222,7 @@ export default function Home() {
   const [consultas, setConsultas] = useState<any[]>([]);
   const [localConsultas, setLocalConsultas] = useState<LocalConsulta[]>([]);
   const [loadingConsultas, setLoadingConsultas] = useState(false);
+  const [predefinedMedicamentos, setPredefinedMedicamentos] = useState<any[]>([]);
 
   // (Corrección local de la cola, modal QR, diagnóstico de notificaciones y
   //  modales de gestión de habitaciones movidos a src/tabs/ConfigTab.tsx.)
@@ -575,6 +576,7 @@ export default function Home() {
     if (currentUser) {
       fetchRegistros();
       fetchPatologias();
+      fetchPredefinedMedicamentos();
       fetchConsultas();
       refreshLocalConsultas();
       if (canViewDashboard(currentUser.role)) {
@@ -741,6 +743,32 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Error al obtener patologías:", err);
+    }
+  };
+
+  const fetchPredefinedMedicamentos = async () => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("sismo_cached_predefined_medicamentos");
+      if (cached) {
+        try {
+          setPredefinedMedicamentos(JSON.parse(cached));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    if (!navigator.onLine) return;
+    try {
+      const res = await apiFetch("/api/medicamentos");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.medicamentos) {
+          setPredefinedMedicamentos(data.medicamentos);
+          localStorage.setItem("sismo_cached_predefined_medicamentos", JSON.stringify(data.medicamentos));
+        }
+      }
+    } catch (err) {
+      console.error("Error al obtener medicamentos predefinidos:", err);
     }
   };
 
@@ -1138,6 +1166,7 @@ export default function Home() {
     localStorage.removeItem("cached_stats");
     localStorage.removeItem("cached_owner");
     localStorage.removeItem("cached_consultas");
+    localStorage.removeItem("sismo_cached_predefined_medicamentos");
     setViewRefugio("");
     setRefugiosList([]);
     prevEffRefugioRef.current = null;
@@ -1174,6 +1203,7 @@ export default function Home() {
     registros, setRegistros, fetchRegistros, loadingRegistros,
     localRecords, refreshLocalRecords,
     patologias, fetchPatologias,
+    predefinedMedicamentos,
     consultas, localConsultas, loadingConsultas, refreshLocalConsultas, fetchConsultas,
     pendingSelectId, setPendingSelectId,
     customCuartos, setCustomCuartos, allCuartos, sortedCustomCuartos, dashboardRooms,
@@ -1207,7 +1237,7 @@ export default function Home() {
       {activeTab === "asignaciones" && <AsignacionesTab />}
 
       {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
-      {activeTab === "morbilidad" && currentUser.role !== "VISUALIZADOR" && <MorbilidadTab />}
+      {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}
 
       {/* Real-time internal PWA notification banner */}
       {internalNotification && (

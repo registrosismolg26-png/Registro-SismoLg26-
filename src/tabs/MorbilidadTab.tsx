@@ -16,12 +16,23 @@ export default function MorbilidadTab() {
     triggerSync,
     showToast,
     effectiveRefugio,
+    predefinedMedicamentos,
   } = useAppContext();
 
   // Búsqueda y formulario
   const [searchCedula, setSearchCedula] = useState("");
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+
+  const handleSelectPredefinedMed = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const medName = e.target.value;
+    if (!medName) return;
+    const match = predefinedMedicamentos.find(m => m.nombre === medName);
+    if (match) {
+      setDiagnosticoMedicamentos(prev => [...prev, { nombre: match.nombre, dosis: match.dosis, periodo: match.periodo }]);
+    }
+    e.target.value = "";
+  };
 
   // Datos Básicos del Paciente
   const [cedula, setCedula] = useState("");
@@ -393,11 +404,25 @@ export default function MorbilidadTab() {
 
                 <div className="form-group" style={{ margin: 0 }}>
                   <div className="med-section">
-                    <div className="med-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="med-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                       <span className="med-section-title" style={{ fontSize: "0.8rem", fontWeight: "700" }}>Medicamentos Diagnósticados (Receta)</span>
-                      <button type="button" className="btn-add-med" onClick={addMed} style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}>
-                        + Agregar
-                      </button>
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <select
+                          onChange={handleSelectPredefinedMed}
+                          defaultValue=""
+                          style={{ width: "160px", height: "30px", fontSize: "0.75rem", padding: "0 0.5rem", margin: 0 }}
+                        >
+                          <option value="">Seleccionar predefinido...</option>
+                          {predefinedMedicamentos.map(m => (
+                            <option key={m.id} value={m.nombre}>
+                              {m.nombre} ({m.dosis})
+                            </option>
+                          ))}
+                        </select>
+                        <button type="button" className="btn-add-med" onClick={addMed} style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", height: "30px", display: "flex", alignItems: "center", margin: 0 }}>
+                          + Agregar
+                        </button>
+                      </div>
                     </div>
                     {diagnosticoMedicamentos.length === 0 ? (
                       <p className="med-empty" style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic", margin: "8px 0 0 0" }}>Sin medicamentos recetados.</p>

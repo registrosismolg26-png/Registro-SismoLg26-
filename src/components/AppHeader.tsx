@@ -11,7 +11,7 @@
 
 import { useState, useLayoutEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { canManageUsers, canViewDashboard, isMaster } from "@/lib/permissions";
+import { canManageUsers, canViewDashboard, isMaster, canManageMorbilidad } from "@/lib/permissions";
 
 export default function AppHeader() {
   const {
@@ -170,7 +170,7 @@ export default function AppHeader() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <span>Registrados</span>
           </button>
-          {currentUser.role !== "VISUALIZADOR" && (
+          {canManageMorbilidad(currentUser.role) && (
             <button
               type="button"
               data-tab="morbilidad"
@@ -250,7 +250,7 @@ export default function AppHeader() {
                   Registrados
                 </button>
               )}
-              {currentUser.role !== "VISUALIZADOR" && activeTab !== "morbilidad" && (
+              {canManageMorbilidad(currentUser.role) && activeTab !== "morbilidad" && (
                 <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("morbilidad"); setMenuOpen(false); }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                   Morbilidad

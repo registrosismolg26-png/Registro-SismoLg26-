@@ -13,8 +13,8 @@ function hashPassword(password: string): string {
 // Roles que el actor puede asignar: Master cualquiera; Admin solo por debajo.
 function assignableRoles(actor: AuthUser): string[] {
   return isMaster(actor)
-    ? ["ADMIN", "REGISTRADOR", "VISUALIZADOR"]  // Master NO crea/asigna otros Master
-    : ["REGISTRADOR", "VISUALIZADOR"];
+    ? ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"]  // Master NO crea/asigna otros Master
+    : ["REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
 }
 
 export async function GET(req: Request) {

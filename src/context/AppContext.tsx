@@ -43,6 +43,7 @@ export interface AppContextValue {
   // Patologías y Consultas Médicas (Morbilidad)
   patologias: string[];
   fetchPatologias: () => void;
+  predefinedMedicamentos: any[];
   consultas: any[];
   localConsultas: any[];
   loadingConsultas: boolean;
