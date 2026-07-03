@@ -57,11 +57,12 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 ## Modelo de datos (`prisma/schema.prisma`)
 
 - **Registro:** datos del afectado + `refugio` + `cuarto` + `medicamentos` (Json) + `retirado` + `intermitente` + `cedulaJefeFamilia`.
-- **User:** `email`, `nombre`, `password` (scrypt), `role`, `campamentoTransitorio` (= refugio).
+- **User:** `email`, `nombre`, `password` (scrypt), `role` ("MASTER" | "ADMIN" | "REGISTRADOR" | "VISUALIZADOR" | "AdminMedico" | "OperadorMedico" | "AsistenteMedico"), `campamentoTransitorio` (= refugio).
 - **Refugio:** `id`, `nombre` @unique, `ubicacion` (URL de Maps, opcional; editable en Config y usada en el reporte de WhatsApp del refugio activo). **CustomRoom:** `name`, `refugio`, `capacidad` (camas, `Int @default(18)`), `@@unique([name, refugio])`.
 - **Padron:** cédulas del CNE (lookup offline). **PushSubscription:** web push (admin).
 - **Patologia:** catálogo canónico de patologías predefinidas para selectors pills.
 - **ConsultaMedica:** registro de consulta de morbilidad del paciente (datos básicos + antecedentes censo + diagnóstico morbilidad + notas).
+- **MedicamentoPredefinido:** catálogo de medicamentos con dosis y periodo predefinidos para autocompletado en censo y consultas.
 
 ## Rutas API (`src/app/api`)
 
