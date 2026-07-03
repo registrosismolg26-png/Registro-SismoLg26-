@@ -14,3 +14,10 @@ ALTER TABLE "Registro" ADD COLUMN IF NOT EXISTS "motivoIntermitente" TEXT; -- Ob
 -- 4. Capacidad de camas por salón (CustomRoom). El DEFAULT 18 aplica a todas las
 --    filas existentes al crear la columna, y a los inserts que no la especifiquen.
 ALTER TABLE "CustomRoom" ADD COLUMN IF NOT EXISTS "capacidad" INTEGER NOT NULL DEFAULT 18;
+
+-- 5. Quitar el refugio por defecto hardcodeado (regla: nada de hardcode). Las
+--    guardas ya obligan a especificar refugio al crear registros/usuarios/salones,
+--    así que el default ya no se usa. DROP DEFAULT es idempotente.
+ALTER TABLE "Registro" ALTER COLUMN "refugio" DROP DEFAULT;
+ALTER TABLE "User" ALTER COLUMN "campamentoTransitorio" DROP DEFAULT;
+ALTER TABLE "CustomRoom" ALTER COLUMN "refugio" DROP DEFAULT;

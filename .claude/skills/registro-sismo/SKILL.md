@@ -22,6 +22,7 @@ Antes de tocar código en este proyecto, lee la guía completa: **`docs/ARCHITEC
 ## Reglas de trabajo
 
 - Deja `npx tsc --noEmit` **limpio antes de cada commit**.
+- **Nada de hardcode:** no incrustes valores fijos (refugios, nombres, capacidades, credenciales, lo que deba venir de BD/config/estado/`.env`). Si ves hardcode existente, **adviértelo y propón solución**.
 - **Antes de cada `push`:** `git pull --rebase origin main` para integrar el trabajo de otros devs y no dejar nada fuera.
 - **Guía viva:** consulta `docs/ARCHITECTURE.md` al iniciar la tarea; al terminar un cambio importante, actualízala (y este skill si aplica) para Claude y Gemini Antigravity.
 - **Migraciones de BD:** cambio de `prisma/schema.prisma` → `npx prisma generate` + entregar SQL **idempotente** (`IF NOT EXISTS`, `ON CONFLICT DO NOTHING`…) para ejecutar **manualmente en Supabase**. Nunca `prisma migrate`/`db push` automático contra producción.

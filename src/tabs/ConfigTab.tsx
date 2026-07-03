@@ -888,7 +888,7 @@ export default function ConfigTab() {
                   <label className="room-add-label">Nuevo refugio</label>
                   <input
                     className="room-add-input"
-                    placeholder="ej: Complejo Educativo República de Panamá"
+                    placeholder="Nombre del nuevo refugio"
                     value={newRefugio}
                     onChange={e => setNewRefugio(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && handleCreateRefugio()}

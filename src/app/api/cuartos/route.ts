@@ -24,27 +24,9 @@ export async function GET(request: Request) {
       ? (requested ? { refugio: requested } : {})
       : { refugio: auth.refugio };
 
-    let rooms = await prisma.customRoom.findMany({ where, orderBy: { createdAt: "desc" } });
-
-    // Auto-seed de un refugio concreto si aún no tiene cuartos.
-    const seedRefugio = isMaster(auth) ? requested : auth.refugio;
-    if (rooms.length === 0 && seedRefugio) {
-      const defaultNames = [
-        ...Array.from({ length: 22 }, (_, i) => `EDIFICIO 1 SALON ${i + 1}`),
-        ...Array.from({ length: 10 }, (_, i) => `EDIFICIO 2 SALON ${i + 23}`)
-      ];
-      for (const name of defaultNames) {
-        await prisma.customRoom.create({
-          data: { name, refugio: seedRefugio },
-          select: { id: true }
-        }).catch(() => {});
-      }
-      rooms = await prisma.customRoom.findMany({
-        where: { refugio: seedRefugio },
-        orderBy: { createdAt: "desc" }
-      });
-    }
-
+    // Sin auto-relleno: cada refugio arranca vacío y sus salones se configuran
+    // manualmente en Config (regla del proyecto: nada de datos hardcodeados).
+    const rooms = await prisma.customRoom.findMany({ where, orderBy: { createdAt: "desc" } });
     return NextResponse.json(rooms);
   } catch (error: any) {
     console.error("Error in GET /api/cuartos:", error);

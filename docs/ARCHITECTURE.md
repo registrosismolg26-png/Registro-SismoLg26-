@@ -68,6 +68,7 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 ## Esquemas de trabajo (cómo trabajar aquí)
 
 - **Antes de cada commit:** `npx tsc --noEmit` limpio. `tsc` valida tipos, NO comportamiento — para runtime, correr la app.
+- **Nada de hardcode:** no incrustes valores fijos (refugios, nombres, capacidades, listas, credenciales, lo que deba venir de BD/config/estado/`.env`). Si encuentras hardcode existente, **adviértelo y propón solución** en vez de dejarlo pasar. Ej. resueltos: el refugio "Complejo Educativo…" salió del censo, login, reporte de WhatsApp, búsqueda y de los `@default` del schema; el auto-seed de salones se eliminó.
 - **Next 16:** `params`/`headers()` async; leer `node_modules/next/dist/docs/` antes de rutas/páginas.
 - **Commits por fase**, descriptivos. Se trabaja en `main` (preferencia del dueño), con cuidado y verificación por fase.
 - **Antes de cada `push`:** `git pull --rebase origin main` para integrar el trabajo de otros devs y no sobrescribir ni omitir sus cambios; resolver conflictos antes de pushear.

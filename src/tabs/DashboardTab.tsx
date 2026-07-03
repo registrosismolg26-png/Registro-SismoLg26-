@@ -11,6 +11,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import { DEFAULT_ENTES } from "@/lib/constants";
+import { isMaster } from "@/lib/permissions";
 
 export default function DashboardTab() {
   const {
@@ -24,6 +25,7 @@ export default function DashboardTab() {
     registros,
     localRecords,
     showToast,
+    currentUser,
   } = useAppContext();
 
   // Modo presentación (pantalla completa)
@@ -268,7 +270,13 @@ export default function DashboardTab() {
 
     const entesList = entes.map(e => `- ${e}`).join("\n");
 
-    return `*Campamento de Transición Complejo Educativo República de Panamá.*
+    // Título dinámico según el usuario (sin refugio hardcodeado). Master ve todos
+    // los refugios → título general; el resto, su propio refugio.
+    const refugioTitulo = (currentUser && isMaster(currentUser.role))
+      ? "Reporte General — Todos los refugios"
+      : `Campamento de Transición ${currentUser?.campamentoTransitorio ?? ""}`;
+
+    return `*${refugioTitulo}.*
 
 Fecha y Hora: ${dateTimeStr}
 Ubicación: https://maps.app.goo.gl/aNtWU1M5Di3u9NAV7?g_st=ic
