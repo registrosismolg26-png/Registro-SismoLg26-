@@ -18,7 +18,7 @@ PWA **offline-first** de censo de afectados por sismo, para la **Gobernación de
 
 - `src/app/page.tsx` — **ORQUESTADOR** (`Home`): todo el estado GLOBAL, los effects globales, monta `<AppContext.Provider>` y compone header + tabs + modales globales. ~800 líneas.
 - `src/context/AppContext.tsx` — context híbrido (`AppContextValue`, `useAppContext()`).
-- `src/tabs/` — una pestaña por archivo: `CensoTab` (wizard 4 pasos), `DashboardTab` (stats + reporte WhatsApp), `AsignacionesTab` (tabla + filtros + detail modal), `UsuariosTab` (CRUD operadores), `ConfigTab` (perfil, padrón, cola sync, cuartos, refugios).
+- `src/tabs/` — una pestaña por archivo: `CensoTab` (wizard 4 pasos), `DashboardTab` (stats + reporte WhatsApp), `AsignacionesTab` (tabla + filtros + detail modal), `UsuariosTab` (CRUD operadores), `ConfigTab` (perfil, padrón, cola sync, cuartos, refugios), `MorbilidadTab` (registro clínico de consultas médicas offline-first).
 - `src/components/` — `AppHeader` (header+nav), `LoginForm` (por props, fuera del Provider), `ToastIcon`, `CustomSelect`.
 - `src/lib/` — `auth.ts` (guardas backend), `permissions.ts` (espejo cliente), `apiFetch.ts`, `db.ts` (IndexedDB + cola), `constants.ts`, `formReducer.ts`, `helpers.ts`, `prisma.ts`, `push.ts`.
 - `src/types/index.ts` — tipos compartidos. `src/app/api/**/route.ts` — route handlers. `prisma/schema.prisma` — modelos.
@@ -60,12 +60,14 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 - **User:** `email`, `nombre`, `password` (scrypt), `role`, `campamentoTransitorio` (= refugio).
 - **Refugio:** `id`, `nombre` @unique, `ubicacion` (URL de Maps, opcional; editable en Config y usada en el reporte de WhatsApp del refugio activo). **CustomRoom:** `name`, `refugio`, `capacidad` (camas, `Int @default(18)`), `@@unique([name, refugio])`.
 - **Padron:** cédulas del CNE (lookup offline). **PushSubscription:** web push (admin).
+- **Patologia:** catálogo canónico de patologías predefinidas para selectors pills.
+- **ConsultaMedica:** registro de consulta de morbilidad del paciente (datos básicos + antecedentes censo + diagnóstico morbilidad + notas).
 
 ## Rutas API (`src/app/api`)
 
-`auth/login` (pre-sesión), `auth/users` (GET/POST/PUT/DELETE con guardas por rol+refugio), `registros` (GET scoped), `registros/[id]` (PATCH/DELETE), `register` (crea/actualiza censo, fuerza el refugio del operador), `stats` (scoped), `cuartos` (GET/POST/PATCH/DELETE scoped por refugio; PATCH edita la `capacidad` de camas), `refugios` (CRUD Master, renombra en cascada), `padron/download|count|upload-cne`, `public-search` (pública; busca en `cedula` **y** `cedulaJefeFamilia`), `external-search` (pública; fuentes externas, ver abajo), `lookup`, `push/subscribe`. `public-search`, `external-search` y la página `/buscar` son públicas (usan `fetch` directo, sin `apiFetch`/sesión).
-
-**Fuentes externas en `/buscar` (`external-search`):** además de los campamentos propios, `/buscar` muestra una sección "Otras fuentes" que consulta en paralelo (server-side, `Promise.allSettled` + timeout por fuente) portales públicos oficiales de localización de personas tras el sismo, cada resultado atribuido a su fuente (badge + color). Hoy: **Paciente Venezuela** (SPA + Supabase público; su anon key se extrae del bundle en runtime y se cachea; consulta la tabla `patients` filtrando por `full_name`/`first_name`/`last_name`) y **Localiza Pacientes** (Next.js oficial; endpoint `GET /api/search?q=` → `{resultados:[]}`). El proxy replica la consulta que hace cada sitio (extraída de su código público), **NO persiste datos** y es tolerante a fallos (si una fuente falla o tarda, devuelve las demás). Para añadir una fuente: nueva `search<Fuente>(term): Promise<ExternalResult[]>` normalizando al tipo común → agregarla al `Promise.allSettled` del handler. **Nota:** estas fuentes no se pueden probar en vivo desde una sesión de agente (la protección de PII bloquea consultar bases de pacientes de terceros); se validan replicando fielmente su código público.
+`auth/login` (pre-sesión), `auth/users` (GET/POST/PUT/DELETE con guardas por rol+refugio), `registros` (GET scoped), `registros/[id]` (PATCH/DELETE), `register` (crea/actualiza censo, fuerza el refugio del operador), `stats` (scoped), `cuartos` (GET/POST/PATCH/DELETE scoped por refugio; PATCH edita la `capacidad` de camas), `refugios` (CRUD Master, renombra en cascada), `padron/download|count|upload-cne`, `public-search` (pública; busca en `cedula` **y** `cedulaJefeFamilia`), `external-search` (pública; fuentes externas, ver abajo), `lookup`, `push/subscribe`. `public-search`, `external-search` y la página `/buscar` son públicas.
+- `patologias` (GET catalogo de patologias, auto-seed en primer fetch).
+- `consultas` (GET/POST consultas de morbilidad, scoped por refugio/usuario).
 
 ## Esquemas de trabajo (cómo trabajar aquí)
 

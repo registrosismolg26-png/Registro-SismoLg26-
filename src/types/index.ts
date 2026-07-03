@@ -36,4 +36,30 @@ export interface CurrentUser {
 }
 
 // Vista de pestaña activa
-export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones";
+export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad";
+
+export interface LocalConsulta {
+  id: string;
+  type?: "new";
+  data: {
+    cedula: string;
+    nombreApellido: string;
+    genero?: string;
+    edad?: number;
+    refugio: string;
+    // Antecedentes
+    antecedentesPatologia: string;
+    antecedentesMedicamentos: Medicamento[];
+    // Diagnóstico
+    diagnosticoPatologia: string;
+    diagnosticoMedicamentos: Medicamento[];
+    notasDoctor?: string;
+  };
+  status: "pending" | "synced" | "error";
+  attempts: number;
+  createdAt: string;
+  userId?: string;
+  nextAttemptAt?: number;
+  permanentError?: string;
+}
+

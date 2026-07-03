@@ -1,3 +1,26 @@
+export interface LocalConsulta {
+  id: string;
+  type?: 'new';
+  data: {
+    cedula: string;
+    nombreApellido: string;
+    genero?: string;
+    edad?: number;
+    refugio: string;
+    antecedentesPatologia: string;
+    antecedentesMedicamentos: { nombre: string; dosis: string; periodo: string }[];
+    diagnosticoPatologia: string;
+    diagnosticoMedicamentos: { nombre: string; dosis: string; periodo: string }[];
+    notasDoctor?: string;
+  };
+  status: 'pending' | 'synced' | 'error';
+  attempts: number;
+  createdAt: string;
+  userId?: string;
+  nextAttemptAt?: number;
+  permanentError?: string;
+}
+
 export interface LocalRegistro {
   id: string;
   type?: 'new' | 'update';
@@ -41,9 +64,10 @@ export interface PadrónCiudadano {
 }
 
 const DB_NAME = 'registro-sismo-db';
-const DB_VERSION = 3; // Version 3 for full CNE padrón model mapping
+const DB_VERSION = 4; // Version 4 to add consultas (morbilidad) store
 const STORE_NAME = 'registros';
 const PADRON_STORE = 'padron';
+const CONSULTAS_STORE = 'consultas';
 
 function getDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -66,10 +90,14 @@ function getDB(): Promise<IDBDatabase> {
       }
       
       // Offline electoral registry store
-      if (db.objectStoreNames.contains(PADRON_STORE)) {
-        db.deleteObjectStore(PADRON_STORE);
+      if (!db.objectStoreNames.contains(PADRON_STORE)) {
+        db.createObjectStore(PADRON_STORE, { keyPath: 'cedula' });
       }
-      db.createObjectStore(PADRON_STORE, { keyPath: 'cedula' });
+
+      // Offline medical consultations store
+      if (!db.objectStoreNames.contains(CONSULTAS_STORE)) {
+        db.createObjectStore(CONSULTAS_STORE, { keyPath: 'id' });
+      }
     };
   });
 }
@@ -343,5 +371,143 @@ export async function buscarCedulaEnCliente(cedula: string): Promise<PadrónCiud
     request.onerror = () => {
       reject(request.error);
     };
+  });
+}
+
+// --- QUEUE METHODS FOR MEDICAL CONSULTATIONS (MORBILIDAD) ---
+export async function saveLocalConsulta(consulta: Omit<LocalConsulta, 'status' | 'attempts' | 'createdAt'>): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONSULTAS_STORE, 'readwrite');
+    const store = transaction.objectStore(CONSULTAS_STORE);
+    
+    const getRequest = store.get(consulta.id);
+    
+    getRequest.onsuccess = () => {
+      const existing = getRequest.result as LocalConsulta | undefined;
+      const fullRecord: LocalConsulta = {
+        id: consulta.id,
+        type: 'new',
+        data: consulta.data,
+        userId: consulta.userId ?? existing?.userId,
+        status: existing?.status === 'synced' ? 'synced' : 'pending',
+        attempts: existing?.attempts || 0,
+        nextAttemptAt: undefined,
+        permanentError: undefined,
+        createdAt: existing?.createdAt || new Date().toISOString()
+      };
+      
+      const putRequest = store.put(fullRecord);
+      putRequest.onsuccess = () => resolve();
+      putRequest.onerror = () => reject(putRequest.error);
+    };
+    
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+export async function getPendingConsultas(): Promise<LocalConsulta[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONSULTAS_STORE, 'readonly');
+    const store = transaction.objectStore(CONSULTAS_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const all = request.result as LocalConsulta[];
+      const now = Date.now();
+      resolve(all.filter(c => c.status === 'pending' && (!c.nextAttemptAt || c.nextAttemptAt <= now)));
+    };
+
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getAllLocalConsultas(): Promise<LocalConsulta[]> {
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(CONSULTAS_STORE, 'readonly');
+      const store = transaction.objectStore(CONSULTAS_STORE);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result as LocalConsulta[]);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
+
+export async function markConsultaSynced(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONSULTAS_STORE, 'readwrite');
+    const store = transaction.objectStore(CONSULTAS_STORE);
+    const request = store.get(id);
+
+    request.onsuccess = () => {
+      const record = request.result as LocalConsulta | undefined;
+      if (record) {
+        record.status = 'synced';
+        const updateRequest = store.put(record);
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      } else {
+        resolve();
+      }
+    };
+
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function incrementConsultaAttempt(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONSULTAS_STORE, 'readwrite');
+    const store = transaction.objectStore(CONSULTAS_STORE);
+    const request = store.get(id);
+
+    request.onsuccess = () => {
+      const record = request.result as LocalConsulta | undefined;
+      if (record) {
+        record.attempts += 1;
+        const delay = Math.min(15000 * Math.pow(2, record.attempts - 1), 300000);
+        record.nextAttemptAt = Date.now() + delay;
+        const updateRequest = store.put(record);
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      } else {
+        resolve();
+      }
+    };
+
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function markConsultaPermanentError(id: string, reason: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONSULTAS_STORE, 'readwrite');
+    const store = transaction.objectStore(CONSULTAS_STORE);
+    const request = store.get(id);
+
+    request.onsuccess = () => {
+      const record = request.result as LocalConsulta | undefined;
+      if (record) {
+        record.status = 'error';
+        record.permanentError = reason;
+        const updateRequest = store.put(record);
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      } else {
+        resolve();
+      }
+    };
+
+    request.onerror = () => reject(request.error);
   });
 }

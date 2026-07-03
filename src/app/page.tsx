@@ -10,11 +10,17 @@ import {
   cargarPadronEnCliente,
   getLocalPadronCount,
   markPermanentError,
-  LocalRegistro
+  LocalRegistro,
+  LocalConsulta,
+  getAllLocalConsultas,
+  getPendingConsultas,
+  markConsultaSynced,
+  incrementConsultaAttempt,
+  markConsultaPermanentError
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
 import { isMaster, canManageUsers, canRegister, canViewDashboard } from "@/lib/permissions";
-import type { ToastType } from "@/types";
+import type { ToastType, ActiveTab } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
 import LoginForm from "@/components/LoginForm";
@@ -24,6 +30,7 @@ import DashboardTab from "@/tabs/DashboardTab";
 import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CensoTab from "@/tabs/CensoTab";
+import MorbilidadTab from "@/tabs/MorbilidadTab";
 import { SwipeableToast } from "@/components/SwipeableToast";
 
 export default function Home() {
@@ -165,7 +172,7 @@ export default function Home() {
   //  por el context; refreshCustomRooms se usa desde triggerSync.)
 
   // Tab View Routing State
-  const [activeTab, setActiveTab] = useState<"censo" | "dashboard" | "usuarios" | "config" | "asignaciones">("censo");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("censo");
 
   // Dashboard Stats States
   const [stats, setStats] = useState<any>(null);
@@ -209,6 +216,12 @@ export default function Home() {
   const [localRecords, setLocalRecords] = useState<LocalRegistro[]>([]);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncQueueProgress, setSyncQueueProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // Patologias & Medical Consultations (Morbilidad)
+  const [patologias, setPatologias] = useState<string[]>([]);
+  const [consultas, setConsultas] = useState<any[]>([]);
+  const [localConsultas, setLocalConsultas] = useState<LocalConsulta[]>([]);
+  const [loadingConsultas, setLoadingConsultas] = useState(false);
 
   // (Corrección local de la cola, modal QR, diagnóstico de notificaciones y
   //  modales de gestión de habitaciones movidos a src/tabs/ConfigTab.tsx.)
@@ -298,6 +311,7 @@ export default function Home() {
       initGPS();
 
       refreshLocalRecords();
+      refreshLocalConsultas();
 
       // Trigger automatic sync on mount
       triggerSync();
@@ -560,6 +574,9 @@ export default function Home() {
   useEffect(() => {
     if (currentUser) {
       fetchRegistros();
+      fetchPatologias();
+      fetchConsultas();
+      refreshLocalConsultas();
       if (canViewDashboard(currentUser.role)) {
         fetchStats(true);
       }
@@ -585,6 +602,10 @@ export default function Home() {
     if (!currentUser) return;
     if (activeTab === "asignaciones") {
       fetchRegistros();
+    }
+    if (activeTab === "morbilidad") {
+      fetchConsultas();
+      refreshLocalConsultas();
     }
     if (canViewDashboard(currentUser.role)) {
       if (activeTab === "dashboard") {
@@ -691,6 +712,68 @@ export default function Home() {
     setLocalRecords(records);
   };
 
+  const refreshLocalConsultas = async () => {
+    const list = await getAllLocalConsultas();
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setLocalConsultas(list);
+  };
+
+  const fetchPatologias = async () => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("sismo_cached_patologias");
+      if (cached) {
+        try {
+          setPatologias(JSON.parse(cached));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    if (!navigator.onLine) return;
+    try {
+      const res = await apiFetch("/api/patologias");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.patologias) {
+          setPatologias(data.patologias);
+          localStorage.setItem("sismo_cached_patologias", JSON.stringify(data.patologias));
+        }
+      }
+    } catch (err) {
+      console.error("Error al obtener patologías:", err);
+    }
+  };
+
+  const fetchConsultas = async () => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("cached_consultas");
+      if (cached) {
+        try {
+          setConsultas(JSON.parse(cached));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    if (!navigator.onLine) return;
+    setLoadingConsultas(true);
+    try {
+      const q = effectiveRefugioRef.current ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}` : "";
+      const res = await apiFetch(`/api/consultas${q}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.consultas) {
+          setConsultas(data.consultas);
+          localStorage.setItem("cached_consultas", JSON.stringify(data.consultas));
+        }
+      }
+    } catch (err) {
+      console.error("Error al obtener consultas:", err);
+    } finally {
+      setLoadingConsultas(false);
+    }
+  };
+
   // Sync execution engine — controlled concurrency (batch of 2) for resilience on weak networks.
   // Fully parallel risks saturating a 2G/3G link and failing all records at once;
   // batch-of-2 keeps bandwidth manageable while still being faster than purely sequential.
@@ -757,6 +840,61 @@ export default function Home() {
 
       await refreshLocalRecords();
       await refreshCustomRooms();
+
+      // --- Sincronizar Consultas Médicas ---
+      const pendingConsultas = await getPendingConsultas();
+      if (pendingConsultas.length > 0) {
+        for (let i = 0; i < pendingConsultas.length; i += BATCH) {
+          const batch = pendingConsultas.slice(i, i + BATCH);
+
+          const results = await Promise.allSettled(
+            batch.map(c =>
+              apiFetch("/api/consultas", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  id: c.id,
+                  cedula: c.data.cedula,
+                  nombreApellido: c.data.nombreApellido,
+                  genero: c.data.genero,
+                  edad: c.data.edad,
+                  refugio: c.data.refugio,
+                  antecedentesPatologia: c.data.antecedentesPatologia,
+                  antecedentesMedicamentos: c.data.antecedentesMedicamentos,
+                  diagnosticoPatologia: c.data.diagnosticoPatologia,
+                  diagnosticoMedicamentos: c.data.diagnosticoMedicamentos,
+                  notasDoctor: c.data.notasDoctor
+                }),
+                timeoutMs: 15000,
+              })
+            )
+          );
+
+          await Promise.allSettled(
+            results.map(async (result, j) => {
+              const c = batch[j];
+              if (result.status === "rejected") {
+                await incrementConsultaAttempt(c.id);
+                return;
+              }
+              const res = result.value;
+              if (res.status === 201 || res.status === 200) {
+                await markConsultaSynced(c.id);
+              } else if (res.status === 400 || res.status === 401 || res.status === 403) {
+                const reason =
+                  res.status === 401 ? "Sesión no válida para sincronizar consulta. Vuelva a iniciar sesión."
+                  : res.status === 403 ? "Sin permiso para registrar esta consulta médica."
+                  : "Datos inválidos en la consulta.";
+                await markConsultaPermanentError(c.id, reason);
+              } else {
+                await incrementConsultaAttempt(c.id);
+              }
+            })
+          );
+        }
+        await refreshLocalConsultas();
+        await fetchConsultas();
+      }
     } catch (e) {
       console.error("Error en el ciclo de sincronización:", e);
     } finally {
@@ -999,6 +1137,7 @@ export default function Home() {
     localStorage.removeItem("cached_registros");
     localStorage.removeItem("cached_stats");
     localStorage.removeItem("cached_owner");
+    localStorage.removeItem("cached_consultas");
     setViewRefugio("");
     setRefugiosList([]);
     prevEffRefugioRef.current = null;
@@ -1007,7 +1146,9 @@ export default function Home() {
     showToast("Sesión cerrada.", "info");
   };
 
-  const pendingCount = localRecords.filter(r => r.status === "pending").length;
+  const pendingCount =
+    localRecords.filter(r => r.status === "pending").length +
+    localConsultas.filter(c => c.status === "pending").length;
 
   // Si el usuario no está autenticado, mostrar la pantalla de login.
   // OJO: LoginForm se renderiza FUERA del <AppContext.Provider>, por eso
@@ -1032,6 +1173,8 @@ export default function Home() {
     triggerSync, isSyncing, syncQueueProgress, pendingCount,
     registros, setRegistros, fetchRegistros, loadingRegistros,
     localRecords, refreshLocalRecords,
+    patologias, fetchPatologias,
+    consultas, localConsultas, loadingConsultas, refreshLocalConsultas, fetchConsultas,
     pendingSelectId, setPendingSelectId,
     customCuartos, setCustomCuartos, allCuartos, sortedCustomCuartos, dashboardRooms,
     roomCapacities, setRoomCapacities,
@@ -1062,6 +1205,9 @@ export default function Home() {
 
       {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS */}
       {activeTab === "asignaciones" && <AsignacionesTab />}
+
+      {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
+      {activeTab === "morbilidad" && currentUser.role !== "VISUALIZADOR" && <MorbilidadTab />}
 
       {/* Real-time internal PWA notification banner */}
       {internalNotification && (

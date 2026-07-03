@@ -39,6 +39,7 @@ export default function AsignacionesTab() {
     refreshLocalRecords,
     pendingSelectId,
     setPendingSelectId,
+    patologias
   } = useAppContext();
 
   const [registroSearch, setRegistroSearch] = useState("");
@@ -49,6 +50,20 @@ export default function AsignacionesTab() {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [originalMedsCount, setOriginalMedsCount] = useState(0);
+
+  const toggleEditPathology = (pName: string) => {
+    const current = editData.patologiaDescripcion
+      ? String(editData.patologiaDescripcion).split(",").map((s: string) => s.trim()).filter(Boolean)
+      : [];
+    const index = current.indexOf(pName);
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push(pName);
+    }
+    setEditData(prev => ({ ...prev, patologiaDescripcion: current.join(", ") }));
+  };
 
   const [editMedicamentos, setEditMedicamentos] = useState<Medicamento[]>([]);
   const addEditMed    = () => setEditMedicamentos(p => [...p, { nombre: "", dosis: "", periodo: "" }]);
@@ -1065,7 +1080,9 @@ export default function AsignacionesTab() {
                             intermitente: selectedRegistro.intermitente || "NO",
                             motivoIntermitente: selectedRegistro.motivoIntermitente || "",
                           });
-                          setEditMedicamentos(Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : []);
+                          const initialMeds = Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : [];
+                          setEditMedicamentos(initialMeds);
+                          setOriginalMedsCount(initialMeds.length);
                         }}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1261,21 +1278,66 @@ export default function AsignacionesTab() {
                       <option value="LESIONADO">Lesionado</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label>Patología</label>
-                    <select value={editData.patologia || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, patologia: e.target.value }))}>
-                      <option value="NO">No</option>
-                      <option value="SI">Sí</option>
-                    </select>
-                  </div>
-                  {editData.patologia === "SI" && (
-                    <div className="form-group detail-field--full">
-                      <label>Descripción de Patología</label>
-                      <input type="text" value={editData.patologiaDescripcion || ""}
-                        onChange={e => setEditData(prev => ({ ...prev, patologiaDescripcion: e.target.value }))} />
-                    </div>
-                  )}
+                  {(() => {
+                    const isPrivileged = currentUser?.role === "MASTER" || currentUser?.role === "ADMIN";
+                    return (
+                      <>
+                        <div className="form-group">
+                          <label>Patología</label>
+                          <select
+                            value={editData.patologia || ""}
+                            disabled={!isPrivileged}
+                            onChange={e => setEditData(prev => ({ ...prev, patologia: e.target.value }))}
+                          >
+                            <option value="NO">No</option>
+                            <option value="SI">Sí</option>
+                          </select>
+                        </div>
+                        {editData.patologia === "SI" && (
+                          <div className="form-group detail-field--full">
+                            <label style={{ marginBottom: "0.5rem", display: "block" }}>Patologías</label>
+                            <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+                              {patologias.map(pName => {
+                                const isSelected = editData.patologiaDescripcion
+                                  ? String(editData.patologiaDescripcion).split(",").map((s: string) => s.trim()).includes(pName)
+                                  : false;
+                                return (
+                                  <button
+                                    key={pName}
+                                    type="button"
+                                    disabled={!isPrivileged}
+                                    onClick={() => toggleEditPathology(pName)}
+                                    style={{
+                                      padding: "0.5rem 0.85rem",
+                                      borderRadius: "20px",
+                                      border: isSelected ? "1.5px solid var(--color-primary)" : "1px solid var(--border-color)",
+                                      backgroundColor: isSelected ? "var(--color-primary-light)" : "var(--bg-secondary)",
+                                      color: isSelected ? "var(--color-primary)" : "var(--text-secondary)",
+                                      fontSize: "0.8rem",
+                                      fontWeight: "600",
+                                      cursor: isPrivileged ? "pointer" : "default",
+                                      opacity: !isPrivileged && !isSelected ? 0.5 : 1,
+                                      transition: "all 0.15s ease",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "0.25rem",
+                                      userSelect: "none"
+                                    }}
+                                  >
+                                    {pName}
+                                    {isSelected && <span style={{ fontSize: "0.75rem" }}>✓</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "0.5rem" }}>
+                              Seleccionadas: <strong>{editData.patologiaDescripcion || "(Ninguna)"}</strong>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   {(editData.patologia === "SI" || editData.estadoFisico === "LESIONADO") && (
                     <div className="form-group detail-field--full">
                       <div className="med-section">
@@ -1295,17 +1357,39 @@ export default function AsignacionesTab() {
                               <span>Período</span>
                               <span />
                             </div>
-                            {editMedicamentos.map((m, i) => (
-                              <div key={i} className="med-row">
-                                <input className="med-input" placeholder="ej: Metformina" value={m.nombre}
-                                  onChange={e => updateEditMed(i, "nombre", e.target.value)} />
-                                <input className="med-input" placeholder="ej: 500mg" value={m.dosis}
-                                  onChange={e => updateEditMed(i, "dosis", e.target.value)} />
-                                <input className="med-input" placeholder="ej: 2 veces/día" value={m.periodo}
-                                  onChange={e => updateEditMed(i, "periodo", e.target.value)} />
-                                <button type="button" className="btn-remove-med" onClick={() => removeEditMed(i)}>×</button>
-                              </div>
-                            ))}
+                            {editMedicamentos.map((m, i) => {
+                              const isPrivileged = currentUser?.role === "MASTER" || currentUser?.role === "ADMIN";
+                              const isExisting = i < originalMedsCount;
+                              const isMedReadOnly = !isPrivileged && isExisting;
+                              return (
+                                <div key={i} className="med-row">
+                                  <input
+                                    className="med-input"
+                                    placeholder="ej: Metformina"
+                                    value={m.nombre}
+                                    disabled={isMedReadOnly}
+                                    onChange={e => updateEditMed(i, "nombre", e.target.value)}
+                                  />
+                                  <input
+                                    className="med-input"
+                                    placeholder="ej: 500mg"
+                                    value={m.dosis}
+                                    disabled={isMedReadOnly}
+                                    onChange={e => updateEditMed(i, "dosis", e.target.value)}
+                                  />
+                                  <input
+                                    className="med-input"
+                                    placeholder="ej: 2 veces/día"
+                                    value={m.periodo}
+                                    disabled={isMedReadOnly}
+                                    onChange={e => updateEditMed(i, "periodo", e.target.value)}
+                                  />
+                                  {!isMedReadOnly && (
+                                    <button type="button" className="btn-remove-med" onClick={() => removeEditMed(i)}>×</button>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </>
                         )}
                       </div>

@@ -40,6 +40,15 @@ export interface AppContextValue {
   localRecords: LocalRegistro[];
   refreshLocalRecords: () => void;
 
+  // Patologías y Consultas Médicas (Morbilidad)
+  patologias: string[];
+  fetchPatologias: () => void;
+  consultas: any[];
+  localConsultas: any[];
+  loadingConsultas: boolean;
+  refreshLocalConsultas: () => void;
+  fetchConsultas: () => void;
+
   // Navegación por notificación PWA (cold-start / service-worker → asignaciones)
   pendingSelectId: string | null;
   setPendingSelectId: React.Dispatch<React.SetStateAction<string | null>>;

@@ -88,3 +88,25 @@ model Refugio {
   ubicacion String?  // URL de Google Maps del refugio (para el reporte)
   createdAt DateTime @default(now())
 }
+
+model Patologia {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
+  createdAt DateTime @default(now())
+}
+
+model ConsultaMedica {
+  id                        String   @id @default(uuid())
+  cedula                    String
+  nombreApellido            String
+  genero                    String?
+  edad                      Int?
+  refugio                   String
+  antecedentesPatologia     String?
+  antecedentesMedicamentos  Json?    @default("[]") // [{nombre, dosis, periodo}]
+  diagnosticoPatologia      String?
+  diagnosticoMedicamentos   Json?    @default("[]") // [{nombre, dosis, periodo}]
+  notasDoctor               String?
+  createdAt                 DateTime @default(now())
+  userId                    String
+}

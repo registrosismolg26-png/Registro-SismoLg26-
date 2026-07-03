@@ -32,9 +32,23 @@ export default function CensoTab() {
     fetchRegistros,
     effectiveRefugio,
     localRecords,
+    patologias
   } = useAppContext();
 
   const [step, setStep] = useState<1|2|3|4>(1);
+
+  const togglePathology = (pName: string) => {
+    const current = formData.patologiaDescripcion
+      ? formData.patologiaDescripcion.split(",").map((s: string) => s.trim()).filter(Boolean)
+      : [];
+    const index = current.indexOf(pName);
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push(pName);
+    }
+    dispatch({ type: "SET", field: "patologiaDescripcion", value: current.join(", ") });
+  };
 
   // Asignación de habitación en el censo (OPCIONAL). Reusa la ocupación por
   // cuarto (como en Asignaciones) para el semáforo del select.
@@ -961,15 +975,42 @@ export default function CensoTab() {
 
                   <div className={`conditional-wrapper ${formData.patologia === "SI" ? "open" : ""}`}>
                     <div className="conditional-inner">
-                      <label htmlFor="patologiaDescripcion">Describa la patología crónica<span className="required-star">*</span></label>
-                      <textarea
-                        name="patologiaDescripcion"
-                        id="patologiaDescripcion"
-                        placeholder="Detalle de patologías (ej: Hipertensión, Diabetes, Asma...)"
-                        value={formData.patologiaDescripcion}
-                        onChange={handleInputChange}
-                        className={errors.patologiaDescripcion ? "has-error" : ""}
-                      />
+                      <label style={{ marginBottom: "0.5rem", display: "block" }}>Seleccione patologías<span className="required-star">*</span></label>
+                      <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+                        {patologias.map(pName => {
+                          const isSelected = formData.patologiaDescripcion
+                            ? formData.patologiaDescripcion.split(",").map((s: string) => s.trim()).includes(pName)
+                            : false;
+                          return (
+                            <button
+                              key={pName}
+                              type="button"
+                              onClick={() => togglePathology(pName)}
+                              style={{
+                                padding: "0.5rem 0.85rem",
+                                borderRadius: "20px",
+                                border: isSelected ? "1.5px solid var(--color-primary)" : "1px solid var(--border-color)",
+                                backgroundColor: isSelected ? "var(--color-primary-light)" : "var(--bg-secondary)",
+                                color: isSelected ? "var(--color-primary)" : "var(--text-secondary)",
+                                fontSize: "0.8rem",
+                                fontWeight: "600",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.25rem",
+                                userSelect: "none"
+                              }}
+                            >
+                              {pName}
+                              {isSelected && <span style={{ fontSize: "0.75rem" }}>✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "0.5rem" }}>
+                        Seleccionadas: <strong>{formData.patologiaDescripcion || "(Ninguna)"}</strong>
+                      </div>
                       <div className="error-container">
                         {errors.patologiaDescripcion && <span className="field-error-message">{errors.patologiaDescripcion}</span>}
                       </div>
