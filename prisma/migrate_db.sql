@@ -21,3 +21,10 @@ ALTER TABLE "CustomRoom" ADD COLUMN IF NOT EXISTS "capacidad" INTEGER NOT NULL D
 ALTER TABLE "Registro" ALTER COLUMN "refugio" DROP DEFAULT;
 ALTER TABLE "User" ALTER COLUMN "campamentoTransitorio" DROP DEFAULT;
 ALTER TABLE "CustomRoom" ALTER COLUMN "refugio" DROP DEFAULT;
+
+-- 6. Ubicación (URL de Google Maps) por refugio, para el reporte de WhatsApp.
+--    Se puede editar desde la app (Config > Refugios). El UPDATE siembra el
+--    link de la Escuela 10 de Marzo si el nombre coincide y aún no tiene uno.
+ALTER TABLE "Refugio" ADD COLUMN IF NOT EXISTS "ubicacion" TEXT;
+UPDATE "Refugio" SET "ubicacion" = 'https://maps.app.goo.gl/ptpahFB5VMGHDdhz6'
+WHERE "ubicacion" IS NULL AND "nombre" ILIKE '%10 de marzo%';

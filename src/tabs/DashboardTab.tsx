@@ -11,7 +11,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import { DEFAULT_ENTES } from "@/lib/constants";
-import { isMaster } from "@/lib/permissions";
 
 export default function DashboardTab() {
   const {
@@ -26,6 +25,8 @@ export default function DashboardTab() {
     localRecords,
     showToast,
     currentUser,
+    effectiveRefugio,
+    refugiosList,
   } = useAppContext();
 
   // Modo presentación (pantalla completa)
@@ -270,16 +271,14 @@ export default function DashboardTab() {
 
     const entesList = entes.map(e => `- ${e}`).join("\n");
 
-    // Título dinámico según el usuario (sin refugio hardcodeado). Master ve todos
-    // los refugios → título general; el resto, su propio refugio.
-    const refugioTitulo = (currentUser && isMaster(currentUser.role))
-      ? "Reporte General — Todos los refugios"
-      : `Campamento de Transición ${currentUser?.campamentoTransitorio ?? ""}`;
+    // El reporte es del refugio ACTIVO: Master usa el del selector del header
+    // (effectiveRefugio); el resto, su propio refugio. La ubicación sale de la BD.
+    const refugioActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
+    const ubicacion = refugiosList.find(r => r.nombre === refugioActivo)?.ubicacion || "";
 
-    return `*${refugioTitulo}.*
+    return `*Campamento de Transición ${refugioActivo}.*
 
-Fecha y Hora: ${dateTimeStr}
-Ubicación: https://maps.app.goo.gl/aNtWU1M5Di3u9NAV7?g_st=ic
+Fecha y Hora: ${dateTimeStr}${ubicacion ? `\nUbicación: ${ubicacion}` : ""}
 
 Total general: ${t} personas
 Núcleos Familiares: ${familias}

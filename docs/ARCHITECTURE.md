@@ -58,7 +58,7 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 
 - **Registro:** datos del afectado + `refugio` + `cuarto` + `medicamentos` (Json) + `retirado` + `intermitente` + `cedulaJefeFamilia`.
 - **User:** `email`, `nombre`, `password` (scrypt), `role`, `campamentoTransitorio` (= refugio).
-- **Refugio:** `id`, `nombre` @unique. **CustomRoom:** `name`, `refugio`, `capacidad` (camas, `Int @default(18)`), `@@unique([name, refugio])`.
+- **Refugio:** `id`, `nombre` @unique, `ubicacion` (URL de Maps, opcional; editable en Config y usada en el reporte de WhatsApp del refugio activo). **CustomRoom:** `name`, `refugio`, `capacidad` (camas, `Int @default(18)`), `@@unique([name, refugio])`.
 - **Padron:** cédulas del CNE (lookup offline). **PushSubscription:** web push (admin).
 
 ## Rutas API (`src/app/api`)

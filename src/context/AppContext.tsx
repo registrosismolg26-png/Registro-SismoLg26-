@@ -58,7 +58,7 @@ export interface AppContextValue {
   // usuarios siempre ve su propio refugio. `effectiveRefugio` es el que aplica.
   viewRefugio: string;
   setViewRefugio: (r: string) => void;
-  refugiosList: { id: string; nombre: string }[];
+  refugiosList: { id: string; nombre: string; ubicacion?: string | null }[];
   effectiveRefugio: string;
 
   // Estadísticas

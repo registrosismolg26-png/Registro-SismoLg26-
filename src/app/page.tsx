@@ -55,7 +55,7 @@ export default function Home() {
   // registrados, salones, censo). Estado local; inicia con su refugio asignado.
   // El resto de usuarios siempre ve su propio refugio (no puede cambiarlo).
   const [viewRefugio, setViewRefugio] = useState<string>("");
-  const [refugiosList, setRefugiosList] = useState<{ id: string; nombre: string }[]>([]);
+  const [refugiosList, setRefugiosList] = useState<{ id: string; nombre: string; ubicacion?: string | null }[]>([]);
   const effectiveRefugio = currentUser
     ? (isMaster(currentUser.role) ? (viewRefugio || currentUser.campamentoTransitorio) : currentUser.campamentoTransitorio)
     : "";
@@ -70,9 +70,11 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.campamentoTransitorio]);
 
-  // Master: carga la lista de refugios para el selector del header.
+  // Carga la lista de refugios (con ubicación): la usa el selector del header
+  // (Master) y el reporte de WhatsApp (ubicación del refugio activo). El GET es
+  // accesible a cualquier autenticado, así que se carga para todos.
   useEffect(() => {
-    if (!currentUser || !isMaster(currentUser.role)) return;
+    if (!currentUser) return;
     if (typeof window === "undefined" || !navigator.onLine) return;
     apiFetch("/api/refugios")
       .then(res => (res.ok ? res.json() : null))

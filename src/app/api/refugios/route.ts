@@ -65,6 +65,10 @@ export async function PUT(req: Request) {
     if (!id || !nombre) {
       return NextResponse.json({ error: "id y nombre son obligatorios" }, { status: 400 });
     }
+    // ubicacion opcional: si viene, se actualiza (string vacío → null).
+    const ubicacion = body?.ubicacion !== undefined
+      ? (String(body.ubicacion).trim() || null)
+      : undefined;
 
     const current = await prisma.refugio.findUnique({ where: { id } });
     if (!current) {
@@ -72,8 +76,14 @@ export async function PUT(req: Request) {
     }
 
     const oldName = current.nombre;
-    if (oldName === nombre) {
-      return NextResponse.json({ success: true, refugio: current });
+    const nameChanged = oldName !== nombre;
+
+    if (!nameChanged) {
+      // Solo se edita la ubicación (o nada cambió).
+      const refugio = ubicacion !== undefined
+        ? await prisma.refugio.update({ where: { id }, data: { ubicacion } })
+        : current;
+      return NextResponse.json({ success: true, refugio });
     }
 
     // El nombre nuevo no debe colisionar con otro refugio existente.
@@ -82,10 +92,13 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Ya existe un refugio con ese nombre" }, { status: 409 });
     }
 
-    // Cascada atómica: renombrar el refugio y propagar a todas las tablas
-    // que referencian el nombre viejo (no hay FK, la relación es por texto).
+    // Cascada atómica: renombrar el refugio (+ ubicación si vino) y propagar a
+    // las tablas que referencian el nombre viejo (no hay FK, es por texto).
     const [refugio] = await prisma.$transaction([
-      prisma.refugio.update({ where: { id }, data: { nombre } }),
+      prisma.refugio.update({
+        where: { id },
+        data: { nombre, ...(ubicacion !== undefined ? { ubicacion } : {}) },
+      }),
       prisma.user.updateMany({
         where: { campamentoTransitorio: oldName },
         data: { campamentoTransitorio: nombre },

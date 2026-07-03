@@ -85,5 +85,6 @@ model CustomRoom {
 model Refugio {
   id        String   @id @default(uuid())
   nombre    String   @unique
+  ubicacion String?  // URL de Google Maps del refugio (para el reporte)
   createdAt DateTime @default(now())
 }

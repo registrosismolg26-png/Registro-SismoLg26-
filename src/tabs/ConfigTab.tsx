@@ -75,7 +75,7 @@ export default function ConfigTab() {
   const [savingCap, setSavingCap] = useState(false);
 
   // ── Gestión de Refugios (solo MASTER) ──
-  interface Refugio { id: string; nombre: string; createdAt?: string }
+  interface Refugio { id: string; nombre: string; ubicacion?: string | null; createdAt?: string }
   const [refugios, setRefugios] = useState<Refugio[]>([]);
   const [loadingRefugios, setLoadingRefugios] = useState(false);
   const [newRefugio, setNewRefugio] = useState("");
@@ -83,6 +83,7 @@ export default function ConfigTab() {
   const [refugioToRename, setRefugioToRename] = useState<Refugio | null>(null);
   const [refugioRenameValue, setRefugioRenameValue] = useState("");
   const [savingRefugioRename, setSavingRefugioRename] = useState(false);
+  const [refugioUbicacionValue, setRefugioUbicacionValue] = useState("");
   const [refugioToDelete, setRefugioToDelete] = useState<Refugio | null>(null);
   const [deletingRefugio, setDeletingRefugio] = useState(false);
 
@@ -165,20 +166,21 @@ export default function ConfigTab() {
       const res = await apiFetch("/api/refugios", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: refugioToRename.id, nombre })
+        body: JSON.stringify({ id: refugioToRename.id, nombre, ubicacion: refugioUbicacionValue.trim() })
       });
       const data = await res.json();
       if (!res.ok) {
-        showToast(data.error || "Error al renombrar el refugio.", "error");
+        showToast(data.error || "Error al guardar el refugio.", "error");
         return;
       }
-      showToast("Refugio renombrado. Cambios propagados a usuarios y registros.", "success");
+      showToast("Refugio actualizado. Los cambios de nombre se propagan a usuarios y registros.", "success");
       setRefugioToRename(null);
       setRefugioRenameValue("");
+      setRefugioUbicacionValue("");
       await fetchRefugios();
     } catch (err) {
-      console.error("Error al renombrar refugio:", err);
-      showToast("Error de conexión al renombrar el refugio.", "error");
+      console.error("Error al editar refugio:", err);
+      showToast("Error de conexión al editar el refugio.", "error");
     } finally {
       setSavingRefugioRename(false);
     }
@@ -872,7 +874,7 @@ export default function ConfigTab() {
                           className="dash-icon-btn"
                           data-tip="Renombrar"
                           disabled={!isOnline}
-                          onClick={() => { setRefugioToRename(rf); setRefugioRenameValue(rf.nombre); }}
+                          onClick={() => { setRefugioToRename(rf); setRefugioRenameValue(rf.nombre); setRefugioUbicacionValue(rf.ubicacion || ""); }}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
@@ -1105,11 +1107,11 @@ export default function ConfigTab() {
 
       {/* Modal: Renombrar Refugio */}
       {refugioToRename && (
-        <div className="modal-overlay" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); }}>
+        <div className="modal-overlay" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); }}>
           <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "450px", width: "90%" }}>
             <div className="modal-header">
-              <span className="modal-title">Renombrar Refugio</span>
-              <button className="modal-close" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); }}>
+              <span className="modal-title">Editar Refugio</span>
+              <button className="modal-close" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -1130,8 +1132,24 @@ export default function ConfigTab() {
               />
             </div>
 
+            <div className="form-group" style={{ marginTop: "0.75rem" }}>
+              <label htmlFor="refugio-ubicacion-input">Ubicación (link de Google Maps)</label>
+              <input
+                type="text"
+                id="refugio-ubicacion-input"
+                placeholder="https://maps.app.goo.gl/..."
+                value={refugioUbicacionValue}
+                onChange={e => setRefugioUbicacionValue(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleRenameRefugioConfirmed()}
+                style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
+              />
+              <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", margin: "0.3rem 0 0" }}>
+                Se usa en el reporte de WhatsApp de este refugio.
+              </p>
+            </div>
+
             <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
-              <button type="button" className="btn-secondary" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); }}>
+              <button type="button" className="btn-secondary" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); }}>
                 Cancelar
               </button>
               <button
@@ -1139,7 +1157,7 @@ export default function ConfigTab() {
                 className="btn-submit"
                 style={{ flex: 1 }}
                 onClick={handleRenameRefugioConfirmed}
-                disabled={!refugioRenameValue.trim() || savingRefugioRename || refugioRenameValue.trim() === refugioToRename.nombre}
+                disabled={!refugioRenameValue.trim() || savingRefugioRename || (refugioRenameValue.trim() === refugioToRename.nombre && refugioUbicacionValue.trim() === (refugioToRename.ubicacion || ""))}
               >
                 {savingRefugioRename ? <><span className="spinner spinner-sm"></span>Guardando</> : "Guardar Cambios"}
               </button>
