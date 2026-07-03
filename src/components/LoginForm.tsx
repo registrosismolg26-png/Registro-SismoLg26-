@@ -55,7 +55,7 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toa
             email: match.email,
             nombre: match.nombre,
             role: match.role,
-            campamentoTransitorio: match.campamentoTransitorio || "Complejo Educativo República de Panamá"
+            campamentoTransitorio: match.campamentoTransitorio || ""
           };
           setCurrentUser(userSession);
           if (userSession.role === "VISUALIZADOR") {
@@ -116,7 +116,7 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toa
           email: data.user.email,
           nombre: data.user.nombre,
           role: data.user.role,
-          campamentoTransitorio: data.user.campamentoTransitorio || "Complejo Educativo República de Panamá",
+          campamentoTransitorio: data.user.campamentoTransitorio || "",
           passwordHash: pHash
         });
         localStorage.setItem("sismo_cached_operators", JSON.stringify(filtered));

@@ -10,13 +10,14 @@
 // showToast, triggerSync, refreshLocalRecords, currentUser. saveLocal y
 // buscarCedulaEnCliente se importan directo de @/lib/db.
 
-import { useState, useRef, useReducer } from "react";
+import { useState, useRef, useReducer, useMemo, useEffect } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import type { Medicamento, FormData } from "@/types";
 import { PARROQUIAS, INITIAL_FORM } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
-import { canRegister } from "@/lib/permissions";
+import { canRegister, hasRefugio } from "@/lib/permissions";
+import { roomFillLevel } from "@/lib/helpers";
 
 export default function CensoTab() {
   const {
@@ -26,9 +27,28 @@ export default function CensoTab() {
     triggerSync,
     refreshLocalRecords,
     currentUser,
+    allCuartos,
+    roomCapacities,
+    fetchRegistros,
   } = useAppContext();
 
   const [step, setStep] = useState<1|2|3|4>(1);
+
+  // Asignación de habitación en el censo (OPCIONAL). Reusa la ocupación por
+  // cuarto (como en Asignaciones) para el semáforo del select.
+  const [asignCuartoCenso, setAsignCuartoCenso] = useState("");
+  const roomCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    registros.filter((r: any) => r.retirado !== "SI" && r.cuarto).forEach((r: any) => {
+      counts[r.cuarto] = (counts[r.cuarto] || 0) + 1;
+    });
+    return counts;
+  }, [registros]);
+  // Carga la ocupación una vez si aún no está (para el semáforo del select).
+  useEffect(() => {
+    if (registros.length === 0) fetchRegistros();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Form State — useReducer eliminates stale-closure bugs from useState in callbacks
   const [formData, dispatch] = useReducer(formReducer, INITIAL_FORM);
@@ -334,6 +354,13 @@ export default function CensoTab() {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
+    // Guarda: sin refugio asignado no se puede registrar (ni online ni offline).
+    if (!hasRefugio(currentUser?.campamentoTransitorio)) {
+      showToast("Tu usuario no tiene un refugio asignado. Un administrador debe asociarte a un refugio antes de registrar.", "error");
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!validateForm()) {
       showToast("Faltan campos obligatorios o poseen formato inválido.", "warning");
       setTimeout(() => {
@@ -402,9 +429,10 @@ export default function CensoTab() {
           gpsLng: coords.lng !== null ? coords.lng : undefined,
           telefono: finalTelefono !== null ? finalTelefono : undefined,
           medicamentos: medicamentos.filter(m => m.nombre.trim()),
+          cuarto: asignCuartoCenso || undefined,
           intermitente: formData.intermitente || "NO",
           motivoIntermitente: formData.intermitente === "SI" ? formData.motivoIntermitente.trim() : undefined,
-          refugio: currentUser?.campamentoTransitorio || "Complejo Educativo República de Panamá"
+          refugio: currentUser?.campamentoTransitorio
         }
       };
 
@@ -415,6 +443,7 @@ export default function CensoTab() {
       setMedicamentos([]);
       setErrors({});
       setLookupStatus("idle");
+      setAsignCuartoCenso("");
       setStep(1);
 
       await refreshLocalRecords();
@@ -436,7 +465,15 @@ export default function CensoTab() {
   return (
     <>
         <div className="tab-enter">
-          {canRegister(currentUser.role) ? (
+          {!hasRefugio(currentUser.campamentoTransitorio) ? (
+            <div className="form-card" style={{ textAlign: "center", padding: "2rem 1.5rem" }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 1rem", display: "block" }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <h3 style={{ margin: "0 0 0.5rem", color: "var(--text-primary)", fontSize: "1.1rem" }}>Sin refugio asignado</h3>
+              <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.6 }}>
+                Tu usuario no está asociado a ningún refugio, por lo que no puedes registrar personas. Pídele a un administrador que te asigne un refugio.
+              </p>
+            </div>
+          ) : canRegister(currentUser.role) ? (
             <form onSubmit={handleSubmit} className="form-card">
               {/* Wizard Progress Bar */}
               <div className="wizard-progress">
@@ -979,6 +1016,37 @@ export default function CensoTab() {
                         {errors.motivoIntermitente && <span className="field-error-message">{errors.motivoIntermitente}</span>}
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASO 4 (cont.): Asignación de habitación — OPCIONAL */}
+              {step === 4 && (
+                <div className="form-section form-step-content">
+                  <div className="form-group">
+                    <label htmlFor="censo-cuarto">
+                      Habitación / Salón <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span>
+                    </label>
+                    <select id="censo-cuarto" value={asignCuartoCenso} onChange={e => setAsignCuartoCenso(e.target.value)}>
+                      <option value="">— Sin habitación asignada —</option>
+                      {allCuartos.map(c => {
+                        const count = roomCounts[c] || 0;
+                        const cap = roomCapacities[c] ?? 18;
+                        const level = roomFillLevel(count, cap);
+                        const emoji = level === "red" ? "🔴" : level === "yellow" ? "🟡" : "🟢";
+                        return <option key={c} value={c}>{emoji} {c} ({count}/{cap})</option>;
+                      })}
+                    </select>
+                    {asignCuartoCenso && (() => {
+                      const count = roomCounts[asignCuartoCenso] || 0;
+                      const cap = roomCapacities[asignCuartoCenso] ?? 18;
+                      const level = roomFillLevel(count, cap);
+                      const color = level === "red" ? "#ef4444" : level === "yellow" ? "#f59e0b" : "#10b981";
+                      return <div style={{ marginTop: "0.4rem", fontSize: "0.8rem", fontWeight: 700, color }}>Ocupantes: {count}/{cap}</div>;
+                    })()}
+                    <p style={{ margin: "0.4rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      Si lo dejas vacío, la persona queda registrada sin habitación asignada.
+                    </p>
                   </div>
                 </div>
               )}

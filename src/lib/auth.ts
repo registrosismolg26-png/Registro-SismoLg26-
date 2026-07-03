@@ -98,3 +98,9 @@ export function canManageTargetUser(
 export function refugioScope(u: AuthUser): { refugio?: string } {
   return isMaster(u) ? {} : { refugio: u.refugio };
 }
+
+/** ¿Hay un refugio válido asociado? (no null/undefined/vacío). Guarda para no
+ *  crear registros ni usuarios "huérfanos" sin refugio. */
+export function hasRefugio(refugio: string | null | undefined): boolean {
+  return typeof refugio === "string" && refugio.trim().length > 0;
+}

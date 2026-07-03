@@ -7,7 +7,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { canManageUsers, isMaster, canManageTargetUser } from "@/lib/permissions";
+import { canManageUsers, isMaster, canManageTargetUser, hasRefugio } from "@/lib/permissions";
 
 export default function UsuariosTab() {
   const { currentUser, isOnline, showToast } = useAppContext();
@@ -111,6 +111,10 @@ export default function UsuariosTab() {
     if (userForm.password !== userForm.confirmPassword) {
       errs.confirmPassword = "Las contraseñas no coinciden.";
     }
+    // Guarda UX: un usuario debe quedar asociado a un refugio (el back también lo valida).
+    if (currentUser && isMaster(currentUser.role) && !hasRefugio(userForm.campamentoTransitorio)) {
+      errs.campamentoTransitorio = "Debe seleccionar un refugio.";
+    }
 
     if (Object.keys(errs).length > 0) {
       setUserErrors(errs);
@@ -175,6 +179,10 @@ export default function UsuariosTab() {
       if (userForm.password !== userForm.confirmPassword) {
         errs.confirmPassword = "Las contraseñas no coinciden.";
       }
+    }
+    // Guarda UX: el usuario debe quedar asociado a un refugio (el back también lo valida).
+    if (currentUser && isMaster(currentUser.role) && !hasRefugio(userForm.campamentoTransitorio)) {
+      errs.campamentoTransitorio = "Debe seleccionar un refugio.";
     }
 
     if (Object.keys(errs).length > 0) {
@@ -539,6 +547,9 @@ export default function UsuariosTab() {
                     title="El refugio se asigna automáticamente según su cuenta."
                   />
                 )}
+                <div className="error-container">
+                  {userErrors.campamentoTransitorio && <span className="field-error-message">{userErrors.campamentoTransitorio}</span>}
+                </div>
               </div>
 
               <div className="form-group">
@@ -731,6 +742,9 @@ export default function UsuariosTab() {
                     title="El refugio se asigna automáticamente según su cuenta."
                   />
                 )}
+                <div className="error-container">
+                  {userErrors.campamentoTransitorio && <span className="field-error-message">{userErrors.campamentoTransitorio}</span>}
+                </div>
               </div>
 
               <div className="form-group">

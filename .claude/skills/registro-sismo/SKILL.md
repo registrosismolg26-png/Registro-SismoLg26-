@@ -15,6 +15,8 @@ Antes de tocar código en este proyecto, lee la guía completa: **`docs/ARCHITEC
 
 - **Roles:** MASTER (global, se gestiona por SQL, no asignable en la UI), ADMIN (su refugio), REGISTRADOR (censa su refugio), VISUALIZADOR (solo ve). **Solo Master asigna Admin; nadie asigna Master.**
 
+- **Refugio obligatorio:** sin refugio asignado no se puede censar (`/api/register` → 403) ni crear/editar usuarios (`/api/auth/users` → 400). Guarda `hasRefugio` (backend en `auth.ts` + espejo en `permissions.ts` para la UX).
+
 - **Offline:** `src/lib/db.ts` (IndexedDB + cola con backoff y error permanente vs temporal), `triggerSync` en page.tsx. **Usa `apiFetch`, nunca `fetch` directo** para `/api/`.
 
 ## Reglas de trabajo

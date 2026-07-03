@@ -34,7 +34,7 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 **Regla de oro: el backend NUNCA confía en el rol/refugio que envía el cliente.**
 
 - **Cliente:** `apiFetch` (`src/lib/apiFetch.ts`) añade el header `x-user-id` (del `localStorage`) + timeout con `AbortController`. **Úsalo SIEMPRE para llamar a `/api/`** — nunca `fetch` directo (excepto `/api/auth/login`, que es pre-sesión).
-- **Servidor:** `getAuthUser(req)` (`src/lib/auth.ts`) lee `x-user-id` → busca el usuario REAL en la BD → deriva rol y refugio. Todas las guardas parten de ahí. Helpers: `isMaster`, `canRegister`, `canDeleteRegistro`, `canManageUsers`, `canManageRooms`, `canManagePadron`, `canManageTargetUser`, `canActOnRefugio`, `refugioScope`. Cache de sesión en memoria (TTL 30s) + `invalidateSession` al editar/borrar.
+- **Servidor:** `getAuthUser(req)` (`src/lib/auth.ts`) lee `x-user-id` → busca el usuario REAL en la BD → deriva rol y refugio. Todas las guardas parten de ahí. Helpers: `isMaster`, `canRegister`, `canDeleteRegistro`, `canManageUsers`, `canManageRooms`, `canManagePadron`, `canManageTargetUser`, `canActOnRefugio`, `refugioScope`, `hasRefugio`. Cache de sesión en memoria (TTL 30s) + `invalidateSession` al editar/borrar.
 - `src/lib/permissions.ts` es el **espejo cliente** (mismas reglas por `role` string) — SOLO para UX (mostrar/ocultar botones). El backend es la verdad.
 
 ## Roles y refugios
@@ -92,3 +92,4 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 - Badges/gating nuevos: **incluir MASTER** (varios ternarios asumían solo 3 roles).
 - El padrón NO debe restringirse a Master/Admin en `download` (el Registrador lo necesita para lookup).
 - **Salones/capacidad:** los `CustomRoom` se distribuyen al cliente como `customCuartos` (string[] de nombres, para no romper `allCuartos`) **+** `roomCapacities` (mapa nombre→camas, default 18), ambos en `page.tsx` y por el context. El cache local se **sella por refugio** (`cuartos_owner`) y el fetch pide `?refugio` del usuario para que Master no vea los salones de todos los refugios. La capacidad se lee en el select de asignación y en la distribución por habitación (color proporcional vía `roomFillLevel` en `helpers.ts`, no un 18 fijo).
+- **Refugio obligatorio:** un usuario sin refugio (`campamentoTransitorio` vacío/nulo) NO puede censar (`/api/register` → 403) NI puede crearse/editarse como usuario (`/api/auth/users` POST/PUT → 400). Guarda `hasRefugio` en `auth.ts` (backend, fuente de verdad) + espejo en `permissions.ts` (UX: banner en el censo y validación en el form de usuarios). Master registra en su propio refugio si no especifica otro (ya no cae a un default hardcodeado).

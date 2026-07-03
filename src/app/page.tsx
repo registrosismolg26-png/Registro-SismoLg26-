@@ -206,7 +206,7 @@ export default function Home() {
           const parsed = JSON.parse(savedUser);
           if (parsed && typeof parsed === "object") {
             if (!parsed.campamentoTransitorio) {
-              parsed.campamentoTransitorio = "Complejo Educativo República de Panamá";
+              parsed.campamentoTransitorio = "";
             }
             setCurrentUser(parsed);
           }

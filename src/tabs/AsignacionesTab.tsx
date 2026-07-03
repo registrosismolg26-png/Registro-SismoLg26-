@@ -191,7 +191,7 @@ export default function AsignacionesTab() {
           retiradoRazon: updated.retiradoRazon || undefined,
           intermitente: updated.intermitente || "NO",
           motivoIntermitente: updated.motivoIntermitente || undefined,
-          refugio: updated.refugio || "Complejo Educativo República de Panamá"
+          refugio: updated.refugio || currentUser?.campamentoTransitorio || ""
         }
       };
       await saveLocal(localRec);
@@ -297,7 +297,7 @@ export default function AsignacionesTab() {
           retiradoRazon: updated.retirado === "SI" ? updated.retiradoRazon : undefined,
           intermitente: updated.intermitente || "NO",
           motivoIntermitente: updated.intermitente === "SI" ? updated.motivoIntermitente : undefined,
-          refugio: updated.refugio || "Complejo Educativo República de Panamá"
+          refugio: updated.refugio || currentUser?.campamentoTransitorio || ""
         }
       };
       await saveLocal(localRec);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
-import { getAuthUser, canManageUsers, canManageTargetUser, invalidateSession, isMaster, type AuthUser } from "@/lib/auth";
+import { getAuthUser, canManageUsers, canManageTargetUser, invalidateSession, isMaster, hasRefugio, type AuthUser } from "@/lib/auth";
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -56,8 +56,16 @@ export async function POST(req: Request) {
 
     // Admin solo crea en su propio refugio; Master puede elegir el refugio.
     const targetRefugio = isMaster(auth)
-      ? (campamentoTransitorio || auth.refugio)
+      ? (campamentoTransitorio && String(campamentoTransitorio).trim() ? String(campamentoTransitorio).trim() : auth.refugio)
       : auth.refugio;
+
+    // Guarda: todo usuario (Admin/Registrador/Visualizador) debe tener refugio.
+    if (!hasRefugio(targetRefugio)) {
+      return NextResponse.json(
+        { error: "Debe asociar el usuario a un refugio. No se pueden crear usuarios sin refugio." },
+        { status: 400 }
+      );
+    }
 
     const cleanEmail = String(email).trim().toLowerCase();
     const existing = await prisma.user.findUnique({ where: { email: cleanEmail } });
@@ -115,8 +123,16 @@ export async function PUT(req: Request) {
 
     // Admin no puede mover al usuario a otro refugio; Master sí.
     const targetRefugio = isMaster(auth)
-      ? (campamentoTransitorio || target.campamentoTransitorio)
+      ? (campamentoTransitorio && String(campamentoTransitorio).trim() ? String(campamentoTransitorio).trim() : target.campamentoTransitorio)
       : auth.refugio;
+
+    // Guarda: el usuario debe quedar asociado a un refugio.
+    if (!hasRefugio(targetRefugio)) {
+      return NextResponse.json(
+        { error: "Debe asociar el usuario a un refugio. No se pueden actualizar usuarios sin refugio." },
+        { status: 400 }
+      );
+    }
 
     const cleanEmail = String(email).trim().toLowerCase();
     const existing = await prisma.user.findFirst({ where: { email: cleanEmail, id: { not: id } } });

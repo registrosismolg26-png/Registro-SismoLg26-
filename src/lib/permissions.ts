@@ -14,6 +14,10 @@ export const canManageRooms    = (role: string) => ["MASTER", "ADMIN"].includes(
 export const canManagePadron   = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role); // panel de estadísticas
 
+/** ¿El usuario tiene un refugio válido asociado? (espejo de auth.ts hasRefugio). */
+export const hasRefugio        = (refugio: string | null | undefined): boolean =>
+  typeof refugio === "string" && refugio.trim().length > 0;
+
 /** ¿Puede el actor editar/borrar a este usuario objetivo? Espejo del back.
  *  - A un MASTER no lo toca nadie desde la app.
  *  - Master: cualquier no-master. Admin: solo Registrador/Visualizador de su refugio. */
