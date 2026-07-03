@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ToastIcon } from "./ToastIcon";
 import type { ToastType } from "@/types";
 
@@ -16,59 +16,137 @@ export function SwipeableToast({ message, type, onDismiss }: SwipeableToastProps
   const [isDragging, setIsDragging] = useState(false);
   const startXRef = useRef(0);
   const startYRef = useRef(0);
+  const toastRef = useRef<HTMLDivElement | null>(null);
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  // --- GESTOS EN MÓVIL (Táctil): Control manual con preventDefault no pasivo ---
+  useEffect(() => {
+    const el = toastRef.current;
+    if (!el) return;
+
+    let startTouchX = 0;
+    let startTouchY = 0;
+    let currentOffsetX = 0;
+    let currentOffsetY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      startTouchX = e.touches[0].clientX;
+      startTouchY = e.touches[0].clientY;
+      setIsDragging(true);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      // Prevenir el scroll nativo y el rebote en móvil
+      e.preventDefault();
+
+      const diffX = e.touches[0].clientX - startTouchX;
+      const diffY = e.touches[0].clientY - startTouchY;
+
+      // Restricción elástica hacia abajo
+      const finalY = diffY > 0 ? Math.min(diffY, 8) : diffY;
+
+      currentOffsetX = diffX;
+      currentOffsetY = finalY;
+
+      setOffsetX(diffX);
+      setOffsetY(finalY);
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+
+      const thresholdX = 80;
+      const thresholdUp = -50;
+
+      if (currentOffsetY < thresholdUp) {
+        // Deslizar hacia arriba
+        setOffsetY(-400);
+        setTimeout(onDismiss, 180);
+      } else if (currentOffsetX > thresholdX) {
+        // Deslizar hacia la derecha
+        setOffsetX(500);
+        setTimeout(onDismiss, 180);
+      } else if (currentOffsetX < -thresholdX) {
+        // Deslizar hacia la izquierda
+        setOffsetX(-500);
+        setTimeout(onDismiss, 180);
+      } else {
+        // Retornar al centro
+        setOffsetX(0);
+        setOffsetY(0);
+      }
+    };
+
+    el.addEventListener("touchstart", handleTouchStart, { passive: true });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
+    el.addEventListener("touchend", handleTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
+      el.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [onDismiss]);
+
+  // --- GESTOS EN PC (Ratón): Arrastre mediante eventos de ventana ---
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return; // Solo clic izquierdo
     setIsDragging(true);
     startXRef.current = e.clientX;
     startYRef.current = e.clientY;
-    e.currentTarget.setPointerCapture(e.pointerId);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const diffX = moveEvent.clientX - startXRef.current;
+      const diffY = moveEvent.clientY - startYRef.current;
+
+      // Restricción elástica hacia abajo
+      const finalY = diffY > 0 ? Math.min(diffY, 8) : diffY;
+
+      setOffsetX(diffX);
+      setOffsetY(finalY);
+    };
+
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      setIsDragging(false);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+
+      const diffX = upEvent.clientX - startXRef.current;
+      const diffY = upEvent.clientY - startYRef.current;
+      const finalY = diffY > 0 ? Math.min(diffY, 8) : diffY;
+
+      const thresholdX = 80;
+      const thresholdUp = -50;
+
+      if (finalY < thresholdUp) {
+        setOffsetY(-400);
+        setTimeout(onDismiss, 180);
+      } else if (diffX > thresholdX) {
+        setOffsetX(500);
+        setTimeout(onDismiss, 180);
+      } else if (diffX < -thresholdX) {
+        setOffsetX(-500);
+        setTimeout(onDismiss, 180);
+      } else {
+        setOffsetX(0);
+        setOffsetY(0);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    const diffX = e.clientX - startXRef.current;
-    const diffY = e.clientY - startYRef.current;
-
-    // Restringir el movimiento hacia abajo para simular resistencia
-    const finalY = diffY > 0 ? Math.min(diffY, 8) : diffY;
-
-    setOffsetX(diffX);
-    setOffsetY(finalY);
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    e.currentTarget.releasePointerCapture(e.pointerId);
-
-    const thresholdX = 80;
-    const thresholdUp = -50;
-
-    if (offsetY < thresholdUp) {
-      // Deslizar hacia arriba
-      setOffsetY(-400);
-      setTimeout(onDismiss, 180);
-    } else if (offsetX > thresholdX) {
-      // Deslizar hacia la derecha
-      setOffsetX(500);
-      setTimeout(onDismiss, 180);
-    } else if (offsetX < -thresholdX) {
-      // Deslizar hacia la izquierda
-      setOffsetX(-500);
-      setTimeout(onDismiss, 180);
-    } else {
-      // Retornar al centro
-      setOffsetX(0);
-      setOffsetY(0);
-    }
-  };
-
-  // Calcular la opacidad basada en la distancia de arrastre (X o Y hacia arriba)
+  // Calcular opacidad en base a la distancia recorrida
   const dragDistance = Math.max(Math.abs(offsetX), offsetY < 0 ? Math.abs(offsetY) : 0);
   const opacity = Math.max(0.15, 1 - dragDistance / 280);
 
   return (
     <div
+      ref={toastRef}
       className={`toast toast--${type}`}
       style={{
         transform: `translate3d(calc(-50% + ${offsetX}px), ${offsetY}px, 0)`,
@@ -78,10 +156,7 @@ export function SwipeableToast({ message, type, onDismiss }: SwipeableToastProps
         cursor: isDragging ? "grabbing" : "grab",
         userSelect: "none"
       }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onMouseDown={handleMouseDown}
       onDragStart={(e) => e.preventDefault()}
       draggable={false}
     >
