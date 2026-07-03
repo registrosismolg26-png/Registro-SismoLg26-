@@ -131,7 +131,7 @@ export async function POST(req: Request) {
     // Guarda: no se puede registrar sin un refugio válido asociado.
     if (!hasRefugio(refugioForCreate)) {
       return NextResponse.json(
-        { error: "Tu usuario no tiene un refugio asignado. Un administrador debe asociarte a un refugio antes de registrar." },
+        { error: "Tu usuario no tiene un campamento asignado. Un administrador debe asociarte a un campamento antes de registrar." },
         { status: 403 }
       );
     }

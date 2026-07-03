@@ -226,7 +226,7 @@ export default function PublicSearch() {
                     </div>
 
                     <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.25rem", borderTop: "1px solid var(--border-color)", paddingTop: "0.5rem" }}>
-                      <div><strong>Campamento Transitorio:</strong> <span style={{ color: "var(--color-primary-hover)", fontWeight: "600" }}>{reg.refugio || "Sin refugio asignado"}</span></div>
+                      <div><strong>Campamento Transitorio:</strong> <span style={{ color: "var(--color-primary-hover)", fontWeight: "600" }}>{reg.refugio || "Sin campamento asignado"}</span></div>
                       <div><strong>Comunidad:</strong> {reg.comunidad} ({reg.parroquia})</div>
                       <div><strong>Sector:</strong> {reg.sector}</div>
                       {reg.telefono && <div><strong>Contacto Autorizado:</strong> <a href={`tel:${reg.telefono}`} style={{ color: "var(--color-primary-hover)", fontWeight: "600", textDecoration: "underline" }}>{reg.telefono}</a></div>}

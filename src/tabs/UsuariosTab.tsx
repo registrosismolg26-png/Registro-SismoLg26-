@@ -113,7 +113,7 @@ export default function UsuariosTab() {
     }
     // Guarda UX: un usuario debe quedar asociado a un refugio (el back también lo valida).
     if (currentUser && isMaster(currentUser.role) && !hasRefugio(userForm.campamentoTransitorio)) {
-      errs.campamentoTransitorio = "Debe seleccionar un refugio.";
+      errs.campamentoTransitorio = "Debe seleccionar un campamento.";
     }
 
     if (Object.keys(errs).length > 0) {
@@ -182,7 +182,7 @@ export default function UsuariosTab() {
     }
     // Guarda UX: el usuario debe quedar asociado a un refugio (el back también lo valida).
     if (currentUser && isMaster(currentUser.role) && !hasRefugio(userForm.campamentoTransitorio)) {
-      errs.campamentoTransitorio = "Debe seleccionar un refugio.";
+      errs.campamentoTransitorio = "Debe seleccionar un campamento.";
     }
 
     if (Object.keys(errs).length > 0) {
@@ -521,14 +521,14 @@ export default function UsuariosTab() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="user-create-campamento">Refugio Asignado</label>
+                <label htmlFor="user-create-campamento">Campamento Asignado</label>
                 {currentUser && isMaster(currentUser.role) ? (
                   <select
                     id="user-create-campamento"
                     value={userForm.campamentoTransitorio}
                     onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
                   >
-                    <option value="">Seleccione un refugio...</option>
+                    <option value="">Seleccione un campamento...</option>
                     {refugios.map(rf => (
                       <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
                     ))}
@@ -544,7 +544,7 @@ export default function UsuariosTab() {
                     value={currentUser?.campamentoTransitorio || ""}
                     readOnly
                     disabled
-                    title="El refugio se asigna automáticamente según su cuenta."
+                    title="El campamento se asigna automáticamente según su cuenta."
                   />
                 )}
                 <div className="error-container">
@@ -716,14 +716,14 @@ export default function UsuariosTab() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="user-edit-campamento">Refugio Asignado</label>
+                <label htmlFor="user-edit-campamento">Campamento Asignado</label>
                 {currentUser && isMaster(currentUser.role) ? (
                   <select
                     id="user-edit-campamento"
                     value={userForm.campamentoTransitorio}
                     onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
                   >
-                    <option value="">Seleccione un refugio...</option>
+                    <option value="">Seleccione un campamento...</option>
                     {refugios.map(rf => (
                       <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
                     ))}
@@ -739,7 +739,7 @@ export default function UsuariosTab() {
                     value={currentUser?.campamentoTransitorio || ""}
                     readOnly
                     disabled
-                    title="El refugio se asigna automáticamente según su cuenta."
+                    title="El campamento se asigna automáticamente según su cuenta."
                   />
                 )}
                 <div className="error-container">

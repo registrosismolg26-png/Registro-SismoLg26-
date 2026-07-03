@@ -357,7 +357,7 @@ export default function CensoTab() {
 
     // Guarda: sin refugio activo no se puede registrar (ni online ni offline).
     if (!hasRefugio(effectiveRefugio)) {
-      showToast("No hay un refugio asignado para registrar. Un administrador debe asociarte a un refugio.", "error");
+      showToast("No hay un campamento asignado para registrar. Un administrador debe asociarte a un campamento.", "error");
       setIsSubmitting(false);
       return;
     }
@@ -469,9 +469,9 @@ export default function CensoTab() {
           {!hasRefugio(effectiveRefugio) ? (
             <div className="form-card" style={{ textAlign: "center", padding: "2rem 1.5rem" }}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 1rem", display: "block" }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <h3 style={{ margin: "0 0 0.5rem", color: "var(--text-primary)", fontSize: "1.1rem" }}>Sin refugio asignado</h3>
+              <h3 style={{ margin: "0 0 0.5rem", color: "var(--text-primary)", fontSize: "1.1rem" }}>Sin campamento asignado</h3>
               <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.6 }}>
-                Tu usuario no está asociado a ningún refugio, por lo que no puedes registrar personas. Pídele a un administrador que te asigne un refugio.
+                Tu usuario no está asociado a ningún campamento, por lo que no puedes registrar personas. Pídele a un administrador que te asigne un campamento.
               </p>
             </div>
           ) : canRegister(currentUser.role) ? (

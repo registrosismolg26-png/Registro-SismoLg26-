@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: true, refugios });
   } catch (error: any) {
     console.error("Error en GET /api/refugios:", error);
-    return NextResponse.json({ error: "Error al listar refugios" }, { status: 500 });
+    return NextResponse.json({ error: "Error al listar campamentos" }, { status: 500 });
   }
 }
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
     const existing = await prisma.refugio.findUnique({ where: { nombre } });
     if (existing) {
-      return NextResponse.json({ error: "El refugio ya existe" }, { status: 409 });
+      return NextResponse.json({ error: "El campamento ya existe" }, { status: 409 });
     }
 
     const refugio = await prisma.refugio.create({ data: { nombre } });
@@ -45,9 +45,9 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Error en POST /api/refugios:", error);
     if (error.code === "P2002") {
-      return NextResponse.json({ error: "El refugio ya existe" }, { status: 409 });
+      return NextResponse.json({ error: "El campamento ya existe" }, { status: 409 });
     }
-    return NextResponse.json({ error: "Error al crear el refugio" }, { status: 500 });
+    return NextResponse.json({ error: "Error al crear el campamento" }, { status: 500 });
   }
 }
 
@@ -72,7 +72,7 @@ export async function PUT(req: Request) {
 
     const current = await prisma.refugio.findUnique({ where: { id } });
     if (!current) {
-      return NextResponse.json({ error: "Refugio no encontrado" }, { status: 404 });
+      return NextResponse.json({ error: "Campamento no encontrado" }, { status: 404 });
     }
 
     const oldName = current.nombre;
@@ -89,7 +89,7 @@ export async function PUT(req: Request) {
     // El nombre nuevo no debe colisionar con otro refugio existente.
     const clash = await prisma.refugio.findUnique({ where: { nombre } });
     if (clash && clash.id !== id) {
-      return NextResponse.json({ error: "Ya existe un refugio con ese nombre" }, { status: 409 });
+      return NextResponse.json({ error: "Ya existe un campamento con ese nombre" }, { status: 409 });
     }
 
     // Cascada atómica: renombrar el refugio (+ ubicación si vino) y propagar a
@@ -117,9 +117,9 @@ export async function PUT(req: Request) {
   } catch (error: any) {
     console.error("Error en PUT /api/refugios:", error);
     if (error.code === "P2002") {
-      return NextResponse.json({ error: "Ya existe un refugio con ese nombre" }, { status: 409 });
+      return NextResponse.json({ error: "Ya existe un campamento con ese nombre" }, { status: 409 });
     }
-    return NextResponse.json({ error: "Error al renombrar el refugio" }, { status: 500 });
+    return NextResponse.json({ error: "Error al renombrar el campamento" }, { status: 500 });
   }
 }
 
@@ -133,12 +133,12 @@ export async function DELETE(req: Request) {
 
     const id = new URL(req.url).searchParams.get("id");
     if (!id) {
-      return NextResponse.json({ error: "Falta el id del refugio" }, { status: 400 });
+      return NextResponse.json({ error: "Falta el id del campamento" }, { status: 400 });
     }
 
     const current = await prisma.refugio.findUnique({ where: { id } });
     if (!current) {
-      return NextResponse.json({ error: "Refugio no encontrado" }, { status: 404 });
+      return NextResponse.json({ error: "Campamento no encontrado" }, { status: 404 });
     }
 
     const nombre = current.nombre;
@@ -152,7 +152,7 @@ export async function DELETE(req: Request) {
     if (userCount > 0 || registroCount > 0) {
       return NextResponse.json(
         {
-          error: `No se puede eliminar: el refugio tiene ${userCount} usuario(s) y ${registroCount} registro(s) asociados.`,
+          error: `No se puede eliminar: el campamento tiene ${userCount} usuario(s) y ${registroCount} registro(s) asociados.`,
         },
         { status: 409 }
       );
@@ -162,6 +162,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Error en DELETE /api/refugios:", error);
-    return NextResponse.json({ error: "Error al eliminar el refugio" }, { status: 500 });
+    return NextResponse.json({ error: "Error al eliminar el campamento" }, { status: 500 });
   }
 }

@@ -107,11 +107,11 @@ export default function ConfigTab() {
       if (res.ok && data.success) {
         setRefugios(data.refugios || []);
       } else {
-        showToast(data.error || "Error al cargar refugios.", "error");
+        showToast(data.error || "Error al cargar campamentos.", "error");
       }
     } catch (err) {
       console.error("Error al listar refugios:", err);
-      showToast("Error de conexión al cargar refugios.", "error");
+      showToast("Error de conexión al cargar campamentos.", "error");
     } finally {
       setLoadingRefugios(false);
     }
@@ -127,7 +127,7 @@ export default function ConfigTab() {
     const nombre = newRefugio.trim();
     if (!nombre || creatingRefugio) return;
     if (!isOnline) {
-      showToast("Se requiere conexión para crear refugios.", "warning");
+      showToast("Se requiere conexión para crear campamentos.", "warning");
       return;
     }
     setCreatingRefugio(true);
@@ -139,15 +139,15 @@ export default function ConfigTab() {
       });
       const data = await res.json();
       if (!res.ok) {
-        showToast(data.error || "Error al crear el refugio.", "error");
+        showToast(data.error || "Error al crear el campamento.", "error");
         return;
       }
-      showToast("Refugio creado con éxito.", "success");
+      showToast("Campamento creado con éxito.", "success");
       setNewRefugio("");
       await fetchRefugios();
     } catch (err) {
       console.error("Error al crear refugio:", err);
-      showToast("Error de conexión al crear el refugio.", "error");
+      showToast("Error de conexión al crear el campamento.", "error");
     } finally {
       setCreatingRefugio(false);
     }
@@ -158,7 +158,7 @@ export default function ConfigTab() {
     const nombre = refugioRenameValue.trim();
     if (!nombre) return;
     if (!isOnline) {
-      showToast("Se requiere conexión para renombrar refugios.", "warning");
+      showToast("Se requiere conexión para renombrar campamentos.", "warning");
       return;
     }
     setSavingRefugioRename(true);
@@ -170,17 +170,17 @@ export default function ConfigTab() {
       });
       const data = await res.json();
       if (!res.ok) {
-        showToast(data.error || "Error al guardar el refugio.", "error");
+        showToast(data.error || "Error al guardar el campamento.", "error");
         return;
       }
-      showToast("Refugio actualizado. Los cambios de nombre se propagan a usuarios y registros.", "success");
+      showToast("Campamento actualizado. Los cambios de nombre se propagan a usuarios y registros.", "success");
       setRefugioToRename(null);
       setRefugioRenameValue("");
       setRefugioUbicacionValue("");
       await fetchRefugios();
     } catch (err) {
       console.error("Error al editar refugio:", err);
-      showToast("Error de conexión al editar el refugio.", "error");
+      showToast("Error de conexión al editar el campamento.", "error");
     } finally {
       setSavingRefugioRename(false);
     }
@@ -189,7 +189,7 @@ export default function ConfigTab() {
   const handleDeleteRefugioConfirmed = async () => {
     if (!refugioToDelete || deletingRefugio) return;
     if (!isOnline) {
-      showToast("Se requiere conexión para eliminar refugios.", "warning");
+      showToast("Se requiere conexión para eliminar campamentos.", "warning");
       return;
     }
     setDeletingRefugio(true);
@@ -200,15 +200,15 @@ export default function ConfigTab() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         // 409 → tiene usuarios/registros asociados: muestra el error del backend, no borra.
-        showToast(data.error || "No se pudo eliminar el refugio.", "error");
+        showToast(data.error || "No se pudo eliminar el campamento.", "error");
         return;
       }
-      showToast("Refugio eliminado con éxito.", "success");
+      showToast("Campamento eliminado con éxito.", "success");
       setRefugioToDelete(null);
       await fetchRefugios();
     } catch (err) {
       console.error("Error al eliminar refugio:", err);
-      showToast("Error de conexión al eliminar el refugio.", "error");
+      showToast("Error de conexión al eliminar el campamento.", "error");
     } finally {
       setDeletingRefugio(false);
     }
@@ -710,7 +710,7 @@ export default function ConfigTab() {
           <div className="dashboard-section">
             <h3 className="dashboard-section-title">Gestión de Edificios y Salones</h3>
             <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem 0" }}>
-              Agregue salones {masterMode ? <>al refugio <strong>{salonRefugioActivo || "activo"}</strong> (cámbialo desde el selector del encabezado)</> : "a su refugio"}. Elija el tipo de contenedor y defina las camas disponibles de cada salón.
+              Agregue salones {masterMode ? <>al campamento <strong>{salonRefugioActivo || "activo"}</strong> (cámbialo desde el selector del encabezado)</> : "a su campamento"}. Elija el tipo de contenedor y defina las camas disponibles de cada salón.
             </p>
             <div className="room-add-form">
               {/* Tipo de contenedor: Edificio / Piso / Otro */}
@@ -811,17 +811,17 @@ export default function ConfigTab() {
         {isMaster(currentUser.role) && (
           <div className="dashboard-section">
             <div className="config-section-header">
-              <h3 className="dashboard-section-title">Gestión de Refugios</h3>
+              <h3 className="dashboard-section-title">Gestión de Campamentos</h3>
               {refugios.length > 0 && <span className="asign-count">{refugios.length}</span>}
             </div>
             <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem 0" }}>
-              Administre los refugios del sistema. Renombrar propaga el cambio a los operadores y registros asociados.
+              Administre los campamentos del sistema. Renombrar propaga el cambio a los operadores y registros asociados.
             </p>
 
             {!isOnline && (
               <div className="users-offline-notice" style={{ marginBottom: "1rem" }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
-                Sin conexión — no es posible listar o gestionar refugios.
+                Sin conexión — no es posible listar o gestionar campamentos.
               </div>
             )}
 
@@ -829,10 +829,10 @@ export default function ConfigTab() {
             <div className="room-add-form">
               <div className="room-add-inputs">
                 <div className="room-add-field">
-                  <label className="room-add-label">Nuevo refugio</label>
+                  <label className="room-add-label">Nuevo campamento</label>
                   <input
                     className="room-add-input"
-                    placeholder="Nombre del nuevo refugio"
+                    placeholder="Nombre del nuevo campamento"
                     value={newRefugio}
                     onChange={e => setNewRefugio(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && handleCreateRefugio()}
@@ -852,14 +852,14 @@ export default function ConfigTab() {
 
             {/* Lista de refugios */}
             <div className="room-list-section">
-              <span className="room-list-label">Refugios registrados ({refugios.length})</span>
+              <span className="room-list-label">Campamentos registrados ({refugios.length})</span>
               {loadingRefugios ? (
                 <div className="status-msg status-msg--warning" style={{ marginTop: "0.5rem" }}>
-                  <span className="spinner spinner-sm"></span> Cargando refugios...
+                  <span className="spinner spinner-sm"></span> Cargando campamentos...
                 </div>
               ) : refugios.length === 0 ? (
                 <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.5rem 0 0 0" }}>
-                  No hay refugios registrados en la base de datos.
+                  No hay campamentos registrados en la base de datos.
                 </p>
               ) : (
                 <div className="sync-log-list" style={{ marginTop: "0.5rem" }}>
@@ -1110,18 +1110,18 @@ export default function ConfigTab() {
         <div className="modal-overlay" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); }}>
           <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "450px", width: "90%" }}>
             <div className="modal-header">
-              <span className="modal-title">Editar Refugio</span>
+              <span className="modal-title">Editar Campamento</span>
               <button className="modal-close" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
             <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
-              El nuevo nombre se propagará automáticamente a todos los operadores y registros asociados a este refugio.
+              El nuevo nombre se propagará automáticamente a todos los operadores y registros asociados a este campamento.
             </p>
 
             <div className="form-group">
-              <label htmlFor="refugio-rename-input">Nombre del refugio</label>
+              <label htmlFor="refugio-rename-input">Nombre del campamento</label>
               <input
                 type="text"
                 id="refugio-rename-input"
@@ -1144,7 +1144,7 @@ export default function ConfigTab() {
                 style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
               />
               <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", margin: "0.3rem 0 0" }}>
-                Se usa en el reporte de WhatsApp de este refugio.
+                Se usa en el reporte de WhatsApp de este campamento.
               </p>
             </div>
 
@@ -1178,7 +1178,7 @@ export default function ConfigTab() {
             </div>
 
             <div style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: "1.5" }}>
-              <p>¿Estás seguro de que deseas eliminar el siguiente refugio de la base de datos?</p>
+              <p>¿Estás seguro de que deseas eliminar el siguiente campamento de la base de datos?</p>
               <div style={{
                 margin: "1rem 0",
                 padding: "0.75rem",
@@ -1193,7 +1193,7 @@ export default function ConfigTab() {
                 {refugioToDelete.nombre}
               </div>
               <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                Si el refugio tiene operadores o registros asociados, el sistema no permitirá eliminarlo.
+                Si el campamento tiene operadores o registros asociados, el sistema no permitirá eliminarlo.
               </p>
             </div>
 
@@ -1208,7 +1208,7 @@ export default function ConfigTab() {
                 onClick={handleDeleteRefugioConfirmed}
                 disabled={deletingRefugio}
               >
-                {deletingRefugio ? <><span className="spinner spinner-sm"></span>Eliminando</> : "Sí, Eliminar Refugio"}
+                {deletingRefugio ? <><span className="spinner spinner-sm"></span>Eliminando</> : "Sí, Eliminar Campamento"}
               </button>
             </div>
           </div>

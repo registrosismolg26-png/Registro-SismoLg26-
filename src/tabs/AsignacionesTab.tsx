@@ -34,6 +34,7 @@ export default function AsignacionesTab() {
     roomCapacities,
     showToast,
     currentUser,
+    effectiveRefugio,
     triggerSync,
     refreshLocalRecords,
     pendingSelectId,
@@ -387,7 +388,13 @@ export default function AsignacionesTab() {
       ];
     });
 
-    const csvContent = [headers.join(";"), ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(";"))].join("\n");
+    const campamentoActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
+    const csvContent = [
+      `"CAMPAMENTO TRANSITORIO: ${String(campamentoActivo).replace(/"/g, '""')}"`,
+      "",
+      headers.join(";"),
+      ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(";")),
+    ].join("\n");
     const blob = new Blob(["﻿" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -411,6 +418,8 @@ export default function AsignacionesTab() {
       showToast("Por favor permita las ventanas emergentes para imprimir", "error");
       return;
     }
+
+    const campamentoActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
 
     const sorted = [...present].sort((a, b) => {
       const roomA = a.cuarto || "ZZZ";
@@ -478,7 +487,8 @@ export default function AsignacionesTab() {
           <img class="logo" src="/logo_gob.webp" alt="Gobernación La Guaira">
           <div class="title-container">
             <h1>LISTADO DE PERSONAS PRESENTES</h1>
-            <h2>Censo de Campamento Transitorio &middot; Sismo La Guaira 2026</h2>
+            <h2>${campamentoActivo || "Campamento Transitorio"}</h2>
+            <p style="margin:2px 0 0;font-size:9px;color:#666;font-weight:600;letter-spacing:.02em;">Censo de Campamento Transitorio &middot; Sismo La Guaira 2026</p>
           </div>
         </div>
         <p class="meta">

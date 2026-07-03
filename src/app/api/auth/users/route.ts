@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     // Guarda: todo usuario (Admin/Registrador/Visualizador) debe tener refugio.
     if (!hasRefugio(targetRefugio)) {
       return NextResponse.json(
-        { error: "Debe asociar el usuario a un refugio. No se pueden crear usuarios sin refugio." },
+        { error: "Debe asociar el usuario a un campamento. No se pueden crear usuarios sin campamento." },
         { status: 400 }
       );
     }
@@ -130,7 +130,7 @@ export async function PUT(req: Request) {
     // Guarda: el usuario debe quedar asociado a un refugio.
     if (!hasRefugio(targetRefugio)) {
       return NextResponse.json(
-        { error: "Debe asociar el usuario a un refugio. No se pueden actualizar usuarios sin refugio." },
+        { error: "Debe asociar el usuario a un campamento. No se pueden actualizar usuarios sin campamento." },
         { status: 400 }
       );
     }
