@@ -10,14 +10,17 @@
 import { useState } from "react";
 import { sha256 } from "@/lib/helpers";
 import type { CurrentUser, ActiveTab, ToastType } from "@/types";
+import { SwipeableToast } from "@/components/SwipeableToast";
 
 interface LoginFormProps {
   setCurrentUser: React.Dispatch<React.SetStateAction<CurrentUser | null>>;
   setActiveTab: (tab: ActiveTab) => void;
   showToast: (message: string, type: ToastType) => void;
+  toast: { message: string; type: ToastType } | null;
+  setToast: React.Dispatch<React.SetStateAction<{ message: string; type: ToastType } | null>>;
 }
 
-export default function LoginForm({ setCurrentUser, setActiveTab, showToast }: LoginFormProps) {
+export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toast, setToast }: LoginFormProps) {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -241,7 +244,13 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast }: L
           </form>
         </div>
 
-        {/* Notificaciones manejadas globalmente por sonner */}
+        {toast && (
+          <SwipeableToast
+            message={toast.message}
+            type={toast.type}
+            onDismiss={() => setToast(null)}
+          />
+        )}
       </div>
   );
 }

@@ -24,7 +24,7 @@ import DashboardTab from "@/tabs/DashboardTab";
 import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CensoTab from "@/tabs/CensoTab";
-import { Toaster, toast as sonnerToast } from "sonner";
+import { SwipeableToast } from "@/components/SwipeableToast";
 
 export default function Home() {
   // Connection state
@@ -217,7 +217,8 @@ export default function Home() {
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
   const [internalNotification, setInternalNotification] = useState<{ registroId: string; nombreApellido: string } | null>(null);
 
-  // Toast Notification State managed by sonner
+  // Toast Notification State
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
   // Service Worker Update States
   const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -235,7 +236,8 @@ export default function Home() {
   // Inactivity session timeout — updated on every pointer/key event
   const lastActivityRef = useRef<number>(Date.now());
 
-  // Toast timeout reference removed (handled by sonner)
+  // Toast timeout reference to prevent premature dismissal of subsequent toasts
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // SW Update Remind Later timeout reference
   const remindLaterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -672,17 +674,14 @@ export default function Home() {
     }
   };
 
-  // Helper to show temporary toasts using sonner
+  // Helper to show temporary toasts
   const showToast = (message: string, type: ToastType) => {
-    if (type === "success") {
-      sonnerToast.success(message);
-    } else if (type === "error") {
-      sonnerToast.error(message);
-    } else if (type === "warning") {
-      sonnerToast.warning(message);
-    } else {
-      sonnerToast.info(message);
-    }
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ message, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimeoutRef.current = null;
+    }, 4000);
   };
 
   // Get records list from IndexedDB to show history and sync progress
@@ -1015,14 +1014,13 @@ export default function Home() {
   // recibe props en lugar de consumir el context.
   if (!currentUser) {
     return (
-      <>
-        <LoginForm
-          setCurrentUser={setCurrentUser}
-          setActiveTab={setActiveTab}
-          showToast={showToast}
-        />
-        <Toaster position="top-center" richColors theme={theme} />
-      </>
+      <LoginForm
+        setCurrentUser={setCurrentUser}
+        setActiveTab={setActiveTab}
+        showToast={showToast}
+        toast={toast}
+        setToast={setToast}
+      />
     );
   }
 
@@ -1210,8 +1208,14 @@ export default function Home() {
         </div>
       )}
 
-      {/* Toast Notification Toaster from sonner */}
-      <Toaster position="top-center" richColors theme={theme} />
+      {/* Toast Notification */}
+      {toast && (
+        <SwipeableToast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
     </AppContext.Provider>
   );
