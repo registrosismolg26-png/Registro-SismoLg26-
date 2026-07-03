@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendPushToAdmins } from "@/lib/push";
 import { getAuthUser, canRegister, canActOnRefugio, isMaster, hasRefugio } from "@/lib/auth";
+import { withAuditUser } from "@/lib/audit";
 
 const VALID_GENERO = ["MASCULINO", "FEMENINO"];
 const VALID_ESTADO_FISICO = ["ILESO", "LESIONADO"];
@@ -144,7 +145,7 @@ export async function POST(req: Request) {
     }
 
     if (existing) {
-      const updated = await prisma.registro.update({
+      const updated = await withAuditUser(auth.email, (tx) => tx.registro.update({
         where: { id },
         data: {
           parroquia,
@@ -174,11 +175,11 @@ export async function POST(req: Request) {
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
           syncedAt: new Date(),
         }
-      });
+      }));
       return NextResponse.json({ success: true, id: updated.id, updated: true }, { status: 200 });
     }
 
-    const newRegistro = await prisma.registro.create({
+    const newRegistro = await withAuditUser(auth.email, (tx) => tx.registro.create({
       data: {
         id: id || undefined,
         parroquia,
@@ -206,7 +207,7 @@ export async function POST(req: Request) {
         motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
         syncedAt: new Date(),
       },
-    });
+    }));
 
     // Notify admins
     await sendPushToAdmins(newRegistro).catch((err) => {

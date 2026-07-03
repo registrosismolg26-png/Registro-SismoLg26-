@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { getAuthUser, canManageUsers, canManageTargetUser, invalidateSession, isMaster, hasRefugio, type AuthUser } from "@/lib/auth";
+import { withAuditUser } from "@/lib/audit";
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -73,7 +74,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "El correo ya se encuentra registrado" }, { status: 409 });
     }
 
-    const newUser = await prisma.user.create({
+    const newUser = await withAuditUser(auth.email, (tx) => tx.user.create({
       data: {
         email: cleanEmail,
         nombre: String(nombre).trim(),
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
         role,
         campamentoTransitorio: targetRefugio,
       },
-    });
+    }));
 
     return NextResponse.json(
       { success: true, user: { id: newUser.id, email: newUser.email, nombre: newUser.nombre, role: newUser.role, campamentoTransitorio: newUser.campamentoTransitorio } },
@@ -150,7 +151,7 @@ export async function PUT(req: Request) {
       updateData.password = hashPassword(password);
     }
 
-    const updatedUser = await prisma.user.update({ where: { id }, data: updateData });
+    const updatedUser = await withAuditUser(auth.email, (tx) => tx.user.update({ where: { id }, data: updateData }));
     invalidateSession(id); // refleja de inmediato el cambio de rol/refugio
 
     return NextResponse.json({
@@ -190,7 +191,7 @@ export async function DELETE(req: Request) {
 
     // Limpiar suscripciones push huérfanas (no hay FK en cascada) y borrar.
     await prisma.pushSubscription.deleteMany({ where: { userId: id } }).catch(() => {});
-    await prisma.user.delete({ where: { id } });
+    await withAuditUser(auth.email, (tx) => tx.user.delete({ where: { id } }));
     invalidateSession(id);
 
     return NextResponse.json({ success: true });

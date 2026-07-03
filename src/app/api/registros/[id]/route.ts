@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canRegister, canDeleteRegistro, canActOnRefugio } from "@/lib/auth";
+import { withAuditUser } from "@/lib/audit";
 
 const VALID_GENERO = ["MASCULINO", "FEMENINO"];
 const VALID_ESTADO_FISICO = ["ILESO", "LESIONADO"];
@@ -182,10 +183,9 @@ export async function PATCH(
       return NextResponse.json({ error: "No hay campos para actualizar" }, { status: 400 });
     }
 
-    const updated = await prisma.registro.update({
-      where: { id },
-      data,
-    });
+    const updated = await withAuditUser(auth.email, (tx) =>
+      tx.registro.update({ where: { id }, data })
+    );
 
     return NextResponse.json({ success: true, registro: updated });
   } catch (error: any) {
@@ -230,9 +230,9 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const deleted = await prisma.registro.delete({
-      where: { id },
-    });
+    const deleted = await withAuditUser(auth.email, (tx) =>
+      tx.registro.delete({ where: { id } })
+    );
     return NextResponse.json({ success: true, registro: deleted });
   } catch (error: any) {
     console.error("Error en DELETE /api/registros/[id]:", error);
