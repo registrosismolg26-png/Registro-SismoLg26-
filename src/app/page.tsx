@@ -16,7 +16,6 @@ import { apiFetch } from "@/lib/apiFetch";
 import { isMaster, canManageUsers, canRegister, canViewDashboard } from "@/lib/permissions";
 import type { ToastType } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
-import { ToastIcon } from "@/components/ToastIcon";
 import AppHeader from "@/components/AppHeader";
 import LoginForm from "@/components/LoginForm";
 import { AppContext, type AppContextValue } from "@/context/AppContext";
@@ -25,7 +24,7 @@ import DashboardTab from "@/tabs/DashboardTab";
 import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CensoTab from "@/tabs/CensoTab";
-import { SwipeableToast } from "@/components/SwipeableToast";
+import { Toaster, toast as sonnerToast } from "sonner";
 
 export default function Home() {
   // Connection state
@@ -218,8 +217,7 @@ export default function Home() {
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
   const [internalNotification, setInternalNotification] = useState<{ registroId: string; nombreApellido: string } | null>(null);
 
-  // Toast Notification State
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  // Toast Notification State managed by sonner
 
   // Service Worker Update States
   const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -237,8 +235,7 @@ export default function Home() {
   // Inactivity session timeout — updated on every pointer/key event
   const lastActivityRef = useRef<number>(Date.now());
 
-  // Toast timeout reference to prevent premature dismissal of subsequent toasts
-  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Toast timeout reference removed (handled by sonner)
 
   // SW Update Remind Later timeout reference
   const remindLaterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -675,14 +672,17 @@ export default function Home() {
     }
   };
 
-  // Helper to show temporary toasts
+  // Helper to show temporary toasts using sonner
   const showToast = (message: string, type: ToastType) => {
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setToast({ message, type });
-    toastTimeoutRef.current = setTimeout(() => {
-      setToast(null);
-      toastTimeoutRef.current = null;
-    }, 4000);
+    if (type === "success") {
+      sonnerToast.success(message);
+    } else if (type === "error") {
+      sonnerToast.error(message);
+    } else if (type === "warning") {
+      sonnerToast.warning(message);
+    } else {
+      sonnerToast.info(message);
+    }
   };
 
   // Get records list from IndexedDB to show history and sync progress
@@ -1015,13 +1015,14 @@ export default function Home() {
   // recibe props en lugar de consumir el context.
   if (!currentUser) {
     return (
-      <LoginForm
-        setCurrentUser={setCurrentUser}
-        setActiveTab={setActiveTab}
-        showToast={showToast}
-        toast={toast}
-        setToast={setToast}
-      />
+      <>
+        <LoginForm
+          setCurrentUser={setCurrentUser}
+          setActiveTab={setActiveTab}
+          showToast={showToast}
+        />
+        <Toaster position="top-center" richColors theme={theme} closeButton />
+      </>
     );
   }
 
@@ -1209,14 +1210,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Toast Notification */}
-      {toast && (
-        <SwipeableToast
-          message={toast.message}
-          type={toast.type}
-          onDismiss={() => setToast(null)}
-        />
-      )}
+      {/* Toast Notification Toaster from sonner */}
+      <Toaster position="top-center" richColors theme={theme} closeButton />
     </div>
     </AppContext.Provider>
   );
