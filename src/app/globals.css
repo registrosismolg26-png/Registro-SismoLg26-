@@ -3979,13 +3979,32 @@ h2.dashboard-section-title {
   letter-spacing: -0.02em;
 }
 
+/* Membrete institucional del PDF de estadísticas (oculto en pantalla) */
+.print-letterhead { display: none; }
+
 /* ── Print Media Queries — optimized for Landscape PDF export ─────────── */
 @media print {
   @page {
     size: landscape;
     margin: 8mm;
   }
-  
+
+  .print-letterhead {
+    display: flex !important;
+    visibility: visible !important;
+    align-items: center;
+    gap: 12px;
+    padding: 0 0 6px;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #1e3a8a;
+  }
+  .print-letterhead-logo { width: 46px; height: 46px; object-fit: contain; }
+  .print-letterhead-text { flex: 1; display: flex; flex-direction: column; }
+  .print-letterhead-org { font-size: 8px; font-weight: 800; letter-spacing: 0.1em; color: #b45309; text-transform: uppercase; }
+  .print-letterhead-title { font-size: 15px; font-weight: 800; color: #1e3a8a; margin: 1px 0; text-transform: uppercase; line-height: 1.1; }
+  .print-letterhead-sub { font-size: 9px; color: #475569; font-weight: 600; }
+  .print-letterhead-meta { font-size: 8px; color: #777; text-align: right; line-height: 1.3; white-space: nowrap; }
+
   html, body {
     background: #fff !important;
     color: #0f172a !important;

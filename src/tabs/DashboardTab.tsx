@@ -329,9 +329,22 @@ ${entesList}`;
     setEntes(prev => prev.filter((_, i) => i !== index));
   };
 
+  const campamentoActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
+
   return (
     <>
         <div ref={dashboardRef} className={`tab-view tab-view--dashboard tab-enter ${isFullscreen ? "presentation-mode" : ""}`}>
+
+          {/* Membrete institucional — solo visible al imprimir / exportar PDF */}
+          <div className="print-letterhead">
+            <img src="/logo_gob.webp" alt="Gobernación La Guaira" className="print-letterhead-logo" />
+            <div className="print-letterhead-text">
+              <span className="print-letterhead-org">Gobernación del Estado La Guaira</span>
+              <h1 className="print-letterhead-title">Panel de Estadísticas</h1>
+              <span className="print-letterhead-sub">{campamentoActivo || "Campamento Transitorio"} &middot; Censo Sismológico La Guaira 2026</span>
+            </div>
+            <div className="print-letterhead-meta">Generado:<br />{new Date().toLocaleString("es-VE")}</div>
+          </div>
 
           <div className="dashboard-header-card">
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
