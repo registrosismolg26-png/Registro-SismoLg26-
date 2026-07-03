@@ -31,6 +31,7 @@ export default function CensoTab() {
     roomCapacities,
     fetchRegistros,
     effectiveRefugio,
+    localRecords,
   } = useAppContext();
 
   const [step, setStep] = useState<1|2|3|4>(1);
@@ -191,6 +192,31 @@ export default function CensoTab() {
     if (!formData.estadoFisico) newErrors.estadoFisico = "Seleccione el estado físico";
     if (!formData.patologia) newErrors.patologia = "Seleccione si posee patología";
 
+    // Offline duplicate check
+    let rawCedula = formData.cedula.trim();
+    if (formData.isChildDependent) {
+      rawCedula = `${rawCedula}-${formData.dependentNumber}`;
+    }
+    const cleanCed = rawCedula.toUpperCase();
+    const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-"))
+      ? cleanCed
+      : `${formData.nacionalidad}-${cleanCed}`;
+
+    const isDuplicateSynced = registros.some((r: any) => {
+      if (r.retirado === "SI") return false;
+      return r.cedula && r.cedula.toUpperCase().trim() === finalCedula;
+    });
+
+    const isDuplicateLocal = localRecords.some((r: any) => {
+      if (r.status === "synced") return false;
+      if (r.data?.retirado === "SI") return false;
+      return r.data?.cedula && r.data.cedula.toUpperCase().trim() === finalCedula;
+    });
+
+    if (isDuplicateSynced || isDuplicateLocal) {
+      newErrors.cedula = "Esta cédula ya se encuentra registrada en el sistema local.";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -337,6 +363,31 @@ export default function CensoTab() {
     if (step === 1 && formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") {
       const err = validateField("cedulaJefeFamilia", formData.cedulaJefeFamilia);
       if (err) newErrors.cedulaJefeFamilia = err;
+    }
+    if (step === 3) {
+      let rawCedula = formData.cedula.trim();
+      if (formData.isChildDependent) {
+        rawCedula = `${rawCedula}-${formData.dependentNumber}`;
+      }
+      const cleanCed = rawCedula.toUpperCase();
+      const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-"))
+        ? cleanCed
+        : `${formData.nacionalidad}-${cleanCed}`;
+
+      const isDuplicateSynced = registros.some((r: any) => {
+        if (r.retirado === "SI") return false;
+        return r.cedula && r.cedula.toUpperCase().trim() === finalCedula;
+      });
+
+      const isDuplicateLocal = localRecords.some((r: any) => {
+        if (r.status === "synced") return false;
+        if (r.data?.retirado === "SI") return false;
+        return r.data?.cedula && r.data.cedula.toUpperCase().trim() === finalCedula;
+      });
+
+      if (isDuplicateSynced || isDuplicateLocal) {
+        newErrors.cedula = "Esta cédula ya se encuentra registrada en el sistema local.";
+      }
     }
     if (step === 4 && formData.patologia === "SI") {
       const err = validateField("patologiaDescripcion", formData.patologiaDescripcion);

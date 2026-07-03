@@ -26,6 +26,67 @@ import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CensoTab from "@/tabs/CensoTab";
 
+interface SwipeableToastProps {
+  message: string;
+  type: ToastType;
+  onDismiss: () => void;
+}
+
+function SwipeableToast({ message, type, onDismiss }: SwipeableToastProps) {
+  const [offsetX, setOffsetX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startXRef = useRef(0);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    startXRef.current = e.clientX;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    const currentX = e.clientX;
+    const diffX = currentX - startXRef.current;
+    setOffsetX(diffX);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    
+    // Si el deslizamiento supera los 80 píxeles, quitar la notificación
+    if (Math.abs(offsetX) > 80) {
+      setOffsetX(offsetX > 0 ? 500 : -500);
+      setTimeout(onDismiss, 200);
+    } else {
+      setOffsetX(0);
+    }
+  };
+
+  const opacity = Math.max(0.2, 1 - Math.abs(offsetX) / 300);
+
+  return (
+    <div
+      className={`toast toast--${type}`}
+      style={{
+        transform: `translate3d(calc(-50% + ${offsetX}px), 0, 0)`,
+        transition: isDragging ? "none" : "transform 0.2s ease-out, opacity 0.2s ease-out",
+        opacity: opacity,
+        touchAction: "none",
+        cursor: isDragging ? "grabbing" : "grab"
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <ToastIcon type={type} />
+      <span className="toast-message" style={{ userSelect: "none" }}>{message}</span>
+    </div>
+  );
+}
+
 export default function Home() {
   // Connection state
   const [isOnline, setIsOnline] = useState<boolean>(true);
@@ -235,6 +296,9 @@ export default function Home() {
 
   // Inactivity session timeout — updated on every pointer/key event
   const lastActivityRef = useRef<number>(Date.now());
+
+  // Toast timeout reference to prevent premature dismissal of subsequent toasts
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize online status, theme, user session, local padrón count, GPS and local queue on mount
   useEffect(() => {
@@ -659,9 +723,11 @@ export default function Home() {
 
   // Helper to show temporary toasts
   const showToast = (message: string, type: ToastType) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast({ message, type });
-    setTimeout(() => {
+    toastTimeoutRef.current = setTimeout(() => {
       setToast(null);
+      toastTimeoutRef.current = null;
     }, 4000);
   };
 
@@ -718,6 +784,7 @@ export default function Home() {
               await markSynced(record.id, "registrado");
             } else if (res.status === 409) {
               await markSynced(record.id, "duplicado");
+              showToast(`La cédula de ${record.data.nombreApellido} ya está registrada en el servidor.`, "warning");
             } else if (res.status === 400 || res.status === 401 || res.status === 403) {
               // Rechazo definitivo: reintentar no ayuda. Sale de la cola y se avisa.
               const reason =
@@ -1189,10 +1256,11 @@ export default function Home() {
 
       {/* Toast Notification */}
       {toast && (
-        <div className={`toast toast--${toast.type}`}>
-          <ToastIcon type={toast.type} />
-          <span className="toast-message">{toast.message}</span>
-        </div>
+        <SwipeableToast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
       )}
     </div>
     </AppContext.Provider>
