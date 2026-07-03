@@ -141,9 +141,14 @@ export default function Home() {
     }
   };
 
+  // Carga los salones del refugio activo al iniciar sesión (igual que registros
+  // y stats). Depende de currentUser para que effectiveRefugio ya esté resuelto:
+  // así Master ve SU refugio por defecto, no todos. Al cambiar el refugio de
+  // vista, el effect de effectiveRefugio (más abajo) se encarga de recargar.
   useEffect(() => {
-    refreshCustomRooms();
-  }, []);
+    if (currentUser) refreshCustomRooms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const allCuartos = useMemo(() => {
     return [...CUARTOS, ...customCuartos]; // Already sorted by DB (createdAt desc)
