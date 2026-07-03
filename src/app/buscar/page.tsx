@@ -290,13 +290,15 @@ export default function PublicSearch() {
           </div>
         )}
 
-        {/* Otras fuentes — Paciente Venezuela (hospitales) */}
-        {query.trim().length >= 3 && (externalLoading || externalResults.length > 0) && (
+        {/* Otras fuentes — Paciente Venezuela (hospitales). Se muestra SIEMPRE
+            durante una búsqueda activa, aunque no haya coincidencias, para dejar
+            claro que también se consultó esta fuente externa. */}
+        {query.trim().length >= 3 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1.5rem" }}>
             <h3 style={{ fontSize: "1.1rem", color: "var(--text-primary)", fontWeight: "600", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
               Otras fuentes {externalLoading && <span className="spinner"></span>}
             </h3>
-            {externalResults.length > 0 && (
+            {externalResults.length > 0 ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
                 {externalResults.map((r) => (
                   <div key={r.id} className="form-card" style={{ padding: "1.25rem", borderLeft: "4px solid #6366f1", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
@@ -316,7 +318,17 @@ export default function PublicSearch() {
                   </div>
                 ))}
               </div>
-            )}
+            ) : !externalLoading ? (
+              <div className="form-card" style={{ padding: "1.5rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem", display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
+                <span style={{ fontSize: "0.62rem", fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.12)", padding: "0.15rem 0.55rem", borderRadius: "999px", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                  Fuente: Paciente Venezuela
+                </span>
+                <span>Sin coincidencias en esta fuente para &ldquo;{query.trim()}&rdquo;.</span>
+                <a href={`https://www.pacientevenezuela.com/buscar?q=${encodeURIComponent(query.trim())}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.78rem", fontWeight: 600, color: "#6366f1", textDecoration: "none" }}>
+                  Buscar directamente en Paciente Venezuela ↗
+                </a>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
