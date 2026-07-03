@@ -23,6 +23,16 @@ type PublicRegistro = {
   motivoIntermitente: string | null;
 };
 
+// Resultado de una fuente externa (Paciente Venezuela).
+type ExternalResult = {
+  id: string;
+  nombre: string;
+  estado: string | null;
+  ciudad: string | null;
+  edad: number | null;
+  notas: string | null;
+};
+
 export default function PublicSearch() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PublicRegistro[]>([]);
@@ -32,6 +42,8 @@ export default function PublicSearch() {
   const [isOperator, setIsOperator] = useState(false);
   const [padronHit, setPadronHit] = useState<{ nombreCompleto: string; cedula: string; nacionalidad: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" | "warning" } | null>(null);
+  const [externalResults, setExternalResults] = useState<ExternalResult[]>([]);
+  const [externalLoading, setExternalLoading] = useState(false);
 
   // Load theme and operator session on mount
   useEffect(() => {
@@ -78,6 +90,26 @@ export default function PublicSearch() {
       }
     }, 400);
 
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Búsqueda en fuentes externas (Paciente Venezuela), en paralelo. No bloquea
+  // la búsqueda local; si la fuente falla, simplemente no muestra esa sección.
+  useEffect(() => {
+    const cleanQ = query.trim();
+    if (cleanQ.length < 3) { setExternalResults([]); return; }
+    const timer = setTimeout(async () => {
+      setExternalLoading(true);
+      try {
+        const res = await fetch(`/api/external-search?q=${encodeURIComponent(cleanQ)}`);
+        const data = await res.json();
+        setExternalResults(data.success ? (data.results || []) : []);
+      } catch {
+        setExternalResults([]);
+      } finally {
+        setExternalLoading(false);
+      }
+    }, 500);
     return () => clearTimeout(timer);
   }, [query]);
 
@@ -212,6 +244,9 @@ export default function PublicSearch() {
                         : "4px solid var(--color-success)",
                     display: "flex", flexDirection: "column", gap: "0.75rem"
                   }}>
+                    <span style={{ fontSize: "0.62rem", fontWeight: 700, color: "var(--color-success)", background: "rgba(5,150,105,0.1)", padding: "0.15rem 0.55rem", borderRadius: "999px", alignSelf: "flex-start", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                      Fuente: Campamentos La Guaira
+                    </span>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div>
                         <h4 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>
@@ -248,6 +283,36 @@ export default function PublicSearch() {
                         <span>Residente intermitente por el siguiente motivo: <strong>{reg.motivoIntermitente}</strong></span>
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Otras fuentes — Paciente Venezuela (hospitales) */}
+        {query.trim().length >= 3 && (externalLoading || externalResults.length > 0) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1.5rem" }}>
+            <h3 style={{ fontSize: "1.1rem", color: "var(--text-primary)", fontWeight: "600", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              Otras fuentes {externalLoading && <span className="spinner"></span>}
+            </h3>
+            {externalResults.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
+                {externalResults.map((r) => (
+                  <div key={r.id} className="form-card" style={{ padding: "1.25rem", borderLeft: "4px solid #6366f1", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                    <span style={{ fontSize: "0.62rem", fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.12)", padding: "0.15rem 0.55rem", borderRadius: "999px", alignSelf: "flex-start", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                      Fuente: Paciente Venezuela
+                    </span>
+                    <h4 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>{r.nombre}</h4>
+                    <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                      {r.estado && <div><strong>Estado:</strong> {r.estado}</div>}
+                      {r.ciudad && <div><strong>Ciudad:</strong> {r.ciudad}</div>}
+                      {r.edad != null && <div><strong>Edad:</strong> {r.edad} años</div>}
+                      {r.notas && <div style={{ color: "var(--text-muted)" }}>{r.notas}</div>}
+                    </div>
+                    <a href={`https://www.pacientevenezuela.com/buscar?q=${encodeURIComponent(query.trim())}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.78rem", fontWeight: 600, color: "#6366f1", textDecoration: "none", marginTop: "0.1rem" }}>
+                      Ver en Paciente Venezuela ↗
+                    </a>
                   </div>
                 ))}
               </div>
