@@ -1875,6 +1875,16 @@ html[data-theme="dark"] .spinner {
   .app-nav {
     border-radius: 24px;
   }
+
+  /* Header: franja de operación ordenada en móvil (estado + usuario arriba,
+     selector de refugio a fila completa abajo) */
+  .header-ops { row-gap: 0.5rem; }
+  .header-refugio {
+    order: 3;
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+  .header-refugio-select { max-width: none; flex: 1; }
 }
 
 .app-header-conn {
