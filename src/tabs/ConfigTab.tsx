@@ -37,7 +37,6 @@ export default function ConfigTab() {
     localRecords,
     refreshLocalRecords,
     setCustomCuartos,
-    allCuartos,
     sortedCustomCuartos,
     roomCapacities,
     setRoomCapacities,
@@ -218,6 +217,58 @@ export default function ConfigTab() {
     return Number.isFinite(n) && n >= 1 && n <= 999 ? n : 18;
   };
 
+  // ── Salones por refugio ──────────────────────────────────────────────────
+  // Master gestiona los salones de CUALQUIER refugio (selector). No-master usa
+  // su propio refugio (estado global del context). El estado local de Master NO
+  // contamina el global que usa el censo/asignaciones.
+  const masterMode = !!currentUser && isMaster(currentUser.role);
+  const [salonRefugio, setSalonRefugio] = useState("");
+  const [masterRooms, setMasterRooms] = useState<string[]>([]);
+  const [masterRoomCaps, setMasterRoomCaps] = useState<Record<string, number>>({});
+  const [loadingMasterRooms, setLoadingMasterRooms] = useState(false);
+
+  // Refugio activo + colecciones "efectivas" (local de Master vs. global).
+  const salonRefugioActivo = masterMode ? salonRefugio : (currentUser?.campamentoTransitorio ?? "");
+  const rooms = masterMode ? masterRooms : sortedCustomCuartos;
+  const roomCaps = masterMode ? masterRoomCaps : roomCapacities;
+  const applyRoomsChange = (updater: (prev: string[]) => string[]) => {
+    if (masterMode) setMasterRooms(updater); else setCustomCuartos(updater);
+  };
+  const applyCapsChange = (updater: (prev: Record<string, number>) => Record<string, number>) => {
+    if (masterMode) setMasterRoomCaps(updater); else setRoomCapacities(updater);
+  };
+
+  // Master: al llegar la lista de refugios, selecciona uno por defecto (el suyo).
+  useEffect(() => {
+    if (!masterMode || salonRefugio || refugios.length === 0) return;
+    const own = refugios.find(r => r.nombre === currentUser?.campamentoTransitorio);
+    setSalonRefugio(own ? own.nombre : refugios[0].nombre);
+  }, [masterMode, refugios, salonRefugio, currentUser?.campamentoTransitorio]);
+
+  // Master: carga los salones del refugio seleccionado (estado local).
+  useEffect(() => {
+    if (!masterMode || !salonRefugio) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingMasterRooms(true);
+      try {
+        const res = await apiFetch(`/api/cuartos?refugio=${encodeURIComponent(salonRefugio)}`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setMasterRooms(data.map((r: any) => r.name));
+          const caps: Record<string, number> = {};
+          data.forEach((r: any) => { caps[r.name] = typeof r.capacidad === "number" ? r.capacidad : 18; });
+          setMasterRoomCaps(caps);
+        }
+      } catch (err) {
+        console.error("Error cargando salones del refugio:", err);
+      } finally {
+        if (!cancelled) setLoadingMasterRooms(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [masterMode, salonRefugio]);
+
   // Construye el nombre canónico del salón según el tipo de contenedor.
   // Edificio/Piso → "EDIFICIO N SALON S" / "PISO N SALON S"; Otro → "<texto> SALON S".
   const buildRoomKey = (tipo: string, contenedor: string, salon: string): string => {
@@ -231,7 +282,7 @@ export default function ConfigTab() {
     const s = newSalon.trim();
     if (!c || !s) return;
     const key = buildRoomKey(newTipo, c, s);
-    if (allCuartos.includes(key)) return;
+    if (rooms.includes(key)) return;
     setRoomToConfirmAdd({ key, capacidad: normalizeCap(newCapacidad) });
   };
 
@@ -240,8 +291,8 @@ export default function ConfigTab() {
     const { key, capacidad } = roomToConfirmAdd;
 
     // Optimistic UI update
-    setCustomCuartos(prev => [...prev, key]);
-    setRoomCapacities(prev => ({ ...prev, [key]: capacidad }));
+    applyRoomsChange(prev => [...prev, key]);
+    applyCapsChange(prev => ({ ...prev, [key]: capacidad }));
     setNewContenedor("");
     setNewSalon("");
     setNewCapacidad("18");
@@ -252,7 +303,7 @@ export default function ConfigTab() {
         await apiFetch("/api/cuartos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: key, capacidad })
+          body: JSON.stringify({ name: key, capacidad, refugio: salonRefugioActivo })
         });
       } catch (err) {
         console.error("Error creating custom room in DB:", err);
@@ -263,7 +314,7 @@ export default function ConfigTab() {
   // Abre el modal de edición de capacidad con el valor actual del salón.
   const openEditCap = (key: string) => {
     setRoomToEditCap(key);
-    setEditCapValue(String(roomCapacities[key] ?? 18));
+    setEditCapValue(String(roomCaps[key] ?? 18));
   };
 
   const saveEditCap = async () => {
@@ -283,10 +334,10 @@ export default function ConfigTab() {
       const res = await apiFetch("/api/cuartos", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: key, capacidad: cap })
+        body: JSON.stringify({ name: key, capacidad: cap, refugio: salonRefugioActivo })
       });
       if (res.ok) {
-        setRoomCapacities(prev => ({ ...prev, [key]: cap }));
+        applyCapsChange(prev => ({ ...prev, [key]: cap }));
         showToast("Capacidad actualizada.", "success");
         setRoomToEditCap(null);
       } else {
@@ -309,8 +360,8 @@ export default function ConfigTab() {
     if (!roomToConfirmDelete) return;
     const key = roomToConfirmDelete;
 
-    setCustomCuartos(prev => prev.filter(c => c !== key));
-    setRoomCapacities(prev => {
+    applyRoomsChange(prev => prev.filter(c => c !== key));
+    applyCapsChange(prev => {
       const next = { ...prev };
       delete next[key];
       return next;
@@ -319,7 +370,7 @@ export default function ConfigTab() {
 
     if (navigator.onLine) {
       try {
-        await apiFetch(`/api/cuartos?name=${encodeURIComponent(key)}`, {
+        await apiFetch(`/api/cuartos?name=${encodeURIComponent(key)}&refugio=${encodeURIComponent(salonRefugioActivo)}`, {
           method: "DELETE"
         });
       } catch (err) {
@@ -697,8 +748,26 @@ export default function ConfigTab() {
           <div className="dashboard-section">
             <h3 className="dashboard-section-title">Gestión de Edificios y Salones</h3>
             <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem 0" }}>
-              Agregue salones a su refugio. Elija el tipo de contenedor y defina las camas disponibles de cada salón.
+              Agregue salones {masterMode ? "al refugio seleccionado" : "a su refugio"}. Elija el tipo de contenedor y defina las camas disponibles de cada salón.
             </p>
+            {masterMode && (
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label htmlFor="salon-refugio-select" className="room-add-label">Refugio a gestionar</label>
+                <select
+                  id="salon-refugio-select"
+                  value={salonRefugio}
+                  onChange={e => { setSalonRefugio(e.target.value); setMasterRooms([]); setMasterRoomCaps({}); }}
+                >
+                  {refugios.length === 0 && <option value="">Cargando refugios…</option>}
+                  {refugios.map(rf => (
+                    <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
+                  ))}
+                </select>
+                <p style={{ margin: "0.35rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Los salones se administran por refugio. Selecciona uno para ver y editar solo sus salones.
+                </p>
+              </div>
+            )}
             <div className="room-add-form">
               {/* Tipo de contenedor: Edificio / Piso / Otro */}
               <div className="room-type-toggle">
@@ -748,16 +817,18 @@ export default function ConfigTab() {
               )}
             </div>
             <div className="room-list-section">
-              <span className="room-list-label">Habitaciones registradas ({sortedCustomCuartos.length})</span>
-              {sortedCustomCuartos.length === 0 ? (
+              <span className="room-list-label">
+                Habitaciones registradas ({rooms.length}){masterMode && loadingMasterRooms ? " · cargando…" : ""}
+              </span>
+              {rooms.length === 0 ? (
                 <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.5rem 0 0 0" }}>
-                  No hay habitaciones registradas en la base de datos.
+                  {masterMode && loadingMasterRooms ? "Cargando salones del refugio…" : "No hay habitaciones registradas en la base de datos."}
                 </p>
               ) : (
                 (() => {
                   // Agrupa los salones por contenedor (la parte antes de " SALON ").
                   const groups: Record<string, string[]> = {};
-                  sortedCustomCuartos.forEach(key => {
+                  rooms.forEach(key => {
                     const idx = key.lastIndexOf(" SALON ");
                     const contenedor = idx === -1 ? key : key.slice(0, idx);
                     if (!groups[contenedor]) groups[contenedor] = [];
@@ -777,7 +848,7 @@ export default function ConfigTab() {
                             <span key={c} className="room-chip room-chip--custom">
                               Salón {salonNum}
                               <button type="button" className="room-chip-cap" onClick={() => openEditCap(c)} title="Editar capacidad de camas">
-                                🛏 {roomCapacities[c] ?? 18}
+                                🛏 {roomCaps[c] ?? 18}
                               </button>
                               <button type="button" className="room-chip-remove" onClick={() => removeCustomCuarto(c)} title="Eliminar Habitación">×</button>
                             </span>
