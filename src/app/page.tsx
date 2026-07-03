@@ -300,6 +300,9 @@ export default function Home() {
   // Toast timeout reference to prevent premature dismissal of subsequent toasts
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // SW Update Remind Later timeout reference
+  const remindLaterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Initialize online status, theme, user session, local padrón count, GPS and local queue on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -436,6 +439,7 @@ export default function Home() {
       clearInterval(interval);
       window.removeEventListener("focus", checkForUpdates);
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+      if (remindLaterTimeoutRef.current) clearTimeout(remindLaterTimeoutRef.current);
     };
   }, []);
 
@@ -445,6 +449,16 @@ export default function Home() {
     } else {
       window.location.reload();
     }
+  };
+
+  const handleRemindLater = () => {
+    setShowUpdateBanner(false);
+    if (remindLaterTimeoutRef.current) clearTimeout(remindLaterTimeoutRef.current);
+    remindLaterTimeoutRef.current = setTimeout(() => {
+      if (swRegistration && swRegistration.waiting) {
+        setShowUpdateBanner(true);
+      }
+    }, 3 * 60 * 1000); // 3 minutos
   };
 
   // Load cached stats and registrations on mount — solo si el cache pertenece al
@@ -1191,8 +1205,8 @@ export default function Home() {
           bottom: "1rem",
           left: "1rem",
           zIndex: 1100,
-          backgroundColor: "var(--bg-card)",
-          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+          backgroundColor: "var(--bg-secondary)",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.15)",
           padding: "1rem",
           borderRadius: "var(--border-radius-lg)",
           maxWidth: "350px",
@@ -1201,7 +1215,7 @@ export default function Home() {
           flexDirection: "column",
           gap: "0.75rem",
           color: "var(--text-primary)",
-          border: "1px solid var(--border-color)"
+          border: "1.5px solid var(--color-primary)"
         }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
             <span style={{ fontSize: "1.25rem" }}>✨</span>
@@ -1228,9 +1242,9 @@ export default function Home() {
                 border: "none",
                 color: "var(--text-secondary)"
               }}
-              onClick={() => setShowUpdateBanner(false)}
+              onClick={handleRemindLater}
             >
-              Ignorar
+              Recordar más tarde
             </button>
             <button
               type="button"
