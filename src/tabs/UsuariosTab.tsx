@@ -18,7 +18,7 @@ export default function UsuariosTab() {
     password: "",
     confirmPassword: "",
     role: "REGISTRADOR",
-    campamentoTransitorio: "Complejo Educativo República de Panamá"
+    campamentoTransitorio: ""
   });
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userErrors, setUserErrors] = useState<Record<string, string>>({});
@@ -147,7 +147,7 @@ export default function UsuariosTab() {
         password: "",
         confirmPassword: "",
         role: "REGISTRADOR",
-        campamentoTransitorio: "Complejo Educativo República de Panamá"
+        campamentoTransitorio: ""
       });
       setUserShowPassword(false);
       setUserShowConfirmPassword(false);
@@ -220,7 +220,7 @@ export default function UsuariosTab() {
         password: "",
         confirmPassword: "",
         role: "REGISTRADOR",
-        campamentoTransitorio: "Complejo Educativo República de Panamá"
+        campamentoTransitorio: ""
       });
       setUserShowPassword(false);
       setUserShowConfirmPassword(false);
@@ -294,7 +294,7 @@ export default function UsuariosTab() {
                     password: "",
                     confirmPassword: "",
                     role: "REGISTRADOR",
-                    campamentoTransitorio: "Complejo Educativo República de Panamá"
+                    campamentoTransitorio: ""
                   });
                   setUserErrors({});
                 }}
@@ -378,7 +378,7 @@ export default function UsuariosTab() {
                                   password: "",
                                   confirmPassword: "",
                                   role: usr.role,
-                                  campamentoTransitorio: usr.campamentoTransitorio || "Complejo Educativo República de Panamá"
+                                  campamentoTransitorio: usr.campamentoTransitorio || ""
                                 });
                                 setUserErrors({});
                                 setEditUserModalOpen(true);
