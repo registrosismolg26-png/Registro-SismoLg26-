@@ -3,9 +3,9 @@
 // ── Pantalla de inicio de sesión ────────────────────────────────────────────
 // EXCEPCIÓN AL PATRÓN: el login se renderiza ANTES del <AppContext.Provider>,
 // por lo que NO puede usar useAppContext(). Recibe por props lo que necesita de
-// Home: setCurrentUser, setActiveTab, showToast. El estado del formulario 
-// (email, password, error, loading, mostrar contraseña, recordarme) y 
-// handleLogin viven aquí.
+// Home: setCurrentUser, setActiveTab, showToast y el toast actual (para
+// renderizar la notificación). El estado del formulario (email, password,
+// error, loading, mostrar contraseña, recordarme) y handleLogin viven aquí.
 
 import { useState } from "react";
 import { sha256 } from "@/lib/helpers";
@@ -119,110 +119,129 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast }: L
         });
         localStorage.setItem("sismo_cached_operators", JSON.stringify(filtered));
 
-        showToast(`Sesión iniciada: ${data.user.nombre}`, "success");
+        showToast(`Sesión iniciada: ${data.user.nombre}.`, "success");
+        setLoginEmail("");
+        setLoginPassword("");
       }
     } catch (err) {
       console.error(err);
-      setLoginError("Error de conexión al servidor.");
+      setLoginError("Error de red al intentar iniciar sesión.");
     } finally {
       setLoadingAuth(false);
     }
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <div style={{ display: "inline-flex", padding: "0.75rem", borderRadius: "1rem", background: "rgba(59, 130, 246, 0.1)", color: "var(--color-primary)", marginBottom: "1rem" }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <div className="container">
+        <div className="app-header app-header--centered" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+          <img src="/logo_gob.webp" alt="Logo Gobernación La Guaira" style={{ width: "90px", height: "90px", objectFit: "contain" }} />
+          <div className="title-area title-area--centered">
+            <h1>CAMPAMENTOS TRANSITORIOS</h1>
+            <p className="subtitle">Sistema de Gestión · La Guaira 2026</p>
           </div>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: "800", color: "var(--text-primary)" }}>Sistema SismoLg26</h2>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.5rem" }}>Registro y Censo de Personas Refugiadas</p>
         </div>
 
-        {loginError && (
-          <div className="login-error-banner" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span style={{ fontSize: "0.85rem", fontWeight: "500" }}>{loginError}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          <div className="form-group">
-            <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-secondary)", marginBottom: "0.5rem" }}>Correo Electrónico</label>
-            <input
-              type="email"
-              placeholder="operador@sismolg26.gob.ve"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-              disabled={loadingAuth}
-              style={{ width: "100%" }}
-            />
-          </div>
-
-          <div className="form-group">
-            <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-secondary)", marginBottom: "0.5rem" }}>Contraseña</label>
-            <div style={{ position: "relative" }}>
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                disabled={loadingAuth}
-                style={{ width: "100%", paddingRight: "2.75rem" }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-secondary)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-              >
-                {showPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                )}
-              </button>
+        <div className="login-container">
+          <form onSubmit={handleLogin} className="login-card">
+            <div className="login-header">
+              <h2 className="login-title">Iniciar Sesión</h2>
+              <p className="login-subtitle">Ingrese sus credenciales de operador para continuar.</p>
             </div>
-          </div>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.25rem" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "var(--text-secondary)", cursor: "pointer", userSelect: "none" }}>
+            {loginError && <div className="login-error">{loginError}</div>}
+
+            <div className="form-group">
+              <label htmlFor="login-email">Correo Electrónico</label>
+              <input
+                type="email"
+                id="login-email"
+                placeholder="ej: operador@sismo.gob.ve"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="login-password">Contraseña</label>
+              <div className="password-input-container" style={{ position: "relative", width: "100%" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="login-password"
+                  placeholder="Contraseña"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  required
+                  style={{ paddingRight: "2.5rem" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: "absolute",
+                    right: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--text-muted, #888)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0"
+                  }}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group remember-me-container" style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1rem", marginBottom: "1rem" }}>
               <input
                 type="checkbox"
+                id="remember-me"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ width: "auto", margin: 0 }}
+                style={{ width: "auto", height: "auto", cursor: "pointer" }}
               />
-              Recordarme en este dispositivo
-            </label>
-          </div>
+              <label htmlFor="remember-me" style={{ margin: 0, cursor: "pointer", fontSize: "0.875rem", userSelect: "none" }}>
+                Recordarme en este dispositivo
+              </label>
+            </div>
 
-          <button
-            type="submit"
-            className="btn-submit"
-            disabled={loadingAuth}
-            style={{ marginTop: "0.5rem", height: "42px", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
-          >
-            {loadingAuth ? (
-              <>
-                <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "0.25rem" }}><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.59"/><line x1="16.24" y1="16.24" x2="19.07" y2="18.91"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
-                Iniciando sesión...
-              </>
-            ) : "Iniciar Sesión"}
-          </button>
-        </form>
+            <button type="submit" className="btn-submit" disabled={loadingAuth}>
+              {loadingAuth ? "Verificando..." : "Entrar al Sistema"}
+            </button>
 
-        <div style={{ borderTop: "1px solid var(--border-color)", marginTop: "2rem", paddingTop: "1.25rem", textAlign: "center" }}>
-          <a
-            href="/buscar"
-            className="btn-secondary"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", textDecoration: "none" }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            Buscar Familiar Afectado
-          </a>
+            <div style={{ marginTop: "1.25rem", borderTop: "1px solid var(--border-color)", paddingTop: "1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, textAlign: "center" }}>
+                ¿Busca a un familiar afectado?
+              </p>
+              <a
+                href="/buscar"
+                className="btn-secondary"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", textDecoration: "none" }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Buscar Familiar Afectado
+              </a>
+            </div>
+          </form>
         </div>
+
+        {/* Notificaciones manejadas globalmente por sonner */}
       </div>
-    </div>
   );
 }
