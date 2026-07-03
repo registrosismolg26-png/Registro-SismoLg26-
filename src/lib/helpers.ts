@@ -23,11 +23,13 @@ export const formatRoomLabel = (room: string) => {
 export const DEFAULT_ROOM_CAPACITY = 18;
 
 // Nivel de ocupación de un salón según ocupantes vs. capacidad de camas.
-// Se usa para colorear el select de asignación y las tarjetas del dashboard,
-// de forma proporcional a la capacidad real (no a un 18 fijo).
+// Proporcional a la capacidad real (no umbrales fijos): usa el % de ocupación,
+// con alerta temprana para que el color avise ANTES de que el salón se llene.
+// Se usa en el select de asignación, el censo y las tarjetas del dashboard.
 export function roomFillLevel(count: number, capacity: number): "green" | "yellow" | "red" {
   const cap = capacity > 0 ? capacity : DEFAULT_ROOM_CAPACITY;
-  if (count >= cap) return "red";       // lleno o sobrecupo
-  if (count >= cap * 0.6) return "yellow"; // 60%+ ocupado
-  return "green";
+  const ratio = count / cap;
+  if (ratio >= 0.9) return "red";      // 90%+  → lleno o casi lleno
+  if (ratio >= 0.7) return "yellow";   // 70–89% → llenándose
+  return "green";                       // < 70% → espacio disponible
 }
