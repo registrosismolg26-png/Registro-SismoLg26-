@@ -1,7 +1,7 @@
 // AUTOGENERADO: `scripts/update-sw-version.mjs` (script `prebuild`) reemplaza este
 // valor con el commit SHA en cada build, para invalidar el cache de todos los
 // clientes en cada deploy. NO editar a mano; el valor de abajo es solo placeholder.
-const BUILD_TS = "auto";
+const BUILD_TS = "e1707f9b7bf7";
 const CACHE_NAME = `registro-sismo-v${BUILD_TS}`;
 
 const PRECACHE = [
@@ -15,7 +15,6 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
   );
-  self.skipWaiting();
 });
 
 // Activate: delete every cache that isn't the current version
@@ -160,4 +159,11 @@ self.addEventListener("notificationclick", (event) => {
       }
     })
   );
+});
+
+// Escuchar mensaje del cliente para omitir espera y activar el nuevo worker
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });

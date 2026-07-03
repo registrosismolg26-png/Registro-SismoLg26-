@@ -55,13 +55,6 @@ export default function RootLayout({
     >
       <body>
         {children}
-        {process.env.NODE_ENV === "production" && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `if('serviceWorker'in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').then(function(r){console.log('SW:',r.scope)}).catch(function(e){console.warn('SW fail:',e)})})}`,
-            }}
-          />
-        )}
       </body>
     </html>
   );

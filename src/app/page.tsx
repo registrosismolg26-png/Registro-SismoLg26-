@@ -220,6 +220,10 @@ export default function Home() {
   // Toast Notification State
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
+  // Service Worker Update States
+  const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [showUpdateBanner, setShowUpdateBanner] = useState<boolean>(false);
+
   // Sync guard: useRef avoids stale-closure bug in setInterval (useState value is frozen in the closure)
   const isSyncingRef = useRef<boolean>(false);
 
@@ -305,6 +309,79 @@ export default function Home() {
       };
     }
   }, []);
+
+  // Service Worker registration & automatic updates
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    // Solo registrar en producción
+    if (process.env.NODE_ENV !== "production") return;
+
+    let registration: ServiceWorkerRegistration | null = null;
+
+    const handleUpdate = (reg: ServiceWorkerRegistration) => {
+      setSwRegistration(reg);
+      setShowUpdateBanner(true);
+    };
+
+    navigator.serviceWorker.register("/sw.js").then((reg) => {
+      registration = reg;
+
+      // Si ya hay un service worker esperando (por ejemplo, de una recarga previa)
+      if (reg.waiting) {
+        handleUpdate(reg);
+      }
+
+      // Escuchar si se encuentra un nuevo service worker instalando
+      reg.addEventListener("updatefound", () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              handleUpdate(reg);
+            }
+          });
+        }
+      });
+    }).catch((err) => {
+      console.warn("SW registration failed:", err);
+    });
+
+    // Recargar la página cuando el nuevo Service Worker toma el control
+    let refreshing = false;
+    const handleControllerChange = () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+
+    // Función para buscar actualizaciones proactivamente
+    const checkForUpdates = () => {
+      if (registration) {
+        registration.update().catch((err) => console.log("SW update check failed:", err));
+      }
+    };
+
+    // Buscar actualizaciones periódicamente cada 5 minutos
+    const interval = setInterval(checkForUpdates, 5 * 60 * 1000);
+    // Y cuando el usuario vuelva a enfocar la ventana/pestaña
+    window.addEventListener("focus", checkForUpdates);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", checkForUpdates);
+      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+    };
+  }, []);
+
+  const handleUpdateApp = () => {
+    if (swRegistration && swRegistration.waiting) {
+      swRegistration.waiting.postMessage({ type: "SKIP_WAITING" });
+    } else {
+      window.location.reload();
+    }
+  };
 
   // Load cached stats and registrations on mount — solo si el cache pertenece al
   // usuario de esta sesión (mejora H segura: en un dispositivo compartido no se
@@ -1035,6 +1112,76 @@ export default function Home() {
               }}
             >
               Asignar Habitación
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Update Notification Banner */}
+      {showUpdateBanner && (
+        <div style={{
+          position: "fixed",
+          bottom: "1rem",
+          left: "1rem",
+          zIndex: 1100,
+          backgroundColor: "var(--bg-card)",
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+          padding: "1rem",
+          borderRadius: "var(--border-radius-lg)",
+          maxWidth: "350px",
+          width: "90%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.75rem",
+          color: "var(--text-primary)",
+          border: "1px solid var(--border-color)"
+        }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+            <span style={{ fontSize: "1.25rem" }}>✨</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: "700", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-primary)" }}>
+                Actualización Disponible
+              </div>
+              <p style={{ fontSize: "0.85rem", margin: "4px 0 0 0", color: "var(--text-secondary)", lineHeight: "1.4" }}>
+                Hay una nueva versión disponible. Actualiza para obtener los últimos cambios.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem" }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{
+                width: "auto",
+                margin: 0,
+                padding: "0 0.75rem",
+                fontSize: "0.75rem",
+                height: "28px",
+                backgroundColor: "transparent",
+                border: "none",
+                color: "var(--text-secondary)"
+              }}
+              onClick={() => setShowUpdateBanner(false)}
+            >
+              Ignorar
+            </button>
+            <button
+              type="button"
+              className="btn-submit"
+              style={{
+                width: "auto",
+                margin: 0,
+                padding: "0 0.75rem",
+                fontSize: "0.75rem",
+                height: "28px",
+                backgroundColor: "var(--color-primary)",
+                color: "#ffffff",
+                borderColor: "var(--color-primary)",
+                fontWeight: "600"
+              }}
+              onClick={handleUpdateApp}
+            >
+              Actualizar
             </button>
           </div>
         </div>
