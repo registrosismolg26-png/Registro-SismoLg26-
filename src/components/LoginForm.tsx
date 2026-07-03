@@ -9,17 +9,18 @@
 
 import { useState } from "react";
 import { sha256 } from "@/lib/helpers";
-import { ToastIcon } from "@/components/ToastIcon";
 import type { CurrentUser, ActiveTab, ToastType } from "@/types";
+import { SwipeableToast } from "@/components/SwipeableToast";
 
 interface LoginFormProps {
   setCurrentUser: React.Dispatch<React.SetStateAction<CurrentUser | null>>;
   setActiveTab: (tab: ActiveTab) => void;
   showToast: (message: string, type: ToastType) => void;
   toast: { message: string; type: ToastType } | null;
+  setToast: React.Dispatch<React.SetStateAction<{ message: string; type: ToastType } | null>>;
 }
 
-export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toast }: LoginFormProps) {
+export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toast, setToast }: LoginFormProps) {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -244,10 +245,11 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toa
         </div>
 
         {toast && (
-          <div className={`toast toast--${toast.type}`}>
-            <ToastIcon type={toast.type} />
-            <span className="toast-message">{toast.message}</span>
-          </div>
+          <SwipeableToast
+            message={toast.message}
+            type={toast.type}
+            onDismiss={() => setToast(null)}
+          />
         )}
       </div>
   );
