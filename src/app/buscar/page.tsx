@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { apiFetch } from "@/lib/apiFetch";
 
 type PublicRegistro = {
   id: string;
@@ -62,7 +61,8 @@ export default function PublicSearch() {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await apiFetch(`/api/public-search?q=${encodeURIComponent(cleanQ)}`);
+        // fetch directo (sin apiFetch): esta página es pública, no requiere sesión.
+        const res = await fetch(`/api/public-search?q=${encodeURIComponent(cleanQ)}`);
         const data = await res.json();
         if (data.success) {
           setResults(data.registros || []);
@@ -159,8 +159,9 @@ export default function PublicSearch() {
 
           {isOperator && (
             <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "flex-start" }}>
-              <a href="/" className="btn-ver" style={{ padding: "0.5rem 1rem", textDecoration: "none" }}>
-                ← Volver al Acceso de Operadores
+              <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.5rem 1rem", textDecoration: "none", fontSize: "0.8rem", fontWeight: 600, color: "var(--color-primary)", border: "1px solid var(--color-primary)", borderRadius: "100px", background: "transparent" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                Volver al acceso de operadores
               </a>
             </div>
           )}
