@@ -26,13 +26,20 @@ type PublicRegistro = {
 // Resultado de una fuente externa (Paciente Venezuela).
 type ExternalResult = {
   id: string;
+  fuente: string;
   nombre: string;
   estado: string | null;
   ubicacion: string | null;
   ciudad: string | null;
   edad: number | null;
+  telefono: string | null;
   notas: string | null;
+  enlace: string | null;
 };
+
+// Color distintivo por fuente externa (para borde y badge de cada card).
+const fuenteColor = (fuente: string): string =>
+  fuente === "Localiza Pacientes" ? "#0d9488" : "#6366f1";
 
 export default function PublicSearch() {
   const [query, setQuery] = useState("");
@@ -291,9 +298,9 @@ export default function PublicSearch() {
           </div>
         )}
 
-        {/* Otras fuentes — Paciente Venezuela (hospitales). Se muestra SIEMPRE
-            durante una búsqueda activa, aunque no haya coincidencias, para dejar
-            claro que también se consultó esta fuente externa. */}
+        {/* Otras fuentes — Paciente Venezuela + Localiza Pacientes. Se muestra
+            SIEMPRE durante una búsqueda activa, aunque no haya coincidencias, para
+            dejar claro que también se consultaron estas fuentes externas. */}
         {query.trim().length >= 3 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1.5rem" }}>
             <h3 style={{ fontSize: "1.1rem", color: "var(--text-primary)", fontWeight: "600", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -301,10 +308,12 @@ export default function PublicSearch() {
             </h3>
             {externalResults.length > 0 ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
-                {externalResults.map((r) => (
-                  <div key={r.id} className="form-card" style={{ padding: "1.25rem", borderLeft: "4px solid #6366f1", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                    <span style={{ fontSize: "0.62rem", fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.12)", padding: "0.15rem 0.55rem", borderRadius: "999px", alignSelf: "flex-start", textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                      Fuente: Paciente Venezuela
+                {externalResults.map((r) => {
+                  const c = fuenteColor(r.fuente);
+                  return (
+                  <div key={r.id} className="form-card" style={{ padding: "1.25rem", borderLeft: `4px solid ${c}`, display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                    <span style={{ fontSize: "0.62rem", fontWeight: 700, color: c, background: `${c}1f`, padding: "0.15rem 0.55rem", borderRadius: "999px", alignSelf: "flex-start", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                      Fuente: {r.fuente}
                     </span>
                     <h4 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>{r.nombre}</h4>
                     <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
@@ -312,23 +321,29 @@ export default function PublicSearch() {
                       {r.ubicacion && <div><strong>Lugar:</strong> {r.ubicacion}</div>}
                       {r.ciudad && <div><strong>Ciudad:</strong> {r.ciudad}</div>}
                       {r.edad != null && <div><strong>Edad:</strong> {r.edad} años</div>}
+                      {r.telefono && <div><strong>Contacto:</strong> {r.telefono}</div>}
                       {r.notas && <div style={{ color: "var(--text-muted)" }}>{r.notas}</div>}
                     </div>
-                    <a href={`https://www.pacientevenezuela.com/buscar?q=${encodeURIComponent(query.trim())}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.78rem", fontWeight: 600, color: "#6366f1", textDecoration: "none", marginTop: "0.1rem" }}>
-                      Ver en Paciente Venezuela ↗
-                    </a>
+                    {r.enlace && (
+                      <a href={r.enlace} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.78rem", fontWeight: 600, color: c, textDecoration: "none", marginTop: "0.1rem" }}>
+                        Ver en {r.fuente} ↗
+                      </a>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : !externalLoading ? (
               <div className="form-card" style={{ padding: "1.5rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem", display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
-                <span style={{ fontSize: "0.62rem", fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.12)", padding: "0.15rem 0.55rem", borderRadius: "999px", textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                  Fuente: Paciente Venezuela
-                </span>
-                <span>Sin coincidencias en esta fuente para &ldquo;{query.trim()}&rdquo;.</span>
-                <a href={`https://www.pacientevenezuela.com/buscar?q=${encodeURIComponent(query.trim())}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.78rem", fontWeight: 600, color: "#6366f1", textDecoration: "none" }}>
-                  Buscar directamente en Paciente Venezuela ↗
-                </a>
+                <span>Sin coincidencias en otras fuentes para &ldquo;{query.trim()}&rdquo;.</span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", justifyContent: "center" }}>
+                  <a href={`https://www.pacientevenezuela.com/buscar?q=${encodeURIComponent(query.trim())}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.78rem", fontWeight: 600, color: "#6366f1", textDecoration: "none" }}>
+                    Paciente Venezuela ↗
+                  </a>
+                  <a href="https://localizapacientes.com/" target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.78rem", fontWeight: 600, color: "#0d9488", textDecoration: "none" }}>
+                    Localiza Pacientes ↗
+                  </a>
+                </div>
               </div>
             ) : null}
           </div>
