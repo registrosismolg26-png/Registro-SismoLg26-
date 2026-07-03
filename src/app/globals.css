@@ -4121,13 +4121,6 @@ h2.dashboard-section-title {
   gap: 1.25rem !important;
 }
 
-/* Fallback for smaller fullscreen screens */
-@media (max-width: 1200px) {
-  .presentation-mode .stats-charts-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-}
-
 .presentation-mode .stats-grid {
   display: grid !important;
   grid-template-columns: repeat(4, 1fr) !important;
@@ -4144,7 +4137,9 @@ h2.dashboard-section-title {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: space-between !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
 }
 
 .presentation-mode .stat-card .stat-label {
@@ -4166,6 +4161,11 @@ h2.dashboard-section-title {
   border-radius: 12px !important;
   padding: 1.25rem !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
 }
 
 .presentation-mode .dashboard-section-title {
@@ -4175,6 +4175,43 @@ h2.dashboard-section-title {
   border-bottom: 2px solid #e2e8f0 !important;
   padding-bottom: 0.5rem !important;
   margin-bottom: 1rem !important;
+  width: 100% !important;
+  text-align: center !important;
+}
+
+/* Center elements within section */
+.presentation-mode .segmented-bar-container {
+  width: 100% !important;
+  max-width: 480px !important;
+  margin: 0 auto !important;
+}
+
+.presentation-mode .donut-chart-wrapper {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 1.5rem !important;
+  width: 100% !important;
+}
+
+.presentation-mode .matrix-table-wrapper {
+  display: flex !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+.presentation-mode .matrix-table {
+  width: 100% !important;
+  max-width: 480px !important;
+  margin: 0 auto !important;
+}
+
+.presentation-mode .bar-list {
+  width: 100% !important;
+  max-width: 480px !important;
+  margin: 0 auto !important;
+  text-align: left !important;
 }
 
 /* Force dark SVG text labels for charts in presentation mode */
@@ -4195,6 +4232,52 @@ h2.dashboard-section-title {
 .presentation-mode .status-bar,
 .presentation-mode .theme-toggle-btn {
   display: none !important;
+}
+
+/* Responsive Adaptive break points for mobile & tablet */
+@media (max-width: 1200px) {
+  .presentation-mode .stats-charts-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .presentation-mode {
+    padding: 1.25rem 1.5rem !important;
+    gap: 1rem !important;
+  }
+  .presentation-mode .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  .presentation-mode .stats-charts-grid {
+    grid-template-columns: repeat(1, 1fr) !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .presentation-mode {
+    padding: 0.75rem !important;
+    gap: 0.75rem !important;
+  }
+  .presentation-mode .stats-grid {
+    grid-template-columns: repeat(1, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+  .presentation-mode .stats-charts-grid {
+    grid-template-columns: repeat(1, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  .presentation-mode .stat-card {
+    padding: 1rem !important;
+  }
+  .presentation-mode .stat-card .stat-value {
+    font-size: 1.5rem !important;
+  }
+  .presentation-mode .donut-chart-wrapper {
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
 }
 
 /* ── TV / Extra Wide screens optimization ──────────────────────────────── */
