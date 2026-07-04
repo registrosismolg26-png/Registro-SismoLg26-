@@ -4714,10 +4714,69 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   REFORMAT del formulario de censo (.censo-form) — alinea el wizard de registro
-   con el sistema visual moderno (controles redondeados, focus suave, chips
-   flotantes, animación de entrada por paso). Scoped para no afectar otros tabs.
+   REFORMAT del formulario de censo (.censo-form) — TODO pill moderno.
+   Un ÚNICO sistema de controles: misma altura y radio pill en inputs, selects,
+   date, searchable, radios, toggle y botones. Scoped para no tocar otros tabs.
+
+   Causa que arreglaba el desfase de alturas: --morb-h/--morb-h-sm viven en .morb
+   (MorbilidadTab); fuera de ahí los .morb-control quedaban con height:auto. Aquí
+   se redefinen para que StyledSelect/DatePicker/SearchableSelect midan igual.
    ═════════════════════════════════════════════════════════════════════════ */
+.censo-form {
+  --ctl-h: 48px;            /* alto ÚNICO de todos los controles del formulario */
+  --ctl-h-sm: 44px;         /* filas densas de medicamento                      */
+  --ctl-radius: 999px;      /* pill                                             */
+  --morb-h: var(--ctl-h);       /* los .morb-control internos toman alto real   */
+  --morb-h-sm: var(--ctl-h-sm);
+}
+
+/* Control base pill: inputs de texto/número + triggers no-nativos (.morb-control:
+   StyledSelect / DatePicker / SearchableSelect). Misma altura, radio, padding. */
+.censo-form input[type="text"],
+.censo-form input[type="number"],
+.censo-form .morb-control {
+  height: var(--ctl-h);
+  min-height: var(--ctl-h);
+  border-radius: var(--ctl-radius);
+  padding: 0 1.15rem;
+  font-size: 1rem; /* 16px: uniforme y evita el zoom-al-enfocar en móvil */
+  box-sizing: border-box;
+}
+.censo-form input[type="text"]:focus,
+.censo-form input[type="number"]:focus,
+.censo-form .morb-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-ring);
+}
+
+/* Textarea: multilínea (no puede ser pill) pero muy redondeada y coherente */
+.censo-form textarea {
+  border-radius: 22px;
+  padding: 0.85rem 1.15rem;
+  font-size: 1rem; /* 16px: evita zoom-al-enfocar en móvil */
+  min-height: 104px;
+  line-height: 1.5;
+}
+
+/* Radio cards → pill, misma altura que el resto */
+.censo-form .radio-card {
+  height: var(--ctl-h);
+  border-radius: var(--ctl-radius);
+  font-size: 0.82rem;
+}
+
+/* Toggle nacionalidad V/E → pill */
+.censo-form .nat-toggle {
+  height: var(--ctl-h);
+  border-radius: var(--ctl-radius);
+}
+
+/* Botones del asistente → misma altura pill */
+.censo-form .btn-submit,
+.censo-form .btn-back {
+  height: var(--ctl-h);
+  border-radius: var(--ctl-radius);
+}
 
 /* Estado de error para los controles reformateados (button/trigger no-nativos) */
 .morb-control.has-error,
@@ -4728,14 +4787,6 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 .morb-select__trigger.has-error:focus {
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
 }
-
-/* Controles de texto del censo: mismo radio/alto que los morb-control (10px) */
-.censo-form input[type="text"],
-.censo-form input[type="number"],
-.censo-form textarea {
-  border-radius: 10px;
-}
-.censo-form textarea { min-height: 90px; line-height: 1.45; }
 
 /* Entrada por paso: fundido + leve deslizamiento (replay al cambiar de paso) */
 .censo-form .form-step-content {
@@ -4758,7 +4809,7 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.38rem 0.35rem 0.38rem 0.75rem;
+  padding: 0.42rem 0.4rem 0.42rem 0.8rem;
   border-radius: 999px;
   border: 1.5px solid var(--color-primary);
   background: var(--color-primary-light);
@@ -4781,17 +4832,24 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 }
 .chip-pill__x:hover { background: rgba(0, 0, 0, 0.08); }
 
-/* Filas de medicamento: celdas de solo-lectura (nombre/dosis) coherentes con
-   el select de período (dense) que ahora las acompaña. */
+/* Filas de medicamento: densas (más bajas) pero también pill y uniformes entre sí.
+   Va DESPUÉS del control base para ganar el empate de especificidad. */
+.censo-form .med-row .morb-select__trigger--dense {
+  height: var(--ctl-h-sm);
+  min-height: var(--ctl-h-sm);
+  border-radius: var(--ctl-radius);
+  font-size: 0.82rem;
+  padding: 0 0.9rem;
+}
 .med-cell {
   display: flex;
   align-items: center;
   min-width: 0;
-  height: var(--morb-h-sm);
-  padding: 0 0.55rem;
+  height: var(--ctl-h-sm, 44px);
+  padding: 0 0.9rem;
   font-size: 0.8rem;
   border: 1px solid var(--border-color);
-  border-radius: 9px;
+  border-radius: 999px;
   background: var(--bg-primary);
 }
 .med-cell--name {
