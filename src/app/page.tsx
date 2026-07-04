@@ -16,9 +16,7 @@ import {
   getPendingConsultas,
   markConsultaSynced,
   incrementConsultaAttempt,
-  markConsultaPermanentError,
-  resetAllLocalToPending,
-  resetAllConsultasToPending
+  markConsultaPermanentError
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
 import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad } from "@/lib/permissions";
@@ -316,27 +314,11 @@ export default function Home() {
       refreshLocalRecords();
       refreshLocalConsultas();
 
-      // Recuperación automática ÚNICA: reencola los cambios locales que quedaron sin
-      // enviar (ediciones atascadas en 'synced' por el bug previo) y sincroniza. Se
-      // ejecuta una sola vez por dispositivo (flag en localStorage). El sync procesa
-      // en orden (creaciones antes que ediciones, luego cronológico).
-      (async () => {
-        try {
-          if (localStorage.getItem("local_resync_recovery_v1") !== "done") {
-            const n1 = await resetAllLocalToPending();
-            const n2 = await resetAllConsultasToPending();
-            localStorage.setItem("local_resync_recovery_v1", "done");
-            if (n1 + n2 > 0) {
-              await refreshLocalRecords();
-              showToast(`Recuperando ${n1 + n2} cambio(s) local(es) sin sincronizar…`, "info");
-            }
-          }
-        } catch (e) {
-          console.error("Recuperación automática de sync falló:", e);
-        }
-        // Sync inicial (recuperación + normal)
-        triggerSync();
-      })();
+      // Sync inicial al montar: SOLO envía lo genuinamente pendiente (getPending
+      // filtra por status 'pending'). No se re-encola lo ya sincronizado — así no
+      // se reenvía "todo una y otra vez", solo lo que falta. El re-envío de cambios
+      // atascados queda como acción MANUAL en Config ("Reenviar cambios").
+      triggerSync();
 
       const interval = setInterval(() => {
         if (navigator.onLine) {

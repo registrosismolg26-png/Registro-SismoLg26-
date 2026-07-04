@@ -153,6 +153,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, id: existing.id, alreadyExists: true }, { status: 200 });
     }
 
+    // Guard (back) de duplicado al EDITAR: si la cédula cambió y ya pertenece a OTRO
+    // registro ACTIVO (no retirado), rechazar con mensaje claro. El índice @unique es
+    // el backstop final (P2002 → 409); esto da un error legible.
+    if (existing && normalizedCedula !== existing.cedula) {
+      const dup = await prisma.registro.findUnique({
+        where: { cedula: normalizedCedula },
+        select: { id: true, nombreApellido: true, retirado: true },
+      });
+      if (dup && dup.id !== existing.id && dup.retirado !== "SI") {
+        return NextResponse.json(
+          { error: `La cédula ${normalizedCedula} ya pertenece a otro afectado registrado (${dup.nombreApellido}).`, code: "DUPLICATED" },
+          { status: 409 }
+        );
+      }
+    }
+
     if (existing) {
       const updated = await withAuditUser(auth.email, (tx) => tx.registro.update({
         where: { id },

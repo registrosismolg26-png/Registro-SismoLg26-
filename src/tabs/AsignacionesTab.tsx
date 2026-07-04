@@ -15,7 +15,7 @@
 // llegar; aquí un useEffect selecciona el registro (setSelectedRegistro) cuando
 // aparece en `registros` y luego limpia pendingSelectId.
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText } from "@/lib/helpers";
@@ -60,6 +60,29 @@ export default function AsignacionesTab() {
   // Lookup del Jefe de Familia por su cédula al editar (igual que en registro):
   // muestra su nombre si está en el sistema, o avisa si no está registrado.
   const [jefeEditLookup, setJefeEditLookup] = useState<{ found: boolean; nombre?: string } | null>(null);
+
+  // Consulta AUTOMÁTICA de la cédula del afectado en el padrón local (igual que en
+  // registro): al terminar de escribir (debounce), autocompleta nombre y género.
+  const editCedulaLookupRef = useRef<NodeJS.Timeout | null>(null);
+  const lookupEditCedulaPadron = (cleanNum: string) => {
+    if (editCedulaLookupRef.current) clearTimeout(editCedulaLookupRef.current);
+    if (cleanNum.length < 7) return;
+    editCedulaLookupRef.current = setTimeout(async () => {
+      try {
+        const citizen = await buscarCedulaEnCliente(cleanNum);
+        if (citizen) {
+          setEditData(prev => ({
+            ...prev,
+            nombreApellido: citizen.nombreCompleto || prev.nombreApellido,
+            genero: (citizen.sexo === "F" || citizen.sexo === "FEMENINO") ? "FEMENINO"
+              : (citizen.sexo === "M" || citizen.sexo === "MASCULINO") ? "MASCULINO" : prev.genero,
+          }));
+          showToast("Identidad verificada en padrón local.", "info");
+        }
+      } catch { /* padrón no disponible: se ingresa manual */ }
+    }, 250);
+  };
+
   const lookupJefeEdit = (cleanVal: string) => {
     if (cleanVal.length >= 5) {
       const jefe = registros.find(r => (r.cedula || "").replace(/\D/g, "") === cleanVal);
@@ -270,6 +293,17 @@ export default function AsignacionesTab() {
     const nac = editData.nacionalidad || (selectedRegistro.cedula.startsWith("E-") ? "E" : "V");
     const cleanCedNum = editData.cedula ? String(editData.cedula).trim().replace(/\D/g, "") : selectedRegistro.cedula.replace(/\D/g, "");
     const finalCedula = `${nac}-${cleanCedNum}`;
+
+    // Guard (front): no permitir editar a una cédula que YA pertenece a OTRO afectado
+    // activo (no retirado). El backend lo valida también.
+    const dupOtro = registros.find(r =>
+      r.id !== selectedRegistro.id && r.retirado !== "SI" &&
+      (r.cedula || "").toUpperCase().trim() === finalCedula.toUpperCase());
+    if (dupOtro) {
+      showToast(`Esa cédula ya pertenece a otro afectado registrado: ${dupOtro.nombreApellido}.`, "error");
+      setSavingEdit(false);
+      return;
+    }
 
     const rawJefeCed = editData.cedulaJefeFamilia ? String(editData.cedulaJefeFamilia).trim().toUpperCase() : (selectedRegistro.cedulaJefeFamilia || "");
     const finalJefeCedula = rawJefeCed
@@ -598,8 +632,7 @@ export default function AsignacionesTab() {
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
                   type="button"
-                  className="btn-secondary"
-                  style={{ width: "auto", margin: 0, padding: "0 0.75rem", fontSize: "0.75rem", height: "32px", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                  className="toolbar-btn"
                   onClick={handleExportExcel}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -607,8 +640,7 @@ export default function AsignacionesTab() {
                 </button>
                 <button
                   type="button"
-                  className="btn-secondary"
-                  style={{ width: "auto", margin: 0, padding: "0 0.75rem", fontSize: "0.75rem", height: "32px", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                  className="toolbar-btn"
                   onClick={handlePrintPDFList}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -636,22 +668,10 @@ export default function AsignacionesTab() {
             )}
           </div>
 
-          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+          <div className="toolbar-row" style={{ marginTop: "0.5rem", marginBottom: "1rem" }}>
             <button
               type="button"
-              className="btn-secondary"
-              style={{
-                width: "auto",
-                margin: 0,
-                padding: "0 0.75rem",
-                fontSize: "0.75rem",
-                height: "32px",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.25rem",
-                backgroundColor: filtersOpen ? "var(--color-primary-light)" : undefined,
-                color: filtersOpen ? "var(--color-primary)" : undefined
-              }}
+              className={`toolbar-btn${filtersOpen ? " is-active" : ""}`}
               onClick={() => setFiltersOpen(o => !o)}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -661,20 +681,7 @@ export default function AsignacionesTab() {
             {(filterGenero || filterEdad || filterParroquia || filterEstadoFisico || filterCuarto || filterRetirado !== "NO") && (
               <button
                 type="button"
-                className="btn-ver"
-                style={{
-                  width: "auto",
-                  margin: 0,
-                  padding: "0 0.75rem",
-                  fontSize: "0.75rem",
-                  height: "32px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.25rem",
-                  backgroundColor: "rgba(220, 38, 38, 0.08)",
-                  color: "var(--color-danger)",
-                  border: "1px solid rgba(220, 38, 38, 0.25)"
-                }}
+                className="toolbar-btn toolbar-btn--danger"
                 onClick={() => {
                   setFilterGenero("");
                   setFilterEdad("");
@@ -947,7 +954,7 @@ export default function AsignacionesTab() {
                   <div className="detail-section-title">Salud</div>
                   <div className="detail-field">
                     <span className="detail-label">Estado Físico</span>
-                    <span className="detail-value" style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", color: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
+                    <span className="detail-value" style={{ color: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
                       <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)", display: "inline-block" }} />
                       {selectedRegistro.estadoFisico}
                     </span>
@@ -990,7 +997,7 @@ export default function AsignacionesTab() {
                   {selectedRegistro.cuarto && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Cuarto Asignado</span>
-                      <span className="detail-value" style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", color: "var(--color-success)" }}>
+                      <span className="detail-value" style={{ color: "var(--color-success)" }}>
                         <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "var(--color-success)", display: "inline-block" }} />
                         {selectedRegistro.cuarto}
                       </span>
@@ -1000,9 +1007,9 @@ export default function AsignacionesTab() {
                     <div className="detail-field detail-field--full">
                       <span className="detail-label" style={{ color: "var(--color-danger)", opacity: 1 }}>Retirado / Egresado</span>
                       <span className="detail-value">
-                        {selectedRegistro.retiradoRazon && <>Razón: {selectedRegistro.retiradoRazon}</>}
+                        {selectedRegistro.retiradoRazon && <span>Razón: {selectedRegistro.retiradoRazon}</span>}
                         {selectedRegistro.retiradoFecha && (
-                          <span style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "0.15rem" }}>
+                          <span style={{ flexBasis: "100%", fontSize: "0.78rem", fontWeight: 500, color: "var(--text-secondary)" }}>
                             {new Date(selectedRegistro.retiradoFecha).toLocaleString("es-VE")}
                           </span>
                         )}
@@ -1146,7 +1153,7 @@ export default function AsignacionesTab() {
 
                       <div className="form-group detail-field--full">
                         <label>{editData.isChildDependent ? "Cédula del Representante" : "Cédula de Identidad"}</label>
-                        <div style={{ display: "flex", gap: "0.5rem", width: "100%", alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: "0.5rem", width: "100%", alignItems: "flex-start" }}>
                           <div style={{ width: "84px", flex: "0 0 auto" }}>
                             <StyledSelect
                               value={editData.nacionalidad || "V"}
@@ -1157,31 +1164,16 @@ export default function AsignacionesTab() {
                           </div>
                           <input
                             type="text"
+                            inputMode="numeric"
+                            placeholder="Solo números"
                             value={editData.cedula || ""}
-                            onChange={e => setEditData(prev => ({ ...prev, cedula: e.target.value.replace(/\D/g, "") }))}
-                            style={{ flex: "1 1 120px", minWidth: 0 }}
-                          />
-                          <button
-                            type="button"
-                            className="btn-submit"
-                            style={{ width: "auto", margin: 0, padding: "0 1rem", fontSize: "0.8rem", flex: "0 0 auto" }}
-                            onClick={async () => {
-                              if (!editData.cedula) return;
-                              const citizen = await buscarCedulaEnCliente(String(editData.cedula));
-                              if (citizen) {
-                                setEditData(prev => ({
-                                  ...prev,
-                                  nombreApellido: citizen.nombreCompleto || prev.nombreApellido,
-                                  genero: citizen.sexo === "F" || citizen.sexo === "FEMENINO" ? "FEMENINO" : "MASCULINO"
-                                }));
-                                showToast("Datos cargados del padrón local", "success");
-                              } else {
-                                showToast("Cédula no encontrada en el padrón local", "warning");
-                              }
+                            onChange={e => {
+                              const clean = e.target.value.replace(/\D/g, "");
+                              setEditData(prev => ({ ...prev, cedula: clean }));
+                              lookupEditCedulaPadron(clean);
                             }}
-                          >
-                            Consultar Padrón
-                          </button>
+                            style={{ flex: 1, minWidth: 0 }}
+                          />
                         </div>
                       </div>
 

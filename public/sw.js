@@ -10,13 +10,14 @@ const PRECACHE = [
   "/favicon.ico",
 ];
 
-// Install: pre-cache shell assets y ACTIVA de inmediato el nuevo worker (no espera
-// a que se cierren las pestañas). Junto al `controllerchange` → reload del cliente,
-// esto hace que cada deploy llegue automáticamente sin que el usuario quede pegado
-// a un bundle viejo.
+// Install: pre-cache shell assets. NO se llama skipWaiting: el worker nuevo queda
+// EN ESPERA hasta que el usuario acepte el banner de actualización (postMessage
+// SKIP_WAITING desde el cliente). Así NUNCA se actualiza/recarga solo; el usuario
+// decide cuándo (o sigue trabajando). El controllerchange → reload del cliente solo
+// dispara tras aceptar el banner.
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
   );
 });
 

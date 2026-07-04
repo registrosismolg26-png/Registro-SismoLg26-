@@ -3336,18 +3336,17 @@ h2.dashboard-section-title {
 }
 .detail-edit-grid > .form-group { justify-content: flex-end; }
 
-/* Vista detalle: "spec sheet" limpio y del tema (sin cajas grises). Cada campo es
-   etiqueta primaria micro + valor; separados por un divisor sutil, agrupados en
-   secciones. Tipografía uniforme (sin saltos de tamaño). */
+/* Vista detalle: MISMO lenguaje visual que la edición (coherencia total). Cada
+   campo = etiqueta primaria micro + valor con el "fill" del tema: pastilla blanca
+   (como los inputs), NO gris/deshabilitada. Agrupados por secciones con divisor. */
 .detail-field {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.35rem;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border-color);
   border-radius: 0;
-  padding: 0.5rem 0.15rem;
+  padding: 0;
 }
 
 .detail-field--full {
@@ -3363,12 +3362,26 @@ h2.dashboard-section-title {
   opacity: 0.72;
 }
 
+/* El valor imita el input pill (mismo fill blanco + borde + radio), pero de solo
+   lectura. Así detalle y edición se ven igual. Multilínea → se ensancha alto. */
 .detail-value {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.4rem;
+  min-height: var(--element-height);
+  padding: 0.5rem 1.1rem;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--text-primary);
   word-break: break-word;
 }
+/* Valores largos (dirección, sector/comunidad, motivo…) usan caja redondeada en
+   vez de pill perfecto para leerse bien en varias líneas. */
+.detail-field--full .detail-value { border-radius: 16px; }
 
 /* Título de sección dentro de la vista detalle */
 .detail-section-title {
@@ -5145,3 +5158,26 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 .morb-dp--sheet .morb-dp__day { font-size: 1rem; border-radius: 12px; }
 .morb-dp--sheet .morb-dp__years { grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 52vh; }
 .morb-dp--sheet .morb-dp__year { padding: 0.8rem 0; font-size: 0.95rem; border-radius: 12px; }
+
+/* ── Botones de barra (exportar / filtros / limpiar) — misma forma y tamaño ── */
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 40px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.toolbar-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.toolbar-btn.is-active { background: var(--color-primary-light); color: var(--color-primary); border-color: var(--color-primary); }
+.toolbar-btn--danger { color: var(--color-danger); border-color: rgba(220, 38, 38, 0.3); background: rgba(220, 38, 38, 0.06); }
+.toolbar-btn--danger:hover { background: rgba(220, 38, 38, 0.12); color: var(--color-danger); border-color: var(--color-danger); }
+.toolbar-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
