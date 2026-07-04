@@ -4540,7 +4540,8 @@ h2.dashboard-section-title {
 .morb {
   --morb-h: var(--element-height);          /* alto sincronizado de inputs/selects/botones */
   --morb-h-sm: 42px;                         /* controles densos (filas de medicamento)     */
-  --morb-radius: 14px;
+  --morb-radius: 18px;                       /* radio de tarjetas/contenedores               */
+  --morb-ctl-radius: 999px;                  /* controles de una línea = PILL (sistema todo pill) */
   --morb-gap: clamp(1rem, 2.2vw, 1.6rem);
   width: 100%;
   max-width: 1500px;
@@ -4628,10 +4629,10 @@ h2.dashboard-section-title {
 .morb-control {
   width: 100%;
   height: var(--morb-h);
-  padding: 0 0.85rem;
+  padding: 0 1.05rem;
   background: var(--input-bg);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: var(--morb-ctl-radius); /* PILL — coincide con .censo-form/.pill-form */
   color: var(--text-primary);
   font-family: var(--font-system);
   font-size: 0.88rem;
@@ -4642,7 +4643,14 @@ h2.dashboard-section-title {
 select.morb-control { cursor: pointer; }
 .morb-control:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-ring); }
 .morb-control:disabled { opacity: 0.7; background: var(--border-color); cursor: not-allowed; }
-textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem; resize: vertical; line-height: 1.4; }
+/* La textarea no puede ser pill (varias líneas): rect redondeado, como en el sistema. */
+textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 1.05rem; resize: vertical; line-height: 1.4; border-radius: 18px; }
+/* Los <input>/<select> nativos con .morb-control deben GANAR al estilo base
+   input[type=…]/select (especificidad 0,1,1, que si no los deja en rect 6px). Con el
+   selector tipo+clase igualamos especificidad y, al ir después en el archivo, ganamos:
+   controles de una línea = PILL, coherente con .censo-form/.pill-form. */
+input.morb-control,
+select.morb-control { border-radius: var(--morb-ctl-radius); padding: 0 1.05rem; }
 
 /* Datos Básicos: grilla determinista por áreas (llena el espacio, sin huecos).
    Móvil = 1 col; tablet = 4 cols; PC = 6 cols. Nombre y Refugio más anchos. */
@@ -4725,7 +4733,7 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 /* ── Select estilizado (StyledSelect) — cumple el reformat, no nativo ── */
 .morb-select { position: relative; width: 100%; }
 .morb-select__trigger { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; text-align: left; cursor: pointer; }
-.morb-select__trigger--dense { height: var(--morb-h-sm); font-size: 0.8rem; padding: 0 0.55rem; border-radius: 9px; }
+.morb-select__trigger--dense { height: var(--morb-h-sm); font-size: 0.8rem; padding: 0 0.9rem; border-radius: var(--morb-ctl-radius); }
 .morb-select__trigger:disabled { cursor: not-allowed; opacity: 0.7; }
 .morb-select__trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .morb-select__ph { color: var(--text-muted); }
@@ -4819,18 +4827,18 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
   font-weight: 600; font-size: 0.82rem; color: var(--text-primary);
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   display: flex; align-items: center; height: var(--morb-h-sm);
-  padding: 0 0.55rem; background: var(--bg-primary); border-radius: 9px;
+  padding: 0 0.9rem; background: var(--bg-primary); border-radius: 999px;
 }
 .morb-med__dosis {
   display: flex; align-items: center; height: var(--morb-h-sm);
-  padding: 0 0.55rem; font-size: 0.8rem; color: var(--text-secondary);
-  background: var(--bg-primary); border-radius: 9px;
+  padding: 0 0.9rem; font-size: 0.8rem; color: var(--text-secondary);
+  background: var(--bg-primary); border-radius: 999px;
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.morb-med .morb-control { height: var(--morb-h-sm); font-size: 0.8rem; padding: 0 0.5rem; }
+.morb-med .morb-control { height: var(--morb-h-sm); font-size: 0.8rem; padding: 0 0.85rem; }
 .morb-med__x {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: var(--morb-h-sm); border: none; border-radius: 9px;
+  width: 34px; height: var(--morb-h-sm); border: none; border-radius: 50%;
   background: transparent; color: var(--text-muted); cursor: pointer;
   font-size: 1.15rem; line-height: 1; transition: background 0.15s ease, color 0.15s ease;
 }
@@ -4844,7 +4852,7 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
     grid-template-columns: 1fr 1fr 34px;
     grid-template-areas: "name name x" "dosis periodo periodo";
     row-gap: 0.35rem;
-    padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 11px;
+    padding: 0.6rem 0.7rem; border: 1px solid var(--border-color); border-radius: 16px;
   }
   .morb-med__name { grid-area: name; background: transparent; padding: 0; height: auto; white-space: normal; }
   .morb-med__dosis { grid-area: dosis; }
@@ -4855,9 +4863,9 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 /* ── Acciones ── */
 .morb-actions { display: flex; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap; }
 .morb-btn {
-  height: var(--morb-h); min-width: 120px; padding: 0 1.25rem;
+  height: var(--morb-h); min-width: 120px; padding: 0 1.4rem;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  border-radius: var(--morb-ctl-radius); font-weight: 600; font-size: 0.9rem; cursor: pointer;
   border: 1px solid transparent; transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 .morb-btn--primary { background: var(--color-primary); color: #fff; }
@@ -4868,7 +4876,7 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 @media (max-width: 520px) { .morb-actions { flex-direction: column-reverse; } .morb-btn { width: 100%; } }
 
 /* ── Historial ── */
-.morb-history__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+.morb-history__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 16px; }
 .morb-hist__notas { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Historial de morbilidad: en móvil la tabla se vuelve TARJETAS apiladas para que
