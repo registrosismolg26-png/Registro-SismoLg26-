@@ -31,21 +31,35 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Custom global minimalist scrollbar */
+/* Custom global minimalist scrollbar: SOLO la barra (thumb). Sin flechas arriba/
+   abajo, sin contenedor (track transparente), sin borde ni sombra. */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+  border: none;
+  box-shadow: none;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border-color);
+  border: none;
+  box-shadow: none;
   border-radius: 9999px;
   transition: background var(--timing-fast) ease-in-out;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+/* Quita las flechas (botones) de los extremos y la esquina */
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 * {
   scrollbar-width: thin;
@@ -3309,22 +3323,27 @@ h2.dashboard-section-title {
   margin-bottom: 0.75rem;
 }
 
-/* Edit view grid (edit mode) */
+/* Edit view grid (edit mode). align-items:end alinea los CONTROLES por su base:
+   cada .form-group se pega al fondo de su fila, y como los controles miden lo
+   mismo y son su último hijo, sus bordes coinciden aunque un label tenga 1 línea
+   y el de al lado 2 (solución profesional al descuadre por labels de distinto alto). */
 .detail-edit-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+  align-items: end;
 }
+.detail-edit-grid > .form-group { justify-content: flex-end; }
 
 .detail-field {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.3rem;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
+  border-radius: 14px;
+  padding: 0.6rem 0.85rem;
 }
 
 .detail-field--full {

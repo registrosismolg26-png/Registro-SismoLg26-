@@ -57,6 +57,18 @@ export default function AsignacionesTab() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [originalMedsCount, setOriginalMedsCount] = useState(0);
 
+  // Lookup del Jefe de Familia por su cédula al editar (igual que en registro):
+  // muestra su nombre si está en el sistema, o avisa si no está registrado.
+  const [jefeEditLookup, setJefeEditLookup] = useState<{ found: boolean; nombre?: string } | null>(null);
+  const lookupJefeEdit = (cleanVal: string) => {
+    if (cleanVal.length >= 5) {
+      const jefe = registros.find(r => (r.cedula || "").replace(/\D/g, "") === cleanVal);
+      setJefeEditLookup(jefe ? { found: true, nombre: jefe.nombreApellido } : { found: false });
+    } else {
+      setJefeEditLookup(null);
+    }
+  };
+
   // Patologías por-ID en la edición: array de ids del catálogo.
   const addEditPatologia = (id: string) => {
     if (!id) return;
@@ -363,6 +375,7 @@ export default function AsignacionesTab() {
       setSelectedRegistro(null);
       setEditMode(false);
       setModalClosing(false);
+      setJefeEditLookup(null);
     }, 200);
   };
 
@@ -1103,6 +1116,7 @@ export default function AsignacionesTab() {
                           const initialMeds = Array.isArray(selectedRegistro.medicamentoIds) ? selectedRegistro.medicamentoIds : [];
                           setEditMedicamentos(initialMeds);
                           setOriginalMedsCount(initialMeds.length);
+                          lookupJefeEdit(jefeNum);
                         }}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1259,9 +1273,25 @@ export default function AsignacionesTab() {
                       <input
                         type="text"
                         value={editData.cedulaJefeFamilia || ""}
-                        onChange={e => setEditData(prev => ({ ...prev, cedulaJefeFamilia: e.target.value.replace(/\D/g, "") }))}
+                        onChange={e => {
+                          const clean = e.target.value.replace(/\D/g, "");
+                          setEditData(prev => ({ ...prev, cedulaJefeFamilia: clean }));
+                          lookupJefeEdit(clean);
+                        }}
                         placeholder="Ingrese la cédula del jefe de familia"
                       />
+                      {jefeEditLookup?.found && (
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--color-success)", fontSize: "0.75rem", fontWeight: 700, marginTop: "0.35rem" }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                          {jefeEditLookup.nombre}
+                        </span>
+                      )}
+                      {jefeEditLookup && !jefeEditLookup.found && (
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--color-warning)", fontSize: "0.75rem", fontWeight: 700, marginTop: "0.35rem" }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                          Jefe de Familia no registrado
+                        </span>
+                      )}
                     </div>
                   )}
                   <div className="form-group">
@@ -1442,7 +1472,7 @@ export default function AsignacionesTab() {
                 </div>
                 <div className="modal-edit-actions">
                   <button type="button" className="btn-secondary"
-                    onClick={() => setEditMode(false)} disabled={savingEdit}>
+                    onClick={() => { setEditMode(false); setJefeEditLookup(null); }} disabled={savingEdit}>
                     Cancelar
                   </button>
                   <button type="button" className="btn-submit" style={{ flex: 1 }}
