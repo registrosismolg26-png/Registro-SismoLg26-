@@ -1142,7 +1142,10 @@ export default function Home() {
     try {
       const q = effectiveRefugioRef.current ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}` : "";
       const res = await apiFetch(`/api/registros${q}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({} as any));
+        throw new Error(`HTTP ${res.status} — ${body?.details || body?.error || "sin detalle"}`);
+      }
       const data = await res.json();
       const newRegs = data.registros ?? [];
       setRegistros(newRegs);
