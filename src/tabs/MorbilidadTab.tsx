@@ -609,15 +609,13 @@ export default function MorbilidadTab() {
     </div>
   );
 
-  // Sección de lesiones/heridas/curas (add por catálogo + tarjeta por lesión), reutilizable.
+  // Bloque de lesiones/heridas/curas (add por catálogo + tarjeta por lesión).
+  // Va DENTRO del Diagnóstico, ANTES de los medicamentos (no es su propia tarjeta).
   const lesionesSection = (items: Lesion[], onAdd: (tipoId: string) => void, onUpdate: (i: number, f: keyof Lesion, v: string) => void, onRemove: (i: number) => void, ns: string) => (
-    <div className="morb-card morb-card--warn">
-      <h3 className="morb-card__title">Lesiones, Heridas y Curas</h3>
-      <p className="morb-hint">Registra cada lesión con su zona, estado y la cura/tratamiento aplicado.</p>
+    <div className="morb-field">
+      <label className="morb-field__label">Lesiones, Heridas y Curas</label>
       <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar tipo de lesión…" options={tipoLesionOptions} onSelect={onAdd} />
-      {items.length === 0 ? (
-        <p className="morb-meds__empty">Sin lesiones registradas.</p>
-      ) : (
+      {items.length > 0 && (
         <div className="morb-lesiones">
           {items.map((l, i) => {
             const key = `${ns}:${i}`;
@@ -765,6 +763,7 @@ export default function MorbilidadTab() {
                   <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(diagnosticoPatologiaIds)} onSelect={addDiagPatologia} />
                   {patologiaChips(diagnosticoPatologiaIds, removeDiagPatologia, "success", "diagpat")}
                 </div>
+                {lesionesSection(lesiones, addLesion, updateLesion, removeLesion, "les")}
                 <div className="morb-field">
                   <label className="morb-field__label">Medicamentos Diagnósticados (Receta)</label>
                   <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(diagnosticoMedicamentoIds)} onSelect={addDiagMed} />
@@ -777,9 +776,6 @@ export default function MorbilidadTab() {
               </div>
             </div>
           </div>
-
-          {/* Lesiones, heridas y curas — ancho completo */}
-          {lesionesSection(lesiones, addLesion, updateLesion, removeLesion, "les")}
 
           <div className="morb-actions">
             <button type="button" className="morb-btn morb-btn--ghost" onClick={handleReset}>Cancelar</button>
@@ -950,6 +946,7 @@ export default function MorbilidadTab() {
                       <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(editForm.diagPat)} onSelect={(id) => efPatAdd("diagPat", id)} />
                       {patologiaChips(editForm.diagPat, (id) => efPatRemove("diagPat", id), "success", "ediagpat")}
                     </div>
+                    {lesionesSection(editForm.lesiones || [], efLesAdd, efLesUpdate, efLesRemove, "eles")}
                     <div className="morb-field">
                       <label className="morb-field__label">Medicamentos Diagnósticados (Receta)</label>
                       <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(editForm.diagMed)} onSelect={(id) => efMedAdd("diagMed", id)} />
@@ -962,9 +959,6 @@ export default function MorbilidadTab() {
                   </div>
                 </div>
               </div>
-
-              {/* Lesiones, heridas y curas */}
-              {lesionesSection(editForm.lesiones || [], efLesAdd, efLesUpdate, efLesRemove, "eles")}
 
               <div className="morb-actions">
                 <button type="button" className="morb-btn morb-btn--ghost" onClick={closeEdit} disabled={editSaving}>Cancelar</button>

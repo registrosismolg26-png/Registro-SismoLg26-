@@ -4730,7 +4730,6 @@ h2.dashboard-section-title {
 }
 .morb-card--primary { --accent: var(--color-primary); }
 .morb-card--success { --accent: var(--color-success); }
-.morb-card--warn    { --accent: #d97706; }
 .morb-hint { font-size: 0.72rem; color: var(--text-muted); margin: 0.15rem 0 0.9rem; }
 
 /* Fecha-hora de la consulta (elegida a mano): fecha + hora, misma fila en ≥560px */
@@ -5039,8 +5038,14 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .morb-history__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 16px; }
 .morb-hist__notas { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Botón "Editar" del historial de consultas (pill, icono + texto). */
-.morb-hist__actioncell { white-space: nowrap; display: flex; gap: 0.35rem; }
+/* Botón "Editar" del historial de consultas (pill, icono + texto).
+   OJO: el <td> NO puede ser display:flex — un td flex se sale del modelo de fila de
+   la tabla (se encoge a la altura del botón y su border-bottom queda más arriba que
+   el de las demás celdas → líneas desalineadas). Se mantiene como table-cell centrado
+   y los botones (inline-flex) se separan con margin. En móvil, la regla de td de
+   `.morb-history__scroll` lo vuelve flex igualmente. */
+.morb-hist__actioncell { white-space: nowrap; vertical-align: middle; }
+.morb-hist__actioncell .morb-hist__delete { margin-left: 0.35rem; }
 .morb-hist__edit, .morb-hist__delete {
   display: inline-flex; align-items: center; gap: 0.35rem;
   height: 32px; padding: 0 0.75rem; border-radius: 999px;
