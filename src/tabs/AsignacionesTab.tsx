@@ -21,6 +21,8 @@ import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
+import StyledSelect from "@/components/StyledSelect";
+import DatePicker from "@/components/DatePicker";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -675,63 +677,53 @@ export default function AsignacionesTab() {
           </div>
 
           {filtersOpen && (
-            <div className="reg-filters-panel">
+            <div className="reg-filters-panel pill-form">
               <div className="form-group">
                 <label>Género</label>
-                <select value={filterGenero} onChange={e => setFilterGenero(e.target.value)}>
-                  <option value="">Todos</option>
-                  <option value="MASCULINO">Masculino</option>
-                  <option value="FEMENINO">Femenino</option>
-                </select>
+                <StyledSelect
+                  value={filterGenero} onChange={setFilterGenero} ariaLabel="Género"
+                  options={[{ value: "", label: "Todos" }, { value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }]}
+                />
               </div>
 
               <div className="form-group">
                 <label>Grupo de Edad</label>
-                <select value={filterEdad} onChange={e => setFilterEdad(e.target.value)}>
-                  <option value="">Todos</option>
-                  <option value="menores">Menores de edad (&lt;18)</option>
-                  <option value="adultos">Adultos (18-59)</option>
-                  <option value="mayores">Adultos mayores (60+)</option>
-                </select>
+                <StyledSelect
+                  value={filterEdad} onChange={setFilterEdad} ariaLabel="Grupo de Edad"
+                  options={[{ value: "", label: "Todos" }, { value: "menores", label: "Menores de edad (<18)" }, { value: "adultos", label: "Adultos (18-59)" }, { value: "mayores", label: "Adultos mayores (60+)" }]}
+                />
               </div>
 
               <div className="form-group">
                 <label>Parroquia</label>
-                <select value={filterParroquia} onChange={e => setFilterParroquia(e.target.value)}>
-                  <option value="">Todas</option>
-                  {PARROQUIAS.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
+                <StyledSelect
+                  value={filterParroquia} onChange={setFilterParroquia} ariaLabel="Parroquia"
+                  options={[{ value: "", label: "Todas" }, ...PARROQUIAS.map(p => ({ value: p, label: p }))]}
+                />
               </div>
 
               <div className="form-group">
                 <label>Estado Físico</label>
-                <select value={filterEstadoFisico} onChange={e => setFilterEstadoFisico(e.target.value)}>
-                  <option value="">Todos</option>
-                  <option value="ILESO">Ileso</option>
-                  <option value="LESIONADO">Lesionado</option>
-                </select>
+                <StyledSelect
+                  value={filterEstadoFisico} onChange={setFilterEstadoFisico} ariaLabel="Estado Físico"
+                  options={[{ value: "", label: "Todos" }, { value: "ILESO", label: "Ileso" }, { value: "LESIONADO", label: "Lesionado" }]}
+                />
               </div>
 
               <div className="form-group">
                 <label>Habitación / Salón</label>
-                <select value={filterCuarto} onChange={e => setFilterCuarto(e.target.value)}>
-                  <option value="">Todos</option>
-                  <option value="sin_asignar">Sin asignar</option>
-                  {allCuartos.map(c => (
-                    <option key={c} value={c}>{formatRoomLabel(c)}</option>
-                  ))}
-                </select>
+                <StyledSelect
+                  value={filterCuarto} onChange={setFilterCuarto} ariaLabel="Habitación / Salón"
+                  options={[{ value: "", label: "Todos" }, { value: "sin_asignar", label: "Sin asignar" }, ...allCuartos.map(c => ({ value: c, label: formatRoomLabel(c) }))]}
+                />
               </div>
 
               <div className="form-group">
                 <label>Estatus de Permanencia</label>
-                <select value={filterRetirado} onChange={e => setFilterRetirado(e.target.value)}>
-                  <option value="">Todos (Presentes y Egresados)</option>
-                  <option value="NO">Presentes actualmente</option>
-                  <option value="SI">Egresados / Retirados</option>
-                </select>
+                <StyledSelect
+                  value={filterRetirado} onChange={setFilterRetirado} ariaLabel="Estatus de Permanencia"
+                  options={[{ value: "", label: "Todos (Presentes y Egresados)" }, { value: "NO", label: "Presentes actualmente" }, { value: "SI", label: "Egresados / Retirados" }]}
+                />
               </div>
             </div>
           )}
@@ -847,7 +839,7 @@ export default function AsignacionesTab() {
       {/* Registro Detail & Edit & Asignación Modal */}
       {selectedRegistro && (
         <div className={`modal-overlay${modalClosing ? " modal-overlay--closing" : ""}`} onClick={closeModal}>
-          <div className={`modal-content modal-content--detail${modalClosing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()}>
+          <div className={`modal-content modal-content--detail pill-form${modalClosing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()}>
 
             {/* ── Header ── */}
             <div className="modal-header">
@@ -951,17 +943,22 @@ export default function AsignacionesTab() {
                   {(selectedRegistro.patologia === "SI" || selectedRegistro.estadoFisico === "LESIONADO") && Array.isArray(selectedRegistro.medicamentoIds) && selectedRegistro.medicamentoIds.length > 0 && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Medicamentos</span>
-                      <div className="med-table-view">
-                        <div className="med-row med-row--header">
-                          <span>Medicamento</span>
-                          <span>Dosis</span>
-                          <span>Período</span>
-                        </div>
+                      <div className="med-items">
                         {(selectedRegistro.medicamentoIds as Medicamento[]).map((m, i) => (
-                          <div key={i} className="med-row med-row--readonly">
-                            <span>{medLabel(m.id, predefinedMedicamentos)}</span>
-                            <span>{m.dosis}</span>
-                            <span>{m.periodo}</span>
+                          <div key={i} className="med-item">
+                            <div className="med-item__head">
+                              <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
+                            </div>
+                            <div className="med-item__fields">
+                              <div className="med-item__field med-item__field--dose">
+                                <span className="med-item__label">Dosis</span>
+                                <span className="med-item__dose">{m.dosis || "—"}</span>
+                              </div>
+                              <div className="med-item__field med-item__field--periodo">
+                                <span className="med-item__label">Período</span>
+                                <span className="med-item__dose">{m.periodo || "—"}</span>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1138,25 +1135,25 @@ export default function AsignacionesTab() {
 
                       <div className="form-group detail-field--full">
                         <label>{editData.isChildDependent ? "Cédula del Representante" : "Cédula de Identidad"}</label>
-                        <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
-                          <select
-                            value={editData.nacionalidad || "V"}
-                            onChange={e => setEditData(prev => ({ ...prev, nacionalidad: e.target.value }))}
-                            style={{ width: "80px", height: "42px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
-                          >
-                            <option value="V">V</option>
-                            <option value="E">E</option>
-                          </select>
+                        <div style={{ display: "flex", gap: "0.5rem", width: "100%", alignItems: "flex-start" }}>
+                          <div style={{ width: "84px", flex: "0 0 auto" }}>
+                            <StyledSelect
+                              value={editData.nacionalidad || "V"}
+                              onChange={v => setEditData(prev => ({ ...prev, nacionalidad: v }))}
+                              options={[{ value: "V", label: "V" }, { value: "E", label: "E" }]}
+                              ariaLabel="Nacionalidad"
+                            />
+                          </div>
                           <input
                             type="text"
                             value={editData.cedula || ""}
                             onChange={e => setEditData(prev => ({ ...prev, cedula: e.target.value.replace(/\D/g, "") }))}
-                            style={{ flex: 1 }}
+                            style={{ flex: 1, minWidth: 0 }}
                           />
                           <button
                             type="button"
                             className="btn-submit"
-                            style={{ width: "auto", margin: 0, padding: "0 1rem", fontSize: "0.8rem", height: "auto" }}
+                            style={{ width: "auto", margin: 0, padding: "0 1rem", fontSize: "0.8rem", flex: "0 0 auto" }}
                             onClick={async () => {
                               if (!editData.cedula) return;
                               const citizen = await buscarCedulaEnCliente(String(editData.cedula));
@@ -1180,17 +1177,18 @@ export default function AsignacionesTab() {
                       {editData.isChildDependent && (
                         <div className="form-group detail-field--full">
                           <label>Número correlativo de hijo/dependiente</label>
-                          <select
+                          <StyledSelect
                             value={editData.dependentNumber || "1"}
-                            onChange={(e) => setEditData(prev => ({ ...prev, dependentNumber: e.target.value }))}
-                            style={{ width: "100%", height: "42px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)" }}
-                          >
-                            <option value="1">1er Hijo/Representado (-1)</option>
-                            <option value="2">2do Hijo/Representado (-2)</option>
-                            <option value="3">3er Hijo/Representado (-3)</option>
-                            <option value="4">4to Hijo/Representado (-4)</option>
-                            <option value="5">5to Hijo/Representado (-5)</option>
-                          </select>
+                            onChange={(v) => setEditData(prev => ({ ...prev, dependentNumber: v }))}
+                            ariaLabel="Número correlativo de hijo/dependiente"
+                            options={[
+                              { value: "1", label: "1er Hijo/Representado (-1)" },
+                              { value: "2", label: "2do Hijo/Representado (-2)" },
+                              { value: "3", label: "3er Hijo/Representado (-3)" },
+                              { value: "4", label: "4to Hijo/Representado (-4)" },
+                              { value: "5", label: "5to Hijo/Representado (-5)" },
+                            ]}
+                          />
                         </div>
                       )}
                     </>
@@ -1201,18 +1199,18 @@ export default function AsignacionesTab() {
                       onChange={e => setEditData(prev => ({ ...prev, nombreApellido: e.target.value }))} />
                   </div>
                   <div className="form-group">
-                    <label>Fecha de Nacimiento (DD/MM/AAAA)</label>
-                    <input
-                      type="text"
-                      value={editData.fechaNacimiento || ""}
-                      onChange={e => {
-                        const rawVal = e.target.value.replace(/\D/g, "");
-                        let formatted = rawVal.slice(0, 2);
-                        if (rawVal.length > 2) formatted += "/" + rawVal.slice(2, 4);
-                        if (rawVal.length > 4) formatted += "/" + rawVal.slice(4, 8);
-                        setEditData(prev => ({ ...prev, fechaNacimiento: formatted }));
+                    <label>Fecha de Nacimiento</label>
+                    <DatePicker
+                      value={(() => {
+                        const p = (editData.fechaNacimiento || "").split("/");
+                        return p.length === 3 && p[2]?.length === 4 ? `${p[2]}-${p[1].padStart(2, "0")}-${p[0].padStart(2, "0")}` : "";
+                      })()}
+                      onChange={(ymd) => {
+                        const p = ymd.split("-");
+                        const dmy = p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : "";
+                        setEditData(prev => ({ ...prev, fechaNacimiento: dmy }));
                       }}
-                      placeholder="DD/MM/AAAA"
+                      placeholder="Seleccione la fecha…"
                     />
                   </div>
                   <div className="form-group">
@@ -1245,19 +1243,15 @@ export default function AsignacionesTab() {
                   </div>
                   <div className="form-group">
                     <label>¿Es Jefe de Familia?</label>
-                    <select value={editData.jefeFamilia || "NO"}
-                      onChange={e => setEditData(prev => ({ ...prev, jefeFamilia: e.target.value }))}>
-                      <option value="NO">No</option>
-                      <option value="SI">Sí</option>
-                    </select>
+                    <StyledSelect value={editData.jefeFamilia || "NO"} ariaLabel="¿Es Jefe de Familia?"
+                      onChange={v => setEditData(prev => ({ ...prev, jefeFamilia: v }))}
+                      options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]} />
                   </div>
                   <div className="form-group">
                     <label>¿Pertenece a un Núcleo Familiar?</label>
-                    <select value={editData.perteneceNucleo || "NO"}
-                      onChange={e => setEditData(prev => ({ ...prev, perteneceNucleo: e.target.value }))}>
-                      <option value="NO">No</option>
-                      <option value="SI">Sí</option>
-                    </select>
+                    <StyledSelect value={editData.perteneceNucleo || "NO"} ariaLabel="¿Pertenece a un Núcleo Familiar?"
+                      onChange={v => setEditData(prev => ({ ...prev, perteneceNucleo: v }))}
+                      options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]} />
                   </div>
                   {editData.perteneceNucleo === "SI" && editData.jefeFamilia === "NO" && (
                     <div className="form-group detail-field--full">
@@ -1287,19 +1281,15 @@ export default function AsignacionesTab() {
                   </div>
                   <div className="form-group">
                     <label>Género</label>
-                    <select value={editData.genero || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, genero: e.target.value }))}>
-                      <option value="MASCULINO">Masculino</option>
-                      <option value="FEMENINO">Femenino</option>
-                    </select>
+                    <StyledSelect value={editData.genero || ""} ariaLabel="Género" placeholder="Seleccionar…"
+                      onChange={v => setEditData(prev => ({ ...prev, genero: v }))}
+                      options={[{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }]} />
                   </div>
                   <div className="form-group">
                     <label>Estado Físico</label>
-                    <select value={editData.estadoFisico || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, estadoFisico: e.target.value }))}>
-                      <option value="ILESO">Ileso</option>
-                      <option value="LESIONADO">Lesionado</option>
-                    </select>
+                    <StyledSelect value={editData.estadoFisico || ""} ariaLabel="Estado Físico" placeholder="Seleccionar…"
+                      onChange={v => setEditData(prev => ({ ...prev, estadoFisico: v }))}
+                      options={[{ value: "ILESO", label: "Ileso" }, { value: "LESIONADO", label: "Lesionado" }]} />
                   </div>
                   {(() => {
                     const isPrivileged = currentUser?.role === "MASTER" || currentUser?.role === "ADMIN";
@@ -1307,14 +1297,14 @@ export default function AsignacionesTab() {
                       <>
                         <div className="form-group">
                           <label>Patología</label>
-                          <select
+                          <StyledSelect
                             value={editData.patologia || ""}
                             disabled={!isPrivileged}
-                            onChange={e => setEditData(prev => ({ ...prev, patologia: e.target.value }))}
-                          >
-                            <option value="NO">No</option>
-                            <option value="SI">Sí</option>
-                          </select>
+                            ariaLabel="Patología"
+                            placeholder="Seleccionar…"
+                            onChange={v => setEditData(prev => ({ ...prev, patologia: v }))}
+                            options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]}
+                          />
                         </div>
                         {editData.patologia === "SI" && (
                           <div className="form-group detail-field--full">
@@ -1329,33 +1319,14 @@ export default function AsignacionesTab() {
                                 onSelect={addEditPatologia}
                               />
                             </div>
-                            <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+                            <div className="pathology-pills-grid">
                               {(Array.isArray(editData.patologiaIds) ? editData.patologiaIds : []).length === 0 ? (
-                                <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic" }}>(Ninguna)</span>
+                                <span className="pills-empty">(Ninguna)</span>
                               ) : (editData.patologiaIds as string[]).map((id) => (
-                                <span
-                                  key={id}
-                                  style={{
-                                    padding: "0.4rem 0.35rem 0.4rem 0.75rem",
-                                    borderRadius: "20px",
-                                    border: "1.5px solid var(--color-primary)",
-                                    backgroundColor: "var(--color-primary-light)",
-                                    color: "var(--color-primary)",
-                                    fontSize: "0.8rem",
-                                    fontWeight: "600",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "0.25rem",
-                                  }}
-                                >
+                                <span key={id} className="chip-pill">
                                   {patologiaNombre(id, patologias)}
                                   {isPrivileged && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeEditPatologia(id)}
-                                      aria-label="Quitar"
-                                      style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", fontSize: "1rem", lineHeight: 1, padding: "0 0.25rem" }}
-                                    >×</button>
+                                    <button type="button" onClick={() => removeEditPatologia(id)} aria-label="Quitar" className="chip-pill__x">×</button>
                                   )}
                                 </span>
                               ))}
@@ -1379,43 +1350,43 @@ export default function AsignacionesTab() {
                           />
                         </div>
                         {editMedicamentos.length === 0 ? (
-                          <p className="med-empty">Sin medicamentos. Usa "+ Agregar" para añadir.</p>
+                          <p className="med-empty">Sin medicamentos. Busca uno del catálogo arriba.</p>
                         ) : (
-                          <>
-                            <div className="med-row med-row--header">
-                              <span>Medicamento</span>
-                              <span>Dosis</span>
-                              <span>Período</span>
-                              <span />
-                            </div>
+                          <div className="med-items">
                             {editMedicamentos.map((m, i) => {
                               const isPrivileged = currentUser?.role === "MASTER" || currentUser?.role === "ADMIN";
                               const isExisting = i < originalMedsCount;
                               const isMedReadOnly = !isPrivileged && isExisting;
                               return (
-                                <div key={i} className="med-row">
-                                  <span className="med-input" style={{ display: "flex", alignItems: "center", fontWeight: 600 }}>
-                                    {medLabel(m.id, predefinedMedicamentos)}
-                                  </span>
-                                  <span className="med-input" style={{ display: "flex", alignItems: "center", color: "var(--text-secondary)" }}>
-                                    {m.dosis || "—"}
-                                  </span>
-                                  <select
-                                    className="med-input"
-                                    value={m.periodo}
-                                    disabled={isMedReadOnly}
-                                    onChange={e => updateEditMed(i, "periodo", e.target.value)}
-                                  >
-                                    <option value="">Período…</option>
-                                    {PERIODO_OPTIONS.map(op => <option key={op} value={op}>{op}</option>)}
-                                  </select>
-                                  {!isMedReadOnly && (
-                                    <button type="button" className="btn-remove-med" onClick={() => removeEditMed(i)}>×</button>
-                                  )}
+                                <div key={i} className="med-item">
+                                  <div className="med-item__head">
+                                    <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
+                                    {!isMedReadOnly && (
+                                      <button type="button" className="btn-remove-med" onClick={() => removeEditMed(i)} aria-label="Quitar medicamento">×</button>
+                                    )}
+                                  </div>
+                                  <div className="med-item__fields">
+                                    <div className="med-item__field med-item__field--dose">
+                                      <span className="med-item__label">Dosis</span>
+                                      <span className="med-item__dose">{m.dosis || "—"}</span>
+                                    </div>
+                                    <div className="med-item__field med-item__field--periodo">
+                                      <span className="med-item__label">Período</span>
+                                      <StyledSelect
+                                        dense
+                                        value={m.periodo}
+                                        disabled={isMedReadOnly}
+                                        onChange={v => updateEditMed(i, "periodo", v)}
+                                        options={PERIODO_OPTIONS.map(op => ({ value: op, label: op }))}
+                                        placeholder="Elegir período…"
+                                        ariaLabel="Período"
+                                      />
+                                    </div>
+                                  </div>
                                 </div>
                               );
                             })}
-                          </>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1432,11 +1403,9 @@ export default function AsignacionesTab() {
                   </div>
                   <div className="form-group">
                     <label>Retirado / Egresado</label>
-                    <select value={editData.retirado || "NO"}
-                      onChange={e => setEditData(prev => ({ ...prev, retirado: e.target.value }))}>
-                      <option value="NO">No</option>
-                      <option value="SI">Sí</option>
-                    </select>
+                    <StyledSelect value={editData.retirado || "NO"} ariaLabel="Retirado / Egresado"
+                      onChange={v => setEditData(prev => ({ ...prev, retirado: v }))}
+                      options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]} />
                   </div>
                   {editData.retirado === "SI" && (
                     <div className="form-group detail-field--full">
@@ -1447,11 +1416,9 @@ export default function AsignacionesTab() {
                   )}
                   <div className="form-group">
                     <label>Residente Intermitente</label>
-                    <select value={editData.intermitente || "NO"}
-                      onChange={e => setEditData(prev => ({ ...prev, intermitente: e.target.value, motivoIntermitente: e.target.value === "NO" ? "" : prev.motivoIntermitente }))}>
-                      <option value="NO">No</option>
-                      <option value="SI">Sí</option>
-                    </select>
+                    <StyledSelect value={editData.intermitente || "NO"} ariaLabel="Residente Intermitente"
+                      onChange={v => setEditData(prev => ({ ...prev, intermitente: v, motivoIntermitente: v === "NO" ? "" : prev.motivoIntermitente }))}
+                      options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]} />
                   </div>
                   {editData.intermitente === "SI" && (
                     <div className="form-group detail-field--full">

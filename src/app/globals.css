@@ -1145,7 +1145,7 @@ html[data-theme="dark"] .toast--info {
 .modal-content {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: 22px;
   padding: 1.5rem;
   width: 90%;
   max-width: 380px;
@@ -3395,8 +3395,13 @@ h2.dashboard-section-title {
 }
 .asign-search-wrap input {
   width: 100%;
-  padding-right: 2.5rem;
+  height: 48px;
+  border-radius: 999px;                 /* pill, coherente con el resto */
+  padding: 0 2.75rem 0 1.15rem;
+  font-size: 1rem;                       /* 16px: evita zoom en móvil */
+  box-sizing: border-box;
 }
+.asign-search-clear { right: 0.9rem; }
 .asign-search-clear {
   position: absolute;
   right: 0.625rem;
@@ -3421,7 +3426,7 @@ h2.dashboard-section-title {
 /* Scrollable wrapper so table doesn't overflow narrow screens */
 .registro-table-wrapper {
   overflow-x: auto;
-  border-radius: 12px;
+  border-radius: 18px;
   box-shadow: 0 4px 20px -4px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
 }
 
@@ -3946,7 +3951,7 @@ h2.dashboard-section-title {
 /* Filter panel card */
 .reg-filters-panel {
   background: var(--bg-secondary);
-  border-radius: 12px;
+  border-radius: 20px;
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
   box-shadow: 0 4px 20px -4px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
@@ -4726,24 +4731,28 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
    (MorbilidadTab); fuera de ahí los .morb-control quedaban con height:auto. Aquí
    se redefinen para que StyledSelect/DatePicker/SearchableSelect midan igual.
    ═════════════════════════════════════════════════════════════════════════ */
-.censo-form {
-  --ctl-h: 48px;            /* alto ÚNICO de todos los controles del formulario */
-  --ctl-h-sm: 44px;         /* filas densas de medicamento                      */
-  --ctl-radius: 999px;      /* pill                                             */
-  --morb-h: var(--ctl-h);       /* los .morb-control internos toman alto real   */
+/* Sistema de controles PILL compartido: `.censo-form` (registro) y `.pill-form`
+   (cualquier otra sección que quiera el mismo reformat, p. ej. filtros y modal de
+   edición de Registrados). Altura y radio únicos, controles no-nativos incluidos. */
+.censo-form, .pill-form {
+  --ctl-h: 48px;            /* alto ÚNICO de todos los controles          */
+  --ctl-h-sm: 44px;         /* filas densas de medicamento                */
+  --ctl-radius: 999px;      /* pill                                       */
+  --morb-h: var(--ctl-h);       /* los .morb-control internos toman alto real */
   --morb-h-sm: var(--ctl-h-sm);
-  /* Contenedor del formulario redondeado (ya no cuadrado). El .form-card tiene
-     overflow:hidden en el MISMO elemento → los bordes internos (progreso arriba,
-     barra de envío abajo) se recortan a la curva. Los controles están a ~18px de
-     padding del borde, muy por encima del ring de foco (3px), así que NO se pisan. */
-  border-radius: 22px;
 }
+/* Contenedor del formulario de registro redondeado (overflow:hidden recorta el
+   progreso/envío a la curva; los controles están lejos del borde → no pisan el ring). */
+.censo-form { border-radius: 22px; }
 
 /* Control base pill: inputs de texto/número + triggers no-nativos (.morb-control:
    StyledSelect / DatePicker / SearchableSelect). Misma altura, radio, padding. */
 .censo-form input[type="text"],
 .censo-form input[type="number"],
-.censo-form .morb-control {
+.censo-form .morb-control,
+.pill-form input[type="text"],
+.pill-form input[type="number"],
+.pill-form .morb-control {
   height: var(--ctl-h);
   min-height: var(--ctl-h);
   border-radius: var(--ctl-radius);
@@ -4753,13 +4762,17 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 }
 .censo-form input[type="text"]:focus,
 .censo-form input[type="number"]:focus,
-.censo-form .morb-control:focus {
+.censo-form .morb-control:focus,
+.pill-form input[type="text"]:focus,
+.pill-form input[type="number"]:focus,
+.pill-form .morb-control:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-ring);
 }
 
 /* Textarea: multilínea (no puede ser pill) pero muy redondeada y coherente */
-.censo-form textarea {
+.censo-form textarea,
+.pill-form textarea {
   border-radius: 22px;
   padding: 0.85rem 1.15rem;
   font-size: 1rem; /* 16px: evita zoom-al-enfocar en móvil */
@@ -4768,21 +4781,25 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 }
 
 /* Radio cards → pill, misma altura que el resto */
-.censo-form .radio-card {
+.censo-form .radio-card,
+.pill-form .radio-card {
   height: var(--ctl-h);
   border-radius: var(--ctl-radius);
   font-size: 0.82rem;
 }
 
 /* Toggle nacionalidad V/E → pill */
-.censo-form .nat-toggle {
+.censo-form .nat-toggle,
+.pill-form .nat-toggle {
   height: var(--ctl-h);
   border-radius: var(--ctl-radius);
 }
 
-/* Botones del asistente → misma altura pill */
+/* Botones → misma altura pill */
 .censo-form .btn-submit,
-.censo-form .btn-back {
+.censo-form .btn-back,
+.pill-form .btn-submit,
+.pill-form .btn-back {
   height: var(--ctl-h);
   border-radius: var(--ctl-radius);
 }
