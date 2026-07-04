@@ -72,6 +72,10 @@ export const canDeleteRegistro = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u
 export const canManageUsers    = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 export const canManageRooms    = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 export const canManagePadron   = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
+// Morbilidad: registrar consultas médicas.
+export const canManageMorbilidad = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
+// Catálogos médicos (patologías/medicamentos): solo el admin médico y Master.
+export const canManageCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedico"].includes(u.role);
 
 /** ¿Puede el usuario actuar sobre datos de este refugio? Master: cualquiera. */
 export const canActOnRefugio = (u: AuthUser, refugio: string) =>

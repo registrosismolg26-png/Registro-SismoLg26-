@@ -163,6 +163,13 @@ export async function PATCH(
     if ("medicamentos" in body) {
       data.medicamentos = Array.isArray(body.medicamentos) ? body.medicamentos : [];
     }
+    // Modelo por-ID (censo/asignaciones): ids de patologías y medicamentos { id, dosis, periodo }.
+    if ("patologiaIds" in body) {
+      data.patologiaIds = Array.isArray(body.patologiaIds) ? body.patologiaIds : [];
+    }
+    if ("medicamentoIds" in body) {
+      data.medicamentoIds = Array.isArray(body.medicamentoIds) ? body.medicamentoIds : [];
+    }
 
     // Intermitente y motivo
     if ("intermitente" in body) {

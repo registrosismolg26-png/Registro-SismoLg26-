@@ -20,7 +20,7 @@ import {
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
 import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad } from "@/lib/permissions";
-import type { ToastType, ActiveTab } from "@/types";
+import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
 import LoginForm from "@/components/LoginForm";
@@ -218,11 +218,11 @@ export default function Home() {
   const [syncQueueProgress, setSyncQueueProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Patologias & Medical Consultations (Morbilidad)
-  const [patologias, setPatologias] = useState<string[]>([]);
+  const [patologias, setPatologias] = useState<Patologia[]>([]);
   const [consultas, setConsultas] = useState<any[]>([]);
   const [localConsultas, setLocalConsultas] = useState<LocalConsulta[]>([]);
   const [loadingConsultas, setLoadingConsultas] = useState(false);
-  const [predefinedMedicamentos, setPredefinedMedicamentos] = useState<any[]>([]);
+  const [predefinedMedicamentos, setPredefinedMedicamentos] = useState<MedicamentoPredefinido[]>([]);
 
   // (Corrección local de la cola, modal QR, diagnóstico de notificaciones y
   //  modales de gestión de habitaciones movidos a src/tabs/ConfigTab.tsx.)
@@ -722,7 +722,7 @@ export default function Home() {
 
   const fetchPatologias = async () => {
     if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("sismo_cached_patologias");
+      const cached = localStorage.getItem("sismo_cached_patologias_v2");
       if (cached) {
         try {
           setPatologias(JSON.parse(cached));
@@ -738,7 +738,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.patologias) {
           setPatologias(data.patologias);
-          localStorage.setItem("sismo_cached_patologias", JSON.stringify(data.patologias));
+          localStorage.setItem("sismo_cached_patologias_v2", JSON.stringify(data.patologias));
         }
       }
     } catch (err) {
@@ -774,7 +774,7 @@ export default function Home() {
 
   const fetchConsultas = async () => {
     if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("cached_consultas");
+      const cached = localStorage.getItem("cached_consultas_v2");
       if (cached) {
         try {
           setConsultas(JSON.parse(cached));
@@ -792,7 +792,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.consultas) {
           setConsultas(data.consultas);
-          localStorage.setItem("cached_consultas", JSON.stringify(data.consultas));
+          localStorage.setItem("cached_consultas_v2", JSON.stringify(data.consultas));
         }
       }
     } catch (err) {
@@ -887,10 +887,11 @@ export default function Home() {
                   genero: c.data.genero,
                   edad: c.data.edad,
                   refugio: c.data.refugio,
-                  antecedentesPatologia: c.data.antecedentesPatologia,
-                  antecedentesMedicamentos: c.data.antecedentesMedicamentos,
-                  diagnosticoPatologia: c.data.diagnosticoPatologia,
-                  diagnosticoMedicamentos: c.data.diagnosticoMedicamentos,
+                  registroId: c.data.registroId,
+                  antecedentesPatologiaIds: c.data.antecedentesPatologiaIds,
+                  antecedentesMedicamentoIds: c.data.antecedentesMedicamentoIds,
+                  diagnosticoPatologiaIds: c.data.diagnosticoPatologiaIds,
+                  diagnosticoMedicamentoIds: c.data.diagnosticoMedicamentoIds,
                   notasDoctor: c.data.notasDoctor
                 }),
                 timeoutMs: 15000,
@@ -1165,7 +1166,7 @@ export default function Home() {
     localStorage.removeItem("cached_registros");
     localStorage.removeItem("cached_stats");
     localStorage.removeItem("cached_owner");
-    localStorage.removeItem("cached_consultas");
+    localStorage.removeItem("cached_consultas_v2");
     localStorage.removeItem("sismo_cached_predefined_medicamentos");
     setViewRefugio("");
     setRefugiosList([]);
@@ -1203,7 +1204,7 @@ export default function Home() {
     registros, setRegistros, fetchRegistros, loadingRegistros,
     localRecords, refreshLocalRecords,
     patologias, fetchPatologias,
-    predefinedMedicamentos,
+    predefinedMedicamentos, fetchPredefinedMedicamentos,
     consultas, localConsultas, loadingConsultas, refreshLocalConsultas, fetchConsultas,
     pendingSelectId, setPendingSelectId,
     customCuartos, setCustomCuartos, allCuartos, sortedCustomCuartos, dashboardRooms,

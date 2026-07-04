@@ -18,7 +18,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { PARROQUIAS } from "@/lib/constants";
-import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
+import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText } from "@/lib/helpers";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -53,33 +53,36 @@ export default function AsignacionesTab() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [originalMedsCount, setOriginalMedsCount] = useState(0);
 
-  const toggleEditPathology = (pName: string) => {
-    const current = editData.patologiaDescripcion
-      ? String(editData.patologiaDescripcion).split(",").map((s: string) => s.trim()).filter(Boolean)
-      : [];
-    const index = current.indexOf(pName);
-    if (index > -1) {
-      current.splice(index, 1);
-    } else {
-      current.push(pName);
-    }
-    setEditData(prev => ({ ...prev, patologiaDescripcion: current.join(", ") }));
+  // Patologías por-ID en la edición: array de ids del catálogo.
+  const addEditPatologia = (id: string) => {
+    if (!id) return;
+    setEditData(prev => {
+      const current: string[] = Array.isArray(prev.patologiaIds) ? prev.patologiaIds : [];
+      if (current.includes(id)) return prev;
+      return { ...prev, patologiaIds: [...current, id] };
+    });
+  };
+  const removeEditPatologia = (id: string) => {
+    setEditData(prev => ({
+      ...prev,
+      patologiaIds: (Array.isArray(prev.patologiaIds) ? prev.patologiaIds : []).filter((x: string) => x !== id),
+    }));
   };
 
+  // Medicamentos por-ID: solo desde el catálogo (id + posología editable).
   const handleSelectEditPredefinedMed = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const medName = e.target.value;
-    if (!medName) return;
-    const match = predefinedMedicamentos.find(m => m.nombre === medName);
-    if (match) {
-      setEditMedicamentos(prev => [...prev, { nombre: match.nombre, dosis: match.dosis, periodo: match.periodo }]);
+    const medId = e.target.value;
+    if (!medId) return;
+    const match = predefinedMedicamentos.find(m => m.id === medId);
+    if (match && !editMedicamentos.some(x => x.id === medId)) {
+      setEditMedicamentos(prev => [...prev, { id: match.id, dosis: match.dosis, periodo: match.periodo }]);
     }
     e.target.value = "";
   };
 
   const [editMedicamentos, setEditMedicamentos] = useState<Medicamento[]>([]);
-  const addEditMed    = () => setEditMedicamentos(p => [...p, { nombre: "", dosis: "", periodo: "" }]);
   const removeEditMed = (i: number) => setEditMedicamentos(p => p.filter((_, idx) => idx !== i));
-  const updateEditMed = (i: number, field: keyof Medicamento, val: string) =>
+  const updateEditMed = (i: number, field: "dosis" | "periodo", val: string) =>
     setEditMedicamentos(p => p.map((m, idx) => idx === i ? { ...m, [field]: val } : m));
 
   // Filters State for search table
@@ -210,9 +213,9 @@ export default function AsignacionesTab() {
           cedulaJefeFamilia: updated.cedulaJefeFamilia,
           estadoFisico: updated.estadoFisico,
           patologia: updated.patologia,
-          patologiaDescripcion: updated.patologiaDescripcion || undefined,
+          patologiaIds: Array.isArray(updated.patologiaIds) ? updated.patologiaIds : [],
           telefono: updated.telefono || undefined,
-          medicamentos: updated.medicamentos || [],
+          medicamentoIds: Array.isArray(updated.medicamentoIds) ? updated.medicamentoIds : [],
           cuarto: updated.cuarto,
           retirado: updated.retirado || "NO",
           retiradoRazon: updated.retiradoRazon || undefined,
@@ -280,7 +283,7 @@ export default function AsignacionesTab() {
       edad: finalEdad,
       cedula: finalCedula,
       cedulaJefeFamilia: finalJefeCedula,
-      medicamentos: editMedicamentos
+      medicamentoIds: editMedicamentos
     };
 
     // 1. Optimistic UI update
@@ -316,9 +319,9 @@ export default function AsignacionesTab() {
           cedulaJefeFamilia: updated.cedulaJefeFamilia || undefined,
           estadoFisico: updated.estadoFisico,
           patologia: updated.patologia,
-          patologiaDescripcion: updated.patologia === "SI" ? updated.patologiaDescripcion : undefined,
+          patologiaIds: updated.patologia === "SI" ? (Array.isArray(updated.patologiaIds) ? updated.patologiaIds : []) : [],
           telefono: updated.telefono || undefined,
-          medicamentos: updated.medicamentos || [],
+          medicamentoIds: Array.isArray(updated.medicamentoIds) ? updated.medicamentoIds : [],
           cuarto: updated.cuarto || undefined,
           retirado: updated.retirado || "NO",
           retiradoRazon: updated.retirado === "SI" ? updated.retiradoRazon : undefined,
@@ -389,9 +392,7 @@ export default function AsignacionesTab() {
     ];
 
     const rows = present.map(r => {
-      const meds = Array.isArray(r.medicamentos)
-        ? r.medicamentos.map((m: any) => `${m.nombre || ""}:${m.dosis || ""}:${m.periodo || ""}`).join(" | ")
-        : "";
+      const meds = medItemsText(r.medicamentoIds, predefinedMedicamentos);
       return [
         r.cedula,
         r.nombreApellido,
@@ -408,7 +409,7 @@ export default function AsignacionesTab() {
         r.jefeFamilia,
         r.cedulaJefeFamilia || "",
         r.patologia,
-        r.patologiaDescripcion || "",
+        patologiaNombres(r.patologiaIds, patologias).join(", "),
         meds,
         r.createdAt ? new Date(r.createdAt).toLocaleString("es-VE") : ""
       ];
@@ -933,21 +934,21 @@ export default function AsignacionesTab() {
                   {selectedRegistro.patologia === "SI" && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Patología</span>
-                      <span className="detail-value">{selectedRegistro.patologiaDescripcion || "Sí"}</span>
+                      <span className="detail-value">{patologiaNombres(selectedRegistro.patologiaIds, patologias).join(", ") || "Sí"}</span>
                     </div>
                   )}
-                  {(selectedRegistro.patologia === "SI" || selectedRegistro.estadoFisico === "LESIONADO") && Array.isArray(selectedRegistro.medicamentos) && selectedRegistro.medicamentos.length > 0 && (
+                  {(selectedRegistro.patologia === "SI" || selectedRegistro.estadoFisico === "LESIONADO") && Array.isArray(selectedRegistro.medicamentoIds) && selectedRegistro.medicamentoIds.length > 0 && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Medicamentos</span>
                       <div className="med-table-view">
                         <div className="med-row med-row--header">
-                          <span>Nombre</span>
+                          <span>Medicamento</span>
                           <span>Dosis</span>
                           <span>Período</span>
                         </div>
-                        {(selectedRegistro.medicamentos as Medicamento[]).map((m, i) => (
+                        {(selectedRegistro.medicamentoIds as Medicamento[]).map((m, i) => (
                           <div key={i} className="med-row med-row--readonly">
-                            <span>{m.nombre}</span>
+                            <span>{medLabel(m.id, predefinedMedicamentos)}</span>
                             <span>{m.dosis}</span>
                             <span>{m.periodo}</span>
                           </div>
@@ -1080,7 +1081,7 @@ export default function AsignacionesTab() {
                             genero: selectedRegistro.genero,
                             estadoFisico: selectedRegistro.estadoFisico,
                             patologia: selectedRegistro.patologia,
-                            patologiaDescripcion: selectedRegistro.patologiaDescripcion || "",
+                            patologiaIds: Array.isArray(selectedRegistro.patologiaIds) ? selectedRegistro.patologiaIds : [],
                             telefono: selectedRegistro.telefono || "",
                             retirado: selectedRegistro.retirado || "NO",
                             retiradoRazon: selectedRegistro.retiradoRazon || "",
@@ -1091,7 +1092,7 @@ export default function AsignacionesTab() {
                             intermitente: selectedRegistro.intermitente || "NO",
                             motivoIntermitente: selectedRegistro.motivoIntermitente || "",
                           });
-                          const initialMeds = Array.isArray(selectedRegistro.medicamentos) ? selectedRegistro.medicamentos : [];
+                          const initialMeds = Array.isArray(selectedRegistro.medicamentoIds) ? selectedRegistro.medicamentoIds : [];
                           setEditMedicamentos(initialMeds);
                           setOriginalMedsCount(initialMeds.length);
                         }}
@@ -1307,42 +1308,47 @@ export default function AsignacionesTab() {
                         {editData.patologia === "SI" && (
                           <div className="form-group detail-field--full">
                             <label style={{ marginBottom: "0.5rem", display: "block" }}>Patologías</label>
+                            <select
+                              value=""
+                              disabled={!isPrivileged}
+                              onChange={(e) => addEditPatologia(e.target.value)}
+                              style={{ height: "38px", width: "100%", marginBottom: "0.5rem" }}
+                            >
+                              <option value="">Agregar patología…</option>
+                              {patologias
+                                .filter(p => !(Array.isArray(editData.patologiaIds) ? editData.patologiaIds : []).includes(p.id))
+                                .map(p => (<option key={p.id} value={p.id}>{p.nombre}</option>))}
+                            </select>
                             <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
-                              {patologias.map(pName => {
-                                const isSelected = editData.patologiaDescripcion
-                                  ? String(editData.patologiaDescripcion).split(",").map((s: string) => s.trim()).includes(pName)
-                                  : false;
-                                return (
-                                  <button
-                                    key={pName}
-                                    type="button"
-                                    disabled={!isPrivileged}
-                                    onClick={() => toggleEditPathology(pName)}
-                                    style={{
-                                      padding: "0.5rem 0.85rem",
-                                      borderRadius: "20px",
-                                      border: isSelected ? "1.5px solid var(--color-primary)" : "1px solid var(--border-color)",
-                                      backgroundColor: isSelected ? "var(--color-primary-light)" : "var(--bg-secondary)",
-                                      color: isSelected ? "var(--color-primary)" : "var(--text-secondary)",
-                                      fontSize: "0.8rem",
-                                      fontWeight: "600",
-                                      cursor: isPrivileged ? "pointer" : "default",
-                                      opacity: !isPrivileged && !isSelected ? 0.5 : 1,
-                                      transition: "all 0.15s ease",
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "0.25rem",
-                                      userSelect: "none"
-                                    }}
-                                  >
-                                    {pName}
-                                    {isSelected && <span style={{ fontSize: "0.75rem" }}>✓</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "0.5rem" }}>
-                              Seleccionadas: <strong>{editData.patologiaDescripcion || "(Ninguna)"}</strong>
+                              {(Array.isArray(editData.patologiaIds) ? editData.patologiaIds : []).length === 0 ? (
+                                <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic" }}>(Ninguna)</span>
+                              ) : (editData.patologiaIds as string[]).map((id) => (
+                                <span
+                                  key={id}
+                                  style={{
+                                    padding: "0.4rem 0.35rem 0.4rem 0.75rem",
+                                    borderRadius: "20px",
+                                    border: "1.5px solid var(--color-primary)",
+                                    backgroundColor: "var(--color-primary-light)",
+                                    color: "var(--color-primary)",
+                                    fontSize: "0.8rem",
+                                    fontWeight: "600",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "0.25rem",
+                                  }}
+                                >
+                                  {patologiaNombre(id, patologias)}
+                                  {isPrivileged && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeEditPatologia(id)}
+                                      aria-label="Quitar"
+                                      style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", fontSize: "1rem", lineHeight: 1, padding: "0 0.25rem" }}
+                                    >×</button>
+                                  )}
+                                </span>
+                              ))}
                             </div>
                           </div>
                         )}
@@ -1354,30 +1360,25 @@ export default function AsignacionesTab() {
                       <div className="med-section">
                         <div className="med-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                           <span className="med-section-title">Medicamentos</span>
-                          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                            <select
-                              onChange={handleSelectEditPredefinedMed}
-                              defaultValue=""
-                              style={{ width: "180px", height: "32px", fontSize: "0.75rem", padding: "0 0.5rem", margin: 0 }}
-                            >
-                              <option value="">Seleccionar predefinido...</option>
-                              {predefinedMedicamentos.map(m => (
-                                <option key={m.id} value={m.nombre}>
-                                  {m.nombre} ({m.dosis})
-                                </option>
-                              ))}
-                            </select>
-                            <button type="button" className="btn-add-med" onClick={addEditMed} style={{ height: "32px", display: "flex", alignItems: "center", margin: 0 }}>
-                              + Agregar
-                            </button>
-                          </div>
+                          <select
+                            value=""
+                            onChange={handleSelectEditPredefinedMed}
+                            style={{ width: "220px", height: "32px", fontSize: "0.75rem", padding: "0 0.5rem", margin: 0 }}
+                          >
+                            <option value="">Agregar medicamento…</option>
+                            {predefinedMedicamentos.map(m => (
+                              <option key={m.id} value={m.id}>
+                                {[m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ")}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         {editMedicamentos.length === 0 ? (
                           <p className="med-empty">Sin medicamentos. Usa "+ Agregar" para añadir.</p>
                         ) : (
                           <>
                             <div className="med-row med-row--header">
-                              <span>Nombre</span>
+                              <span>Medicamento</span>
                               <span>Dosis</span>
                               <span>Período</span>
                               <span />
@@ -1388,13 +1389,9 @@ export default function AsignacionesTab() {
                               const isMedReadOnly = !isPrivileged && isExisting;
                               return (
                                 <div key={i} className="med-row">
-                                  <input
-                                    className="med-input"
-                                    placeholder="ej: Metformina"
-                                    value={m.nombre}
-                                    disabled={isMedReadOnly}
-                                    onChange={e => updateEditMed(i, "nombre", e.target.value)}
-                                  />
+                                  <span className="med-input" style={{ display: "flex", alignItems: "center", fontWeight: 600 }}>
+                                    {medLabel(m.id, predefinedMedicamentos)}
+                                  </span>
                                   <input
                                     className="med-input"
                                     placeholder="ej: 500mg"

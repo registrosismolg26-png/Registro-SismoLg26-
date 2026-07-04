@@ -32,7 +32,10 @@ model Registro {
   gpsLng               Float?
   telefono             String?
   cuarto               String?   // Assigned room: "EDIFICIO 1 SALON N"
-  medicamentos         Json?     @default("[]") // [{nombre, dosis, periodo}]
+  medicamentos         Json?     @default("[]") // LEGADO (congelado): [{nombre, dosis, periodo}] — reemplazado por medicamentoIds
+  // NOTA: patologiaDescripcion (arriba) queda CONGELADO como respaldo; el modelo por-ID usa patologiaIds/medicamentoIds.
+  patologiaIds         Json?     @default("[]") // ID-nativo: ["<PatologiaId>", ...]
+  medicamentoIds       Json?     @default("[]") // ID-nativo: [{ id: "<MedicamentoPredefinidoId>", dosis, periodo }]
   retirado             String    @default("NO") // "SI" / "NO"
   retiradoRazon        String?
   retiradoFecha        DateTime?
@@ -99,23 +102,34 @@ model ConsultaMedica {
   id                        String   @id @default(uuid())
   cedula                    String
   nombreApellido            String
+  registroId                String?  // UID del Registro (Censo) vinculado — null si no está en el censo
   genero                    String?
   edad                      Int?
   refugio                   String
+  // Campos LEGADO (congelados, respaldo). El modelo por-ID usa las columnas *Ids de abajo.
   antecedentesPatologia     String?
-  antecedentesMedicamentos  Json?    @default("[]") // [{nombre, dosis, periodo}]
+  antecedentesMedicamentos  Json?    @default("[]") // LEGADO: [{nombre, dosis, periodo}]
   diagnosticoPatologia      String?
-  diagnosticoMedicamentos   Json?    @default("[]") // [{nombre, dosis, periodo}]
+  diagnosticoMedicamentos   Json?    @default("[]") // LEGADO: [{nombre, dosis, periodo}]
+  // ID-nativo:
+  antecedentesPatologiaIds    Json?  @default("[]") // ["<PatologiaId>", ...]
+  diagnosticoPatologiaIds     Json?  @default("[]") // ["<PatologiaId>", ...]
+  antecedentesMedicamentoIds  Json?  @default("[]") // [{ id, dosis, periodo }]
+  diagnosticoMedicamentoIds   Json?  @default("[]") // [{ id, dosis, periodo }]
   notasDoctor               String?
   createdAt                 DateTime @default(now())
   userId                    String
 }
 
 model MedicamentoPredefinido {
-  id        String   @id @default(uuid())
-  nombre    String   @unique
-  dosis     String
-  periodo   String
-  nota      String?
-  createdAt DateTime @default(now())
+  id            String   @id @default(uuid())
+  nombre        String   // principio activo (NO único por sí solo: se repite con distinta presentación)
+  concentracion String   @default("") // ej: "500 MG", "200 MG / 5 ML"
+  presentacion  String   @default("") // ej: "TABLETA", "JARABE", "INHALADOR"
+  dosis         String   @default("") // dosis sugerida (puede quedar vacía)
+  periodo       String   @default("") // período sugerido (puede quedar vacío)
+  nota          String?
+  createdAt     DateTime @default(now())
+
+  @@unique([nombre, concentracion, presentacion])
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, canManageCatalogosMedicos } from "@/lib/auth";
 
+// GET: catálogo de patologías como objetos { id, nombre } (modelo por-ID).
 export async function GET(req: Request) {
   try {
     const auth = await getAuthUser(req);
@@ -9,156 +10,67 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    let patologias = await prisma.patologia.findMany({
+    const patologias = await prisma.patologia.findMany({
       orderBy: { nombre: "asc" },
+      select: { id: true, nombre: true },
     });
 
-    // Auto-seed si está vacío
-    if (patologias.length === 0) {
-      const defaultNombres = [
-        "Abdomen Agudo",
-        "Abortos Espontáneos",
-        "Acné",
-        "ACV Isquémico",
-        "Adenomegalia",
-        "Alopecia",
-        "Alergia Respiratoria",
-        "Amigdalitis",
-        "Amenorrea",
-        "Amenorrea Primaria",
-        "Amenorrea Secundaria",
-        "Anaovulación",
-        "Anemia",
-        "Aneurisma",
-        "Angina",
-        "Angor",
-        "Anorexia",
-        "Apendicitis",
-        "Arritmia",
-        "Arritmias",
-        "Artralgia",
-        "Artritis Reumatoidea",
-        "Artrosis",
-        "Asma",
-        "Astenia",
-        "Bajo Peso",
-        "Bocio",
-        "Bronquitis Obstructiva",
-        "Cefalea",
-        "Cirrosis",
-        "Climaterio",
-        "Colelitiasis",
-        "Cólico Renal",
-        "Conjuntivitis",
-        "Constipación",
-        "Control By Pass",
-        "Control de Ca.",
-        "Dermatitis",
-        "Desnutrición",
-        "Diabetes Mellitus",
-        "Diarrea",
-        "Dislipemia",
-        "Disnea",
-        "Dispepsia",
-        "Disuria",
-        "Dolor Abdominal",
-        "Eclampsia",
-        "Edemas",
-        "Embarazo - Control 1er. Trimestre",
-        "Embarazo - Control 2do. Trimestre",
-        "Embarazo - Control 3er. Trimestre",
-        "Enfermedad de Hodgkin",
-        "Enfermedad de Transmisión Sexual",
-        "Epistaxis",
-        "Epilepsia",
-        "EPOC - Insuficiencia Respiratoria",
-        "Escabiosis",
-        "Etilismo",
-        "Faringitis",
-        "Fibrosis Quística",
-        "Fiebre",
-        "Fiebre Reumática",
-        "Gastroenteritis",
-        "Gota",
-        "Hematomas",
-        "Hematuria",
-        "Hepatitis",
-        "Hepatomegalia",
-        "Hepatopatía",
-        "Herpes",
-        "Hipercolesterolemia / Colesterolemia",
-        "Hipertensión Arterial",
-        "Hipertiroidismo",
-        "Hipogonadismo Masculino",
-        "Hipotiroidismo",
-        "Hirsutismo",
-        "Ictericia",
-        "Infección Urinaria",
-        "Infertilidad Femenina",
-        "Infertilidad Masculina",
-        "Insuficiencia Cardíaca",
-        "Insuficiencia Renal Crónica/Aguda",
-        "Intoxicación",
-        "Leucemia",
-        "Linfoma",
-        "Linfoma No-Hodgkin",
-        "Lipotimia",
-        "Litiasis Vesicular",
-        "Lumbalgia",
-        "Lupus Eritematoso",
-        "Mareos",
-        "Melanoma",
-        "Menopausia",
-        "Metrorragia",
-        "Metabolopatía",
-        "Mialgia",
-        "Mieloma",
-        "Mononucleosis y la Infecciosa",
-        "Megacolon",
-        "Neumopatía",
-        "Obesidad",
-        "Osteopenia",
-        "Osteoporosis",
-        "Parotiditis",
-        "Pielonefritis",
-        "Poliartralgias",
-        "Polidipsia",
-        "Precordialgia - Dolor Precordial",
-        "Prequirúrgico",
-        "Prostatismo",
-        "Prurito",
-        "Psoriasis",
-        "Raynaud, Enfermedad - Síndrome",
-        "Reacción Alérgica",
-        "Rinitis",
-        "Rinofaringitis Aguda",
-        "Sarcoma",
-        "Síndrome de la Silla Turca",
-        "Síndrome de Ovario Poliquístico (SOPQ)",
-        "Síndrome Febril Prolongado",
-        "Síndrome Vertiginoso",
-        "Sinusitis",
-        "Sobrepeso",
-        "Sudoración",
-        "Tos Crónica",
-        "Úlcera Gástrica / Duodenal",
-        "Urticaria",
-        "Vómitos",
-        "Otros"
-      ];
-      await prisma.patologia.createMany({
-        data: defaultNombres.map(nombre => ({ nombre })),
-        skipDuplicates: true
-      });
-
-      patologias = await prisma.patologia.findMany({
-        orderBy: { nombre: "asc" },
-      });
-    }
-
-    return NextResponse.json({ success: true, patologias: patologias.map(p => p.nombre) });
+    return NextResponse.json({ success: true, patologias });
   } catch (error: any) {
     console.error("Error en GET /api/patologias:", error);
     return NextResponse.json({ error: "Error al listar patologías" }, { status: 500 });
+  }
+}
+
+// POST: crear una patología del catálogo (solo AdminMedico/Master).
+export async function POST(req: Request) {
+  try {
+    const auth = await getAuthUser(req);
+    if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (!canManageCatalogosMedicos(auth)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const nombre = String(body?.nombre ?? "").replace(/\s+/g, " ").trim();
+    if (!nombre) {
+      return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
+    }
+    // Los nombres no llevan coma: el diagnóstico se muestra separado por comas.
+    if (nombre.includes(",")) {
+      return NextResponse.json({ error: "El nombre no puede contener comas" }, { status: 400 });
+    }
+
+    const patologia = await prisma.patologia.create({ data: { nombre } });
+    return NextResponse.json({ success: true, patologia }, { status: 201 });
+  } catch (error: any) {
+    if (error?.code === "P2002") {
+      return NextResponse.json({ error: "Esa patología ya existe" }, { status: 409 });
+    }
+    console.error("Error en POST /api/patologias:", error);
+    return NextResponse.json({ error: "Error al crear patología" }, { status: 500 });
+  }
+}
+
+// DELETE: borrar una patología del catálogo por id (?id=). Solo AdminMedico/Master.
+export async function DELETE(req: Request) {
+  try {
+    const auth = await getAuthUser(req);
+    if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (!canManageCatalogosMedicos(auth)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const id = new URL(req.url).searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Falta el id" }, { status: 400 });
+
+    await prisma.patologia.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    if (error?.code === "P2025") {
+      return NextResponse.json({ error: "Patología no encontrada" }, { status: 404 });
+    }
+    console.error("Error en DELETE /api/patologias:", error);
+    return NextResponse.json({ error: "Error al borrar patología" }, { status: 500 });
   }
 }

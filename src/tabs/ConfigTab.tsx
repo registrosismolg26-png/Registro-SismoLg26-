@@ -23,7 +23,7 @@ import { getPending, saveLocal, resetAttempts, type LocalRegistro } from "@/lib/
 import { formatRoomLabel } from "@/lib/helpers";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { canManageRooms, canRegister, isMaster } from "@/lib/permissions";
+import { canManageRooms, canRegister, isMaster, canManageCatalogosMedicos } from "@/lib/permissions";
 
 export default function ConfigTab() {
   const {
@@ -46,7 +46,61 @@ export default function ConfigTab() {
     syncProgress,
     downloadFullPadron,
     deletePadronLocal,
+    patologias,
+    predefinedMedicamentos,
+    fetchPatologias,
+    fetchPredefinedMedicamentos,
   } = useAppContext();
+
+  // ── Catálogos médicos (AdminMedico/Master): patologías y medicamentos ──
+  const puedeGestionarCatalogos = canManageCatalogosMedicos(currentUser?.role ?? "");
+  const [nuevaPatologia, setNuevaPatologia] = useState("");
+  const [savingPatologia, setSavingPatologia] = useState(false);
+  const [patFilter, setPatFilter] = useState("");
+  const [nuevoMed, setNuevoMed] = useState({ nombre: "", concentracion: "", presentacion: "", dosis: "", periodo: "" });
+  const [savingMed, setSavingMed] = useState(false);
+  const [medFilter, setMedFilter] = useState("");
+
+  const handleAddPatologia = async () => {
+    const nombre = nuevaPatologia.replace(/\s+/g, " ").trim();
+    if (!nombre) return;
+    if (nombre.includes(",")) { showToast("El nombre no puede contener comas.", "error"); return; }
+    setSavingPatologia(true);
+    try {
+      const res = await apiFetch("/api/patologias", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre }) });
+      if (res.ok) { setNuevaPatologia(""); fetchPatologias(); showToast("Patología agregada.", "success"); }
+      else { const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo agregar.", "error"); }
+    } catch { showToast("Error de red al agregar patología.", "error"); }
+    finally { setSavingPatologia(false); }
+  };
+
+  const handleDeletePatologia = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/patologias?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) { fetchPatologias(); showToast("Patología eliminada.", "success"); }
+      else { const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo eliminar.", "error"); }
+    } catch { showToast("Error de red al eliminar.", "error"); }
+  };
+
+  const handleAddMed = async () => {
+    const nombre = nuevoMed.nombre.replace(/\s+/g, " ").trim();
+    if (!nombre) { showToast("El nombre del medicamento es obligatorio.", "error"); return; }
+    setSavingMed(true);
+    try {
+      const res = await apiFetch("/api/medicamentos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(nuevoMed) });
+      if (res.ok) { setNuevoMed({ nombre: "", concentracion: "", presentacion: "", dosis: "", periodo: "" }); fetchPredefinedMedicamentos(); showToast("Medicamento agregado.", "success"); }
+      else { const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo agregar.", "error"); }
+    } catch { showToast("Error de red al agregar medicamento.", "error"); }
+    finally { setSavingMed(false); }
+  };
+
+  const handleDeleteMed = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/medicamentos?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) { fetchPredefinedMedicamentos(); showToast("Medicamento eliminado.", "success"); }
+      else { const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo eliminar.", "error"); }
+    } catch { showToast("Error de red al eliminar.", "error"); }
+  };
 
   // Notification Diagnostics (helper state)
   const [permissionState, setPermissionState] = useState<string>("default");
@@ -425,7 +479,8 @@ export default function ConfigTab() {
             cj: record.data.cedulaJefeFamilia || null,
             ef: record.data.estadoFisico,
             pat: record.data.patologia,
-            pd: record.data.patologiaDescripcion || null,
+            pi: record.data.patologiaIds || [],
+            mi: record.data.medicamentoIds || [],
             lat: record.data.gpsLat || null,
             lng: record.data.gpsLng || null
           };
@@ -803,6 +858,81 @@ export default function ConfigTab() {
                   ));
                 })()
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ── 4b. CATÁLOGOS MÉDICOS (AdminMedico/Master) ── */}
+        {puedeGestionarCatalogos && (
+          <div className="dashboard-section">
+            <div className="config-section-header">
+              <h3 className="dashboard-section-title">Catálogos Médicos</h3>
+            </div>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem 0" }}>
+              Patologías y medicamentos que alimentan el censo y las consultas. Los usuarios solo eligen de estas listas: no se escribe texto libre.
+            </p>
+
+            {!isOnline && (
+              <div className="users-offline-notice" style={{ marginBottom: "1rem" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+                Sin conexión — no es posible gestionar los catálogos.
+              </div>
+            )}
+
+            {/* Patologías */}
+            <div className="config-section-header" style={{ marginTop: "0.5rem" }}>
+              <h4 className="dashboard-section-title" style={{ fontSize: "0.9rem" }}>Patologías</h4>
+              <span className="asign-count">{patologias.length}</span>
+            </div>
+            <div className="room-add-form" style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <input
+                type="text"
+                value={nuevaPatologia}
+                onChange={(e) => setNuevaPatologia(e.target.value)}
+                placeholder="Nueva patología…"
+                disabled={!isOnline}
+                style={{ flex: 1 }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddPatologia(); } }}
+              />
+              <button type="button" className="btn-submit" onClick={handleAddPatologia} disabled={!isOnline || savingPatologia || !nuevaPatologia.trim()} style={{ width: "110px" }}>
+                {savingPatologia ? <span className="spinner spinner-sm" /> : "Agregar"}
+              </button>
+            </div>
+            <input type="text" value={patFilter} onChange={(e) => setPatFilter(e.target.value)} placeholder="Filtrar patologías…" style={{ marginBottom: "0.5rem" }} />
+            <div style={{ maxHeight: "220px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
+              {patologias
+                .filter((p) => p.nombre.toLowerCase().includes(patFilter.toLowerCase()))
+                .map((p) => (
+                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0.65rem", borderBottom: "1px solid var(--border-color)", fontSize: "0.82rem" }}>
+                    <span>{p.nombre}</span>
+                    <button type="button" onClick={() => handleDeletePatologia(p.id)} aria-label="Eliminar" style={{ border: "none", background: "transparent", color: "var(--color-danger, #dc2626)", cursor: "pointer", fontSize: "1.1rem", lineHeight: 1 }}>×</button>
+                  </div>
+                ))}
+            </div>
+
+            {/* Medicamentos */}
+            <div className="config-section-header" style={{ marginTop: "1.25rem" }}>
+              <h4 className="dashboard-section-title" style={{ fontSize: "0.9rem" }}>Medicamentos</h4>
+              <span className="asign-count">{predefinedMedicamentos.length}</span>
+            </div>
+            <div className="room-add-form" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr auto", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <input type="text" value={nuevoMed.nombre} onChange={(e) => setNuevoMed({ ...nuevoMed, nombre: e.target.value })} placeholder="Principio activo *" disabled={!isOnline} />
+              <input type="text" value={nuevoMed.concentracion} onChange={(e) => setNuevoMed({ ...nuevoMed, concentracion: e.target.value })} placeholder="Concentración" disabled={!isOnline} />
+              <input type="text" value={nuevoMed.presentacion} onChange={(e) => setNuevoMed({ ...nuevoMed, presentacion: e.target.value })} placeholder="Presentación" disabled={!isOnline} />
+              <button type="button" className="btn-submit" onClick={handleAddMed} disabled={!isOnline || savingMed || !nuevoMed.nombre.trim()} style={{ width: "110px" }}>
+                {savingMed ? <span className="spinner spinner-sm" /> : "Agregar"}
+              </button>
+            </div>
+            <input type="text" value={medFilter} onChange={(e) => setMedFilter(e.target.value)} placeholder="Filtrar medicamentos…" style={{ marginBottom: "0.5rem" }} />
+            <div style={{ maxHeight: "220px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
+              {predefinedMedicamentos
+                .filter((m) => [m.nombre, m.concentracion, m.presentacion].join(" ").toLowerCase().includes(medFilter.toLowerCase()))
+                .map((m) => (
+                  <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0.65rem", borderBottom: "1px solid var(--border-color)", fontSize: "0.82rem" }}>
+                    <span>{[m.nombre, m.concentracion, m.presentacion].map((s) => (s || "").trim()).filter(Boolean).join(" · ")}</span>
+                    <button type="button" onClick={() => handleDeleteMed(m.id)} aria-label="Eliminar" style={{ border: "none", background: "transparent", color: "var(--color-danger, #dc2626)", cursor: "pointer", fontSize: "1.1rem", lineHeight: 1 }}>×</button>
+                  </div>
+                ))}
             </div>
           </div>
         )}

@@ -56,24 +56,27 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 
 ## Modelo de datos (`prisma/schema.prisma`)
 
-- **Registro:** datos del afectado + `refugio` + `cuarto` + `medicamentos` (Json) + `retirado` + `intermitente` + `cedulaJefeFamilia`.
+- **Registro:** datos del afectado + `refugio` + `cuarto` + `retirado` + `intermitente` + `cedulaJefeFamilia`. **Salud por-ID:** `patologiaIds` (Json, ids de `Patologia`) + `medicamentoIds` (Json, `[{id,dosis,periodo}]` que referencian `MedicamentoPredefinido`). Las columnas viejas `patologiaDescripcion` (texto) y `medicamentos` (`[{nombre,…}]`) quedan **congeladas** como respaldo (se dropean tras validar el backfill).
 - **User:** `email`, `nombre`, `password` (scrypt), `role` ("MASTER" | "ADMIN" | "REGISTRADOR" | "VISUALIZADOR" | "AdminMedico" | "OperadorMedico" | "AsistenteMedico"), `campamentoTransitorio` (= refugio).
 - **Refugio:** `id`, `nombre` @unique, `ubicacion` (URL de Maps, opcional; editable en Config y usada en el reporte de WhatsApp del refugio activo). **CustomRoom:** `name`, `refugio`, `capacidad` (camas, `Int @default(18)`), `@@unique([name, refugio])`.
 - **Padron:** cédulas del CNE (lookup offline). **PushSubscription:** web push (admin).
-- **Patologia:** catálogo canónico de patologías predefinidas para selectors pills.
-- **ConsultaMedica:** registro de consulta de morbilidad del paciente (datos básicos + antecedentes censo + diagnóstico morbilidad + notas).
-- **MedicamentoPredefinido:** catálogo de medicamentos con dosis y periodo predefinidos para autocompletado en censo y consultas.
+- **Patologia:** catálogo canónico de patologías (`id`, `nombre` @unique). Se referencia por **id** desde censo/consultas.
+- **ConsultaMedica:** consulta de morbilidad (datos básicos + `registroId` = **UID** del censo vinculado + antecedentes/diagnóstico **por-ID** en columnas JSON `*PatologiaIds`/`*MedicamentoIds` + notas). Las columnas de texto viejas quedan congeladas como respaldo.
+- **MedicamentoPredefinido:** catálogo de medicamentos. Único por **`(nombre, concentracion, presentacion)`** (un principio activo se repite con distinta presentación); `dosis`/`periodo` son sugerencias opcionales.
 
 ## Rutas API (`src/app/api`)
 
 `auth/login` (pre-sesión), `auth/users` (GET/POST/PUT/DELETE con guardas por rol+refugio), `registros` (GET scoped), `registros/[id]` (PATCH/DELETE), `register` (crea/actualiza censo, fuerza el refugio del operador), `stats` (scoped), `cuartos` (GET/POST/PATCH/DELETE scoped por refugio; PATCH edita la `capacidad` de camas), `refugios` (CRUD Master, renombra en cascada), `padron/download|count|upload-cne`, `public-search` (pública; busca en `cedula` **y** `cedulaJefeFamilia`), `external-search` (pública; fuentes externas, ver abajo), `lookup`, `push/subscribe`. `public-search`, `external-search` y la página `/buscar` son públicas.
-- `patologias` (GET catalogo de patologias, auto-seed en primer fetch).
-- `consultas` (GET/POST consultas de morbilidad, scoped por refugio/usuario).
+- `patologias` (GET devuelve `{id,nombre}[]`; POST/DELETE gestionan el catálogo con guarda `canManageCatalogosMedicos`). **Sin auto-seed.**
+- `medicamentos` (GET catálogo con `id`; POST/DELETE con guarda `canManageCatalogosMedicos`). **Sin auto-seed.**
+- `consultas` (GET scoped; POST con guarda `canManageMorbilidad`; guarda antecedentes/diagnóstico **por-ID** + `registroId`).
 
 ## Esquemas de trabajo (cómo trabajar aquí)
 
 - **Antes de cada commit:** `npx tsc --noEmit` limpio. `tsc` valida tipos, NO comportamiento — para runtime, correr la app.
 - **Nada de hardcode:** no incrustes valores fijos (refugios, nombres, capacidades, listas, credenciales, lo que deba venir de BD/config/estado/`.env`). Si encuentras hardcode existente, **adviértelo y propón solución** en vez de dejarlo pasar. Ej. resueltos: el refugio "Complejo Educativo…" salió del censo, login, reporte de WhatsApp, búsqueda y de los `@default` del schema; el auto-seed de salones se eliminó.
+- **PROHIBIDO auto-seed de catálogos:** nunca detectes una tabla vacía y la llenes por código (`if (count === 0) createMany(...)`). Los catálogos (`Patologia`, `MedicamentoPredefinido`) se cargan por **SQL manual idempotente** entregado al dueño, o desde Config (AdminMedico). Los seeds viven en `prisma/seed_patologias_cie.sql` y `prisma/seed_medicamentos.sql`; el backfill de datos legados nombre→id en `prisma/migrate_ids_backfill.sql` (match exacto; no coincidentes → `prisma/report_unmatched.sql`).
+- **Catálogos médicos por-ID (patrón):** censo/consulta/edición **solo eligen del catálogo** (nada de texto libre). Se guarda el **id** (`patologiaIds`, `medicamentoIds` con `{id,dosis,periodo}`); para mostrar/exportar se interpola el nombre con `patologiaNombre`/`patologiaNombres`/`medLabel`/`medItemsText` (`src/lib/helpers.ts`). La consulta se vincula al censo por **UID** (`ConsultaMedica.registroId`). Al cambiar el shape se **subió la versión** de los caches (`sismo_cached_patologias_v2`, `cached_consultas_v2`). **Despliegue:** vaciar la cola offline pendiente antes del corte (registros encolados con el shape viejo no traen ids).
 - **Next 16:** `params`/`headers()` async; leer `node_modules/next/dist/docs/` antes de rutas/páginas.
 - **Commits por fase**, descriptivos. Se trabaja en `main` (preferencia del dueño), con cuidado y verificación por fase.
 - **Antes de cada `push`:** `git pull --rebase origin main` para integrar el trabajo de otros devs y no sobrescribir ni omitir sus cambios; resolver conflictos antes de pushear.

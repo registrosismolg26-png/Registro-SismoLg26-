@@ -14,6 +14,8 @@ export const canManageRooms    = (role: string) => ["MASTER", "ADMIN"].includes(
 export const canManagePadron   = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role); // panel de estadísticas
 export const canManageMorbilidad = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(role);
+// Gestionar catálogos médicos (patologías/medicamentos) desde Configuración.
+export const canManageCatalogosMedicos = (role: string) => ["MASTER", "AdminMedico"].includes(role);
 
 /** ¿El usuario tiene un refugio válido asociado? (espejo de auth.ts hasRefugio). */
 export const hasRefugio        = (refugio: string | null | undefined): boolean =>

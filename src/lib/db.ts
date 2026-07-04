@@ -4,13 +4,15 @@ export interface LocalConsulta {
   data: {
     cedula: string;
     nombreApellido: string;
+    registroId?: string;  // UID del Registro del censo (null si no está censado)
     genero?: string;
     edad?: number;
     refugio: string;
-    antecedentesPatologia: string;
-    antecedentesMedicamentos: { nombre: string; dosis: string; periodo: string }[];
-    diagnosticoPatologia: string;
-    diagnosticoMedicamentos: { nombre: string; dosis: string; periodo: string }[];
+    // Por-ID: patologías = ids del catálogo; medicamentos = { id, dosis, periodo }.
+    antecedentesPatologiaIds: string[];
+    antecedentesMedicamentoIds: { id: string; dosis: string; periodo: string }[];
+    diagnosticoPatologiaIds: string[];
+    diagnosticoMedicamentoIds: { id: string; dosis: string; periodo: string }[];
     notasDoctor?: string;
   };
   status: 'pending' | 'synced' | 'error';
@@ -39,7 +41,9 @@ export interface LocalRegistro {
     cedulaJefeFamilia?: string;
     estadoFisico: string;
     patologia: string;
-    patologiaDescripcion?: string;
+    // Por-ID: ids de patologías del catálogo + medicamentos { id, dosis, periodo }.
+    patologiaIds?: string[];
+    medicamentoIds?: { id: string; dosis: string; periodo: string }[];
     gpsLat?: number;
     gpsLng?: number;
     telefono?: string;

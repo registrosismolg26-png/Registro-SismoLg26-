@@ -6,7 +6,7 @@
 // distribuyen a los componentes hijos sin prop-drilling.
 
 import { createContext, useContext } from "react";
-import type { CurrentUser, ActiveTab, ToastType, LocalRegistro } from "@/types";
+import type { CurrentUser, ActiveTab, ToastType, LocalRegistro, Patologia, MedicamentoPredefinido } from "@/types";
 
 export interface AppContextValue {
   // Conexión y tema
@@ -41,9 +41,10 @@ export interface AppContextValue {
   refreshLocalRecords: () => void;
 
   // Patologías y Consultas Médicas (Morbilidad)
-  patologias: string[];
+  patologias: Patologia[];
   fetchPatologias: () => void;
-  predefinedMedicamentos: any[];
+  predefinedMedicamentos: MedicamentoPredefinido[];
+  fetchPredefinedMedicamentos: () => void;
   consultas: any[];
   localConsultas: any[];
   loadingConsultas: boolean;

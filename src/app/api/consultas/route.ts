@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, refugioScopeFor } from "@/lib/auth";
+import { getAuthUser, refugioScopeFor, canManageMorbilidad } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
@@ -28,19 +28,23 @@ export async function POST(req: Request) {
     if (!auth) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    if (!canManageMorbilidad(auth)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
 
     const body = await req.json();
     const {
       id,
       cedula,
       nombreApellido,
+      registroId,
       genero,
       edad,
       refugio,
-      antecedentesPatologia,
-      antecedentesMedicamentos,
-      diagnosticoPatologia,
-      diagnosticoMedicamentos,
+      antecedentesPatologiaIds,
+      antecedentesMedicamentoIds,
+      diagnosticoPatologiaIds,
+      diagnosticoMedicamentoIds,
       notasDoctor
     } = body;
 
@@ -48,18 +52,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cédula, nombre y refugio son obligatorios" }, { status: 400 });
     }
 
+    const arr = (v: any) => (Array.isArray(v) ? v : []);
     const consulta = await prisma.consultaMedica.create({
       data: {
         id: id || undefined,
         cedula,
         nombreApellido,
+        registroId: registroId || null,
         genero,
         edad: edad ? parseInt(String(edad)) : null,
         refugio,
-        antecedentesPatologia,
-        antecedentesMedicamentos: antecedentesMedicamentos || [],
-        diagnosticoPatologia,
-        diagnosticoMedicamentos: diagnosticoMedicamentos || [],
+        // Modelo por-ID (los campos legados quedan en su default).
+        antecedentesPatologiaIds: arr(antecedentesPatologiaIds),
+        antecedentesMedicamentoIds: arr(antecedentesMedicamentoIds),
+        diagnosticoPatologiaIds: arr(diagnosticoPatologiaIds),
+        diagnosticoMedicamentoIds: arr(diagnosticoMedicamentoIds),
         notasDoctor,
         userId: auth.email
       }

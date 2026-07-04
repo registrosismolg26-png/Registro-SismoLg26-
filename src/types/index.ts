@@ -4,8 +4,24 @@
 import type { LocalRegistro } from "@/lib/db";
 export type { LocalRegistro };
 
-// Medicamento dinámico (censo de salud)
-export type Medicamento = { nombre: string; dosis: string; periodo: string };
+// Ítem de medicamento en un registro/consulta: vínculo POR-ID al catálogo
+// (MedicamentoPredefinido.id) + posología por paciente. El nombre NO se guarda;
+// se interpola desde el catálogo al mostrar (ver helpers medById/medLabel).
+export type Medicamento = { id: string; dosis: string; periodo: string };
+
+// Catálogo de patologías (para pills/selects). Se guarda solo el id en los registros.
+export type Patologia = { id: string; nombre: string };
+
+// Catálogo de medicamentos predefinidos (principio activo · concentración · presentación).
+export type MedicamentoPredefinido = {
+  id: string;
+  nombre: string;
+  concentracion: string;
+  presentacion: string;
+  dosis: string;
+  periodo: string;
+  nota?: string | null;
+};
 
 // Estado del formulario de censo (useReducer)
 export type FormData = {
@@ -13,7 +29,7 @@ export type FormData = {
   nacionalidad: string; cedula: string; nombreApellido: string; genero: string;
   fechaNacimiento: string; edad: string; perteneceNucleo: string; jefeFamilia: string;
   cedulaJefeFamilia: string; estadoFisico: string; patologia: string;
-  patologiaDescripcion: string; telefonoCod: string; telefonoNum: string;
+  patologiaIds: string[]; telefonoCod: string; telefonoNum: string;
   isChildDependent: boolean; dependentNumber: string;
   intermitente: string; motivoIntermitente: string;
 };
@@ -47,12 +63,12 @@ export interface LocalConsulta {
     genero?: string;
     edad?: number;
     refugio: string;
-    // Antecedentes
-    antecedentesPatologia: string;
-    antecedentesMedicamentos: Medicamento[];
-    // Diagnóstico
-    diagnosticoPatologia: string;
-    diagnosticoMedicamentos: Medicamento[];
+    // Antecedentes (por-ID)
+    antecedentesPatologiaIds: string[];
+    antecedentesMedicamentoIds: Medicamento[];
+    // Diagnóstico (por-ID)
+    diagnosticoPatologiaIds: string[];
+    diagnosticoMedicamentoIds: Medicamento[];
     notasDoctor?: string;
   };
   status: "pending" | "synced" | "error";

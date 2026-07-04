@@ -17,7 +17,7 @@ import { PARROQUIAS, INITIAL_FORM } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
-import { roomFillLevel } from "@/lib/helpers";
+import { roomFillLevel, patologiaNombre, medLabel } from "@/lib/helpers";
 
 export default function CensoTab() {
   const {
@@ -38,25 +38,25 @@ export default function CensoTab() {
 
   const [step, setStep] = useState<1|2|3|4>(1);
 
-  const togglePathology = (pName: string) => {
-    const current = formData.patologiaDescripcion
-      ? formData.patologiaDescripcion.split(",").map((s: string) => s.trim()).filter(Boolean)
-      : [];
-    const index = current.indexOf(pName);
-    if (index > -1) {
-      current.splice(index, 1);
-    } else {
-      current.push(pName);
-    }
-    dispatch({ type: "SET", field: "patologiaDescripcion", value: current.join(", ") });
+  // Patologías por-ID: se guarda un array de ids del catálogo.
+  const addPatologia = (id: string) => {
+    if (!id) return;
+    const current = Array.isArray(formData.patologiaIds) ? formData.patologiaIds : [];
+    if (current.includes(id)) return;
+    dispatch({ type: "SET", field: "patologiaIds", value: [...current, id] });
+  };
+  const removePatologia = (id: string) => {
+    const current = Array.isArray(formData.patologiaIds) ? formData.patologiaIds : [];
+    dispatch({ type: "SET", field: "patologiaIds", value: current.filter((x: string) => x !== id) });
   };
 
+  // Medicamentos por-ID: solo desde el catálogo (id + posología editable).
   const handleSelectPredefinedMed = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const medName = e.target.value;
-    if (!medName) return;
-    const match = predefinedMedicamentos.find(m => m.nombre === medName);
-    if (match) {
-      setMedicamentos(prev => [...prev, { nombre: match.nombre, dosis: match.dosis, periodo: match.periodo }]);
+    const medId = e.target.value;
+    if (!medId) return;
+    const match = predefinedMedicamentos.find(m => m.id === medId);
+    if (match && !medicamentos.some(x => x.id === medId)) {
+      setMedicamentos(prev => [...prev, { id: match.id, dosis: match.dosis, periodo: match.periodo }]);
     }
     e.target.value = "";
   };
@@ -82,9 +82,8 @@ export default function CensoTab() {
 
   // Medicamentos dinámicos (array independiente del reducer de strings)
   const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
-  const addMedicamento    = () => setMedicamentos(p => [...p, { nombre: "", dosis: "", periodo: "" }]);
   const removeMedicamento = (i: number) => setMedicamentos(p => p.filter((_, idx) => idx !== i));
-  const updateMedicamento = (i: number, field: keyof Medicamento, val: string) =>
+  const updateMedicamento = (i: number, field: "dosis" | "periodo", val: string) =>
     setMedicamentos(p => p.map((m, idx) => idx === i ? { ...m, [field]: val } : m));
 
   // Client Validation State
@@ -157,11 +156,6 @@ export default function CensoTab() {
           if (value.length < 5) return "La cédula debe tener al menos 5 dígitos";
         }
         return "";
-      case "patologiaDescripcion":
-        if (formData.patologia === "SI" && !value.trim()) {
-          return "Describa la patología crónica";
-        }
-        return "";
       case "motivoIntermitente":
         if (formData.intermitente === "SI" && !value.trim()) {
           return "El motivo es obligatorio para residentes intermitentes";
@@ -200,9 +194,8 @@ export default function CensoTab() {
       if (err) newErrors.cedulaJefeFamilia = err;
     }
 
-    if (formData.patologia === "SI") {
-      const err = validateField("patologiaDescripcion", formData.patologiaDescripcion);
-      if (err) newErrors.patologiaDescripcion = err;
+    if (formData.patologia === "SI" && (!formData.patologiaIds || formData.patologiaIds.length === 0)) {
+      newErrors.patologiaIds = "Seleccione al menos una patología";
     }
 
     if (formData.intermitente === "SI") {
@@ -414,9 +407,8 @@ export default function CensoTab() {
         newErrors.cedula = "Esta cédula ya se encuentra registrada en el sistema local.";
       }
     }
-    if (step === 4 && formData.patologia === "SI") {
-      const err = validateField("patologiaDescripcion", formData.patologiaDescripcion);
-      if (err) newErrors.patologiaDescripcion = err;
+    if (step === 4 && formData.patologia === "SI" && (!formData.patologiaIds || formData.patologiaIds.length === 0)) {
+      newErrors.patologiaIds = "Seleccione al menos una patología";
     }
     if (Object.keys(newErrors).length > 0) {
       setErrors(prev => ({ ...prev, ...newErrors }));
@@ -501,11 +493,11 @@ export default function CensoTab() {
           cedulaJefeFamilia: finalJefeCedula,
           estadoFisico: formData.estadoFisico,
           patologia: formData.patologia,
-          patologiaDescripcion: formData.patologia === "SI" ? formData.patologiaDescripcion.trim() : undefined,
+          patologiaIds: formData.patologia === "SI" ? (formData.patologiaIds || []) : [],
           gpsLat: coords.lat !== null ? coords.lat : undefined,
           gpsLng: coords.lng !== null ? coords.lng : undefined,
           telefono: finalTelefono !== null ? finalTelefono : undefined,
-          medicamentos: medicamentos.filter(m => m.nombre.trim()),
+          medicamentoIds: medicamentos.filter(m => m.id),
           cuarto: asignCuartoCenso || undefined,
           intermitente: formData.intermitente || "NO",
           motivoIntermitente: formData.intermitente === "SI" ? formData.motivoIntermitente.trim() : undefined,
@@ -987,43 +979,49 @@ export default function CensoTab() {
                   <div className={`conditional-wrapper ${formData.patologia === "SI" ? "open" : ""}`}>
                     <div className="conditional-inner">
                       <label style={{ marginBottom: "0.5rem", display: "block" }}>Seleccione patologías<span className="required-star">*</span></label>
-                      <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
-                        {patologias.map(pName => {
-                          const isSelected = formData.patologiaDescripcion
-                            ? formData.patologiaDescripcion.split(",").map((s: string) => s.trim()).includes(pName)
-                            : false;
-                          return (
+                      <select
+                        value=""
+                        onChange={(e) => addPatologia(e.target.value)}
+                        style={{ height: "40px", marginTop: "0.5rem", width: "100%" }}
+                      >
+                        <option value="">Agregar patología…</option>
+                        {patologias
+                          .filter(p => !(formData.patologiaIds || []).includes(p.id))
+                          .map(p => (
+                            <option key={p.id} value={p.id}>{p.nombre}</option>
+                          ))}
+                      </select>
+                      <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem", marginBottom: "0.5rem" }}>
+                        {(formData.patologiaIds || []).length === 0 ? (
+                          <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic" }}>(Ninguna seleccionada)</span>
+                        ) : (formData.patologiaIds || []).map((id: string) => (
+                          <span
+                            key={id}
+                            style={{
+                              padding: "0.4rem 0.35rem 0.4rem 0.75rem",
+                              borderRadius: "20px",
+                              border: "1.5px solid var(--color-primary)",
+                              backgroundColor: "var(--color-primary-light)",
+                              color: "var(--color-primary)",
+                              fontSize: "0.8rem",
+                              fontWeight: "600",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.25rem",
+                            }}
+                          >
+                            {patologiaNombre(id, patologias)}
                             <button
-                              key={pName}
                               type="button"
-                              onClick={() => togglePathology(pName)}
-                              style={{
-                                padding: "0.5rem 0.85rem",
-                                borderRadius: "20px",
-                                border: isSelected ? "1.5px solid var(--color-primary)" : "1px solid var(--border-color)",
-                                backgroundColor: isSelected ? "var(--color-primary-light)" : "var(--bg-secondary)",
-                                color: isSelected ? "var(--color-primary)" : "var(--text-secondary)",
-                                fontSize: "0.8rem",
-                                fontWeight: "600",
-                                cursor: "pointer",
-                                transition: "all 0.15s ease",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "0.25rem",
-                                userSelect: "none"
-                              }}
-                            >
-                              {pName}
-                              {isSelected && <span style={{ fontSize: "0.75rem" }}>✓</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "0.5rem" }}>
-                        Seleccionadas: <strong>{formData.patologiaDescripcion || "(Ninguna)"}</strong>
+                              onClick={() => removePatologia(id)}
+                              aria-label="Quitar"
+                              style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", fontSize: "1rem", lineHeight: 1, padding: "0 0.25rem" }}
+                            >×</button>
+                          </span>
+                        ))}
                       </div>
                       <div className="error-container">
-                        {errors.patologiaDescripcion && <span className="field-error-message">{errors.patologiaDescripcion}</span>}
+                        {errors.patologiaIds && <span className="field-error-message">{errors.patologiaIds}</span>}
                       </div>
                     </div>
                   </div>
@@ -1033,42 +1031,34 @@ export default function CensoTab() {
                       <div className="med-section">
                         <div className="med-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                           <span className="med-section-title">Medicamentos</span>
-                          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                            <select
-                              onChange={handleSelectPredefinedMed}
-                              defaultValue=""
-                              style={{ width: "180px", height: "32px", fontSize: "0.75rem", padding: "0 0.5rem", margin: 0 }}
-                            >
-                              <option value="">Seleccionar predefinido...</option>
-                              {predefinedMedicamentos.map(m => (
-                                <option key={m.id} value={m.nombre}>
-                                  {m.nombre} ({m.dosis})
-                                </option>
-                              ))}
-                            </select>
-                            <button type="button" className="btn-add-med" onClick={addMedicamento} style={{ height: "32px", display: "flex", alignItems: "center", margin: 0 }}>
-                              + Agregar
-                            </button>
-                          </div>
+                          <select
+                            value=""
+                            onChange={handleSelectPredefinedMed}
+                            style={{ width: "240px", height: "32px", fontSize: "0.75rem", padding: "0 0.5rem", margin: 0 }}
+                          >
+                            <option value="">Agregar medicamento…</option>
+                            {predefinedMedicamentos.map(m => (
+                              <option key={m.id} value={m.id}>
+                                {[m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ")}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         {medicamentos.length === 0 ? (
-                          <p className="med-empty">Sin medicamentos registrados. Usa "+ Agregar" para añadir uno.</p>
+                          <p className="med-empty">Sin medicamentos. Elige uno del catálogo arriba.</p>
                         ) : (
                           <>
                             <div className="med-row med-row--header">
-                              <span>Nombre</span>
+                              <span>Medicamento</span>
                               <span>Dosis</span>
                               <span>Período</span>
                               <span />
                             </div>
                             {medicamentos.map((m, i) => (
                               <div key={i} className="med-row">
-                                <input
-                                  className="med-input"
-                                  placeholder="ej: Metformina"
-                                  value={m.nombre}
-                                  onChange={e => updateMedicamento(i, "nombre", e.target.value)}
-                                />
+                                <span className="med-input" style={{ display: "flex", alignItems: "center", fontWeight: 600 }}>
+                                  {medLabel(m.id, predefinedMedicamentos)}
+                                </span>
                                 <input
                                   className="med-input"
                                   placeholder="ej: 500mg"

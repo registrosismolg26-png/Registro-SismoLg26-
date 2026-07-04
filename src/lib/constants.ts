@@ -26,7 +26,7 @@ export const INITIAL_FORM: FormData = {
   parroquia: "", sector: "", comunidad: "", direccionExacta: "",
   nacionalidad: "V", cedula: "", nombreApellido: "", genero: "",
   fechaNacimiento: "", edad: "", perteneceNucleo: "", jefeFamilia: "",
-  cedulaJefeFamilia: "", estadoFisico: "", patologia: "", patologiaDescripcion: "",
+  cedulaJefeFamilia: "", estadoFisico: "", patologia: "", patologiaIds: [],
   telefonoCod: "0412", telefonoNum: "",
   isChildDependent: false, dependentNumber: "1",
   intermitente: "NO", motivoIntermitente: "",
