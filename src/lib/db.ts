@@ -10,6 +10,8 @@ export interface LocalConsulta {
     fechaNacimiento?: string;  // yyyy-mm-dd; la edad se DERIVA de aquí (nunca manual)
     tipoPaciente?: string;     // REFUGIADO | APOYO_INSTITUCIONAL | APOYO_COMUNITARIO | EMERGENCIA
     tipoNota?: string;         // nota opcional para atenciones de apoyo
+    fechaConsulta?: string;    // ISO de la fecha-hora REAL de la consulta (elegida a mano)
+    lesiones?: { tipoId: string; zona: string; estado: string; cura: string }[];
     refugio: string;
     // Por-ID: patologías = ids del catálogo; medicamentos = { id, dosis, periodo }.
     antecedentesPatologiaIds: string[];

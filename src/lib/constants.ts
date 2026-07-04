@@ -70,6 +70,30 @@ export const TIPO_PACIENTE_LABELS: Record<string, string> = {
   EMERGENCIA: "Emergencia",
 };
 
+// ── Lesiones / heridas / curas ──────────────────────────────────────────────
+// Zona del cuerpo: lista anatómica FIJA (estable, no configurable). El "lado"
+// (izq/der) y el detalle van en la nota de la cura.
+export const ZONAS_CUERPO = [
+  "Cabeza", "Cara", "Ojo", "Oído", "Nariz", "Boca / labios", "Cuello",
+  "Hombro", "Brazo", "Codo", "Antebrazo", "Muñeca", "Mano", "Dedos de la mano",
+  "Tórax", "Espalda", "Abdomen", "Pelvis", "Glúteos", "Región genital",
+  "Cadera", "Muslo", "Rodilla", "Pierna", "Tobillo", "Pie", "Dedos del pie",
+  "Otra",
+];
+// Estado evolutivo de la lesión.
+export const ESTADO_LESION_OPTS = [
+  { value: "NUEVA", label: "Nueva" },
+  { value: "EN_TRATAMIENTO", label: "En tratamiento" },
+  { value: "INFECTADA", label: "Infectada" },
+  { value: "CICATRIZADA", label: "Cicatrizada" },
+];
+export const ESTADO_LESION_LABELS: Record<string, string> = {
+  NUEVA: "Nueva",
+  EN_TRATAMIENTO: "En tratamiento",
+  INFECTADA: "Infectada",
+  CICATRIZADA: "Cicatrizada",
+};
+
 // Frecuencias (período) para la posología de medicamentos. Es lo único que el
 // operador elige por prescripción; el nombre/dosis salen del catálogo por ID.
 export const PERIODO_OPTIONS = [

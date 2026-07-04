@@ -12,6 +12,13 @@ export type Medicamento = { id: string; dosis: string; periodo: string };
 // Catálogo de patologías (para pills/selects). Se guarda solo el id en los registros.
 export type Patologia = { id: string; nombre: string };
 
+// Catálogo de tipos de lesión/herida (administrable). Solo se guarda el id.
+export type TipoLesion = { id: string; nombre: string };
+
+// Lesión/herida registrada en una consulta: tipo (catálogo por id), zona del
+// cuerpo (lista fija), estado (lista fija) y la cura/observaciones en texto.
+export type Lesion = { tipoId: string; zona: string; estado: string; cura: string };
+
 // Catálogo de medicamentos predefinidos (principio activo · concentración · presentación).
 export type MedicamentoPredefinido = {
   id: string;

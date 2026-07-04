@@ -44,6 +44,8 @@ export async function POST(req: Request) {
       fechaNacimiento,
       tipoPaciente,
       tipoNota,
+      fechaConsulta,
+      lesiones,
       refugio,
       antecedentesPatologiaIds,
       antecedentesMedicamentoIds,
@@ -57,6 +59,20 @@ export async function POST(req: Request) {
     }
 
     const arr = (v: any) => (Array.isArray(v) ? v : []);
+    // Lesiones: cada ítem = { tipoId, zona, estado, cura } (se sanea).
+    const ESTADOS_LESION = ["NUEVA", "EN_TRATAMIENTO", "INFECTADA", "CICATRIZADA"];
+    const lesionesClean = arr(lesiones)
+      .map((l: any) => ({
+        tipoId: String(l?.tipoId ?? "").trim(),
+        zona: String(l?.zona ?? "").trim(),
+        estado: ESTADOS_LESION.includes(l?.estado) ? l.estado : "NUEVA",
+        cura: String(l?.cura ?? "").trim(),
+      }))
+      .filter((l: any) => l.tipoId); // sin tipo no es una lesión válida
+    // Fecha-hora manual de la consulta (si viene inválida → null → se usa createdAt).
+    const fc = fechaConsulta ? new Date(fechaConsulta) : null;
+    const fechaConsultaClean = fc && !isNaN(fc.getTime()) ? fc : null;
+
     // Datos SIN refugio: el refugio lo decide el backend (nunca el cliente).
     const baseData = {
       cedula,
@@ -67,6 +83,8 @@ export async function POST(req: Request) {
       fechaNacimiento: fechaNacimiento || null,
       tipoPaciente: ["REFUGIADO", "APOYO_INSTITUCIONAL", "APOYO_COMUNITARIO", "EMERGENCIA"].includes(tipoPaciente) ? tipoPaciente : "REFUGIADO",
       tipoNota: tipoNota ? String(tipoNota).trim() : null,
+      fechaConsulta: fechaConsultaClean,
+      lesiones: lesionesClean,
       // Modelo por-ID (los campos legados quedan en su default).
       antecedentesPatologiaIds: arr(antecedentesPatologiaIds),
       antecedentesMedicamentoIds: arr(antecedentesMedicamentoIds),

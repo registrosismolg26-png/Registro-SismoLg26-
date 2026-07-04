@@ -11,9 +11,10 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { patologiaNombre, medLabel, normalizeText } from "@/lib/helpers";
+import { patologiaNombre, medLabel, tipoLesionNombre } from "@/lib/helpers";
+import { ESTADO_LESION_LABELS } from "@/lib/constants";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
-import type { Medicamento } from "@/types";
+import type { Medicamento, Lesion } from "@/types";
 
 const onlyDigits = (s: string) => (s || "").replace(/\D/g, "");
 
@@ -49,7 +50,7 @@ interface PacienteEntry {
 }
 
 export default function HistorialClinicoTab() {
-  const { consultas, localConsultas, registros, patologias, predefinedMedicamentos, effectiveRefugio } = useAppContext();
+  const { consultas, localConsultas, registros, patologias, tiposLesion, predefinedMedicamentos, effectiveRefugio } = useAppContext();
   const [sel, setSel] = useState(""); // cédula (dígitos) del paciente elegido
 
   // Censo por cédula (para completar demografía y antecedentes del censo).
@@ -71,14 +72,14 @@ export default function HistorialClinicoTab() {
       const ced = onlyDigits(c.cedula);
       if (!ced) continue;
       if (!byCed.has(ced)) {
-        byCed.set(ced, { cedula: c.cedula, cedulaDigits: ced, nombre: c.nombreApellido || "", genero: "", edad: null, tipo: "REFUGIADO", refugio: c.refugio || "", consultas: [], ultima: c.createdAt });
+        byCed.set(ced, { cedula: c.cedula, cedulaDigits: ced, nombre: c.nombreApellido || "", genero: "", edad: null, tipo: "REFUGIADO", refugio: c.refugio || "", consultas: [], ultima: c.fechaConsulta || c.createdAt });
       }
       const p = byCed.get(ced)!;
       p.consultas.push(c);
       if (!p.nombre && c.nombreApellido) p.nombre = c.nombreApellido;
     }
     return [...byCed.values()].map((p) => {
-      p.consultas.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      p.consultas.sort((a, b) => new Date(b.fechaConsulta || b.createdAt || 0).getTime() - new Date(a.fechaConsulta || a.createdAt || 0).getTime());
       const latest = p.consultas[0] || {};
       const reg = regByCedula.get(p.cedulaDigits);
       p.nombre = p.nombre || reg?.nombreApellido || "(sin nombre)";
@@ -86,7 +87,7 @@ export default function HistorialClinicoTab() {
       p.edad = latest.edad ?? edadFromISO(latest.fechaNacimiento) ?? (reg ? (reg.edad ?? edadFromISO(reg.fechaNacimiento)) : null);
       p.tipo = latest.tipoPaciente || "REFUGIADO";
       p.refugio = latest.refugio || reg?.refugio || "";
-      p.ultima = latest.createdAt || p.ultima;
+      p.ultima = latest.fechaConsulta || latest.createdAt || p.ultima;
       return p;
     }).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   }, [consultas, localConsultas, regByCedula]);
@@ -198,13 +199,15 @@ export default function HistorialClinicoTab() {
                 const diag: string[] = Array.isArray(c.diagnosticoPatologiaIds) ? c.diagnosticoPatologiaIds : [];
                 const ant: string[] = Array.isArray(c.antecedentesPatologiaIds) ? c.antecedentesPatologiaIds : [];
                 const recetas: Medicamento[] = Array.isArray(c.diagnosticoMedicamentoIds) ? c.diagnosticoMedicamentoIds : [];
+                const lesiones: Lesion[] = Array.isArray(c.lesiones) ? c.lesiones : [];
                 const tipo = c.tipoPaciente || "REFUGIADO";
+                const when = c.fechaConsulta || c.createdAt;
                 return (
                   <li key={c.id || i} className="hc-tl">
                     <span className="hc-tl__dot" aria-hidden />
                     <div className="hc-tl__card">
                       <div className="hc-tl__head">
-                        <span className="hc-tl__date">{fmtFecha(c.createdAt)} · {fmtHora(c.createdAt)}</span>
+                        <span className="hc-tl__date">{fmtFecha(when)} · {fmtHora(when)}</span>
                         {i === 0 && <span className="hc-tl__badge hc-tl__badge--last">Más reciente</span>}
                         {tipo !== "REFUGIADO" && <span className={`hc-chip hc-chip--tipo hc-chip--${tipo.toLowerCase()}`}>{TIPO_LABEL[tipo] || tipo}</span>}
                       </div>
@@ -216,11 +219,26 @@ export default function HistorialClinicoTab() {
                             <ul>{recetas.map((m, j) => <li key={j}>{medFull(m)}</li>)}</ul>
                           </div>
                         )}
+                        {lesiones.length > 0 && (
+                          <div className="hc-tl__field">
+                            <span className="hc-tl__flabel">Lesiones y curas</span>
+                            <ul className="hc-tl__lesiones">
+                              {lesiones.map((l, j) => (
+                                <li key={j}>
+                                  <strong>{tipoLesionNombre(l.tipoId, tiposLesion)}</strong>
+                                  {l.zona ? ` · ${l.zona}` : ""}
+                                  {ESTADO_LESION_LABELS[l.estado] ? ` · ${ESTADO_LESION_LABELS[l.estado]}` : ""}
+                                  {l.cura ? <> — <span className="hc-tl__cura">{l.cura}</span></> : null}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                         {ant.length > 0 && <HcField label="Antecedentes" tone="ant" items={ant.map((id) => patologiaNombre(id, patologias))} />}
                         {c.tipoNota && <p className="hc-tl__nota"><strong>Nota del apoyo:</strong> {c.tipoNota}</p>}
                         {c.notasDoctor ? (
                           <p className="hc-tl__doctor"><strong>Nota del médico:</strong> {c.notasDoctor}</p>
-                        ) : (!diag.length && !recetas.length && !ant.length) ? (
+                        ) : (!diag.length && !recetas.length && !ant.length && !lesiones.length) ? (
                           <p className="hc-tl__empty">Consulta sin diagnóstico ni indicaciones registradas.</p>
                         ) : null}
                       </div>

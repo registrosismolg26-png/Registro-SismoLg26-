@@ -1,6 +1,6 @@
 // ── Utilidades puras compartidas ────────────────────────────────────────────
 
-import type { Patologia, MedicamentoPredefinido, Medicamento } from "@/types";
+import type { Patologia, MedicamentoPredefinido, Medicamento, TipoLesion } from "@/types";
 
 // Normaliza texto para BÚSQUEDAS: minúsculas y SIN acentos/diacríticos, para que
 // "patologia" encuentre "patología" y "nino" encuentre "niño". Úsalo tanto en la
@@ -16,6 +16,11 @@ export function normalizeText(s: string | null | undefined): string {
 
 export function patologiaNombre(id: string, catalogo: Patologia[]): string {
   return catalogo.find(p => p.id === id)?.nombre ?? "(no disponible)";
+}
+
+// Nombre del tipo de lesión a partir de su id (catálogo TipoLesion).
+export function tipoLesionNombre(id: string, catalogo: TipoLesion[]): string {
+  return catalogo.find(t => t.id === id)?.nombre ?? "(no disponible)";
 }
 
 // Lista de nombres de patologías a partir de sus ids (para resúmenes/CSV).

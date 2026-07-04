@@ -21,7 +21,7 @@ import {
 import { apiFetch } from "@/lib/apiFetch";
 import { enablePush, pushSupported, pushPermission } from "@/lib/pushClient";
 import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad, isMedico } from "@/lib/permissions";
-import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido } from "@/types";
+import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido, TipoLesion } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
 import LoginForm from "@/components/LoginForm";
@@ -232,6 +232,7 @@ export default function Home() {
 
   // Patologias & Medical Consultations (Morbilidad)
   const [patologias, setPatologias] = useState<Patologia[]>([]);
+  const [tiposLesion, setTiposLesion] = useState<TipoLesion[]>([]);
   const [consultas, setConsultas] = useState<any[]>([]);
   const [localConsultas, setLocalConsultas] = useState<LocalConsulta[]>([]);
   const [loadingConsultas, setLoadingConsultas] = useState(false);
@@ -528,6 +529,7 @@ export default function Home() {
     if (currentUser) {
       fetchRegistros();
       fetchPatologias();
+      fetchTiposLesion();
       fetchPredefinedMedicamentos();
       fetchConsultas();
       refreshLocalConsultas();
@@ -698,6 +700,28 @@ export default function Home() {
     }
   };
 
+  const fetchTiposLesion = async () => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("sismo_cached_tipos_lesion_v1");
+      if (cached) {
+        try { setTiposLesion(JSON.parse(cached)); } catch (e) { console.error(e); }
+      }
+    }
+    if (!navigator.onLine) return;
+    try {
+      const res = await apiFetch("/api/tipos-lesion");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.tiposLesion) {
+          setTiposLesion(data.tiposLesion);
+          localStorage.setItem("sismo_cached_tipos_lesion_v1", JSON.stringify(data.tiposLesion));
+        }
+      }
+    } catch (err) {
+      console.error("Error al obtener tipos de lesión:", err);
+    }
+  };
+
   const fetchPredefinedMedicamentos = async () => {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("sismo_cached_predefined_medicamentos");
@@ -864,6 +888,8 @@ export default function Home() {
                   fechaNacimiento: c.data.fechaNacimiento,
                   tipoPaciente: c.data.tipoPaciente,
                   tipoNota: c.data.tipoNota,
+                  fechaConsulta: c.data.fechaConsulta,
+                  lesiones: c.data.lesiones,
                   refugio: c.data.refugio,
                   registroId: c.data.registroId,
                   antecedentesPatologiaIds: c.data.antecedentesPatologiaIds,
@@ -1157,6 +1183,7 @@ export default function Home() {
     localStorage.removeItem("cached_owner");
     localStorage.removeItem("cached_consultas_v2");
     localStorage.removeItem("sismo_cached_predefined_medicamentos");
+    localStorage.removeItem("sismo_cached_tipos_lesion_v1");
     setViewRefugio("");
     setRefugiosList([]);
     prevEffRefugioRef.current = null;
@@ -1193,6 +1220,7 @@ export default function Home() {
     registros, setRegistros, fetchRegistros, loadingRegistros,
     localRecords, refreshLocalRecords,
     patologias, fetchPatologias,
+    tiposLesion, fetchTiposLesion,
     predefinedMedicamentos, fetchPredefinedMedicamentos,
     consultas, localConsultas, loadingConsultas, refreshLocalConsultas, fetchConsultas,
     pendingSelectId, setPendingSelectId,

@@ -3,19 +3,40 @@
 import { useState, useMemo } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
-import { patologiaNombre, medLabel, medItemsText } from "@/lib/helpers";
+import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre } from "@/lib/helpers";
 import { apiFetch } from "@/lib/apiFetch";
 import { canDeleteConsulta } from "@/lib/permissions";
 import SearchableSelect from "@/components/SearchableSelect";
 import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
+import TimePicker from "@/components/TimePicker";
 import CatalogosMedicos from "@/components/CatalogosMedicos";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
-import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS } from "@/lib/constants";
-import type { Medicamento } from "@/types";
+import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS, ZONAS_CUERPO, ESTADO_LESION_OPTS, ESTADO_LESION_LABELS } from "@/lib/constants";
+import type { Medicamento, Lesion } from "@/types";
 
 const GENERO_OPTS = [{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }];
 const PERIODO_OPTS = [{ value: "", label: "Período…" }, ...PERIODO_OPTIONS.map((op) => ({ value: op, label: op }))];
+const ZONA_OPTS = ZONAS_CUERPO.map((z) => ({ value: z, label: z }));
+
+// Fecha-hora de la consulta (elegida a mano, distinta del momento de carga).
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const todayYmd = (): string => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const nowHm = (): string => { const d = new Date(); return `${pad2(d.getHours())}:${pad2(Math.floor(d.getMinutes() / 5) * 5)}`; };
+// Combina yyyy-mm-dd + HH:MM (hora local) → ISO para guardar; sin fecha → undefined.
+const combineFechaHora = (ymd: string, hm: string): string | undefined => {
+  if (!ymd) return undefined;
+  const [h, m] = (hm || "00:00").split(":");
+  const d = new Date(`${ymd}T${pad2(Number(h) || 0)}:${pad2(Number(m) || 0)}:00`);
+  return isNaN(d.getTime()) ? undefined : d.toISOString();
+};
+// Divide un ISO en { ymd, hm } (hora local) para poblar los selects al editar.
+const splitFechaHora = (iso?: string): { ymd: string; hm: string } => {
+  if (!iso) return { ymd: "", hm: "" };
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return { ymd: "", hm: "" };
+  return { ymd: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`, hm: `${pad2(d.getHours())}:${pad2(d.getMinutes())}` };
+};
 
 // Edad (a hoy) a partir de una fecha yyyy-mm-dd. Siempre se recalcula desde la fecha.
 const computeEdad = (ymd: string): string => {
@@ -41,6 +62,7 @@ export default function MorbilidadTab() {
     setRegistros,
     refreshLocalRecords,
     patologias,
+    tiposLesion,
     consultas,
     localConsultas,
     refreshLocalConsultas,
@@ -83,6 +105,14 @@ export default function MorbilidadTab() {
   const [diagnosticoPatologiaIds, setDiagnosticoPatologiaIds] = useState<string[]>([]);
   const [diagnosticoMedicamentoIds, setDiagnosticoMedicamentoIds] = useState<Medicamento[]>([]);
   const [notasDoctor, setNotasDoctor] = useState("");
+
+  // Fecha-hora de la consulta: se ELIGE a mano (no es el momento de carga). Se
+  // inicializa a hoy/ahora como punto de partida editable.
+  const [fechaConsulta, setFechaConsulta] = useState<string>(() => todayYmd());
+  const [horaConsulta, setHoraConsulta] = useState<string>(() => nowHm());
+
+  // Lesiones, heridas y curas de esta consulta: [{ tipoId, zona, estado, cura }].
+  const [lesiones, setLesiones] = useState<Lesion[]>([]);
 
   const [saving, setSaving] = useState(false);
 
@@ -189,6 +219,13 @@ export default function MorbilidadTab() {
   const updateDiagMed = (i: number, field: "dosis" | "periodo", value: string) =>
     setDiagnosticoMedicamentoIds((p) => p.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
 
+  // --- LESIONES / HERIDAS / CURAS ---
+  // Se permite el MISMO tipo varias veces (p. ej. dos heridas iguales en zonas
+  // distintas), por eso no se deduplica por tipoId.
+  const addLesion = (tipoId: string) => { if (tipoId) setLesiones((p) => [...p, { tipoId, zona: "", estado: "NUEVA", cura: "" }]); };
+  const removeLesion = (i: number) => setLesiones((p) => p.filter((_, idx) => idx !== i));
+  const updateLesion = (i: number, field: keyof Lesion, value: string) => setLesiones((p) => p.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
+
   // --- RESET STATE ---
   const handleReset = () => {
     setSearchCedula("");
@@ -208,6 +245,9 @@ export default function MorbilidadTab() {
     setDiagnosticoPatologiaIds([]);
     setDiagnosticoMedicamentoIds([]);
     setNotasDoctor("");
+    setFechaConsulta(todayYmd());
+    setHoraConsulta(nowHm());
+    setLesiones([]);
   };
 
   // Al guardar, si el paciente está en el censo, propaga los cambios de Datos Básicos
@@ -276,6 +316,8 @@ export default function MorbilidadTab() {
         fechaNacimiento: fechaNacimiento || undefined,
         tipoPaciente,
         tipoNota: tipoPaciente !== "REFUGIADO" && tipoNota.trim() ? tipoNota.trim() : undefined,
+        fechaConsulta: combineFechaHora(fechaConsulta, horaConsulta),
+        lesiones: lesiones.filter((l) => l.tipoId),
         refugio,
         antecedentesPatologiaIds,
         antecedentesMedicamentoIds,
@@ -355,6 +397,9 @@ export default function MorbilidadTab() {
       const reg = registros.find((r: any) => (c.data.registroId && r.id === c.data.registroId) || (r.cedula || "").replace(/\D/g, "") === ced);
       if (reg) fecha = ymdFromISO(reg.fechaNacimiento);
     }
+    // Fecha-hora de la consulta: la guardada; si la consulta es vieja y no la tiene,
+    // se parte de su createdAt como valor editable.
+    const fh = splitFechaHora(c.data.fechaConsulta || c.createdAt);
     setEditForm({
       id: c.id, createdAt: c.createdAt, registroId: c.data.registroId, refugio: c.data.refugio,
       cedula: c.data.cedula, nombreApellido: c.data.nombreApellido || "",
@@ -363,10 +408,13 @@ export default function MorbilidadTab() {
       tipoNota: c.data.tipoNota || "",
       fechaNacimiento: fecha,
       edadFallback: c.data.edad != null ? c.data.edad : null, // solo si no hay fecha
+      fechaConsulta: fh.ymd,
+      horaConsulta: fh.hm,
       antPat: Array.isArray(c.data.antecedentesPatologiaIds) ? [...c.data.antecedentesPatologiaIds] : [],
       antMed: Array.isArray(c.data.antecedentesMedicamentoIds) ? [...c.data.antecedentesMedicamentoIds] : [],
       diagPat: Array.isArray(c.data.diagnosticoPatologiaIds) ? [...c.data.diagnosticoPatologiaIds] : [],
       diagMed: Array.isArray(c.data.diagnosticoMedicamentoIds) ? [...c.data.diagnosticoMedicamentoIds] : [],
+      lesiones: Array.isArray(c.data.lesiones) ? c.data.lesiones.map((l: Lesion) => ({ ...l })) : [],
       notas: c.data.notasDoctor || "",
     });
   };
@@ -377,6 +425,11 @@ export default function MorbilidadTab() {
   const efMedAdd = (key: "antMed" | "diagMed", medId: string) => { const it = buildMedItem(medId); if (it) setEditForm((f: any) => f && !f[key].some((m: Medicamento) => m.id === medId) ? { ...f, [key]: [...f[key], it] } : f); };
   const efMedRemove = (key: "antMed" | "diagMed", id: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].filter((m: Medicamento) => m.id !== id) } : f);
   const efMedUpdate = (key: "antMed" | "diagMed", i: number, field: "dosis" | "periodo", value: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].map((m: Medicamento, idx: number) => idx === i ? { ...m, [field]: value } : m) } : f);
+
+  // Lesiones dentro del formulario de edición.
+  const efLesAdd = (tipoId: string) => { if (tipoId) setEditForm((f: any) => f ? { ...f, lesiones: [...(f.lesiones || []), { tipoId, zona: "", estado: "NUEVA", cura: "" }] } : f); };
+  const efLesRemove = (i: number) => setEditForm((f: any) => f ? { ...f, lesiones: f.lesiones.filter((_: Lesion, idx: number) => idx !== i) } : f);
+  const efLesUpdate = (i: number, field: keyof Lesion, value: string) => setEditForm((f: any) => f ? { ...f, lesiones: f.lesiones.map((l: Lesion, idx: number) => idx === i ? { ...l, [field]: value } : l) } : f);
 
   // Al editar, si la consulta está vinculada al censo, propaga los Datos Básicos
   // (nombre, género, fecha de nacimiento, edad) y los Antecedentes al Registro —
@@ -431,6 +484,8 @@ export default function MorbilidadTab() {
         fechaNacimiento: editForm.fechaNacimiento || undefined,
         tipoPaciente: editForm.tipoPaciente,
         tipoNota: editForm.tipoPaciente !== "REFUGIADO" && editForm.tipoNota?.trim() ? editForm.tipoNota.trim() : undefined,
+        fechaConsulta: combineFechaHora(editForm.fechaConsulta, editForm.horaConsulta),
+        lesiones: (Array.isArray(editForm.lesiones) ? editForm.lesiones : []).filter((l: Lesion) => l.tipoId),
         refugio: editForm.refugio,
         antecedentesPatologiaIds: editForm.antPat,
         antecedentesMedicamentoIds: editForm.antMed,
@@ -471,6 +526,8 @@ export default function MorbilidadTab() {
             fechaNacimiento: c.fechaNacimiento,
             tipoPaciente: c.tipoPaciente || "REFUGIADO",
             tipoNota: c.tipoNota,
+            fechaConsulta: c.fechaConsulta,
+            lesiones: c.lesiones || [],
             refugio: c.refugio,
             antecedentesPatologiaIds: c.antecedentesPatologiaIds || [],
             antecedentesMedicamentoIds: c.antecedentesMedicamentoIds || [],
@@ -485,7 +542,9 @@ export default function MorbilidadTab() {
         });
       }
     });
-    return combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Orden por la fecha-hora clínica (la elegida a mano); si no la hay, por createdAt.
+    const when = (c: any) => new Date(c.data?.fechaConsulta || c.createdAt).getTime();
+    return combined.sort((a, b) => when(b) - when(a));
   }, [localConsultas, consultas]);
 
   // Opciones para los buscadores (excluyendo lo ya elegido).
@@ -495,6 +554,8 @@ export default function MorbilidadTab() {
     predefinedMedicamentos
       .filter((m) => !excluir.some((x) => x.id === m.id))
       .map((m) => ({ value: m.id, label: [m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ") }));
+  // El mismo tipo puede repetirse (varias heridas iguales) → no se excluye lo ya elegido.
+  const tipoLesionOptions = tiposLesion.map((t) => ({ value: t.id, label: t.nombre }));
 
   // ── Render helpers (funciones, no componentes: evita remonte de inputs) ──
   const patologiaChips = (ids: string[], onRemove: (id: string) => void, variant: "primary" | "success", ns: string) => (
@@ -532,6 +593,60 @@ export default function MorbilidadTab() {
         })}
       </div>
     )
+  );
+
+  // Campo fecha-hora de la consulta (DatePicker + TimePicker), reutilizable en crear/editar.
+  const fechaHoraField = (ymd: string, hm: string, onYmd: (v: string) => void, onHm: (v: string) => void) => (
+    <div className="morb-datetime">
+      <div className="morb-field f-fechaconsulta">
+        <label className="morb-field__label">Fecha de la consulta</label>
+        <DatePicker value={ymd} onChange={onYmd} placeholder="Seleccionar fecha…" />
+      </div>
+      <div className="morb-field f-horaconsulta">
+        <label className="morb-field__label">Hora de la consulta</label>
+        <TimePicker value={hm} onChange={onHm} minuteStep={5} />
+      </div>
+    </div>
+  );
+
+  // Sección de lesiones/heridas/curas (add por catálogo + tarjeta por lesión), reutilizable.
+  const lesionesSection = (items: Lesion[], onAdd: (tipoId: string) => void, onUpdate: (i: number, f: keyof Lesion, v: string) => void, onRemove: (i: number) => void, ns: string) => (
+    <div className="morb-card morb-card--warn">
+      <h3 className="morb-card__title">Lesiones, Heridas y Curas</h3>
+      <p className="morb-hint">Registra cada lesión con su zona, estado y la cura/tratamiento aplicado.</p>
+      <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar tipo de lesión…" options={tipoLesionOptions} onSelect={onAdd} />
+      {items.length === 0 ? (
+        <p className="morb-meds__empty">Sin lesiones registradas.</p>
+      ) : (
+        <div className="morb-lesiones">
+          {items.map((l, i) => {
+            const key = `${ns}:${i}`;
+            return (
+              <div key={key} className="morb-les">
+                <div className="morb-les__head">
+                  <span className="morb-les__name">{tipoLesionNombre(l.tipoId, tiposLesion)}</span>
+                  <button type="button" className="morb-les__x" aria-label="Quitar lesión" onClick={() => onRemove(i)}>×</button>
+                </div>
+                <div className="morb-les__grid">
+                  <div className="morb-field">
+                    <label className="morb-field__label">Zona del cuerpo</label>
+                    <StyledSelect value={l.zona} onChange={(v) => onUpdate(i, "zona", v)} options={ZONA_OPTS} placeholder="Zona…" ariaLabel="Zona del cuerpo" />
+                  </div>
+                  <div className="morb-field">
+                    <label className="morb-field__label">Estado</label>
+                    <StyledSelect value={l.estado} onChange={(v) => onUpdate(i, "estado", v)} options={ESTADO_LESION_OPTS} ariaLabel="Estado de la lesión" />
+                  </div>
+                </div>
+                <div className="morb-field">
+                  <label className="morb-field__label">Cura / tratamiento aplicado</label>
+                  <textarea className="morb-control morb-les__cura" value={l.cura} onChange={(e) => onUpdate(i, "cura", e.target.value)} placeholder="Limpieza, sutura, antiséptico, vendaje, indicaciones…" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -592,6 +707,7 @@ export default function MorbilidadTab() {
                 </div>
               )}
             </div>
+            {fechaHoraField(fechaConsulta, horaConsulta, setFechaConsulta, setHoraConsulta)}
             <div className="morb-basic">
               <div className="morb-field f-cedula">
                 <label className="morb-field__label">Cédula</label>
@@ -662,6 +778,9 @@ export default function MorbilidadTab() {
             </div>
           </div>
 
+          {/* Lesiones, heridas y curas — ancho completo */}
+          {lesionesSection(lesiones, addLesion, updateLesion, removeLesion, "les")}
+
           <div className="morb-actions">
             <button type="button" className="morb-btn morb-btn--ghost" onClick={handleReset}>Cancelar</button>
             <button type="submit" className="morb-btn morb-btn--primary" disabled={saving} style={{ minWidth: "160px" }}>
@@ -686,9 +805,10 @@ export default function MorbilidadTab() {
               </thead>
               <tbody>
                 {allConsultas.map((c) => {
-                  const dateStr = new Date(c.createdAt).toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                  const dateStr = new Date(c.data.fechaConsulta || c.createdAt).toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
                   const diagPatIds: string[] = Array.isArray(c.data.diagnosticoPatologiaIds) ? c.data.diagnosticoPatologiaIds : [];
                   const diagMeds: Medicamento[] = Array.isArray(c.data.diagnosticoMedicamentoIds) ? c.data.diagnosticoMedicamentoIds : [];
+                  const lesionesC: Lesion[] = Array.isArray(c.data.lesiones) ? c.data.lesiones : [];
                   return (
                     <tr key={c.id}>
                       <td data-label="Fecha" style={{ whiteSpace: "nowrap" }}>{dateStr}</td>
@@ -709,6 +829,14 @@ export default function MorbilidadTab() {
                         )}
                         {diagMeds.length > 0 && (
                           <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)", marginTop: "4px" }}>R: {medItemsText(diagMeds, predefinedMedicamentos)}</div>
+                        )}
+                        {lesionesC.length > 0 && (
+                          <div style={{ fontSize: "0.7rem", color: "var(--color-warning, #b45309)", marginTop: "4px" }}>
+                            Lesiones: {lesionesC.map((l) => {
+                              const est = ESTADO_LESION_LABELS[l.estado] ? ` – ${ESTADO_LESION_LABELS[l.estado]}` : "";
+                              return tipoLesionNombre(l.tipoId, tiposLesion) + (l.zona ? ` (${l.zona})` : "") + est;
+                            }).join(", ")}
+                          </div>
                         )}
                       </td>
                       <td data-label="Notas del Dr." className="morb-hist__notas" title={c.data.notasDoctor}>{c.data.notasDoctor || "-"}</td>
@@ -767,6 +895,7 @@ export default function MorbilidadTab() {
                     </div>
                   )}
                 </div>
+                {fechaHoraField(editForm.fechaConsulta, editForm.horaConsulta, (v) => setEditForm((f: any) => ({ ...f, fechaConsulta: v })), (v) => setEditForm((f: any) => ({ ...f, horaConsulta: v })))}
                 <div className="morb-basic">
                   <div className="morb-field f-cedula">
                     <label className="morb-field__label">Cédula</label>
@@ -833,6 +962,9 @@ export default function MorbilidadTab() {
                   </div>
                 </div>
               </div>
+
+              {/* Lesiones, heridas y curas */}
+              {lesionesSection(editForm.lesiones || [], efLesAdd, efLesUpdate, efLesRemove, "eles")}
 
               <div className="morb-actions">
                 <button type="button" className="morb-btn morb-btn--ghost" onClick={closeEdit} disabled={editSaving}>Cancelar</button>

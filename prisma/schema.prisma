@@ -98,6 +98,14 @@ model Patologia {
   createdAt DateTime @default(now())
 }
 
+// Catálogo de tipos de lesión/herida (administrable por AdminMedico), análogo a
+// Patologia. Se referencia por ID en ConsultaMedica.lesiones.
+model TipoLesion {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
+  createdAt DateTime @default(now())
+}
+
 model ConsultaMedica {
   id                        String   @id @default(uuid())
   cedula                    String
@@ -109,6 +117,11 @@ model ConsultaMedica {
   // Tipo de atención: REFUGIADO (censado) | APOYO_INSTITUCIONAL | APOYO_COMUNITARIO | EMERGENCIA
   tipoPaciente              String?  @default("REFUGIADO")
   tipoNota                  String?  // nota opcional para atenciones de apoyo (institución, contexto…)
+  // Fecha-hora REAL de la consulta (elegida a mano; puede diferir de createdAt =
+  // sello de carga en sistema). Las vistas ordenan por ésta (fallback: createdAt).
+  fechaConsulta             DateTime?
+  // Lesiones / heridas / curas: [{ tipoId, zona, estado, cura }] (tipoId → TipoLesion).
+  lesiones                  Json?    @default("[]")
   refugio                   String
   // Campos LEGADO (congelados, respaldo). El modelo por-ID usa las columnas *Ids de abajo.
   antecedentesPatologia     String?

@@ -51,7 +51,7 @@ export default function BalanceTab() {
       ...localConsultas.map((c: any) => ({ ...c.data, createdAt: c.createdAt })),
       ...consultas.filter((c: any) => !localIds.has(c.id)),
     ];
-    all.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    all.sort((a, b) => new Date(b.fechaConsulta || b.createdAt || 0).getTime() - new Date(a.fechaConsulta || a.createdAt || 0).getTime());
 
     const regByCedula = new Map<string, any>();
     registros.forEach((r: any) => regByCedula.set(onlyDigits(r.cedula), r));
