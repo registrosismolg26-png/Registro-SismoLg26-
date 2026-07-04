@@ -476,6 +476,7 @@ export default function CensoTab() {
       const recordId = crypto.randomUUID();
       const registroData = {
         id: recordId,
+        type: 'new' as const,   // creación → re-enviarla no debe tocar un registro ya creado
         refugio: effectiveRefugio,
         userId: currentUser?.id,
         data: {

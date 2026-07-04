@@ -860,7 +860,10 @@ export default function Home() {
             apiFetch("/api/register", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...record.data, id: record.id, refugio: record.refugio, _localType: record.type || "new" }),
+              // Manda el TIPO REAL: los registros viejos sin type (p. ej. "asignar cuarto"
+              // guardados antes del fix) llegan como undefined → NO se saltan → se aplican
+              // como edición. Solo las creaciones marcadas 'new' se saltan si ya existen.
+              body: JSON.stringify({ ...record.data, id: record.id, refugio: record.refugio, _localType: record.type }),
               timeoutMs: 15000,
             })
           )
