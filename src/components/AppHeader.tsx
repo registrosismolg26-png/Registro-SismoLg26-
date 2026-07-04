@@ -12,7 +12,7 @@
 import { useState, useLayoutEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { canManageUsers, canViewDashboard, isMaster, canManageMorbilidad, canRegister, isMedico } from "@/lib/permissions";
-import StyledSelect from "@/components/StyledSelect";
+import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 
 export default function AppHeader() {
   const {
@@ -48,6 +48,20 @@ export default function AppHeader() {
 
   // Guarda de tipos: la cabecera solo se renderiza autenticado.
   if (!currentUser) return null;
+
+  // Presentación del usuario en la franja: clase de color por rol, rótulo legible e
+  // iniciales para el avatar.
+  const roleClass =
+    currentUser.role === "MASTER" ? "master" :
+    currentUser.role === "ADMIN" ? "admin" :
+    isMedico(currentUser.role) ? "medico" :
+    currentUser.role === "VISUALIZADOR" ? "visual" : "";
+  const roleLabels: Record<string, string> = {
+    MASTER: "Master", ADMIN: "Admin", REGISTRADOR: "Registrador", VISUALIZADOR: "Visualizador",
+    AdminMedico: "Admin Médico", OperadorMedico: "Op. Médico", AsistenteMedico: "Asist. Médico",
+  };
+  const roleLabel = roleLabels[currentUser.role] || currentUser.role;
+  const initials = currentUser.nombre.trim().split(/\s+/).slice(0, 2).map((w) => w[0] || "").join("").toUpperCase() || "U";
 
   return (
     <>
@@ -85,37 +99,46 @@ export default function AppHeader() {
           </button>
         </div>
 
-        {/* ── Franja de operación ── */}
+        {/* ── Franja de operación (chips a color, coherente con el reformat) ── */}
         <div className="header-ops">
-          <div className="header-ops-status">
-            <span className={`status-dot ${isOnline ? "online" : "offline"}`}></span>
-            <span className="header-conn">{isOnline ? "En línea" : "Sin señal"}</span>
-            {(pendingCount > 0 || isSyncing) && (
-              <span className="queue-badge">
-                {isSyncing && syncQueueProgress
-                  ? <><span className="spinner spinner-sm"></span> {syncQueueProgress.done}/{syncQueueProgress.total}</>
-                  : `${pendingCount} pend.`
-                }
-              </span>
+          <div className="hops-cluster">
+            {/* Estado de conexión */}
+            <div className={`hops-conn ${isOnline ? "is-online" : "is-offline"}`}>
+              <span className="hops-conn__dot" aria-hidden />
+              <span className="hops-conn__txt">{isOnline ? "En línea" : "Sin señal"}</span>
+              {(pendingCount > 0 || isSyncing) && (
+                <span className="hops-conn__pend" title="Registros pendientes por sincronizar">
+                  {isSyncing && syncQueueProgress
+                    ? <><span className="spinner spinner-sm" /> {syncQueueProgress.done}/{syncQueueProgress.total}</>
+                    : <>{pendingCount} pend.</>}
+                </span>
+              )}
+            </div>
+            {/* Refugio en vista (solo Master) — nuevo select buscable */}
+            {isMaster(currentUser.role) && refugiosList.length > 0 && (
+              <div className="hops-refugio" title="Campamento que estás viendo en todo el sistema">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <SearchableSingleSelect
+                  value={viewRefugio}
+                  onChange={setViewRefugio}
+                  options={refugiosList.map(rf => ({ value: rf.nombre, label: rf.nombre }))}
+                  ariaLabel="Campamento activo"
+                  placeholder="Campamento…"
+                />
+              </div>
             )}
           </div>
-          {isMaster(currentUser.role) && refugiosList.length > 0 && (
-            <div className="header-refugio" title="Campamento que estás viendo en todo el sistema">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              <StyledSelect
-                value={viewRefugio}
-                onChange={setViewRefugio}
-                options={refugiosList.map(rf => ({ value: rf.nombre, label: rf.nombre }))}
-                ariaLabel="Campamento activo"
-              />
-            </div>
-          )}
-          <div className="header-ops-user">
-            <span className="header-operator">{currentUser.nombre}</span>
-            <span className={`role-badge ${currentUser.role === "ADMIN" ? "admin" : currentUser.role === "MASTER" ? "master" : ""}`}>{currentUser.role}</span>
-            <button type="button" onClick={handleLogout} className="logout-btn" title="Cerrar sesión">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Salir
+
+          {/* Usuario: avatar + nombre + rol + salir */}
+          <div className="hops-user">
+            <span className={`hops-avatar hops-avatar--${roleClass || "reg"}`} aria-hidden>{initials}</span>
+            <span className="hops-user__meta">
+              <span className="hops-user__name">{currentUser.nombre}</span>
+              <span className={`hops-role hops-role--${roleClass || "reg"}`}>{roleLabel}</span>
+            </span>
+            <button type="button" onClick={handleLogout} className="hops-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              <span className="hops-logout__txt">Salir</span>
             </button>
           </div>
         </div>
