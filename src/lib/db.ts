@@ -123,9 +123,11 @@ export async function saveLocal(registro: Omit<LocalRegistro, 'status' | 'attemp
         data: registro.data,
         refugio: registro.refugio ?? existing?.refugio,
         userId: registro.userId ?? existing?.userId,
-        // Al re-guardar (edición), volver a 'pending' si estaba en error y limpiar backoff.
-        status: existing?.status === 'synced' ? 'synced' : 'pending',
-        attempts: existing?.attempts || 0,
+        // Un saveLocal SIEMPRE trae datos nuevos que enviar → SIEMPRE 'pending'.
+        // (Antes, si el registro ya estaba 'synced', una re-edición quedaba 'synced'
+        //  y getPending la ignoraba → la 2da edición nunca se sincronizaba.)
+        status: 'pending',
+        attempts: 0,
         nextAttemptAt: undefined,
         permanentError: undefined,
         createdAt: existing?.createdAt || new Date().toISOString()
@@ -394,8 +396,9 @@ export async function saveLocalConsulta(consulta: Omit<LocalConsulta, 'status' |
         type: 'new',
         data: consulta.data,
         userId: consulta.userId ?? existing?.userId,
-        status: existing?.status === 'synced' ? 'synced' : 'pending',
-        attempts: existing?.attempts || 0,
+        // Igual que en saveLocal: re-guardar = datos nuevos → siempre 'pending'.
+        status: 'pending',
+        attempts: 0,
         nextAttemptAt: undefined,
         permanentError: undefined,
         createdAt: existing?.createdAt || new Date().toISOString()
