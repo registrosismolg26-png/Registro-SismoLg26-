@@ -19,6 +19,7 @@ import {
   markConsultaPermanentError
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
+import { enablePush, pushSupported, pushPermission } from "@/lib/pushClient";
 import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad, isMedico } from "@/lib/permissions";
 import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
@@ -457,78 +458,14 @@ export default function Home() {
     }
   }, []);
 
-  // Web Push Subscription for Admins
+  // Suscripción Web Push (automática para ADMIN al iniciar). El resto puede
+  // activarla/renovarla a mano desde Configuración (ver enablePush).
   useEffect(() => {
     if (!currentUser || currentUser.role !== "ADMIN") return;
-
-    const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BBklTIPZhS7ziGhVXKTdMFyXPrAE5qmdh12TbUtPxczuVm_al9Qq0ua8EFCCow7xrJI3p6lhaEQI-4OS1v2qTNI";
-    if (!VAPID_PUBLIC_KEY) {
-      console.warn("VAPID public key not found in env.");
-      return;
-    }
-
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      console.warn("Push notifications not supported in this browser.");
-      return;
-    }
-
-    const initSubscription = async () => {
-      try {
-        if (Notification.permission === "default") {
-          await Notification.requestPermission();
-        }
-
-        if (Notification.permission !== "granted") {
-          console.warn("Notification permission denied.");
-          return;
-        }
-
-        const reg = await navigator.serviceWorker.ready;
-        
-        try {
-          const existingSub = await reg.pushManager.getSubscription();
-          if (existingSub) {
-            await existingSub.unsubscribe();
-            console.log("Unsubscribed from existing push subscription to ensure fresh VAPID register.");
-          }
-        } catch (e) {
-          console.warn("Error clearing old subscription:", e);
-        }
-        
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
-
-        await apiFetch("/api/push/subscribe", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            subscription: sub,
-            userId: currentUser.id
-          })
-        });
-
-        console.log("Push subscription registered successfully.");
-      } catch (err) {
-        console.error("Failed to register push subscription:", err);
-      }
-    };
-
-    function urlBase64ToUint8Array(base64String: string) {
-      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-      const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
-      const rawData = window.atob(base64);
-      const outputArray = new Uint8Array(rawData.length);
-      for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-      }
-      return outputArray;
-    }
-
-    const timeout = setTimeout(initSubscription, 1000);
+    if (!pushSupported()) return;
+    // Solo si ya concedió o aún no decidió; si está bloqueado, no insistimos aquí.
+    if (pushPermission() === "denied") return;
+    const timeout = setTimeout(() => { void enablePush(currentUser.id); }, 1000);
     return () => clearTimeout(timeout);
   }, [currentUser]);
 

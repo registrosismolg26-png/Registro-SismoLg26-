@@ -3804,12 +3804,36 @@ h2.dashboard-section-title {
   display: flex;
   align-items: center;
   gap: 0.625rem;
+  flex-wrap: wrap;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   font-size: 0.73rem;
 }
+/* Botón Activar / Renovar el permiso de notificaciones */
+.config-notif-btn {
+  margin-left: auto; flex: none;
+  height: 30px; padding: 0 0.85rem; border-radius: 999px;
+  border: none; background: var(--color-primary); color: #fff;
+  font-size: 0.72rem; font-weight: 700; cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.config-notif-btn:hover { filter: brightness(1.08); }
+.config-notif-btn:disabled { opacity: 0.6; cursor: default; }
+/* Ayuda cuando está bloqueado en el navegador */
+.config-notif-help {
+  margin: 0.5rem 0 0; font-size: 0.73rem; line-height: 1.5;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, var(--border-color));
+  border-radius: 10px; padding: 0.55rem 0.75rem;
+}
+.config-notif-recheck {
+  border: 1px solid var(--color-primary); background: transparent; color: var(--color-primary);
+  font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 999px; cursor: pointer;
+}
+.config-notif-recheck:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
 .config-section-header {
   display: flex;
   justify-content: space-between;

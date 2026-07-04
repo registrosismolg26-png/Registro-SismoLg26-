@@ -23,6 +23,7 @@ import { getPending, saveLocal, resetAttempts, resetAllLocalToPending, resetAllC
 import { formatRoomLabel } from "@/lib/helpers";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
+import { enablePush, pushSupported } from "@/lib/pushClient";
 import { canManageRooms, canRegister, isMaster } from "@/lib/permissions";
 
 export default function ConfigTab() {
@@ -90,6 +91,11 @@ export default function ConfigTab() {
   const [refugioToDelete, setRefugioToDelete] = useState<Refugio | null>(null);
   const [deletingRefugio, setDeletingRefugio] = useState(false);
 
+  const [notifBusy, setNotifBusy] = useState(false);
+  // Solo los roles que reciben alertas de registro pueden activarlas.
+  const canManageNotif = !!currentUser && (currentUser.role === "ADMIN" || isMaster(currentUser.role));
+  const notifSupported = pushSupported();
+
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       setPermissionState(Notification.permission);
@@ -99,6 +105,33 @@ export default function ConfigTab() {
       return () => clearInterval(interval);
     }
   }, []);
+
+  // Activar / renovar / resolicitar el permiso de notificaciones (gesto del usuario).
+  const handleEnableNotif = async () => {
+    if (!currentUser) return;
+    const wasGranted = typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted";
+    setNotifBusy(true);
+    try {
+      const res = await enablePush(currentUser.id);
+      if (typeof window !== "undefined" && "Notification" in window) setPermissionState(Notification.permission);
+      if (res.ok) {
+        showToast(wasGranted ? "Suscripción de notificaciones renovada." : "Notificaciones activadas.", "success");
+      } else if (res.reason === "bloqueado") {
+        showToast("Están bloqueadas para este sitio. Actívalas en los ajustes del navegador.", "error");
+      } else if (res.reason === "no-soportado") {
+        showToast("Este navegador/dispositivo no soporta notificaciones (requiere HTTPS).", "error");
+      } else if (res.reason === "sin-permiso") {
+        showToast("No se concedió el permiso de notificaciones.", "info");
+      } else {
+        showToast("No se pudieron activar las notificaciones. Intenta de nuevo.", "error");
+      }
+    } finally {
+      setNotifBusy(false);
+    }
+  };
+  const recheckNotif = () => {
+    if (typeof window !== "undefined" && "Notification" in window) setPermissionState(Notification.permission);
+  };
 
   // ── Refugios: carga y mutaciones (solo MASTER, todo vía apiFetch) ──
   const fetchRefugios = async () => {
@@ -501,16 +534,30 @@ export default function ConfigTab() {
           </div>
           <div className="config-notif-row">
             <span style={{ fontSize: "0.73rem", fontWeight: "700", color: "var(--text-secondary)", flexShrink: 0 }}>Notif. PWA:</span>
-            {typeof window !== "undefined" && (!("serviceWorker" in navigator) || !("PushManager" in window)) ? (
+            {!notifSupported ? (
               <span style={{ fontSize: "0.73rem", color: "var(--color-danger)", fontWeight: "600" }}>No soportado — requiere HTTPS</span>
             ) : permissionState === "granted" ? (
               <span style={{ fontSize: "0.73rem", color: "var(--color-success)", fontWeight: "600" }}>● Activo</span>
             ) : permissionState === "denied" ? (
-              <span style={{ fontSize: "0.73rem", color: "var(--color-danger)", fontWeight: "600" }}>● Bloqueado — restablecer en navegador</span>
+              <span style={{ fontSize: "0.73rem", color: "var(--color-danger)", fontWeight: "600" }}>● Bloqueado</span>
             ) : (
               <span style={{ fontSize: "0.73rem", color: "var(--color-warning)", fontWeight: "600" }}>● Pendiente</span>
             )}
+            {/* Activar / renovar / resolicitar (roles con alertas: Admin y Master) */}
+            {canManageNotif && notifSupported && permissionState !== "denied" && (
+              <button type="button" className="config-notif-btn" onClick={handleEnableNotif} disabled={notifBusy}>
+                {notifBusy ? "Procesando…" : permissionState === "granted" ? "Renovar" : "Activar"}
+              </button>
+            )}
           </div>
+          {/* Bloqueado: no se puede reabrir el prompt por JS; se guía al navegador. */}
+          {canManageNotif && notifSupported && permissionState === "denied" && (
+            <p className="config-notif-help">
+              Las notificaciones están <strong>bloqueadas</strong> para este sitio. Para reactivarlas, abre los permisos del navegador
+              (el <strong>candado 🔒</strong> junto a la dirección → <strong>Notificaciones</strong> → Permitir), y luego pulsa{" "}
+              <button type="button" className="config-notif-recheck" onClick={recheckNotif}>Volver a comprobar</button>.
+            </p>
+          )}
         </div>
 
         {/* ── 2. PADRÓN ELECTORAL LOCAL (lo usa quien censa: MASTER/ADMIN/REGISTRADOR) ── */}
