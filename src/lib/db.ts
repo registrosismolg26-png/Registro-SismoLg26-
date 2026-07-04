@@ -160,10 +160,11 @@ export async function getPending(): Promise<LocalRegistro[]> {
   });
 }
 
-// Reenvío INTELIGENTE: reencola SOLO los registros que la DB NUNCA confirmó
-// (status distinto de 'synced' — es decir, 'error'/atascados). Los que la DB ya
-// confirmó ('synced') NO se reenvían jamás. Devuelve cuántos reencoló. Úsalo desde
-// el botón manual "Reenviar cambios": envía solo lo pendiente/nunca enviado.
+// Reenvío INTELIGENTE: reencola lo que la DB NUNCA confirmó. Un registro se
+// considera confirmado SOLO si status === 'synced' **y** tiene `syncResult` (que
+// únicamente pone `markSynced` cuando el backend respondió OK). Los 'synced' SIN
+// `syncResult` son del BUG viejo (el saveLocal legacy los marcaba 'synced' sin
+// enviarlos) → esos SÍ se reenvían. Devuelve cuántos reencoló.
 export async function resetAllLocalToPending(): Promise<number> {
   const db = await getDB();
   return new Promise((resolve, reject) => {
@@ -174,7 +175,8 @@ export async function resetAllLocalToPending(): Promise<number> {
     request.onsuccess = () => {
       const all = request.result as LocalRegistro[];
       for (const r of all) {
-        if (r.status !== 'synced') {   // NO tocar lo ya confirmado por la DB
+        const confirmadoPorDB = r.status === 'synced' && !!r.syncResult;
+        if (!confirmadoPorDB) {   // reencola pending/error y los 'synced' legacy sin syncResult
           r.status = 'pending';
           r.attempts = 0;
           r.nextAttemptAt = undefined;

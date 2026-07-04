@@ -3383,6 +3383,21 @@ h2.dashboard-section-title {
    vez de pill perfecto para leerse bien en varias líneas. */
 .detail-field--full .detail-value { border-radius: 16px; }
 
+/* Pista discreta bajo un valor (p. ej. el NOMBRE del jefe bajo su cédula). Azul
+   discreto si se resolvió; ámbar si no está registrado. Sin exagerar el color. */
+.detail-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+  padding-left: 0.35rem;
+}
+.detail-hint--ok { color: var(--color-primary); opacity: 0.82; }
+.detail-hint--warn { color: var(--color-warning); }
+.detail-hint svg { flex-shrink: 0; }
+
 /* Título de sección dentro de la vista detalle */
 .detail-section-title {
   grid-column: 1 / -1;
