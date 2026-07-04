@@ -16,7 +16,7 @@ interface Props {
   onExit?: () => void;
 }
 
-const ROTATE_MS = 11000;
+const ROTATE_MS = 22000; // cada sección se queda ~22s (antes 11s: iba muy rápido)
 
 // Cuenta ascendente animada (easeOutCubic). Reinicia cuando cambia el valor
 // (cambio de sección o de dato) → "animado cuando un dato cambia".
@@ -88,8 +88,13 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
   const genero = Array.isArray(S.byGenero) ? S.byGenero : [];
   const fem = genero.find((g: any) => /fem/i.test(g.name))?.count ?? ((m.menores?.femenino || 0) + (m.adultos?.femenino || 0) + (m.mayores?.femenino || 0));
   const masc = genero.find((g: any) => /mas/i.test(g.name))?.count ?? ((m.menores?.masculino || 0) + (m.adultos?.masculino || 0) + (m.mayores?.masculino || 0));
-  const topPat = (Array.isArray(S.byPatologia) ? S.byPatologia : []).slice(0, 6);
+  // Patologías MÁS FRECUENTES (nombres reales del censo), no el conteo SÍ/NO.
+  const topPat = (Array.isArray(S.topPatologias) ? S.topPatologias : []).slice(0, 6);
   const topParr = (Array.isArray(S.byParroquia) ? S.byParroquia : []).slice(0, 6);
+  // Con / sin patología (proporción, para mostrarlo "de otra forma" que un ranking).
+  const conPat = S.conPatologia || 0;
+  const sinPat = Math.max(0, (S.total || 0) - conPat);
+  const conPatPct = (S.total || 0) > 0 ? Math.round((conPat / S.total) * 100) : 0;
 
   // Slides
   const slides: { id: string; title: string; icon: ReactNode; body: ReactNode }[] = [
@@ -134,24 +139,36 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
       body: (
         <div className="pres-salud">
           <div className="pres-cards pres-cards--3">
-            <BigCard accent="#e11d48" label="Con patología" value={S.conPatologia || 0} icon={ICON.heart} />
+            <BigCard accent="#e11d48" label="Con patología" value={conPat} suffix={`· ${conPatPct}%`} icon={ICON.heart} />
             <BigCard accent="#dc2626" label="Lesionados" value={S.lesionados || 0} icon={ICON.alert} />
             <BigCard accent="#d97706" label="Intermitentes" value={S.intermitentes || 0} icon={ICON.clock} />
           </div>
-          <Panel title="Patologías más frecuentes" wide>
-            {topPat.length === 0 ? <p className="pres-empty">Sin datos de patologías.</p> : (
-              <div className="pres-rank">
-                {topPat.map((p: any, i: number) => (
-                  <div key={i} className="pres-rank__row">
-                    <span className={`pres-rank__pos ${i < 3 ? "is-top" : ""}`}>{i + 1}</span>
-                    <span className="pres-rank__label">{p.name}</span>
-                    <span className="pres-rank__track"><span className="pres-rank__fill" style={{ width: `${pct(p.count, topPat[0]?.count || 1)}%` }} /></span>
-                    <span className="pres-rank__count"><Num value={p.count} /></span>
-                  </div>
-                ))}
+          <div className="pres-demo">
+            <Panel title="Con / sin patología">
+              <div className="pres-seg">
+                <span className="pres-seg__part" style={{ width: `${conPatPct}%`, background: "#e11d48" }}>{conPatPct >= 12 ? `${conPatPct}%` : ""}</span>
+                <span className="pres-seg__part" style={{ width: `${100 - conPatPct}%`, background: "#64748b" }}>{(100 - conPatPct) >= 12 ? `${100 - conPatPct}%` : ""}</span>
               </div>
-            )}
-          </Panel>
+              <div className="pres-seg__legend">
+                <span><i style={{ background: "#e11d48" }} />Con patología <b>{conPat.toLocaleString("es-VE")}</b></span>
+                <span><i style={{ background: "#64748b" }} />Sin patología <b>{sinPat.toLocaleString("es-VE")}</b></span>
+              </div>
+            </Panel>
+            <Panel title="Patologías más frecuentes en el censo">
+              {topPat.length === 0 ? <p className="pres-empty">No hay patologías registradas en el censo.</p> : (
+                <div className="pres-rank">
+                  {topPat.map((p: any, i: number) => (
+                    <div key={i} className="pres-rank__row">
+                      <span className={`pres-rank__pos ${i < 3 ? "is-top" : ""}`}>{i + 1}</span>
+                      <span className="pres-rank__label">{p.name}</span>
+                      <span className="pres-rank__track"><span className="pres-rank__fill" style={{ width: `${pct(p.count, topPat[0]?.count || 1)}%` }} /></span>
+                      <span className="pres-rank__count"><Num value={p.count} /></span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+          </div>
         </div>
       ),
     },

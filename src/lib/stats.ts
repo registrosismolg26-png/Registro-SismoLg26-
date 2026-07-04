@@ -30,6 +30,7 @@ export interface AggregateStats {
   byGenero: { name: string; count: number }[];
   byEstadoFisico: { name: string; count: number }[];
   byPatologia: { name: string; count: number }[];
+  topPatologias: { name: string; count: number }[]; // patologías del censo (por ID-nativo → nombre)
 }
 
 const emptyStats = (totalRetirados = 0): AggregateStats => ({
@@ -55,6 +56,7 @@ const emptyStats = (totalRetirados = 0): AggregateStats => ({
   byGenero: [],
   byEstadoFisico: [],
   byPatologia: [],
+  topPatologias: [],
 });
 
 export async function computeAggregateStats(scopeRefugio: string | null): Promise<AggregateStats> {
@@ -92,12 +94,16 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
   // Núcleos familiares (misma lógica que /api/stats).
   const presentRegistros = await prisma.registro.findMany({
     where: { retirado: "NO", ...refugioFilter },
-    select: { cedula: true, jefeFamilia: true, cedulaJefeFamilia: true },
+    select: { cedula: true, jefeFamilia: true, cedulaJefeFamilia: true, patologiaIds: true },
   });
   const familyGroups: Record<string, number> = {};
-  presentRegistros.forEach((r) => {
+  const patCount = new Map<string, number>(); // patologías del censo por ID-nativo
+  presentRegistros.forEach((r: any) => {
     const familyId = r.jefeFamilia === "SI" ? r.cedula : r.cedulaJefeFamilia || r.cedula;
     familyGroups[familyId] = (familyGroups[familyId] || 0) + 1;
+    (Array.isArray(r.patologiaIds) ? r.patologiaIds : []).forEach((id: any) => {
+      if (typeof id === "string" && id) patCount.set(id, (patCount.get(id) || 0) + 1);
+    });
   });
   let nucleosFamiliares = 0;
   let individuosSolos = 0;
@@ -115,6 +121,18 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     prisma.registro.groupBy({ where: activeFilter, by: ["estadoFisico"], _count: { _all: true } }),
     prisma.registro.groupBy({ where: activeFilter, by: ["patologia"], _count: { _all: true } }),
   ]);
+
+  // Nombres de las patologías más frecuentes del censo (top 8 por ID-nativo).
+  const topIds = [...patCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  let topPatologias: { name: string; count: number }[] = [];
+  if (topIds.length) {
+    const pats = await prisma.patologia.findMany({
+      where: { id: { in: topIds.map(([id]) => id) } },
+      select: { id: true, nombre: true },
+    });
+    const nameById = new Map(pats.map((p) => [p.id, p.nombre]));
+    topPatologias = topIds.map(([id, count]) => ({ name: nameById.get(id) || "Patología", count }));
+  }
 
   const n = (v: unknown) => Number(v ?? 0);
 
@@ -141,5 +159,6 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     byGenero: generoGroup.map((g: any) => ({ name: g.genero, count: g._count._all })),
     byEstadoFisico: estadoFisicoGroup.map((g: any) => ({ name: g.estadoFisico, count: g._count._all })),
     byPatologia: patologiaGroup.map((g: any) => ({ name: g.patologia, count: g._count._all })),
+    topPatologias,
   };
 }
