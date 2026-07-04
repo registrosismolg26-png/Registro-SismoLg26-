@@ -1,17 +1,18 @@
 "use client";
 
 // ── Select estilizado (sin buscador) ────────────────────────────────────────
-// Dropdown personalizado que reemplaza a los <select> nativos para que cumplan
-// el mismo reformat visual (trigger + lista con las clases del tema). Para pocas
-// opciones (género, período). Variante `dense` para las filas de medicamento.
+// Dropdown personalizado que reemplaza a los <select> nativos con el reformat
+// visual del tema. Para pocas opciones (género, período, etc.).
 //
-// El menú se renderiza en un PORTAL con posición `fixed` para que no lo recorte
-// ningún contenedor con overflow:hidden/auto (modal de asignaciones, wrapper del
-// censo, etc.). Ver `useAnchoredRect`.
+// ESCRITORIO: desplegable anclado en un PORTAL (no lo recorta ningún overflow).
+// TÁCTIL (teléfono/tablet): se abre como MODAL nativo-like (hoja inferior) vía
+// MobileSheet, igual que el selector nativo del móvil pero con nuestros estilos.
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAnchoredRect } from "./useAnchoredRect";
+import { useIsMobile } from "./useIsMobile";
+import MobileSheet from "./MobileSheet";
 
 export interface StyledOption { value: string; label: string; }
 
@@ -33,9 +34,11 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
-  const rect = useAnchoredRect(open, ref);
+  const isMobile = useIsMobile();
+  const rect = useAnchoredRect(open && !isMobile, ref);
 
   useEffect(() => {
+    if (isMobile) return; // en móvil el cierre lo maneja el overlay del MobileSheet
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
@@ -43,10 +46,13 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
+  }, [isMobile]);
 
   const current = options.find((o) => o.value === value);
 
+  const choose = (v: string) => { onChange(v); setOpen(false); };
+
+  // ── Escritorio: desplegable anclado ──
   const menuStyle: React.CSSProperties | null = (() => {
     if (!rect || typeof window === "undefined") return null;
     const spaceBelow = window.innerHeight - rect.bottom - MENU_MARGIN;
@@ -67,7 +73,7 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
     };
   })();
 
-  const menu = open && !disabled && menuStyle ? (
+  const desktopMenu = open && !isMobile && !disabled && menuStyle ? (
     <ul className="combo-menu" role="listbox" ref={menuRef} style={menuStyle}>
       {options.map((o) => (
         <li
@@ -75,7 +81,7 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
           role="option"
           aria-selected={o.value === value}
           className={`combo-menu__item${o.value === value ? " is-active is-selected" : ""}`}
-          onMouseDown={(e) => { e.preventDefault(); onChange(o.value); setOpen(false); }}
+          onMouseDown={(e) => { e.preventDefault(); choose(o.value); }}
         >
           {o.label}
         </li>
@@ -98,7 +104,23 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
         <span className={current ? "" : "morb-select__ph"}>{current ? current.label : placeholder}</span>
         <span className="morb-select__arrow" aria-hidden>▾</span>
       </button>
-      {menu && typeof document !== "undefined" ? createPortal(menu, document.body) : null}
+
+      {desktopMenu && typeof document !== "undefined" ? createPortal(desktopMenu, document.body) : null}
+
+      {isMobile && (
+        <MobileSheet open={open && !disabled} onClose={() => setOpen(false)} title={ariaLabel || placeholder}>
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              className={`msheet__opt${o.value === value ? " is-selected" : ""}`}
+              onClick={() => choose(o.value)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </MobileSheet>
+      )}
     </div>
   );
 }

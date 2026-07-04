@@ -26,6 +26,7 @@ import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
 import { roomFillLevel, patologiaNombre, medLabel } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
+import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
 
@@ -1154,28 +1155,16 @@ export default function CensoTab() {
                     <label>
                       Habitación / Salón <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
                     </label>
-                    <SearchableSelect
-                      placeholder="Buscar habitación… (más nuevas primero)"
-                      inputClassName="morb-control"
+                    <SearchableSingleSelect
+                      value={asignCuartoCenso}
+                      onChange={setAsignCuartoCenso}
+                      options={allCuartos.map(c => ({ value: c, label: roomLabel(c) }))}
+                      placeholder="Sin habitación asignada"
+                      searchPlaceholder="Buscar habitación…"
+                      clearLabel="— Sin habitación asignada —"
                       emptyText="Sin habitaciones configuradas"
-                      options={allCuartos
-                        .filter(c => c !== asignCuartoCenso)
-                        .map(c => ({ value: c, label: roomLabel(c) }))}
-                      onSelect={(c) => setAsignCuartoCenso(c)}
+                      ariaLabel="Habitación / Salón"
                     />
-                    {asignCuartoCenso ? (
-                      <div className="pathology-pills-grid">
-                        <span className="chip-pill chip-pill--room">
-                          {roomLabel(asignCuartoCenso)}
-                          <button
-                            type="button"
-                            onClick={() => setAsignCuartoCenso("")}
-                            aria-label="Quitar habitación"
-                            className="chip-pill__x"
-                          >×</button>
-                        </span>
-                      </div>
-                    ) : null}
                     <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
                       Si lo dejas vacío, la persona queda registrada sin habitación asignada.
                     </p>

@@ -20,6 +20,7 @@ import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
+import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -1493,24 +1494,17 @@ export default function AsignacionesTab() {
                   Asignación de Alojamiento
                 </div>
                 <div className="form-group">
-                  <label htmlFor="cuarto-select">Cuarto / Salón</label>
-                  <SearchableSelect
-                    placeholder="Buscar cuarto… (más nuevos primero)"
-                    inputClassName="morb-control"
+                  <label>Cuarto / Salón</label>
+                  <SearchableSingleSelect
+                    value={asignCuarto}
+                    onChange={setAsignCuarto}
+                    options={allCuartos.map(c => ({ value: c, label: roomLabel(c) }))}
+                    placeholder="Seleccionar cuarto…"
+                    searchPlaceholder="Buscar cuarto…"
+                    clearLabel="— Sin cuarto —"
                     emptyText="Sin cuartos configurados"
-                    options={allCuartos
-                      .filter(c => c !== asignCuarto)
-                      .map(c => ({ value: c, label: roomLabel(c) }))}
-                    onSelect={(c) => setAsignCuarto(c)}
+                    ariaLabel="Cuarto / Salón"
                   />
-                  {asignCuarto && (
-                    <div className="pathology-pills-grid">
-                      <span className="chip-pill chip-pill--room">
-                        {roomLabel(asignCuarto)}
-                        <button type="button" className="chip-pill__x" aria-label="Quitar cuarto" onClick={() => setAsignCuarto("")}>×</button>
-                      </span>
-                    </div>
-                  )}
                 </div>
                 <button type="button" className="btn-submit" style={{ marginTop: "0.625rem" }}
                   onClick={handleAsignarCuarto}

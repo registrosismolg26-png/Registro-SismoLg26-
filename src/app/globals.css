@@ -4878,3 +4878,195 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
   .censo-form .med-row > .morb-select { grid-area: per; }
   .censo-form .med-row > .btn-remove-med { grid-area: remove; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE SHEET (.msheet) — modal nativo-like para selects/date/searchable en
+   táctil (teléfono/tablet). Bottom sheet con estilos propios; el searchable usa
+   la variante full-height con búsqueda pegada arriba.
+   ═════════════════════════════════════════════════════════════════════════ */
+.msheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.48);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: msheetFadeIn 0.18s ease both;
+}
+.msheet-overlay.is-closing { animation: msheetFadeOut 0.18s ease both; }
+
+.msheet {
+  width: 100%;
+  max-width: 620px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -18px 48px -12px rgba(0, 0, 0, 0.35);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: msheetIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  overflow: hidden;
+}
+.msheet.is-closing { animation: msheetOut 0.19s ease both; }
+.msheet--full { max-height: 92vh; height: 92vh; }
+
+.msheet__grip {
+  width: 40px; height: 4px;
+  border-radius: 999px;
+  background: var(--border-color);
+  margin: 8px auto 2px;
+  flex: none;
+}
+.msheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem 0.65rem;
+  flex: none;
+}
+.msheet__title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.msheet__close {
+  flex: none;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.msheet__close:hover { background: var(--color-primary-light); color: var(--color-primary); }
+
+.msheet__search {
+  padding: 0.25rem 1rem 0.7rem;
+  border-bottom: 1px solid var(--border-color);
+  flex: none;
+}
+.msheet__search input {
+  width: 100%;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 1rem;
+  padding: 0 1.15rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.msheet__search input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-ring);
+}
+
+.msheet__body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.4rem 0.6rem 0.8rem;
+}
+.msheet__opt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 54px;
+  padding: 0.5rem 0.85rem;
+  border: none;
+  background: transparent;
+  border-radius: 14px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.msheet__opt:active { background: var(--color-primary-light); }
+.msheet__opt.is-selected {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+.msheet__opt.is-selected::after {
+  content: "✓";
+  margin-left: auto;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+.msheet__opt--muted { color: var(--text-muted); cursor: default; }
+.msheet__opt--muted:active { background: transparent; }
+.msheet__opt--clear { color: var(--text-secondary); border-bottom: 1px solid var(--border-color); border-radius: 0; }
+
+@keyframes msheetFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes msheetFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes msheetIn { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes msheetOut { from { transform: none; } to { transform: translateY(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .msheet-overlay, .msheet { animation-duration: 0.001ms !important; }
+}
+
+/* ── Panel de escritorio para SearchableSingleSelect (buscador + lista) ── */
+.combo-panel {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 14px 32px -10px rgba(0, 0, 0, 0.30), 0 4px 10px -6px rgba(0, 0, 0, 0.20);
+  animation: comboMenuIn 0.16s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.combo-panel__search { padding: 0.5rem; border-bottom: 1px solid var(--border-color); flex: none; }
+.combo-panel__search input {
+  width: 100%;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  padding: 0 0.9rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.combo-panel__search input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-ring); }
+.combo-panel__list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0.35rem; scrollbar-width: thin; }
+
+/* Reset de <button> usado como fila del panel (para que el :hover del tema gane) */
+.combo-row-btn {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ── Calendario dentro de la hoja móvil (celdas más grandes, táctil) ── */
+.morb-dp--sheet { padding: 0.3rem 0.85rem 1rem; }
+.morb-dp--sheet .morb-dp__head { margin-bottom: 0.6rem; }
+.morb-dp--sheet .morb-dp__nav { width: 40px; height: 40px; font-size: 1.3rem; }
+.morb-dp--sheet .morb-dp__title { font-size: 1rem; padding: 0.5rem 0.75rem; }
+.morb-dp--sheet .morb-dp__dow { font-size: 0.75rem; padding: 0.4rem 0; }
+.morb-dp--sheet .morb-dp__grid { gap: 4px; }
+.morb-dp--sheet .morb-dp__day { font-size: 1rem; border-radius: 12px; }
+.morb-dp--sheet .morb-dp__years { grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 52vh; }
+.morb-dp--sheet .morb-dp__year { padding: 0.8rem 0; font-size: 0.95rem; border-radius: 12px; }

@@ -1,19 +1,19 @@
 "use client";
 
-// ── Selector con buscador (combobox) ────────────────────────────────────────
+// ── Selector con buscador (combobox, estilo "agregar") ──────────────────────
 // Input que filtra opciones al escribir + lista desplegable. Pensado para
-// catálogos largos (cientos de patologías/medicamentos), responsive (ordenador
-// y teléfono) y táctil. Es un control de "agregar": al elegir, dispara onSelect
-// y limpia el texto para permitir agregar varios seguidos.
+// catálogos largos (cientos de patologías/medicamentos). Al elegir dispara
+// onSelect y limpia el texto para permitir agregar varios seguidos.
 //
-// El menú se renderiza en un PORTAL (document.body) con posición `fixed` calculada
-// desde el rect del input, para que NUNCA lo recorte un contenedor con
-// overflow:hidden/auto (p. ej. el `.conditional-wrapper` del censo o un modal con
-// scroll). Se reubica solo con voltear arriba/abajo según el espacio disponible.
+// ESCRITORIO: menú anclado en un PORTAL (no lo recorta ningún overflow).
+// TÁCTIL (teléfono/tablet): se abre como MODAL nativo-like a pantalla con el
+// campo de BÚSQUEDA pegado arriba y los resultados debajo (vía MobileSheet).
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAnchoredRect } from "./useAnchoredRect";
+import { useIsMobile } from "./useIsMobile";
+import MobileSheet from "./MobileSheet";
 
 export interface SearchableOption {
   value: string;
@@ -50,19 +50,29 @@ export default function SearchableSelect({
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
+  const sheetInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
 
-  const rect = useAnchoredRect(open, ref);
+  const rect = useAnchoredRect(open && !isMobile, ref);
 
   useEffect(() => {
+    if (isMobile) return; // en móvil el cierre lo maneja el overlay del MobileSheet
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
-      // El menú vive en un portal fuera de `ref`: hay que excluirlo también.
       if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
       setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
+  }, [isMobile]);
+
+  // Autofoco del buscador cuando se abre la hoja móvil.
+  useEffect(() => {
+    if (isMobile && open) {
+      const t = setTimeout(() => sheetInputRef.current?.focus(), 60);
+      return () => clearTimeout(t);
+    }
+  }, [isMobile, open]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -70,15 +80,20 @@ export default function SearchableSelect({
     return { items: list.slice(0, maxRender), total: list.length };
   }, [options, query, maxRender]);
 
-  const choose = (value: string) => {
+  // keepOpen: en móvil la hoja permanece abierta para agregar varios seguidos.
+  const choose = (value: string, keepOpen = false) => {
     onSelect(value);
     setQuery("");
     setHighlight(0);
-    setOpen(false); // se cierra al elegir; para agregar otro, se enfoca de nuevo (reabre al escribir/enfocar)
-    inputRef.current?.blur();
+    if (!keepOpen) {
+      setOpen(false);
+      inputRef.current?.blur();
+    } else {
+      sheetInputRef.current?.focus();
+    }
   };
 
-  // Posición del menú (fixed) con volteo arriba/abajo según espacio disponible.
+  // ── Escritorio: menú anclado ──
   const menuStyle: React.CSSProperties | null = (() => {
     if (!rect || typeof window === "undefined") return null;
     const spaceBelow = window.innerHeight - rect.bottom - MENU_MARGIN;
@@ -99,7 +114,7 @@ export default function SearchableSelect({
     };
   })();
 
-  const menu = open && !disabled && menuStyle ? (
+  const desktopMenu = open && !isMobile && !disabled && menuStyle ? (
     <ul className="combo-menu" role="listbox" ref={menuRef} style={menuStyle}>
       {filtered.items.length === 0 ? (
         <li className="combo-menu__item combo-menu__item--muted">{emptyText}</li>
@@ -112,7 +127,6 @@ export default function SearchableSelect({
               role="option"
               aria-selected={i === highlight}
               onMouseEnter={() => setHighlight(i)}
-              // onMouseDown evita que el blur del input cierre el menú antes del click
               onMouseDown={(e) => { e.preventDefault(); choose(o.value); }}
             >
               {o.label}
@@ -137,12 +151,15 @@ export default function SearchableSelect({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
-        value={query}
+        value={isMobile ? "" : query}
         placeholder={placeholder}
         disabled={disabled}
-        onFocus={() => setOpen(true)}
-        onChange={(e) => { setQuery(e.target.value); setOpen(true); setHighlight(0); }}
+        readOnly={isMobile}
+        onFocus={() => { if (!isMobile) setOpen(true); }}
+        onClick={() => { if (isMobile && !disabled) setOpen(true); }}
+        onChange={(e) => { if (!isMobile) { setQuery(e.target.value); setOpen(true); setHighlight(0); } }}
         onKeyDown={(e) => {
+          if (isMobile) return;
           if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); setHighlight(h => Math.min(h + 1, filtered.items.length - 1)); }
           else if (e.key === "ArrowUp") { e.preventDefault(); setHighlight(h => Math.max(h - 1, 0)); }
           else if (e.key === "Enter") { e.preventDefault(); const it = filtered.items[highlight]; if (open && it) choose(it.value); }
@@ -150,7 +167,49 @@ export default function SearchableSelect({
         }}
         style={{ width: "100%" }}
       />
-      {menu && typeof document !== "undefined" ? createPortal(menu, document.body) : null}
+
+      {desktopMenu && typeof document !== "undefined" ? createPortal(desktopMenu, document.body) : null}
+
+      {isMobile && (
+        <MobileSheet
+          open={open && !disabled}
+          onClose={() => { setOpen(false); setQuery(""); }}
+          title={placeholder}
+          fullHeight
+          search={
+            <input
+              ref={sheetInputRef}
+              type="text"
+              inputMode="search"
+              value={query}
+              placeholder={placeholder}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          }
+        >
+          {filtered.items.length === 0 ? (
+            <div className="msheet__opt msheet__opt--muted">{emptyText}</div>
+          ) : (
+            <>
+              {filtered.items.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  className="msheet__opt"
+                  onClick={() => choose(o.value, true)}
+                >
+                  {o.label}
+                </button>
+              ))}
+              {filtered.total > filtered.items.length && (
+                <div className="msheet__opt msheet__opt--muted">
+                  +{filtered.total - filtered.items.length} más… escribe para filtrar
+                </div>
+              )}
+            </>
+          )}
+        </MobileSheet>
+      )}
     </div>
   );
 }

@@ -26,7 +26,13 @@ export async function GET(request: Request) {
 
     // Sin auto-relleno: cada refugio arranca vacío y sus salones se configuran
     // manualmente en Config (regla del proyecto: nada de datos hardcodeados).
-    const rooms = await prisma.customRoom.findMany({ where, orderBy: { createdAt: "desc" } });
+    // Orden por creación ASCENDENTE (los primeros creados arriba, los nuevos abajo),
+    // con desempate ESTABLE por `id`: si varios salones comparten `createdAt` (carga
+    // masiva), un UPDATE posterior —p. ej. editar capacidad— NO los reordena.
+    const rooms = await prisma.customRoom.findMany({
+      where,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
     return NextResponse.json(rooms);
   } catch (error: any) {
     console.error("Error in GET /api/cuartos:", error);

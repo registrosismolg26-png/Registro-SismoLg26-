@@ -162,11 +162,11 @@ export default function Home() {
   }, [currentUser]);
 
   const allCuartos = useMemo(() => {
-    return [...CUARTOS, ...customCuartos]; // Already sorted by DB (createdAt desc)
+    return [...CUARTOS, ...customCuartos]; // Orden del DB: createdAt ASC (viejos→nuevos), estable
   }, [customCuartos]);
 
   const sortedCustomCuartos = useMemo(() => {
-    return [...customCuartos]; // Keep DB order (createdAt desc)
+    return [...customCuartos]; // Mantiene el orden del DB (createdAt ASC, estable)
   }, [customCuartos]);
 
   // (Gestión de habitaciones/cuartos movida a src/tabs/ConfigTab.tsx.

@@ -1,13 +1,18 @@
 "use client";
 
 // ── Date picker (un solo control) ───────────────────────────────────────────
-// Un único campo estilizado que abre un calendario emergente moderno. Reemplaza
-// al <input type="date"> nativo. Emite/recibe yyyy-mm-dd. Pensado para fecha de
-// nacimiento: permite saltar de año rápido y no deja elegir fechas futuras.
+// Un único campo estilizado que abre un calendario moderno. Reemplaza al
+// <input type="date"> nativo. Emite/recibe yyyy-mm-dd. Permite saltar de año
+// rápido y no deja elegir fechas futuras.
+//
+// ESCRITORIO: calendario en popover anclado (portal). TÁCTIL: se abre como MODAL
+// nativo-like (hoja inferior) vía MobileSheet, con celdas más grandes.
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAnchoredRect } from "./useAnchoredRect";
+import { useIsMobile } from "./useIsMobile";
+import MobileSheet from "./MobileSheet";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const DOW = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
@@ -29,7 +34,8 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
   const [view, setView] = useState<"days" | "years">("days");
   const ref = useRef<HTMLDivElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
-  const rect = useAnchoredRect(open, ref);
+  const isMobile = useIsMobile();
+  const rect = useAnchoredRect(open && !isMobile, ref);
 
   const today = new Date();
   const maxYear = today.getFullYear();
@@ -39,6 +45,7 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
   const [viewM, setViewM] = useState(sel ? sel.m : 0);
 
   useEffect(() => {
+    if (isMobile) return; // en móvil el cierre lo maneja el overlay del MobileSheet
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (ref.current?.contains(t) || popRef.current?.contains(t)) return;
@@ -46,7 +53,7 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
+  }, [isMobile]);
 
   // Al abrir, posiciona la vista en la fecha seleccionada (o ~20 años atrás).
   const openPicker = () => {
@@ -80,7 +87,52 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
   const years: number[] = [];
   for (let y = maxYear; y >= minYear; y--) years.push(y);
 
-  // Posición del calendario (fixed, en portal) con volteo y clamping horizontal.
+  // Contenido del calendario (compartido por escritorio y móvil).
+  const calendar = (
+    <>
+      <div className="morb-dp__head">
+        <button type="button" className="morb-dp__nav" aria-label="Mes anterior" onClick={() => stepMonth(-1)}>‹</button>
+        <button type="button" className="morb-dp__title" onClick={() => setView((v) => (v === "days" ? "years" : "days"))}>
+          {view === "days" ? `${MESES[viewM]} ${viewY}` : "Elegir año"}
+        </button>
+        <button type="button" className="morb-dp__nav" aria-label="Mes siguiente" onClick={() => stepMonth(1)}>›</button>
+      </div>
+
+      {view === "days" ? (
+        <div className="morb-dp__grid">
+          {DOW.map((d) => <div key={d} className="morb-dp__dow">{d}</div>)}
+          {cells.map((c, i) => c === null ? (
+            <span key={`e${i}`} className="morb-dp__day morb-dp__day--empty" />
+          ) : (
+            <button
+              key={c}
+              type="button"
+              disabled={isFuture(c)}
+              className={`morb-dp__day${sel && sel.y === viewY && sel.m === viewM && sel.d === c ? " is-selected" : ""}`}
+              onClick={() => pick(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="morb-dp__years">
+          {years.map((y) => (
+            <button
+              key={y}
+              type="button"
+              className={`morb-dp__year${sel && sel.y === y ? " is-selected" : ""}`}
+              onClick={() => { setViewY(y); setView("days"); }}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  // ── Escritorio: popover anclado (portal) con volteo y clamping horizontal ──
   const popStyle: React.CSSProperties | null = (() => {
     if (!rect || typeof window === "undefined") return null;
     const w = Math.min(DP_W, window.innerWidth * 0.92);
@@ -99,49 +151,9 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
     };
   })();
 
-  const popup = open && !disabled && popStyle ? (
+  const desktopPopup = open && !isMobile && !disabled && popStyle ? (
     <div className="morb-datepicker" role="dialog" ref={popRef} style={popStyle}>
-      <div className="morb-dp__head">
-            <button type="button" className="morb-dp__nav" aria-label="Mes anterior" onClick={() => stepMonth(-1)}>‹</button>
-            <button type="button" className="morb-dp__title" onClick={() => setView((v) => (v === "days" ? "years" : "days"))}>
-              {view === "days" ? `${MESES[viewM]} ${viewY}` : "Elegir año"}
-            </button>
-            <button type="button" className="morb-dp__nav" aria-label="Mes siguiente" onClick={() => stepMonth(1)}>›</button>
-          </div>
-
-          {view === "days" ? (
-            <>
-              <div className="morb-dp__grid">
-                {DOW.map((d) => <div key={d} className="morb-dp__dow">{d}</div>)}
-                {cells.map((c, i) => c === null ? (
-                  <span key={`e${i}`} className="morb-dp__day morb-dp__day--empty" />
-                ) : (
-                  <button
-                    key={c}
-                    type="button"
-                    disabled={isFuture(c)}
-                    className={`morb-dp__day${sel && sel.y === viewY && sel.m === viewM && sel.d === c ? " is-selected" : ""}`}
-                    onClick={() => pick(c)}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="morb-dp__years">
-              {years.map((y) => (
-                <button
-                  key={y}
-                  type="button"
-                  className={`morb-dp__year${sel && sel.y === y ? " is-selected" : ""}`}
-                  onClick={() => { setViewY(y); setView("days"); }}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          )}
+      {calendar}
     </div>
   ) : null;
 
@@ -158,7 +170,14 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
         <span className={label ? "" : "morb-select__ph"}>{label || placeholder}</span>
         <span className="morb-select__arrow" aria-hidden>▾</span>
       </button>
-      {popup && typeof document !== "undefined" ? createPortal(popup, document.body) : null}
+
+      {desktopPopup && typeof document !== "undefined" ? createPortal(desktopPopup, document.body) : null}
+
+      {isMobile && (
+        <MobileSheet open={open && !disabled} onClose={() => { setOpen(false); setView("days"); }} title="Seleccionar fecha">
+          <div className="morb-dp morb-dp--sheet">{calendar}</div>
+        </MobileSheet>
+      )}
     </div>
   );
 }
