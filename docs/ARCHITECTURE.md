@@ -44,7 +44,8 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 - **ADMIN:** administra SU refugio (usuarios Reg/Vis de su refugio, registros, cuartos, stats de su refugio). No toca otros Admin ni Master. **Solo Master asigna Admin.**
 - **REGISTRADOR:** censa + edita registros de su refugio; usa el padrón para autocompletar.
 - **VISUALIZADOR:** solo ve y exporta su refugio.
-- **Roles MÉDICOS** (`isMedico` = AdminMedico | OperadorMedico | AsistenteMedico): **solo ven la pestaña Morbilidad** (no censo, dashboard, Registrados ni Configuración general). Gating en `AppHeader` + `page.tsx` (render) + efecto que redirige a Morbilidad si caen en otra pestaña.
+- **Roles MÉDICOS** (`isMedico` = AdminMedico | OperadorMedico | AsistenteMedico): **solo ven Morbilidad y Balance de Salud** (no censo, dashboard general, Registrados ni Configuración general). Gating en `AppHeader` + `page.tsx` (render) + efecto que redirige a Morbilidad si caen en otra pestaña.
+  - **Balance de Salud** (`src/tabs/BalanceTab.tsx`, gated `canManageMorbilidad`): tablero de morbilidad calculado en el cliente desde las consultas (locales + remotas) **cruzadas con el censo** (`registros`) cuando falta género/edad. Cards de totales, barras por género y edad, matriz edad×género y top patologías; reusa el estilo del dashboard (`stat-card`, `matrix-table`, `segmented-bar`) y es responsive (matriz → tarjetas en móvil).
   - **AdminMedico:** además ve **Usuarios** pero FILTRADO a solo médicos (Operador/Asistente) de su refugio; crea/edita SOLO OperadorMedico y AsistenteMedico (crear AdminMedico es exclusivo de Master). Elimina catálogos.
   - **OperadorMedico:** crea/edita consultas (no elimina) y **crea/edita catálogos** (patologías/medicamentos, sin eliminar).
   - **AsistenteMedico:** solo crea/edita consultas; NO toca catálogos ni elimina nada.

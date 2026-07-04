@@ -32,6 +32,7 @@ import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CensoTab from "@/tabs/CensoTab";
 import MorbilidadTab from "@/tabs/MorbilidadTab";
+import BalanceTab from "@/tabs/BalanceTab";
 import { SwipeableToast } from "@/components/SwipeableToast";
 
 export default function Home() {
@@ -180,7 +181,7 @@ export default function Home() {
   // a Morbilidad. Espeja el gating del AppHeader/render.
   useEffect(() => {
     if (!currentUser || !isMedico(currentUser.role)) return;
-    const allowed = currentUser.role === "AdminMedico" ? ["morbilidad", "usuarios"] : ["morbilidad"];
+    const allowed = currentUser.role === "AdminMedico" ? ["morbilidad", "balance", "usuarios"] : ["morbilidad", "balance"];
     if (!allowed.includes(activeTab)) setActiveTab("morbilidad");
   }, [currentUser, activeTab]);
 
@@ -1286,6 +1287,9 @@ export default function Home() {
 
       {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
       {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}
+
+      {/* TAB 7: BALANCE DE SALUD (médicos + Master) */}
+      {activeTab === "balance" && canManageMorbilidad(currentUser.role) && <BalanceTab />}
 
       {/* Real-time internal PWA notification banner */}
       {internalNotification && (

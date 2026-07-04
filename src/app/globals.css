@@ -5373,6 +5373,54 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .update-banner__text { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.4; margin: 0.15rem 0 0; }
 .update-banner__hint { color: var(--text-muted); }
 
+/* ── Balance de Salud (dashboard médico) ─────────────────────────────────────── */
+.balance-duo { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+@media (min-width: 900px) { .balance-duo { grid-template-columns: 1fr 1fr; } }
+.balance-view .matrix-total-row td { border-top: 2px solid var(--border-color); background: var(--bg-primary); }
+
+/* Lista de barras (patologías más frecuentes) */
+.balance-barlist { display: flex; flex-direction: column; gap: 0.55rem; }
+.balance-barlist__row { display: grid; grid-template-columns: minmax(90px, 1.4fr) minmax(0, 2fr) auto; align-items: center; gap: 0.6rem; }
+.balance-barlist__label { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.balance-barlist__track { height: 12px; border-radius: 999px; background: var(--bg-primary); border: 1px solid var(--border-color); overflow: hidden; }
+.balance-barlist__fill { display: block; height: 100%; border-radius: 999px; background: var(--color-primary); transition: width 0.4s cubic-bezier(0.4,0,0.2,1); }
+.balance-barlist__count { font-size: 0.82rem; font-weight: 800; color: var(--color-primary); font-variant-numeric: tabular-nums; min-width: 1.5rem; text-align: right; }
+@media (max-width: 480px) {
+  .balance-barlist__row { grid-template-columns: 1fr auto; grid-template-areas: "label count" "track track"; row-gap: 0.3rem; }
+  .balance-barlist__label { grid-area: label; }
+  .balance-barlist__count { grid-area: count; }
+  .balance-barlist__track { grid-area: track; }
+}
+
+/* Matriz edad×género: en móvil se vuelve TARJETAS apiladas (sin scroll horizontal
+   interno). Cada fila una tarjeta: el grupo de edad es el encabezado y cada celda
+   numérica una línea «Etiqueta: valor» (vía data-label). */
+@media (max-width: 560px) {
+  .balance-view .matrix-table-wrapper { overflow-x: visible; }
+  .balance-view .matrix-table { min-width: 0 !important; }
+  .balance-view .matrix-table thead { display: none; }
+  .balance-view .matrix-table, .balance-view .matrix-table tbody { display: block; width: 100%; }
+  .balance-view .matrix-table tr {
+    display: block; background: var(--bg-secondary); border: 1px solid var(--border-color);
+    border-radius: 14px; padding: 0.1rem 0.9rem; margin-bottom: 0.55rem;
+  }
+  .balance-view .matrix-table td {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.5rem 0 !important; border-bottom: 1px solid var(--border-color);
+    text-align: right; background: none !important;
+  }
+  .balance-view .matrix-table tr td:last-child { border-bottom: none; }
+  .balance-view .matrix-table td::before {
+    content: attr(data-label); font-weight: 700; font-size: 0.66rem; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-muted); text-align: left; flex: none;
+  }
+  .balance-view .matrix-table td:first-child {
+    justify-content: flex-start; font-size: 0.92rem; padding-top: 0.65rem !important;
+    border-bottom: 2px solid var(--border-color);
+  }
+  .balance-view .matrix-table td:first-child::before { content: ""; }
+}
+
 /* ── Catálogos Médicos (botones + modal en Morbilidad) ───────────────────────── */
 .cat-triggers { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .cat-trigger {
