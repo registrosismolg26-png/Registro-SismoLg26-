@@ -16,7 +16,9 @@ import {
   getPendingConsultas,
   markConsultaSynced,
   incrementConsultaAttempt,
-  markConsultaPermanentError
+  markConsultaPermanentError,
+  resetAllLocalToPending,
+  resetAllConsultasToPending
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
 import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad } from "@/lib/permissions";
@@ -314,8 +316,27 @@ export default function Home() {
       refreshLocalRecords();
       refreshLocalConsultas();
 
-      // Trigger automatic sync on mount
-      triggerSync();
+      // Recuperación automática ÚNICA: reencola los cambios locales que quedaron sin
+      // enviar (ediciones atascadas en 'synced' por el bug previo) y sincroniza. Se
+      // ejecuta una sola vez por dispositivo (flag en localStorage). El sync procesa
+      // en orden (creaciones antes que ediciones, luego cronológico).
+      (async () => {
+        try {
+          if (localStorage.getItem("local_resync_recovery_v1") !== "done") {
+            const n1 = await resetAllLocalToPending();
+            const n2 = await resetAllConsultasToPending();
+            localStorage.setItem("local_resync_recovery_v1", "done");
+            if (n1 + n2 > 0) {
+              await refreshLocalRecords();
+              showToast(`Recuperando ${n1 + n2} cambio(s) local(es) sin sincronizar…`, "info");
+            }
+          }
+        } catch (e) {
+          console.error("Recuperación automática de sync falló:", e);
+        }
+        // Sync inicial (recuperación + normal)
+        triggerSync();
+      })();
 
       const interval = setInterval(() => {
         if (navigator.onLine) {
@@ -818,9 +839,15 @@ export default function Home() {
       const pendingConsultasInit = await getPendingConsultas();
       if (pending.length === 0 && pendingConsultasInit.length === 0) return;
 
-      // Prioridad: censos NUEVOS antes que ediciones/asignaciones. En zona de
-      // desastre, registrar a la persona afectada es más urgente que el cuarto.
-      pending.sort((a, b) => (a.type === "update" ? 1 : 0) - (b.type === "update" ? 1 : 0));
+      // Orden: primero las CREACIONES (censos nuevos), luego las ediciones; y dentro
+      // de cada grupo, en orden CRONOLÓGICO (createdAt asc) para no montarlos
+      // desordenados. Así una creación siempre llega antes que su edición.
+      pending.sort((a, b) => {
+        const au = a.type === "update" ? 1 : 0;
+        const bu = b.type === "update" ? 1 : 0;
+        if (au !== bu) return au - bu;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
 
       const BATCH = 2;
       setSyncQueueProgress({ done: 0, total: pending.length });
@@ -882,8 +909,9 @@ export default function Home() {
       await refreshLocalRecords();
       await refreshCustomRooms();
 
-      // --- Sincronizar Consultas Médicas ---
+      // --- Sincronizar Consultas Médicas (en orden cronológico) ---
       const pendingConsultas = await getPendingConsultas();
+      pendingConsultas.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       if (pendingConsultas.length > 0) {
         for (let i = 0; i < pendingConsultas.length; i += BATCH) {
           const batch = pendingConsultas.slice(i, i + BATCH);
