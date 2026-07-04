@@ -38,6 +38,12 @@ const splitFechaHora = (iso?: string): { ymd: string; hm: string } => {
   return { ymd: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`, hm: `${pad2(d.getHours())}:${pad2(d.getMinutes())}` };
 };
 
+// Estado físico del censo derivado de las lesiones de la consulta (SINCRONÍA TOTAL,
+// decisión del dueño): si hay ≥1 lesión ACTIVA (no cicatrizada) → LESIONADO; si no hay
+// ninguna activa (sin lesiones o todas cicatrizadas) → ILESO. Valores válidos del censo.
+const estadoFisicoFromLesiones = (lesiones: Lesion[]): "ILESO" | "LESIONADO" =>
+  (Array.isArray(lesiones) ? lesiones : []).some((l) => l?.tipoId && l.estado !== "CICATRIZADA") ? "LESIONADO" : "ILESO";
+
 // Edad (a hoy) a partir de una fecha yyyy-mm-dd. Siempre se recalcula desde la fecha.
 const computeEdad = (ymd: string): string => {
   if (!ymd) return "";
@@ -258,13 +264,16 @@ export default function MorbilidadTab() {
     const prevMed = Array.isArray(matchedRegistro.medicamentoIds) ? matchedRegistro.medicamentoIds : [];
     const prevFechaYmd = ymdFromISO(matchedRegistro.fechaNacimiento);
     const nuevaEdad = edad ? parseInt(edad) : null;
+    // Estado físico derivado de las lesiones de ESTA consulta (sincronía total).
+    const nuevoEstadoFisico = estadoFisicoFromLesiones(lesiones);
     const changed =
       JSON.stringify(antecedentesPatologiaIds) !== JSON.stringify(prevPat) ||
       JSON.stringify(antecedentesMedicamentoIds) !== JSON.stringify(prevMed) ||
       nombreApellido.trim() !== (matchedRegistro.nombreApellido || "") ||
       genero !== matchedRegistro.genero ||
       (fechaNacimiento || "") !== (prevFechaYmd || "") ||
-      nuevaEdad !== (matchedRegistro.edad ?? null);
+      nuevaEdad !== (matchedRegistro.edad ?? null) ||
+      nuevoEstadoFisico !== (matchedRegistro.estadoFisico || "");
     if (!changed) return;
 
     const patologia = antecedentesPatologiaIds.length > 0 ? "SI" : "NO";
@@ -274,6 +283,7 @@ export default function MorbilidadTab() {
       genero,
       fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento + "T00:00:00").toISOString() : matchedRegistro.fechaNacimiento,
       edad: nuevaEdad ?? matchedRegistro.edad,
+      estadoFisico: nuevoEstadoFisico,
       patologia,
       patologiaIds: antecedentesPatologiaIds,
       medicamentoIds: antecedentesMedicamentoIds,
@@ -440,13 +450,15 @@ export default function MorbilidadTab() {
     const prevPat = Array.isArray(reg.patologiaIds) ? reg.patologiaIds : [];
     const prevMed = Array.isArray(reg.medicamentoIds) ? reg.medicamentoIds : [];
     const prevFechaYmd = ymdFromISO(reg.fechaNacimiento);
+    const nuevoEstadoFisico = estadoFisicoFromLesiones(ef.lesiones || []);
     const changed =
       JSON.stringify(ef.antPat) !== JSON.stringify(prevPat) ||
       JSON.stringify(ef.antMed) !== JSON.stringify(prevMed) ||
       ef.nombreApellido.trim() !== (reg.nombreApellido || "") ||
       ef.genero !== reg.genero ||
       (ef.fechaNacimiento || "") !== (prevFechaYmd || "") ||
-      (edad ?? null) !== (reg.edad ?? null);
+      (edad ?? null) !== (reg.edad ?? null) ||
+      nuevoEstadoFisico !== (reg.estadoFisico || "");
     if (!changed) return;
     const updatedReg = {
       ...reg,
@@ -454,6 +466,7 @@ export default function MorbilidadTab() {
       genero: ef.genero,
       fechaNacimiento: ef.fechaNacimiento ? new Date(ef.fechaNacimiento + "T00:00:00").toISOString() : reg.fechaNacimiento,
       edad: edad ?? reg.edad,
+      estadoFisico: nuevoEstadoFisico,
       patologia: ef.antPat.length > 0 ? "SI" : "NO",
       patologiaIds: ef.antPat,
       medicamentoIds: ef.antMed,
