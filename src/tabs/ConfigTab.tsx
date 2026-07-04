@@ -20,7 +20,7 @@
 import { useState, useEffect } from "react";
 import QRCode from "qrcode";
 import { getPending, saveLocal, resetAttempts, resetAllLocalToPending, resetAllConsultasToPending, type LocalRegistro } from "@/lib/db";
-import { formatRoomLabel } from "@/lib/helpers";
+import { formatRoomLabel, normalizeText } from "@/lib/helpers";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { canManageRooms, canRegister, isMaster, canManageCatalogosMedicos } from "@/lib/permissions";
@@ -932,7 +932,7 @@ export default function ConfigTab() {
             <input type="text" value={patFilter} onChange={(e) => setPatFilter(e.target.value)} placeholder="Filtrar patologías…" style={{ marginBottom: "0.5rem" }} />
             <div style={{ maxHeight: "220px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
               {patologias
-                .filter((p) => p.nombre.toLowerCase().includes(patFilter.toLowerCase()))
+                .filter((p) => normalizeText(p.nombre).includes(normalizeText(patFilter)))
                 .map((p) => (
                   <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0.65rem", borderBottom: "1px solid var(--border-color)", fontSize: "0.82rem" }}>
                     <span>{p.nombre}</span>
@@ -957,7 +957,7 @@ export default function ConfigTab() {
             <input type="text" value={medFilter} onChange={(e) => setMedFilter(e.target.value)} placeholder="Filtrar medicamentos…" style={{ marginBottom: "0.5rem" }} />
             <div style={{ maxHeight: "220px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
               {predefinedMedicamentos
-                .filter((m) => [m.nombre, m.concentracion, m.presentacion].join(" ").toLowerCase().includes(medFilter.toLowerCase()))
+                .filter((m) => normalizeText([m.nombre, m.concentracion, m.presentacion].join(" ")).includes(normalizeText(medFilter)))
                 .map((m) => (
                   <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0.65rem", borderBottom: "1px solid var(--border-color)", fontSize: "0.82rem" }}>
                     <span>{[m.nombre, m.concentracion, m.presentacion].map((s) => (s || "").trim()).filter(Boolean).join(" · ")}</span>

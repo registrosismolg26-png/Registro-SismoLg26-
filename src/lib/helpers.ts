@@ -2,6 +2,13 @@
 
 import type { Patologia, MedicamentoPredefinido, Medicamento } from "@/types";
 
+// Normaliza texto para BÚSQUEDAS: minúsculas y SIN acentos/diacríticos, para que
+// "patologia" encuentre "patología" y "nino" encuentre "niño". Úsalo tanto en la
+// consulta como en el texto candidato antes de comparar con includes().
+export function normalizeText(s: string | null | undefined): string {
+  return (s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
 // ── Interpolación ID → nombre (modelo por-ID) ───────────────────────────────
 // Los registros/consultas guardan SOLO ids del catálogo; el nombre se resuelve
 // aquí para mostrar/exportar. Si el id no existe (ítem borrado del catálogo),

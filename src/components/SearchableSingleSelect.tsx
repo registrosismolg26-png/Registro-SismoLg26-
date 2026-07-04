@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { useAnchoredRect } from "./useAnchoredRect";
 import { useIsMobile } from "./useIsMobile";
 import MobileSheet from "./MobileSheet";
+import { normalizeText } from "@/lib/helpers";
 
 export interface SingleOption { value: string; label: string; }
 
@@ -78,8 +79,8 @@ export default function SearchableSingleSelect({
   const current = options.find((o) => o.value === value) || null;
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = q ? options.filter(o => o.label.toLowerCase().includes(q)) : options;
+    const q = normalizeText(query.trim());
+    const list = q ? options.filter(o => normalizeText(o.label).includes(q)) : options;
     return { items: list.slice(0, maxRender), total: list.length };
   }, [options, query, maxRender]);
 

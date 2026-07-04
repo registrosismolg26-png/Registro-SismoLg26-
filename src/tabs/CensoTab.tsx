@@ -1235,7 +1235,7 @@ export default function CensoTab() {
                       className="btn-submit"
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? "Guardando..." : "Registrar Familia Afectada"}
+                      {isSubmitting ? "Guardando..." : "Registrar Afectado"}
                     </button>
                   )}
                 </div>

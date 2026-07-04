@@ -720,7 +720,7 @@ html[data-theme="dark"] select {
 .med-section {
   margin-top: 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 20px;
   overflow: hidden;
 }
 
@@ -4834,7 +4834,8 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 
 /* Medicamentos: cada uno es una TARJETA legible en teléfono y escritorio.
    (Reemplaza la fila-tabla que en móvil se comprimía y no se leía bien.) */
-.med-items { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.65rem; }
+/* Separación entre el contenedor .med-section y las tarjetas de medicamento */
+.med-items { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.7rem; }
 .med-item {
   border: 1px solid var(--border-color);
   border-radius: 16px;

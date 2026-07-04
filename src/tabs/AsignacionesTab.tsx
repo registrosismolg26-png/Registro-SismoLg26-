@@ -18,7 +18,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
-import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText } from "@/lib/helpers";
+import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import type { Medicamento } from "@/types";
@@ -111,7 +111,7 @@ export default function AsignacionesTab() {
 
     // Apply text search
     if (registroSearch.trim()) {
-      const q = registroSearch.toLowerCase();
+      const q = normalizeText(registroSearch);
       // Si el término parece una cédula (V-55555, E-55555 o 55555), se busca por
       // sus dígitos tanto en la cédula propia como en cedulaJefeFamilia, para que
       // al buscar la cédula de un jefe aparezcan los integrantes de su núcleo.
@@ -119,9 +119,9 @@ export default function AsignacionesTab() {
       const looksLikeCedula = qDigits.length >= 5;
       result = result.filter(r => {
         if (
-          r.nombreApellido?.toLowerCase().includes(q) ||
-          r.cedula?.toLowerCase().includes(q) ||
-          r.parroquia?.toLowerCase().includes(q)
+          normalizeText(r.nombreApellido).includes(q) ||
+          normalizeText(r.cedula).includes(q) ||
+          normalizeText(r.parroquia).includes(q)
         ) return true;
         if (looksLikeCedula) {
           const ced  = (r.cedula || "").replace(/\D/g, "");
