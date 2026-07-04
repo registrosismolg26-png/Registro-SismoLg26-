@@ -397,27 +397,27 @@ export default function MorbilidadTab() {
           <div className="morb-card morb-card--primary">
             <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
             <div className="morb-basic">
-              <div className="morb-field">
+              <div className="morb-field f-cedula">
                 <label className="morb-field__label">Cédula</label>
                 <input className="morb-control" type="text" value={cedula} disabled />
               </div>
-              <div className="morb-field morb-field--wide">
+              <div className="morb-field f-nombre">
                 <label className="morb-field__label">Nombre y Apellido</label>
                 <input className="morb-control" type="text" value={nombreApellido} onChange={(e) => setNombreApellido(e.target.value)} required />
               </div>
-              <div className="morb-field">
+              <div className="morb-field f-genero">
                 <label className="morb-field__label">Género</label>
                 <StyledSelect value={genero} onChange={setGenero} options={GENERO_OPTS} ariaLabel="Género" />
               </div>
-              <div className="morb-field">
+              <div className="morb-field f-fecha">
                 <label className="morb-field__label">Fecha de Nacimiento</label>
                 <DatePicker value={fechaNacimiento} onChange={onFechaChange} placeholder="Seleccionar fecha…" />
               </div>
-              <div className="morb-field">
+              <div className="morb-field f-edad">
                 <label className="morb-field__label">Edad (años)</label>
                 <input className="morb-control" type="text" value={edad === "" ? "—" : edad} disabled title="Se calcula automáticamente de la fecha de nacimiento" />
               </div>
-              <div className="morb-field full">
+              <div className="morb-field f-refugio">
                 <label className="morb-field__label">Campamento Transitorio (Refugio)</label>
                 <input className="morb-control" type="text" value={refugio} disabled />
               </div>

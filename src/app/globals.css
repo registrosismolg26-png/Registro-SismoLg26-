@@ -4476,11 +4476,36 @@ select.morb-control { cursor: pointer; }
 .morb-control:disabled { opacity: 0.7; background: var(--border-color); cursor: not-allowed; }
 textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem; resize: vertical; line-height: 1.4; }
 
-/* Datos Básicos: se reparte en tantas columnas como quepan (full-width en PC) */
-.morb-basic { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: clamp(0.7rem, 1.6vw, 1rem); }
-.morb-basic .full { grid-column: 1 / -1; }
-.morb-basic .morb-field--wide { grid-column: span 2; }
-@media (max-width: 480px) { .morb-basic .morb-field--wide { grid-column: 1 / -1; } }
+/* Datos Básicos: grilla determinista por áreas (llena el espacio, sin huecos).
+   Móvil = 1 col; tablet = 4 cols; PC = 6 cols. Nombre y Refugio más anchos. */
+.morb-basic {
+  display: grid;
+  gap: clamp(0.7rem, 1.6vw, 1rem);
+  grid-template-columns: 1fr;
+  grid-template-areas: "cedula" "nombre" "genero" "fecha" "edad" "refugio";
+}
+.morb-basic .f-cedula  { grid-area: cedula; }
+.morb-basic .f-nombre  { grid-area: nombre; }
+.morb-basic .f-genero  { grid-area: genero; }
+.morb-basic .f-fecha   { grid-area: fecha; }
+.morb-basic .f-edad    { grid-area: edad; }
+.morb-basic .f-refugio { grid-area: refugio; }
+@media (min-width: 560px) {
+  .morb-basic {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-areas:
+      "cedula nombre nombre genero"
+      "fecha  edad   refugio refugio";
+  }
+}
+@media (min-width: 960px) {
+  .morb-basic {
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-areas:
+      "cedula nombre nombre nombre genero  genero"
+      "fecha  fecha  edad   refugio refugio refugio";
+  }
+}
 
 /* ── Date picker (un solo control con calendario) ── */
 .morb-datepicker {
