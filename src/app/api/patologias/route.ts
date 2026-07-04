@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, canManageCatalogosMedicos } from "@/lib/auth";
+import { getAuthUser, canEditCatalogosMedicos, canManageCatalogosMedicos } from "@/lib/auth";
 
 // GET: catálogo de patologías como objetos { id, nombre } (modelo por-ID).
 export async function GET(req: Request) {
@@ -22,12 +22,12 @@ export async function GET(req: Request) {
   }
 }
 
-// POST: crear una patología del catálogo (solo AdminMedico/Master).
+// POST: crear una patología del catálogo (crear/editar → AdminMedico/OperadorMedico/Master).
 export async function POST(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (!canManageCatalogosMedicos(auth)) {
+    if (!canEditCatalogosMedicos(auth)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -49,6 +49,35 @@ export async function POST(req: Request) {
     }
     console.error("Error en POST /api/patologias:", error);
     return NextResponse.json({ error: "Error al crear patología" }, { status: 500 });
+  }
+}
+
+// PUT: renombrar una patología conservando su id (crear/editar → canEdit). Así las
+// consultas/registros que la referencian por ID siguen válidos tras el cambio de nombre.
+export async function PUT(req: Request) {
+  try {
+    const auth = await getAuthUser(req);
+    if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (!canEditCatalogosMedicos(auth)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const id = String(body?.id ?? "").trim();
+    const nombre = String(body?.nombre ?? "").replace(/\s+/g, " ").trim();
+    if (!id) return NextResponse.json({ error: "Falta el id" }, { status: 400 });
+    if (!nombre) return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
+    if (nombre.includes(",")) {
+      return NextResponse.json({ error: "El nombre no puede contener comas" }, { status: 400 });
+    }
+
+    const patologia = await prisma.patologia.update({ where: { id }, data: { nombre } });
+    return NextResponse.json({ success: true, patologia });
+  } catch (error: any) {
+    if (error?.code === "P2002") return NextResponse.json({ error: "Esa patología ya existe" }, { status: 409 });
+    if (error?.code === "P2025") return NextResponse.json({ error: "Patología no encontrada" }, { status: 404 });
+    console.error("Error en PUT /api/patologias:", error);
+    return NextResponse.json({ error: "Error al actualizar patología" }, { status: 500 });
   }
 }
 

@@ -11,7 +11,7 @@
 
 import { useState, useLayoutEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { canManageUsers, canViewDashboard, isMaster, canManageMorbilidad } from "@/lib/permissions";
+import { canManageUsers, canViewDashboard, isMaster, canManageMorbilidad, canRegister, isMedico } from "@/lib/permissions";
 
 export default function AppHeader() {
   const {
@@ -139,7 +139,7 @@ export default function AppHeader() {
                 : "none",
             }}
           />
-          {currentUser.role !== "VISUALIZADOR" && (
+          {canRegister(currentUser.role) && (
             <button
               type="button"
               data-tab="censo"
@@ -161,15 +161,17 @@ export default function AppHeader() {
               <span>Estadísticas</span>
             </button>
           )}
-          <button
-            type="button"
-            data-tab="asignaciones"
-            className={`nav-btn ${activeTab === "asignaciones" ? "active" : ""}`}
-            onClick={() => setActiveTab("asignaciones")}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <span>Registrados</span>
-          </button>
+          {!isMedico(currentUser.role) && (
+            <button
+              type="button"
+              data-tab="asignaciones"
+              className={`nav-btn ${activeTab === "asignaciones" ? "active" : ""}`}
+              onClick={() => setActiveTab("asignaciones")}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <span>Registrados</span>
+            </button>
+          )}
           {canManageMorbilidad(currentUser.role) && (
             <button
               type="button"
@@ -192,7 +194,7 @@ export default function AppHeader() {
               <span>Usuarios</span>
             </button>
           )}
-          {currentUser.role !== "VISUALIZADOR" && (
+          {!isMedico(currentUser.role) && currentUser.role !== "VISUALIZADOR" && (
             <button
               type="button"
               data-tab="config"
@@ -203,10 +205,12 @@ export default function AppHeader() {
               <span>Configuración</span>
             </button>
           )}
-          <a href="/buscar" className="nav-btn nav-btn--buscar" style={{ textDecoration: "none" }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <span>Buscar</span>
-          </a>
+          {!isMedico(currentUser.role) && (
+            <a href="/buscar" className="nav-btn nav-btn--buscar" style={{ textDecoration: "none" }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span>Buscar</span>
+            </a>
+          )}
         </div>
 
         <div className="nav-mobile-menu">
@@ -232,7 +236,7 @@ export default function AppHeader() {
           </div>
           {menuOpen && (
             <div className="nav-mobile-dropdown">
-              {currentUser.role !== "VISUALIZADOR" && activeTab !== "censo" && (
+              {canRegister(currentUser.role) && activeTab !== "censo" && (
                 <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("censo"); setMenuOpen(false); }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                   Registrar
@@ -244,7 +248,7 @@ export default function AppHeader() {
                   Estadísticas
                 </button>
               )}
-              {activeTab !== "asignaciones" && (
+              {!isMedico(currentUser.role) && activeTab !== "asignaciones" && (
                 <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("asignaciones"); setMenuOpen(false); }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                   Registrados
@@ -262,16 +266,18 @@ export default function AppHeader() {
                   Usuarios
                 </button>
               )}
-              {currentUser.role !== "VISUALIZADOR" && activeTab !== "config" && (
+              {!isMedico(currentUser.role) && currentUser.role !== "VISUALIZADOR" && activeTab !== "config" && (
                 <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("config"); setMenuOpen(false); }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
                   Configuración
                 </button>
               )}
-              <a href="/buscar" className="nav-dropdown-item" style={{ textDecoration: "none" }} onClick={() => setMenuOpen(false)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                Buscar Familiar
-              </a>
+              {!isMedico(currentUser.role) && (
+                <a href="/buscar" className="nav-dropdown-item" style={{ textDecoration: "none" }} onClick={() => setMenuOpen(false)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  Buscar Familiar
+                </a>
+              )}
             </div>
           )}
         </div>

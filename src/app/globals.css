@@ -4550,6 +4550,8 @@ h2.dashboard-section-title {
   gap: var(--morb-gap);
 }
 
+.morb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.9rem 1.25rem; flex-wrap: wrap; }
+.morb-head__titles { min-width: 0; flex: 1 1 240px; }
 .morb-head h2 {
   font-family: var(--font-heading);
   font-size: clamp(1.15rem, 1rem + 1.1vw, 1.6rem);
@@ -4867,6 +4869,39 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 
 /* ── Historial ── */
 .morb-history__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+.morb-hist__notas { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Historial de morbilidad: en móvil la tabla se vuelve TARJETAS apiladas para que
+   fluya con la página (sin scroll horizontal interno), igual que Registrados. */
+@media (max-width: 767px) {
+  .morb-history__scroll { overflow-x: visible; }
+  .morb-history__scroll .matrix-table { min-width: 0 !important; }
+  .morb-history__scroll .matrix-table thead { display: none; }
+  .morb-history__scroll .matrix-table,
+  .morb-history__scroll .matrix-table tbody { display: block; width: 100%; }
+  .morb-history__scroll .matrix-table tr {
+    display: block;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 0.15rem 0.85rem;
+    margin-bottom: 0.6rem;
+    box-shadow: 0 2px 10px -5px rgba(0,0,0,0.14);
+  }
+  .morb-history__scroll .matrix-table td {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.55rem 0 !important;
+    border-bottom: 1px solid var(--border-color);
+    text-align: right; white-space: normal !important; max-width: none !important;
+  }
+  .morb-history__scroll .matrix-table tr td:last-child { border-bottom: none; }
+  .morb-history__scroll .matrix-table td::before {
+    content: attr(data-label);
+    font-weight: 700; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-muted); text-align: left; flex: none; white-space: nowrap;
+  }
+  .morb-hist__notas { max-width: none; white-space: normal; }
+}
 
 /* ── Keyframes ── */
 @keyframes morbFadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
@@ -5317,6 +5352,76 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 .update-banner__title { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-primary); }
 .update-banner__text { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.4; margin: 0.15rem 0 0; }
 .update-banner__hint { color: var(--text-muted); }
+
+/* ── Catálogos Médicos (botones + modal en Morbilidad) ───────────────────────── */
+.cat-triggers { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.cat-trigger {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  height: 40px; padding: 0 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.82rem; font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.cat-trigger:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.cat-trigger:active { transform: scale(0.97); }
+.cat-trigger svg { flex: none; }
+
+.cat-modal { max-width: 560px; }
+.cat-body { display: flex; flex-direction: column; gap: 0.7rem; padding: 0.25rem 0 0; }
+
+/* Formulario de alta/edición */
+.cat-add--pat { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.cat-add--pat > input { flex: 1 1 180px; min-width: 0; }
+.cat-add--med { display: grid; grid-template-columns: 1fr; gap: 0.5rem; }
+.cat-add__row { display: flex; gap: 0.5rem; }
+.cat-add__btn { width: auto !important; padding: 0 1.15rem !important; flex: 0 0 auto; }
+.cat-add__cancel { width: auto !important; padding: 0 1rem !important; flex: 0 0 auto; }
+.cat-add--pat .cat-add__btn, .cat-add--pat .cat-add__cancel { flex: 0 0 auto; }
+.cat-filter { width: 100%; }
+.cat-count { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; }
+
+/* Lista */
+.cat-list {
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden auto;
+  max-height: 320px;
+}
+.cat-empty { padding: 1rem; text-align: center; color: var(--text-muted); font-size: 0.82rem; }
+.cat-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.84rem;
+}
+.cat-list .cat-row:last-child { border-bottom: none; }
+.cat-row--editing { background: var(--color-primary-light); }
+.cat-row__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-row__actions { display: inline-flex; gap: 0.3rem; flex: none; }
+.cat-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: none; background: var(--color-primary-light); color: var(--color-primary);
+  cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+}
+.cat-icon-btn:hover { background: var(--color-primary); color: #fff; }
+.cat-icon-btn--danger { background: var(--color-danger-light, #fee2e2); color: var(--color-danger, #dc2626); }
+.cat-icon-btn--danger:hover { background: var(--color-danger, #dc2626); color: #fff; }
+.cat-confirm { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.76rem; color: var(--text-secondary); flex: none; }
+.cat-confirm__yes, .cat-confirm__no {
+  border: none; border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.74rem; font-weight: 700; cursor: pointer;
+}
+.cat-confirm__yes { background: var(--color-danger, #dc2626); color: #fff; }
+.cat-confirm__no { background: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+
+@media (min-width: 560px) {
+  .cat-add--med { grid-template-columns: 1.4fr 1fr 1fr; }
+  .cat-add--med .cat-add__row { grid-column: 1 / -1; }
+}
 .update-banner__actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
 .update-banner__btn {
   height: 40px;

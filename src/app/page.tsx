@@ -19,7 +19,7 @@ import {
   markConsultaPermanentError
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
-import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad } from "@/lib/permissions";
+import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad, isMedico } from "@/lib/permissions";
 import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
@@ -174,6 +174,15 @@ export default function Home() {
 
   // Tab View Routing State
   const [activeTab, setActiveTab] = useState<ActiveTab>("censo");
+
+  // Los roles médicos solo ven Morbilidad (AdminMedico además Usuarios). Si entran
+  // en una pestaña que no les corresponde (p. ej. el default "censo"), se les lleva
+  // a Morbilidad. Espeja el gating del AppHeader/render.
+  useEffect(() => {
+    if (!currentUser || !isMedico(currentUser.role)) return;
+    const allowed = currentUser.role === "AdminMedico" ? ["morbilidad", "usuarios"] : ["morbilidad"];
+    if (!allowed.includes(activeTab)) setActiveTab("morbilidad");
+  }, [currentUser, activeTab]);
 
   // Dashboard Stats States
   const [stats, setStats] = useState<any>(null);
@@ -1260,20 +1269,20 @@ export default function Home() {
       {/* Cabecera institucional + navegación (dentro del Provider) */}
       <AppHeader />
 
-      {/* TAB 1: FORM VIEW (CENSO) */}
-      {activeTab === "censo" && <CensoTab />}
+      {/* TAB 1: FORM VIEW (CENSO) — no visible para médicos ni Visualizador */}
+      {activeTab === "censo" && canRegister(currentUser.role) && <CensoTab />}
 
       {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
       {activeTab === "dashboard" && canViewDashboard(currentUser.role) && <DashboardTab />}
 
-      {/* TAB 3: USER ADMINISTRATION (MASTER o ADMIN) */}
+      {/* TAB 3: USER ADMINISTRATION (MASTER, ADMIN o AdminMedico —filtrado) */}
       {activeTab === "usuarios" && canManageUsers(currentUser.role) && <UsuariosTab />}
 
-      {/* TAB 4: CONFIGURATION & DATABASE STATS VIEW */}
-      {activeTab === "config" && <ConfigTab />}
+      {/* TAB 4: CONFIGURATION — no visible para médicos ni Visualizador */}
+      {activeTab === "config" && !isMedico(currentUser.role) && currentUser.role !== "VISUALIZADOR" && <ConfigTab />}
 
-      {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS */}
-      {activeTab === "asignaciones" && <AsignacionesTab />}
+      {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos */}
+      {activeTab === "asignaciones" && !isMedico(currentUser.role) && <AsignacionesTab />}
 
       {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
       {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}

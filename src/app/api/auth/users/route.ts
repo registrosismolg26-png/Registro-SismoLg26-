@@ -10,11 +10,25 @@ function hashPassword(password: string): string {
   return `scrypt$${salt}$${hash}`;
 }
 
-// Roles que el actor puede asignar: Master cualquiera; Admin solo por debajo.
+// Roles que el actor puede asignar:
+//  · Master → cualquiera menos Master (incluye crear AdminMedico).
+//  · AdminMedico → SOLO OperadorMedico / AsistenteMedico (nunca otro AdminMedico).
+//  · Admin (censo) → solo roles de censo (Registrador/Visualizador); no crea médicos.
 function assignableRoles(actor: AuthUser): string[] {
-  return isMaster(actor)
-    ? ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"]  // Master NO crea/asigna otros Master
-    : ["REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (isMaster(actor)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (actor.role === "AdminMedico") return ["OperadorMedico", "AsistenteMedico"];
+  return ["REGISTRADOR", "VISUALIZADOR"];
+}
+
+// Filtro de listado por actor (espejado en la UI):
+//  · Master → todos.  · AdminMedico → solo médicos (Operador/Asistente) de su refugio.
+//  · Admin → todos los de su refugio.
+function usersListWhere(auth: AuthUser) {
+  if (isMaster(auth)) return {};
+  if (auth.role === "AdminMedico") {
+    return { campamentoTransitorio: auth.refugio, role: { in: ["OperadorMedico", "AsistenteMedico"] } };
+  }
+  return { campamentoTransitorio: auth.refugio };
 }
 
 export async function GET(req: Request) {
@@ -24,9 +38,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     }
 
-    // Master ve todos los operadores; Admin solo los de su refugio.
+    // Master: todos. AdminMedico: solo médicos de su refugio. Admin: los de su refugio.
     const users = await prisma.user.findMany({
-      where: isMaster(auth) ? {} : { campamentoTransitorio: auth.refugio },
+      where: usersListWhere(auth),
       select: { id: true, email: true, nombre: true, role: true, campamentoTransitorio: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     });

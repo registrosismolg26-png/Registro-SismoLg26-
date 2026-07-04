@@ -69,22 +69,30 @@ export async function getAuthUser(req: Request): Promise<AuthUser | null> {
 export const isMaster          = (u: AuthUser) => u.role === "MASTER";
 export const canRegister       = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(u.role); // crear/editar censo
 export const canDeleteRegistro = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
-export const canManageUsers    = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
+// Gestión de usuarios: Admin (censo, su refugio), AdminMedico (solo médicos, su refugio) y Master.
+export const canManageUsers    = (u: AuthUser) => ["MASTER", "ADMIN", "AdminMedico"].includes(u.role);
 export const canManageRooms    = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 export const canManagePadron   = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 // Morbilidad: registrar consultas médicas.
 export const canManageMorbilidad = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
-// Catálogos médicos (patologías/medicamentos): solo el admin médico y Master.
+// ¿Es un rol médico? (solo ven Morbilidad; AdminMedico además ve Usuarios filtrado a médicos).
+export const isMedico = (u: AuthUser) => ["AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
+// Catálogos médicos — CREAR/EDITAR (renombrar): AdminMedico, OperadorMedico y Master.
+export const canEditCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico"].includes(u.role);
+// Catálogos médicos — ELIMINAR y superficie de administración: solo AdminMedico y Master
+// (OperadorMedico crea/edita pero NO elimina).
 export const canManageCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedico"].includes(u.role);
 
 /** ¿Puede el usuario actuar sobre datos de este refugio? Master: cualquiera. */
 export const canActOnRefugio = (u: AuthUser, refugio: string) =>
   isMaster(u) || u.refugio === refugio;
 
-/** ¿Puede el actor GESTIONAR (editar/borrar) a este usuario objetivo?
+/** ¿Puede el actor GESTIONAR (crear/editar/borrar) a este usuario objetivo?
  *  - A un MASTER no lo toca nadie desde la app (se gestionan por SQL).
- *  - Master: cualquier usuario que no sea Master.
- *  - Admin: solo Registrador/Visualizador de su propio refugio (no Admin ni Master). */
+ *  - Master: cualquier usuario que no sea Master (incluye crear/editar AdminMedico).
+ *  - Admin (censo): solo Registrador/Visualizador de su propio refugio.
+ *  - AdminMedico: solo OperadorMedico/AsistenteMedico de su propio refugio (NO otro
+ *    AdminMedico: crear/editar AdminMedico es exclusivo de Master). */
 export function canManageTargetUser(
   actor: AuthUser,
   target: { role: string; campamentoTransitorio: string }
@@ -92,7 +100,11 @@ export function canManageTargetUser(
   if (target.role === "MASTER") return false;
   if (isMaster(actor)) return true;
   if (actor.role === "ADMIN") {
-    return ["REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(target.role)
+    return ["REGISTRADOR", "VISUALIZADOR"].includes(target.role)
+      && target.campamentoTransitorio === actor.refugio;
+  }
+  if (actor.role === "AdminMedico") {
+    return ["OperadorMedico", "AsistenteMedico"].includes(target.role)
       && target.campamentoTransitorio === actor.refugio;
   }
   return false;

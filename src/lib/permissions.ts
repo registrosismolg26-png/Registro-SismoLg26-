@@ -9,17 +9,41 @@
 export const isMaster          = (role: string) => role === "MASTER";
 export const canRegister       = (role: string) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(role); // crear/editar censo
 export const canDeleteRegistro = (role: string) => ["MASTER", "ADMIN"].includes(role);
-export const canManageUsers    = (role: string) => ["MASTER", "ADMIN"].includes(role);
+export const canManageUsers    = (role: string) => ["MASTER", "ADMIN", "AdminMedico"].includes(role);
 export const canManageRooms    = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canManagePadron   = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role); // panel de estadísticas
 export const canManageMorbilidad = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(role);
-// Gestionar catálogos médicos (patologías/medicamentos) desde Configuración.
+// ¿Rol médico? Solo ven Morbilidad (AdminMedico además ve Usuarios filtrado a médicos).
+export const isMedico          = (role: string) => ["AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(role);
+// Catálogos médicos — CREAR/EDITAR: AdminMedico, OperadorMedico y Master.
+export const canEditCatalogosMedicos = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico"].includes(role);
+// Catálogos médicos — ELIMINAR y superficie de administración: solo AdminMedico y Master.
 export const canManageCatalogosMedicos = (role: string) => ["MASTER", "AdminMedico"].includes(role);
 
 /** ¿El usuario tiene un refugio válido asociado? (espejo de auth.ts hasRefugio). */
 export const hasRefugio        = (refugio: string | null | undefined): boolean =>
   typeof refugio === "string" && refugio.trim().length > 0;
+
+/** Roles que el actor puede asignar al crear/editar usuarios. Espejo EXACTO del
+ *  backend (src/app/api/auth/users/route.ts → assignableRoles). Solo para poblar
+ *  el selector de rol; el backend vuelve a validar. */
+export function assignableRoles(role: string): string[] {
+  if (isMaster(role)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (role === "AdminMedico") return ["OperadorMedico", "AsistenteMedico"];
+  return ["REGISTRADOR", "VISUALIZADOR"];
+}
+
+/** Etiquetas legibles de cada rol para la UI. */
+export const ROLE_LABELS: Record<string, string> = {
+  MASTER: "Master",
+  ADMIN: "Administrador",
+  REGISTRADOR: "Registrador",
+  VISUALIZADOR: "Visualizador",
+  AdminMedico: "Admin Médico",
+  OperadorMedico: "Operador Médico",
+  AsistenteMedico: "Asistente Médico",
+};
 
 /** ¿Puede el actor editar/borrar a este usuario objetivo? Espejo del back.
  *  - A un MASTER no lo toca nadie desde la app.

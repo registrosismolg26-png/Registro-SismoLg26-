@@ -44,6 +44,13 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 - **ADMIN:** administra SU refugio (usuarios Reg/Vis de su refugio, registros, cuartos, stats de su refugio). No toca otros Admin ni Master. **Solo Master asigna Admin.**
 - **REGISTRADOR:** censa + edita registros de su refugio; usa el padrón para autocompletar.
 - **VISUALIZADOR:** solo ve y exporta su refugio.
+- **Roles MÉDICOS** (`isMedico` = AdminMedico | OperadorMedico | AsistenteMedico): **solo ven la pestaña Morbilidad** (no censo, dashboard, Registrados ni Configuración general). Gating en `AppHeader` + `page.tsx` (render) + efecto que redirige a Morbilidad si caen en otra pestaña.
+  - **AdminMedico:** además ve **Usuarios** pero FILTRADO a solo médicos (Operador/Asistente) de su refugio; crea/edita SOLO OperadorMedico y AsistenteMedico (crear AdminMedico es exclusivo de Master). Elimina catálogos.
+  - **OperadorMedico:** crea/edita consultas (no elimina) y **crea/edita catálogos** (patologías/medicamentos, sin eliminar).
+  - **AsistenteMedico:** solo crea/edita consultas; NO toca catálogos ni elimina nada.
+- **Catálogos médicos** (patologías/medicamentos): la gestión se hace desde **Morbilidad** (componente `src/components/CatalogosMedicos.tsx`: 2 botones + modales, full pill). Permisos: `canEditCatalogosMedicos` (Master/AdminMedico/OperadorMedico → crear + editar-renombrar vía PUT conservando el ID) y `canManageCatalogosMedicos` (Master/AdminMedico → eliminar). Espejados en `permissions.ts` (cliente) y `auth.ts` (backend, fuente de verdad). Ya **no** están en Configuración.
+- **Gestión de usuarios:** `canManageUsers` = Master/Admin/AdminMedico. `assignableRoles(actor)` y `canManageTargetUser(actor, target)` (en `auth.ts` + espejo en `permissions.ts`) definen quién asigna/gestiona qué rol; el selector de rol de `UsuariosTab` se puebla desde `assignableRoles` (no roles hardcodeados). El listado GET se filtra por actor (`usersListWhere`).
+- **Consultas médicas:** son **inmutables** por diseño (POST idempotente: reenviar una consulta ya creada no la modifica). "Editar" en Morbilidad aplica a los **antecedentes** del paciente (que se propagan al censo), no a consultas ya guardadas.
 - **Scoping:** `refugioScope(user)` → Master `{}` (todo), resto `{ refugio }`. Aplicado en registros, stats, cuartos, usuarios.
 
 ## Patrón: offline (señal casi nula)

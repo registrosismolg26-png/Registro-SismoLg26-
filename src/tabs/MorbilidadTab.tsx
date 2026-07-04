@@ -7,6 +7,7 @@ import { patologiaNombre, medLabel, medItemsText } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
 import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
+import CatalogosMedicos from "@/components/CatalogosMedicos";
 import { PERIODO_OPTIONS } from "@/lib/constants";
 import type { Medicamento } from "@/types";
 
@@ -362,8 +363,13 @@ export default function MorbilidadTab() {
     <div className="tab-view morb">
       {/* 1. Header */}
       <div className="morb-head">
-        <h2>Consultas Médicas (Morbilidad)</h2>
-        <p>Registro clínico y diagnóstico de pacientes refugiados</p>
+        <div className="morb-head__titles">
+          <h2>Consultas Médicas (Morbilidad)</h2>
+          <p>Registro clínico y diagnóstico de pacientes refugiados</p>
+        </div>
+        {/* Catálogos médicos: dos botones discretos + modales (gestión de patologías
+            y medicamentos). Solo se muestran a quien puede editar catálogos. */}
+        <CatalogosMedicos />
       </div>
 
       {/* 2. Buscador por Cédula */}
@@ -495,10 +501,10 @@ export default function MorbilidadTab() {
                   const diagMeds: Medicamento[] = Array.isArray(c.data.diagnosticoMedicamentoIds) ? c.data.diagnosticoMedicamentoIds : [];
                   return (
                     <tr key={c.id}>
-                      <td style={{ whiteSpace: "nowrap" }}>{dateStr}</td>
-                      <td style={{ fontWeight: "700" }}>{c.data.cedula}</td>
-                      <td>{c.data.nombreApellido}</td>
-                      <td>
+                      <td data-label="Fecha" style={{ whiteSpace: "nowrap" }}>{dateStr}</td>
+                      <td data-label="Cédula" style={{ fontWeight: "700" }}>{c.data.cedula}</td>
+                      <td data-label="Paciente">{c.data.nombreApellido}</td>
+                      <td data-label="Diagnóstico">
                         {diagPatIds.length > 0 ? (
                           <span style={{ color: "var(--color-success)", fontWeight: "600" }}>{diagPatIds.map((id) => patologiaNombre(id, patologias)).join(", ")}</span>
                         ) : (
@@ -508,8 +514,8 @@ export default function MorbilidadTab() {
                           <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)", marginTop: "4px" }}>R: {medItemsText(diagMeds, predefinedMedicamentos)}</div>
                         )}
                       </td>
-                      <td style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.data.notasDoctor}>{c.data.notasDoctor || "-"}</td>
-                      <td>
+                      <td data-label="Notas del Dr." className="morb-hist__notas" title={c.data.notasDoctor}>{c.data.notasDoctor || "-"}</td>
+                      <td data-label="Estado">
                         <span className={`sync-status-badge ${c.status === "synced" ? "synced" : c.status === "error" ? "error" : "pending"}`}>
                           {c.status === "synced" ? "Sincronizado" : c.status === "error" ? "Error" : "Pendiente"}
                         </span>

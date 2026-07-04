@@ -7,17 +7,30 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { canManageUsers, isMaster, canManageTargetUser, hasRefugio } from "@/lib/permissions";
+import { canManageUsers, isMaster, canManageTargetUser, hasRefugio, assignableRoles, ROLE_LABELS } from "@/lib/permissions";
 
 export default function UsuariosTab() {
   const { currentUser, isOnline, showToast } = useAppContext();
+
+  // Roles que ESTE actor puede asignar (Master: todos; AdminMedico: solo médicos;
+  // Admin: solo censo). Espejo del backend; el selector se puebla desde aquí.
+  const rolesAsignables = assignableRoles(currentUser?.role ?? "");
+  const defaultRole = rolesAsignables[0] ?? "REGISTRADOR";
+  // Opciones del <select> de rol; preserva el rol actual del objetivo aunque no sea
+  // asignable por el actor (caso edición), para que el valor del select cuadre.
+  const roleOptions = (current: string) => {
+    const list = rolesAsignables.slice();
+    if (current && !list.includes(current)) list.push(current);
+    return list.map(r => <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>);
+  };
+  const esAdminMedico = currentUser?.role === "AdminMedico";
 
   const [userForm, setUserForm] = useState({
     nombre: "",
     email: "",
     password: "",
     confirmPassword: "",
-    role: "REGISTRADOR",
+    role: defaultRole,
     campamentoTransitorio: ""
   });
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -146,7 +159,7 @@ export default function UsuariosTab() {
         email: "",
         password: "",
         confirmPassword: "",
-        role: "REGISTRADOR",
+        role: defaultRole,
         campamentoTransitorio: ""
       });
       setUserShowPassword(false);
@@ -219,7 +232,7 @@ export default function UsuariosTab() {
         email: "",
         password: "",
         confirmPassword: "",
-        role: "REGISTRADOR",
+        role: defaultRole,
         campamentoTransitorio: ""
       });
       setUserShowPassword(false);
@@ -272,13 +285,15 @@ export default function UsuariosTab() {
           <div className="config-section-header" style={{ marginBottom: "1.25rem" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                <span className="dashboard-section-label">OPERADORES DEL SISTEMA</span>
+                <span className="dashboard-section-label">{esAdminMedico ? "USUARIOS MÉDICOS" : "OPERADORES DEL SISTEMA"}</span>
                 {systemUsers.length > 0 && (
                   <span className="users-count-badge">{systemUsers.length}</span>
                 )}
               </div>
               <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>
-                Gestione cuentas de operadores, campamentos y niveles de acceso.
+                {esAdminMedico
+                  ? "Gestione operadores y asistentes médicos de su campamento."
+                  : "Gestione cuentas de operadores, campamentos y niveles de acceso."}
               </p>
             </div>
             {isOnline && (
@@ -293,7 +308,7 @@ export default function UsuariosTab() {
                     email: "",
                     password: "",
                     confirmPassword: "",
-                    role: "REGISTRADOR",
+                    role: defaultRole,
                     campamentoTransitorio: ""
                   });
                   setUserErrors({});
@@ -558,12 +573,7 @@ export default function UsuariosTab() {
                   value={userForm.role}
                   onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
                 >
-                  <option value="REGISTRADOR">Registrador</option>
-                  <option value="VISUALIZADOR">Visualizador</option>
-                  {currentUser && isMaster(currentUser.role) && <option value="ADMIN">Administrador</option>}
-                  <option value="AdminMedico">Admin Médico</option>
-                  <option value="OperadorMedico">Operador Médico</option>
-                  <option value="AsistenteMedico">Asistente Médico</option>
+                  {roleOptions(userForm.role)}
                 </select>
               </div>
 
@@ -733,12 +743,7 @@ export default function UsuariosTab() {
                     value={userForm.role}
                     onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
                   >
-                    <option value="REGISTRADOR">Registrador</option>
-                    <option value="VISUALIZADOR">Visualizador</option>
-                    {currentUser && isMaster(currentUser.role) && <option value="ADMIN">Administrador</option>}
-                    <option value="AdminMedico">Admin Médico</option>
-                    <option value="OperadorMedico">Operador Médico</option>
-                    <option value="AsistenteMedico">Asistente Médico</option>
+                    {roleOptions(userForm.role)}
                   </select>
                 )}
               </div>
