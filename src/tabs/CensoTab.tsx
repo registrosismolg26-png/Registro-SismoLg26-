@@ -434,6 +434,31 @@ export default function CensoTab() {
     4: ["estadoFisico", "patologia"],
   };
 
+  // Campos condicionales por paso (además de STEP_FIELDS) que también se limpian
+  // al llegar a ese paso.
+  const STEP_EXTRA: Record<number, string[]> = {
+    1: ["cedulaJefeFamilia"],
+    4: ["patologiaIds", "motivoIntermitente"],
+  };
+
+  // Navega a un paso dejando SIN touched / SIN error los campos del paso DESTINO,
+  // para que al llegar NUNCA aparezcan en rojo antes de tocar nada (bulletproof:
+  // no importa cómo se hubieran marcado antes).
+  const goToStep = (next: 1 | 2 | 3 | 4) => {
+    const clearFields = [...(STEP_FIELDS[next] || []), ...(STEP_EXTRA[next] || [])];
+    setTouched(prev => {
+      const n = { ...prev };
+      clearFields.forEach(f => { delete n[f]; });
+      return n;
+    });
+    setErrors(prev => {
+      const n = { ...prev };
+      clearFields.forEach(f => { delete n[f]; });
+      return n;
+    });
+    setStep(next);
+  };
+
   const handleNextStep = () => {
     const fields = STEP_FIELDS[step];
     // Revela los errores del paso actual (marca sus campos como tocados).
@@ -456,7 +481,7 @@ export default function CensoTab() {
     }
     setErrors(prev => ({ ...prev, ...newErrors }));
     if (Object.keys(newErrors).length > 0) return;
-    setStep(s => (s + 1) as 1|2|3|4);
+    goToStep((step + 1) as 1|2|3|4);
   };
 
   // Submit Handler: Saves to IndexedDB first, then triggers sync
@@ -1189,7 +1214,7 @@ export default function CensoTab() {
                     <button
                       type="button"
                       className="btn-back"
-                      onClick={() => setStep(s => (s - 1) as 1 | 2 | 3 | 4)}
+                      onClick={() => goToStep((step - 1) as 1 | 2 | 3 | 4)}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                       Atrás
