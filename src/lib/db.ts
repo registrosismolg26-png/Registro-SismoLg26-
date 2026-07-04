@@ -160,9 +160,10 @@ export async function getPending(): Promise<LocalRegistro[]> {
   });
 }
 
-// Reencola TODOS los registros locales que no estén ya pendientes (recuperación:
-// re-envía cambios locales que quedaron atascados en 'synced' o 'error'). Devuelve
-// cuántos reencoló. Los que ya estaban 'pending' no se tocan.
+// Reenvío INTELIGENTE: reencola SOLO los registros que la DB NUNCA confirmó
+// (status distinto de 'synced' — es decir, 'error'/atascados). Los que la DB ya
+// confirmó ('synced') NO se reenvían jamás. Devuelve cuántos reencoló. Úsalo desde
+// el botón manual "Reenviar cambios": envía solo lo pendiente/nunca enviado.
 export async function resetAllLocalToPending(): Promise<number> {
   const db = await getDB();
   return new Promise((resolve, reject) => {
@@ -173,7 +174,7 @@ export async function resetAllLocalToPending(): Promise<number> {
     request.onsuccess = () => {
       const all = request.result as LocalRegistro[];
       for (const r of all) {
-        if (r.status !== 'pending') {
+        if (r.status !== 'synced') {   // NO tocar lo ya confirmado por la DB
           r.status = 'pending';
           r.attempts = 0;
           r.nextAttemptAt = undefined;
@@ -459,7 +460,8 @@ export async function getPendingConsultas(): Promise<LocalConsulta[]> {
   });
 }
 
-// Reencola TODAS las consultas locales que no estén pendientes (recuperación).
+// Reenvío INTELIGENTE de consultas: reencola SOLO las que la DB nunca confirmó
+// (status !== 'synced'). Las ya confirmadas NO se reenvían.
 export async function resetAllConsultasToPending(): Promise<number> {
   const db = await getDB();
   return new Promise((resolve, reject) => {
@@ -470,7 +472,7 @@ export async function resetAllConsultasToPending(): Promise<number> {
     request.onsuccess = () => {
       const all = request.result as LocalConsulta[];
       for (const c of all) {
-        if (c.status !== 'pending') {
+        if (c.status !== 'synced') {   // NO tocar lo ya confirmado por la DB
           c.status = 'pending';
           c.attempts = 0;
           c.nextAttemptAt = undefined;
