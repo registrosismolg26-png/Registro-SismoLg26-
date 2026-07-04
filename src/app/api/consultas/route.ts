@@ -54,26 +54,26 @@ export async function POST(req: Request) {
     }
 
     const arr = (v: any) => (Array.isArray(v) ? v : []);
-    // Envuelto en withAuditUser → el trigger de BD registra la consulta en AuditLog
-    // (CREATE con la fila completa: incluye el uuid de la consulta y el registroId vinculado).
-    const consulta = await withAuditUser(auth.email, (tx) => tx.consultaMedica.create({
-      data: {
-        id: id || undefined,
-        cedula,
-        nombreApellido,
-        registroId: registroId || null,
-        genero,
-        edad: edad ? parseInt(String(edad)) : null,
-        refugio,
-        // Modelo por-ID (los campos legados quedan en su default).
-        antecedentesPatologiaIds: arr(antecedentesPatologiaIds),
-        antecedentesMedicamentoIds: arr(antecedentesMedicamentoIds),
-        diagnosticoPatologiaIds: arr(diagnosticoPatologiaIds),
-        diagnosticoMedicamentoIds: arr(diagnosticoMedicamentoIds),
-        notasDoctor,
-        userId: auth.email
-      }
-    }));
+    const data = {
+      cedula,
+      nombreApellido,
+      registroId: registroId || null,
+      genero,
+      edad: edad ? parseInt(String(edad)) : null,
+      refugio,
+      // Modelo por-ID (los campos legados quedan en su default).
+      antecedentesPatologiaIds: arr(antecedentesPatologiaIds),
+      antecedentesMedicamentoIds: arr(antecedentesMedicamentoIds),
+      diagnosticoPatologiaIds: arr(diagnosticoPatologiaIds),
+      diagnosticoMedicamentoIds: arr(diagnosticoMedicamentoIds),
+      notasDoctor,
+      userId: auth.email,
+    };
+    // IDEMPOTENTE: si la consulta (id) ya existe (re-sync del mismo registro local), se
+    // ACTUALIZA en vez de fallar por "Unique constraint on id". withAuditUser registra en AuditLog.
+    const consulta = id
+      ? await withAuditUser(auth.email, (tx) => tx.consultaMedica.upsert({ where: { id }, update: data, create: { id, ...data } }))
+      : await withAuditUser(auth.email, (tx) => tx.consultaMedica.create({ data }));
 
     return NextResponse.json({ success: true, consulta }, { status: 201 });
   } catch (error: any) {
