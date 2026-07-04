@@ -19,7 +19,7 @@
 
 import { useState, useEffect } from "react";
 import QRCode from "qrcode";
-import { getPending, saveLocal, resetAttempts, type LocalRegistro } from "@/lib/db";
+import { getPending, saveLocal, resetAttempts, resetAllLocalToPending, resetAllConsultasToPending, type LocalRegistro } from "@/lib/db";
 import { formatRoomLabel } from "@/lib/helpers";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -395,6 +395,27 @@ export default function ConfigTab() {
     }
   };
 
+  // Recuperación: reencola TODOS los cambios locales (registros + consultas) que
+  // quedaron sin enviar (p. ej. ediciones que se quedaron en 'synced' por el bug) y
+  // fuerza la sincronización. No pierde datos: reenvía el último estado local.
+  const [resyncing, setResyncing] = useState(false);
+  const handleResyncAll = async () => {
+    if (!navigator.onLine) { showToast("Sin conexión. Reintenta al recuperar señal.", "warning"); return; }
+    setResyncing(true);
+    try {
+      const n1 = await resetAllLocalToPending();
+      const n2 = await resetAllConsultasToPending();
+      await refreshLocalRecords();
+      triggerSync();
+      showToast(n1 + n2 > 0 ? `${n1 + n2} cambio(s) local(es) reencolado(s) para sincronizar.` : "No había cambios locales pendientes de reenviar.", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("Error al reencolar los cambios locales.", "error");
+    } finally {
+      setResyncing(false);
+    }
+  };
+
   const handleRetryRecord = async (id: string) => {
     await resetAttempts(id);
     await refreshLocalRecords();
@@ -689,6 +710,16 @@ export default function ConfigTab() {
                       <div className="dash-action-sep"></div>
                     </>
                   )}
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ width: "auto", margin: 0, padding: "0 0.875rem", height: "36px", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.3rem" }}
+                    onClick={handleResyncAll}
+                    disabled={resyncing || isSyncing || !isOnline}
+                    data-tip="Reenvía TODOS los cambios locales de este dispositivo (recupera ediciones que no se sincronizaron)"
+                  >
+                    {resyncing ? <><span className="spinner spinner-sm"></span>Reenviando</> : "Reenviar cambios"}
+                  </button>
                   <button
                     type="button"
                     className="btn-secondary"

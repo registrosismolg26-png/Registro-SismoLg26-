@@ -160,6 +160,35 @@ export async function getPending(): Promise<LocalRegistro[]> {
   });
 }
 
+// Reencola TODOS los registros locales que no estén ya pendientes (recuperación:
+// re-envía cambios locales que quedaron atascados en 'synced' o 'error'). Devuelve
+// cuántos reencoló. Los que ya estaban 'pending' no se tocan.
+export async function resetAllLocalToPending(): Promise<number> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.getAll();
+    let count = 0;
+    request.onsuccess = () => {
+      const all = request.result as LocalRegistro[];
+      for (const r of all) {
+        if (r.status !== 'pending') {
+          r.status = 'pending';
+          r.attempts = 0;
+          r.nextAttemptAt = undefined;
+          r.permanentError = undefined;
+          store.put(r);
+          count++;
+        }
+      }
+    };
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => resolve(count);
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
 export async function getAllLocal(): Promise<LocalRegistro[]> {
   try {
     const db = await getDB();
@@ -427,6 +456,33 @@ export async function getPendingConsultas(): Promise<LocalConsulta[]> {
     };
 
     request.onerror = () => reject(request.error);
+  });
+}
+
+// Reencola TODAS las consultas locales que no estén pendientes (recuperación).
+export async function resetAllConsultasToPending(): Promise<number> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONSULTAS_STORE, 'readwrite');
+    const store = transaction.objectStore(CONSULTAS_STORE);
+    const request = store.getAll();
+    let count = 0;
+    request.onsuccess = () => {
+      const all = request.result as LocalConsulta[];
+      for (const c of all) {
+        if (c.status !== 'pending') {
+          c.status = 'pending';
+          c.attempts = 0;
+          c.nextAttemptAt = undefined;
+          c.permanentError = undefined;
+          store.put(c);
+          count++;
+        }
+      }
+    };
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => resolve(count);
+    transaction.onerror = () => reject(transaction.error);
   });
 }
 
