@@ -9,7 +9,7 @@
 
 import { useMemo, type ReactNode, type CSSProperties } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { patologiaNombre } from "@/lib/helpers";
+import { patologiaNombre, normalizeText } from "@/lib/helpers";
 
 const onlyDigits = (s: string) => (s || "").replace(/\D/g, "");
 const edadFromISO = (iso?: string): number | null => {
@@ -23,9 +23,10 @@ const edadFromISO = (iso?: string): number | null => {
   return age >= 0 ? age : null;
 };
 
-type Bucket = "menores" | "adultos" | "mayores";
+// Grupos de edad: Lactantes = 0–3 años (separados del resto de menores, que pasan a 4–17).
+type Bucket = "lactantes" | "menores" | "adultos" | "mayores";
 const bucketOf = (edad: number | null): Bucket | null =>
-  edad == null ? null : edad < 18 ? "menores" : edad < 60 ? "adultos" : "mayores";
+  edad == null ? null : edad <= 3 ? "lactantes" : edad < 18 ? "menores" : edad < 60 ? "adultos" : "mayores";
 
 // ── Íconos (stroke, 24x24) ──────────────────────────────────────────────────
 const I = {
@@ -40,6 +41,7 @@ const I = {
   cake: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21h16M4 21v-8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8M4 15c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1M12 8V5M9 8V6M15 8V6"/></svg>,
   grid: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>,
   chart: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7" rx="1"/><rect x="12" y="6" width="3" height="11" rx="1"/><rect x="17" y="13" width="3" height="4" rx="1"/></svg>,
+  pregnant: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="4" r="2"/><path d="M12 7v6M12 9c3 0 4.5 2 4.5 4.5S15 18 12 18M12 13c-1.2 0-2 .8-2 2v6"/></svg>,
 };
 
 export default function BalanceTab() {
@@ -56,7 +58,14 @@ export default function BalanceTab() {
     const regByCedula = new Map<string, any>();
     registros.forEach((r: any) => regByCedula.set(onlyDigits(r.cedula), r));
 
-    const patients = new Map<string, { genero: string; edad: number | null; conPat: boolean }>();
+    // IDs de patologías de EMBARAZO (cualquier nombre que contenga "embarazo"): para la
+    // card de mujeres embarazadas (antecedente = embarazo). Insensible a acentos/mayúsc.
+    const embarazoIds = new Set(
+      patologias.filter((p: any) => normalizeText(p.nombre).includes("embarazo")).map((p: any) => p.id)
+    );
+    const hasEmbarazo = (ids: any) => Array.isArray(ids) && ids.some((id: string) => embarazoIds.has(id));
+
+    const patients = new Map<string, { genero: string; edad: number | null; conPat: boolean; embarazada: boolean }>();
     let totalMedsRecetados = 0;
     const patCount = new Map<string, number>();
     // Desglose de ATENCIONES (consultas) por tipo.
@@ -78,25 +87,29 @@ export default function BalanceTab() {
       let edad: number | null = c.edad ?? null;
       if (edad == null && reg) edad = reg.edad ?? edadFromISO(reg.fechaNacimiento);
       const conPat = diagPat.length > 0 || antPat.length > 0 || (reg && Array.isArray(reg.patologiaIds) && reg.patologiaIds.length > 0);
+      // Embarazada = tiene "embarazo" entre sus antecedentes (de la consulta o del censo).
+      const embarazada = hasEmbarazo(antPat) || (reg && hasEmbarazo(reg.patologiaIds));
 
-      if (!patients.has(ced)) patients.set(ced, { genero, edad, conPat });
+      if (!patients.has(ced)) patients.set(ced, { genero, edad, conPat, embarazada });
       else {
         const p = patients.get(ced)!;
         if (!p.genero && genero) p.genero = genero;
         if (p.edad == null && edad != null) p.edad = edad;
         if (conPat) p.conPat = true;
+        if (embarazada) p.embarazada = true;
       }
     }
 
     const gen = { FEMENINO: 0, MASCULINO: 0, OTRO: 0 };
-    const matrix = { menores: { FEMENINO: 0, MASCULINO: 0 }, adultos: { FEMENINO: 0, MASCULINO: 0 }, mayores: { FEMENINO: 0, MASCULINO: 0 } };
-    let sumEdad = 0, nEdad = 0, conPatCount = 0;
-    const ageTot = { menores: 0, adultos: 0, mayores: 0, sinEdad: 0 };
+    const matrix = { lactantes: { FEMENINO: 0, MASCULINO: 0 }, menores: { FEMENINO: 0, MASCULINO: 0 }, adultos: { FEMENINO: 0, MASCULINO: 0 }, mayores: { FEMENINO: 0, MASCULINO: 0 } };
+    let sumEdad = 0, nEdad = 0, conPatCount = 0, embarazadasCount = 0;
+    const ageTot = { lactantes: 0, menores: 0, adultos: 0, mayores: 0, sinEdad: 0 };
 
     patients.forEach((p) => {
       const g = p.genero === "FEMENINO" ? "FEMENINO" : p.genero === "MASCULINO" ? "MASCULINO" : "OTRO";
       gen[g]++;
       if (p.conPat) conPatCount++;
+      if (p.embarazada) embarazadasCount++;
       const b = bucketOf(p.edad);
       if (b) {
         ageTot[b]++;
@@ -113,6 +126,7 @@ export default function BalanceTab() {
       totalConsultas: all.length, pacientes: patients.size, conPatologia: conPatCount,
       medsRecetados: totalMedsRecetados, patologiasDistintas: patCount.size,
       promedioEdad: nEdad > 0 ? Math.round(sumEdad / nEdad) : 0,
+      embarazadas: embarazadasCount,
       gen, matrix, ageTot, topPatologias, tipoCount,
     };
   }, [consultas, localConsultas, registros, patologias]);
@@ -123,6 +137,7 @@ export default function BalanceTab() {
     { label: "Consultas registradas", value: B.totalConsultas, color: "#2563eb", icon: I.clipboard },
     { label: "Pacientes atendidos", value: B.pacientes, color: "#0d9488", icon: I.users },
     { label: "Pacientes con patología", value: B.conPatologia, color: "#e11d48", icon: I.heart },
+    { label: "Mujeres embarazadas", value: B.embarazadas, color: "#db2777", icon: I.pregnant },
     { label: "Medicamentos recetados", value: B.medsRecetados, color: "#d97706", icon: I.pill },
     { label: "Patologías distintas", value: B.patologiasDistintas, color: "#7c3aed", icon: I.virus },
     { label: "Edad promedio", value: B.promedioEdad ? `${B.promedioEdad}` : "—", suffix: "años", color: "#0284c7", icon: I.calendar } as any,
@@ -134,7 +149,8 @@ export default function BalanceTab() {
     ...(B.gen.OTRO ? [{ label: "Otro / N.E.", count: B.gen.OTRO, color: "#94a3b8" }] : []),
   ];
   const ageSegs = [
-    { label: "Menores (<18)", count: B.ageTot.menores, color: "#10b981" },
+    { label: "Lactantes (0–3)", count: B.ageTot.lactantes, color: "#06b6d4" },
+    { label: "Menores (4–17)", count: B.ageTot.menores, color: "#10b981" },
     { label: "Adultos (18–59)", count: B.ageTot.adultos, color: "#f59e0b" },
     { label: "Mayores (≥60)", count: B.ageTot.mayores, color: "#8b5cf6" },
     ...(B.ageTot.sinEdad ? [{ label: "Sin edad", count: B.ageTot.sinEdad, color: "#94a3b8" }] : []),
@@ -152,8 +168,8 @@ export default function BalanceTab() {
   });
 
   const maxTopPat = Math.max(1, ...B.topPatologias.map((p) => p.count));
-  const totFem = B.matrix.menores.FEMENINO + B.matrix.adultos.FEMENINO + B.matrix.mayores.FEMENINO;
-  const totMasc = B.matrix.menores.MASCULINO + B.matrix.adultos.MASCULINO + B.matrix.mayores.MASCULINO;
+  const totFem = B.matrix.lactantes.FEMENINO + B.matrix.menores.FEMENINO + B.matrix.adultos.FEMENINO + B.matrix.mayores.FEMENINO;
+  const totMasc = B.matrix.lactantes.MASCULINO + B.matrix.menores.MASCULINO + B.matrix.adultos.MASCULINO + B.matrix.mayores.MASCULINO;
 
   const SegBar = ({ segs, icon, title }: { segs: { label: string; count: number; color: string }[]; icon: ReactNode; title: string }) => {
     const total = segs.reduce((s, x) => s + x.count, 0) || 1;
@@ -279,7 +295,8 @@ export default function BalanceTab() {
                   <tr><th>Grupo de edad</th><th>Femenino</th><th>Masculino</th><th>Total</th></tr>
                 </thead>
                 <tbody>
-                  {matRow("Menores (<18)", B.matrix.menores)}
+                  {matRow("Lactantes (0–3)", B.matrix.lactantes)}
+                  {matRow("Menores (4–17)", B.matrix.menores)}
                   {matRow("Adultos (18–59)", B.matrix.adultos)}
                   {matRow("Mayores (≥60)", B.matrix.mayores)}
                   <tr className="bal-matrix__total">
