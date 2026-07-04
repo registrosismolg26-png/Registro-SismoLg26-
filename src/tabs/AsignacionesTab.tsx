@@ -816,10 +816,10 @@ export default function AsignacionesTab() {
                   {filteredRegistros.map((reg, i) => (
                     <tr key={reg.id} className="reg-row-enter" style={{ animationDelay: `${Math.min(i, 10) * 25}ms` }}>
                       <td className="col-num">{i + 1}</td>
-                      <td className="col-nombre">{reg.nombreApellido}</td>
-                      <td className="col-cedula">{reg.cedula}</td>
-                      <td className="col-parroquia">{reg.parroquia}</td>
-                      <td className="col-estado">
+                      <td className="col-nombre" data-label="Nombre">{reg.nombreApellido}</td>
+                      <td className="col-cedula" data-label="Cédula">{reg.cedula}</td>
+                      <td className="col-parroquia" data-label="Parroquia">{reg.parroquia}</td>
+                      <td className="col-estado" data-label="Estado">
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                           <span className={`estado-pill ${reg.estadoFisico === "LESIONADO" ? "estado-pill--danger" : "estado-pill--ok"}`}>
                             {reg.estadoFisico}
@@ -836,7 +836,7 @@ export default function AsignacionesTab() {
                           )}
                         </div>
                       </td>
-                      <td className="col-cuarto">
+                      <td className="col-cuarto" data-label="Cuarto">
                         {reg.cuarto
                           ? <span className="cuarto-badge cuarto-badge--assigned">{reg.cuarto}</span>
                           : <span className="cuarto-badge cuarto-badge--none">Sin asignar</span>

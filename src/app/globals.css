@@ -1460,9 +1460,8 @@ html[data-theme="dark"] .spinner {
   .matrix-table th { white-space: nowrap; }
   .matrix-table th, .matrix-table td { padding: 0.4rem 0.5rem; font-size: 0.7rem; }
 
-  /* ── Tabla asignaciones: ocultar parroquia + cédula en xs ── */
-  .registro-table .col-parroquia { display: none; }
-  .registro-table .col-cedula   { display: none; }
+  /* Tabla asignaciones: columnas cédula/parroquia se ocultan vía la regla
+     móvil-first junto a las definiciones de columna (más abajo en el archivo). */
   .registro-table th, .registro-table td { padding: 0.5rem 0.5rem; font-size: 0.78rem; }
 
   /* ── Header compacto ── */
@@ -1617,8 +1616,9 @@ html[data-theme="dark"] .spinner {
   .detail-grid { grid-template-columns: repeat(3, 1fr); }
   .detail-edit-grid { grid-template-columns: repeat(3, 1fr); }
 
-  /* Tabla asignaciones sin tope de altura */
-  .registro-table-wrapper { overflow-y: auto; }
+  /* La tabla fluye con la página: sin scroll interno vertical (solo la página
+     hace scroll). El overflow-x del wrapper queda como red de seguridad, pero
+     las columnas se revelan por breakpoint para que nunca desborde de veras. */
   .registro-table th, .registro-table td { padding: 0.75rem 1rem; font-size: 0.875rem; }
 
   /* Header desktop */
@@ -3545,6 +3545,69 @@ h2.dashboard-section-title {
 .registro-table .col-cuarto { white-space: nowrap; }
 .registro-table .col-action { width: 4rem; text-align: center; }
 
+/* ── Registrados responsive: TABLA solo cuando caben las 7 columnas (≥1024px);
+   por debajo se transforma en TARJETAS apiladas para que NUNCA aparezca un scroll
+   horizontal interno (la lista fluye con la página). Cada fila = una tarjeta;
+   cada celda = «Etiqueta: valor». Definido después de las bases para ganar en
+   orden de cascada a los media queries de más arriba. ── */
+@media (max-width: 1023px) {
+  /* El wrapper deja de ser tarjeta/scroll: las tarjetas traen su propio estilo. */
+  .registro-table-wrapper { overflow-x: visible; box-shadow: none; border-radius: 0; }
+  .registro-table { font-size: 0.85rem; }
+  .registro-table thead { display: none; }
+  .registro-table, .registro-table tbody { display: block; width: 100%; }
+
+  .registro-table tr {
+    display: block;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 0.15rem 0.95rem;
+    margin-bottom: 0.7rem;
+    box-shadow: 0 2px 12px -5px rgba(0,0,0,0.14), 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .registro-table tbody tr:last-child { margin-bottom: 0; }
+
+  .registro-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: auto;
+    padding: 0.6rem 0 !important;
+    border-bottom: 1px solid var(--border-color);
+    text-align: right;
+    white-space: normal;
+  }
+  .registro-table tbody tr td:last-child { border-bottom: none; }
+  .registro-table tbody tr:hover td { background-color: transparent; }
+
+  /* Etiqueta a la izquierda (desde data-label) */
+  .registro-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    text-align: left;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* El número de fila no aporta en formato tarjeta */
+  .registro-table td.col-num { display: none; }
+  .registro-table td.col-nombre { font-weight: 600; }
+
+  /* Estado: las pills ya se apilan; alinearlas a la derecha */
+  .registro-table td.col-estado > div { align-items: flex-end; }
+
+  /* Acción: sin etiqueta, botones a la derecha (anula el width:4rem de la base) */
+  .registro-table td.col-action { width: auto; justify-content: flex-end; gap: 0; }
+  .registro-table td.col-action::before { display: none; }
+  .registro-table td.col-action .row-actions { justify-content: flex-end; }
+}
+
 /* Estado Físico pills */
 .estado-pill {
   display: inline-flex;
@@ -5221,7 +5284,12 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
   gap: 0.75rem;
   animation: updateBannerIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   touch-action: pan-y; /* el swipe horizontal lo captura el JS; deja el scroll vertical */
+  cursor: grab; /* afordancia de arrastre en PC */
+  user-select: none; /* no seleccionar texto al arrastrar con mouse */
 }
+.update-banner:active { cursor: grabbing; }
+/* Los botones conservan su cursor de clic pese al grab del contenedor */
+.update-banner__btn { cursor: pointer; }
 @keyframes updateBannerIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .update-banner__head { display: flex; align-items: flex-start; gap: 0.65rem; }
 .update-banner__spark { font-size: 1.2rem; line-height: 1.2; flex: none; }
