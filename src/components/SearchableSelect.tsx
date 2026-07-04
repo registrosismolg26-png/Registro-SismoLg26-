@@ -4,10 +4,16 @@
 // Input que filtra opciones al escribir + lista desplegable. Pensado para
 // catálogos largos (cientos de patologías/medicamentos), responsive (ordenador
 // y teléfono) y táctil. Es un control de "agregar": al elegir, dispara onSelect
-// y limpia el texto para permitir agregar varios seguidos. Reutiliza las clases
-// de tema `custom-select-options` / `custom-select-option` de globals.css.
+// y limpia el texto para permitir agregar varios seguidos.
+//
+// El menú se renderiza en un PORTAL (document.body) con posición `fixed` calculada
+// desde el rect del input, para que NUNCA lo recorte un contenedor con
+// overflow:hidden/auto (p. ej. el `.conditional-wrapper` del censo o un modal con
+// scroll). Se reubica solo con voltear arriba/abajo según el espacio disponible.
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
+import { useAnchoredRect } from "./useAnchoredRect";
 
 export interface SearchableOption {
   value: string;
@@ -24,6 +30,9 @@ interface Props {
   inputClassName?: string; // clase del input (p.ej. "morb-control" para sincronizar tamaño)
 }
 
+const MENU_MARGIN = 6;
+const MENU_MAX_H = 320;
+
 export default function SearchableSelect({
   options,
   onSelect,
@@ -38,10 +47,16 @@ export default function SearchableSelect({
   const [highlight, setHighlight] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
+
+  const rect = useAnchoredRect(open, ref);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      // El menú vive en un portal fuera de `ref`: hay que excluirlo también.
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -60,6 +75,56 @@ export default function SearchableSelect({
     setOpen(false); // se cierra al elegir; para agregar otro, se enfoca de nuevo (reabre al escribir/enfocar)
     inputRef.current?.blur();
   };
+
+  // Posición del menú (fixed) con volteo arriba/abajo según espacio disponible.
+  const menuStyle: React.CSSProperties | null = (() => {
+    if (!rect || typeof window === "undefined") return null;
+    const spaceBelow = window.innerHeight - rect.bottom - MENU_MARGIN;
+    const spaceAbove = rect.top - MENU_MARGIN;
+    const openUp = spaceBelow < 200 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(120, Math.min(MENU_MAX_H, openUp ? spaceAbove : spaceBelow));
+    return {
+      position: "fixed",
+      left: rect.left,
+      width: rect.width,
+      right: "auto",
+      maxHeight,
+      overflowY: "auto",
+      zIndex: 4000,
+      ...(openUp
+        ? { bottom: window.innerHeight - rect.top + MENU_MARGIN, top: "auto" }
+        : { top: rect.bottom + MENU_MARGIN }),
+    };
+  })();
+
+  const menu = open && !disabled && menuStyle ? (
+    <ul className="combo-menu" role="listbox" ref={menuRef} style={menuStyle}>
+      {filtered.items.length === 0 ? (
+        <li className="combo-menu__item combo-menu__item--muted">{emptyText}</li>
+      ) : (
+        <>
+          {filtered.items.map((o, i) => (
+            <li
+              key={o.value}
+              className={`combo-menu__item ${i === highlight ? "is-active" : ""}`}
+              role="option"
+              aria-selected={i === highlight}
+              onMouseEnter={() => setHighlight(i)}
+              // onMouseDown evita que el blur del input cierre el menú antes del click
+              onMouseDown={(e) => { e.preventDefault(); choose(o.value); }}
+            >
+              {o.label}
+            </li>
+          ))}
+          {filtered.total > filtered.items.length && (
+            <li className="combo-menu__item combo-menu__item--muted">
+              +{filtered.total - filtered.items.length} más… escribe para filtrar
+            </li>
+          )}
+        </>
+      )}
+    </ul>
+  ) : null;
 
   return (
     <div className="searchable-select" ref={ref} style={{ position: "relative", width: "100%" }}>
@@ -83,33 +148,7 @@ export default function SearchableSelect({
         }}
         style={{ width: "100%" }}
       />
-      {open && !disabled && (
-        <ul className="combo-menu" role="listbox">
-          {filtered.items.length === 0 ? (
-            <li className="combo-menu__item combo-menu__item--muted">{emptyText}</li>
-          ) : (
-            <>
-              {filtered.items.map((o, i) => (
-                <li
-                  key={o.value}
-                  className={`combo-menu__item ${i === highlight ? "is-active" : ""}`}
-                  role="option"
-                  aria-selected={i === highlight}
-                  onMouseEnter={() => setHighlight(i)}
-                  onClick={() => choose(o.value)}
-                >
-                  {o.label}
-                </li>
-              ))}
-              {filtered.total > filtered.items.length && (
-                <li className="combo-menu__item combo-menu__item--muted">
-                  +{filtered.total - filtered.items.length} más… escribe para filtrar
-                </li>
-              )}
-            </>
-          )}
-        </ul>
-      )}
+      {menu && typeof document !== "undefined" ? createPortal(menu, document.body) : null}
     </div>
   );
 }

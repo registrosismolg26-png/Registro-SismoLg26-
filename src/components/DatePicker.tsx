@@ -6,10 +6,14 @@
 // nacimiento: permite saltar de año rápido y no deja elegir fechas futuras.
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useAnchoredRect } from "./useAnchoredRect";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const DOW = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
 const pad2 = (n: number) => String(n).padStart(2, "0");
+const DP_W = 300;      // ancho del calendario (coincide con globals.css)
+const DP_MARGIN = 6;
 
 interface Props {
   value: string;                 // yyyy-mm-dd (o "")
@@ -23,6 +27,8 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"days" | "years">("days");
   const ref = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const rect = useAnchoredRect(open, ref);
 
   const today = new Date();
   const maxYear = today.getFullYear();
@@ -32,7 +38,11 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
   const [viewM, setViewM] = useState(sel ? sel.m : 0);
 
   useEffect(() => {
-    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setView("days"); } };
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || popRef.current?.contains(t)) return;
+      setOpen(false); setView("days");
+    };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
@@ -69,23 +79,28 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
   const years: number[] = [];
   for (let y = maxYear; y >= minYear; y--) years.push(y);
 
-  return (
-    <div className="morb-select" ref={ref}>
-      <button
-        type="button"
-        className={`morb-control morb-select__trigger${open ? " is-open" : ""}`}
-        disabled={disabled}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={openPicker}
-      >
-        <span className={label ? "" : "morb-select__ph"}>{label || placeholder}</span>
-        <span className="morb-select__arrow" aria-hidden>▾</span>
-      </button>
+  // Posición del calendario (fixed, en portal) con volteo y clamping horizontal.
+  const popStyle: React.CSSProperties | null = (() => {
+    if (!rect || typeof window === "undefined") return null;
+    const w = Math.min(DP_W, window.innerWidth * 0.92);
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - w - 8));
+    const spaceBelow = window.innerHeight - rect.bottom - DP_MARGIN;
+    const spaceAbove = rect.top - DP_MARGIN;
+    const openUp = spaceBelow < 320 && spaceAbove > spaceBelow;
+    return {
+      position: "fixed",
+      left,
+      width: w,
+      zIndex: 4000,
+      ...(openUp
+        ? { bottom: window.innerHeight - rect.top + DP_MARGIN, top: "auto" }
+        : { top: rect.bottom + DP_MARGIN }),
+    };
+  })();
 
-      {open && !disabled && (
-        <div className="morb-datepicker" role="dialog">
-          <div className="morb-dp__head">
+  const popup = open && !disabled && popStyle ? (
+    <div className="morb-datepicker" role="dialog" ref={popRef} style={popStyle}>
+      <div className="morb-dp__head">
             <button type="button" className="morb-dp__nav" aria-label="Mes anterior" onClick={() => stepMonth(-1)}>‹</button>
             <button type="button" className="morb-dp__title" onClick={() => setView((v) => (v === "days" ? "years" : "days"))}>
               {view === "days" ? `${MESES[viewM]} ${viewY}` : "Elegir año"}
@@ -126,8 +141,23 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
               ))}
             </div>
           )}
-        </div>
-      )}
+    </div>
+  ) : null;
+
+  return (
+    <div className="morb-select" ref={ref}>
+      <button
+        type="button"
+        className={`morb-control morb-select__trigger${open ? " is-open" : ""}`}
+        disabled={disabled}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={openPicker}
+      >
+        <span className={label ? "" : "morb-select__ph"}>{label || placeholder}</span>
+        <span className="morb-select__arrow" aria-hidden>▾</span>
+      </button>
+      {popup && typeof document !== "undefined" ? createPortal(popup, document.body) : null}
     </div>
   );
 }
