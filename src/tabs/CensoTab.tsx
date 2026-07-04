@@ -18,6 +18,7 @@ import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
 import { roomFillLevel, patologiaNombre, medLabel } from "@/lib/helpers";
+import SearchableSelect from "@/components/SearchableSelect";
 
 export default function CensoTab() {
   const {
@@ -51,15 +52,13 @@ export default function CensoTab() {
   };
 
   // Medicamentos por-ID: solo desde el catálogo (id + posología editable).
-  const handleSelectPredefinedMed = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const medId = e.target.value;
+  const handleSelectPredefinedMed = (medId: string) => {
     if (!medId) return;
     const match = predefinedMedicamentos.find(m => m.id === medId);
     if (match && !medicamentos.some(x => x.id === medId)) {
       // Precarga Dosis con la dosis sugerida del catálogo o, si falta, la concentración.
       setMedicamentos(prev => [...prev, { id: match.id, dosis: match.dosis || match.concentracion || "", periodo: match.periodo || "" }]);
     }
-    e.target.value = "";
   };
 
   // Asignación de habitación en el censo (OPCIONAL). Reusa la ocupación por
@@ -980,18 +979,15 @@ export default function CensoTab() {
                   <div className={`conditional-wrapper ${formData.patologia === "SI" ? "open" : ""}`}>
                     <div className="conditional-inner">
                       <label style={{ marginBottom: "0.5rem", display: "block" }}>Seleccione patologías<span className="required-star">*</span></label>
-                      <select
-                        value=""
-                        onChange={(e) => addPatologia(e.target.value)}
-                        style={{ height: "40px", marginTop: "0.5rem", width: "100%" }}
-                      >
-                        <option value="">Agregar patología…</option>
-                        {patologias
-                          .filter(p => !(formData.patologiaIds || []).includes(p.id))
-                          .map(p => (
-                            <option key={p.id} value={p.id}>{p.nombre}</option>
-                          ))}
-                      </select>
+                      <div style={{ marginTop: "0.5rem" }}>
+                        <SearchableSelect
+                          placeholder="Buscar y agregar patología…"
+                          options={patologias
+                            .filter(p => !(formData.patologiaIds || []).includes(p.id))
+                            .map(p => ({ value: p.id, label: p.nombre }))}
+                          onSelect={addPatologia}
+                        />
+                      </div>
                       <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem", marginBottom: "0.5rem" }}>
                         {(formData.patologiaIds || []).length === 0 ? (
                           <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic" }}>(Ninguna seleccionada)</span>
@@ -1030,20 +1026,15 @@ export default function CensoTab() {
                   <div className={`conditional-wrapper ${formData.patologia === "SI" || formData.estadoFisico === "LESIONADO" ? "open" : ""}`}>
                     <div className="conditional-inner">
                       <div className="med-section">
-                        <div className="med-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+                        <div className="med-section-header" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                           <span className="med-section-title">Medicamentos</span>
-                          <select
-                            value=""
-                            onChange={handleSelectPredefinedMed}
-                            style={{ width: "240px", height: "32px", fontSize: "0.75rem", padding: "0 0.5rem", margin: 0 }}
-                          >
-                            <option value="">Agregar medicamento…</option>
-                            {predefinedMedicamentos.map(m => (
-                              <option key={m.id} value={m.id}>
-                                {[m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ")}
-                              </option>
-                            ))}
-                          </select>
+                          <SearchableSelect
+                            placeholder="Buscar y agregar medicamento…"
+                            options={predefinedMedicamentos
+                              .filter(m => !medicamentos.some(x => x.id === m.id))
+                              .map(m => ({ value: m.id, label: [m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ") }))}
+                            onSelect={handleSelectPredefinedMed}
+                          />
                         </div>
                         {medicamentos.length === 0 ? (
                           <p className="med-empty">Sin medicamentos. Elige uno del catálogo arriba.</p>

@@ -19,6 +19,7 @@ import { useState, useEffect, useMemo } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { PARROQUIAS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText } from "@/lib/helpers";
+import SearchableSelect from "@/components/SearchableSelect";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -70,15 +71,13 @@ export default function AsignacionesTab() {
   };
 
   // Medicamentos por-ID: solo desde el catálogo (id + posología editable).
-  const handleSelectEditPredefinedMed = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const medId = e.target.value;
+  const handleSelectEditPredefinedMed = (medId: string) => {
     if (!medId) return;
     const match = predefinedMedicamentos.find(m => m.id === medId);
     if (match && !editMedicamentos.some(x => x.id === medId)) {
       // Precarga Dosis con la dosis sugerida del catálogo o, si falta, la concentración.
       setEditMedicamentos(prev => [...prev, { id: match.id, dosis: match.dosis || match.concentracion || "", periodo: match.periodo || "" }]);
     }
-    e.target.value = "";
   };
 
   const [editMedicamentos, setEditMedicamentos] = useState<Medicamento[]>([]);
@@ -1309,17 +1308,16 @@ export default function AsignacionesTab() {
                         {editData.patologia === "SI" && (
                           <div className="form-group detail-field--full">
                             <label style={{ marginBottom: "0.5rem", display: "block" }}>Patologías</label>
-                            <select
-                              value=""
-                              disabled={!isPrivileged}
-                              onChange={(e) => addEditPatologia(e.target.value)}
-                              style={{ height: "38px", width: "100%", marginBottom: "0.5rem" }}
-                            >
-                              <option value="">Agregar patología…</option>
-                              {patologias
-                                .filter(p => !(Array.isArray(editData.patologiaIds) ? editData.patologiaIds : []).includes(p.id))
-                                .map(p => (<option key={p.id} value={p.id}>{p.nombre}</option>))}
-                            </select>
+                            <div style={{ marginBottom: "0.5rem" }}>
+                              <SearchableSelect
+                                placeholder="Buscar y agregar patología…"
+                                disabled={!isPrivileged}
+                                options={patologias
+                                  .filter(p => !(Array.isArray(editData.patologiaIds) ? editData.patologiaIds : []).includes(p.id))
+                                  .map(p => ({ value: p.id, label: p.nombre }))}
+                                onSelect={addEditPatologia}
+                              />
+                            </div>
                             <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
                               {(Array.isArray(editData.patologiaIds) ? editData.patologiaIds : []).length === 0 ? (
                                 <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic" }}>(Ninguna)</span>
@@ -1359,20 +1357,15 @@ export default function AsignacionesTab() {
                   {(editData.patologia === "SI" || editData.estadoFisico === "LESIONADO") && (
                     <div className="form-group detail-field--full">
                       <div className="med-section">
-                        <div className="med-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+                        <div className="med-section-header" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                           <span className="med-section-title">Medicamentos</span>
-                          <select
-                            value=""
-                            onChange={handleSelectEditPredefinedMed}
-                            style={{ width: "220px", height: "32px", fontSize: "0.75rem", padding: "0 0.5rem", margin: 0 }}
-                          >
-                            <option value="">Agregar medicamento…</option>
-                            {predefinedMedicamentos.map(m => (
-                              <option key={m.id} value={m.id}>
-                                {[m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ")}
-                              </option>
-                            ))}
-                          </select>
+                          <SearchableSelect
+                            placeholder="Buscar y agregar medicamento…"
+                            options={predefinedMedicamentos
+                              .filter(m => !editMedicamentos.some(x => x.id === m.id))
+                              .map(m => ({ value: m.id, label: [m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ") }))}
+                            onSelect={handleSelectEditPredefinedMed}
+                          />
                         </div>
                         {editMedicamentos.length === 0 ? (
                           <p className="med-empty">Sin medicamentos. Usa "+ Agregar" para añadir.</p>
