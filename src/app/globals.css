@@ -25,6 +25,10 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  /* Quita el recuadro azul/gris nativo al tocar en móvil (WebKit). Los controles
+     ya tienen su propio feedback :active/:hover con la forma pill, así que el
+     "hover cuadrado" al hacer tap desaparece. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Custom global minimalist scrollbar */
@@ -4728,6 +4732,11 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
   --ctl-radius: 999px;      /* pill                                             */
   --morb-h: var(--ctl-h);       /* los .morb-control internos toman alto real   */
   --morb-h-sm: var(--ctl-h-sm);
+  /* Contenedor del formulario redondeado (ya no cuadrado). El .form-card tiene
+     overflow:hidden en el MISMO elemento → los bordes internos (progreso arriba,
+     barra de envío abajo) se recortan a la curva. Los controles están a ~18px de
+     padding del borde, muy por encima del ring de foco (3px), así que NO se pisan. */
+  border-radius: 22px;
 }
 
 /* Control base pill: inputs de texto/número + triggers no-nativos (.morb-control:
