@@ -1,7 +1,7 @@
 // AUTOGENERADO: `scripts/update-sw-version.mjs` (script `prebuild`) reemplaza este
 // valor con el commit SHA en cada build, para invalidar el cache de todos los
 // clientes en cada deploy. NO editar a mano; el valor de abajo es solo placeholder.
-const BUILD_TS = "3f82b37b1e97";
+const BUILD_TS = "38e65d2e7aca";
 const CACHE_NAME = `registro-sismo-v${BUILD_TS}`;
 
 const PRECACHE = [
@@ -10,10 +10,13 @@ const PRECACHE = [
   "/favicon.ico",
 ];
 
-// Install: pre-cache shell assets
+// Install: pre-cache shell assets y ACTIVA de inmediato el nuevo worker (no espera
+// a que se cierren las pestañas). Junto al `controllerchange` → reload del cliente,
+// esto hace que cada deploy llegue automáticamente sin que el usuario quede pegado
+// a un bundle viejo.
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting())
   );
 });
 
@@ -41,6 +44,25 @@ self.addEventListener("fetch", (event) => {
     url.pathname.includes("webpack-hmr") ||
     url.pathname.includes("_next/webpack")
   ) {
+    return;
+  }
+
+  // Navegaciones (documento HTML): NETWORK-FIRST cuando hay señal. Así el usuario
+  // SIEMPRE recibe el HTML más reciente y, con él, los chunks JS/CSS del último
+  // deploy — evita quedar "pegado" a una versión vieja del bundle por el cache.
+  // Sin conexión cae al HTML cacheado (o al shell "/").
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res.status === 200) {
+            const toCache = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(event.request, toCache));
+          }
+          return res;
+        })
+        .catch(() => caches.match(event.request).then((c) => c || caches.match("/")))
+    );
     return;
   }
 
