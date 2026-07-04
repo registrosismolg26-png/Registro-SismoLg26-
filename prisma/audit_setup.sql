@@ -3,9 +3,10 @@
 --  Idempotente (re-ejecutable). Ejecutar manualmente en Supabase.
 --
 --  Guarda en AuditLog cada CREATE/UPDATE/DELETE:
---    · CREATE → metadata = fila completa
---    · UPDATE → metadata = SOLO los campos que cambiaron (ignora 'syncedAt')
---    · DELETE → metadata = fila completa antes de borrar
+--    · CREATE → metadata = fila completa (incluye id + cedula)
+--    · UPDATE → metadata = campos que cambiaron (ignora 'syncedAt') + SIEMPRE `id` y
+--               `cedula` del registro afectado (si la tabla la tiene), aunque no cambien
+--    · DELETE → metadata = fila completa antes de borrar (incluye id + cedula)
 --  Quién: user_email lo pone la app (variable de sesión app.user_email); si no
 --  viene (SQL directo, otro cliente), queda el rol de BD en db_role (respaldo).
 --  Nunca guarda 'password' (se excluye del metadata).
@@ -45,6 +46,14 @@ BEGIN
     WHERE n.value IS DISTINCT FROM o.value
       AND n.key NOT IN ('syncedAt', 'password');
     IF diff IS NOT NULL THEN
+      -- El diff SIEMPRE identifica al registro afectado: se le inyecta `id` y, si la
+      -- tabla tiene columna `cedula` (Registro, ConsultaMedica), también `cedula`,
+      -- aunque no hayan cambiado. Así todo UPDATE auditado se puede rastrear por
+      -- id + cédula directamente desde metadata.
+      diff := diff || jsonb_build_object('id', NEW.id);
+      IF (to_jsonb(NEW) ? 'cedula') THEN
+        diff := diff || jsonb_build_object('cedula', to_jsonb(NEW)->>'cedula');
+      END IF;
       INSERT INTO "AuditLog"(entidad, entidad_id, accion, metadata, user_email)
       VALUES (TG_TABLE_NAME, NEW.id, 'UPDATE', diff, actor);
     END IF;

@@ -24,6 +24,7 @@ import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido } from "@/
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
 import LoginForm from "@/components/LoginForm";
+import UpdateBanner from "@/components/UpdateBanner";
 import { AppContext, type AppContextValue } from "@/context/AppContext";
 import UsuariosTab from "@/tabs/UsuariosTab";
 import DashboardTab from "@/tabs/DashboardTab";
@@ -1354,72 +1355,7 @@ export default function Home() {
 
       {/* Update Notification Banner */}
       {showUpdateBanner && (
-        <div style={{
-          position: "fixed",
-          bottom: "1rem",
-          left: "1rem",
-          zIndex: 1100,
-          backgroundColor: "var(--bg-secondary)",
-          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.15)",
-          padding: "1rem",
-          borderRadius: "var(--border-radius-lg)",
-          maxWidth: "350px",
-          width: "90%",
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.75rem",
-          color: "var(--text-primary)",
-          border: "1.5px solid var(--color-primary)"
-        }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-            <span style={{ fontSize: "1.25rem" }}>✨</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: "700", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-primary)" }}>
-                Actualización Disponible
-              </div>
-              <p style={{ fontSize: "0.85rem", margin: "4px 0 0 0", color: "var(--text-secondary)", lineHeight: "1.4" }}>
-                Hay una nueva versión disponible. Actualiza para obtener los últimos cambios.
-              </p>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem" }}>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{
-                width: "auto",
-                margin: 0,
-                padding: "0 0.75rem",
-                fontSize: "0.75rem",
-                height: "28px",
-                backgroundColor: "transparent",
-                border: "none",
-                color: "var(--text-secondary)"
-              }}
-              onClick={handleRemindLater}
-            >
-              Recordar más tarde
-            </button>
-            <button
-              type="button"
-              className="btn-submit"
-              style={{
-                width: "auto",
-                margin: 0,
-                padding: "0 0.75rem",
-                fontSize: "0.75rem",
-                height: "28px",
-                backgroundColor: "var(--color-primary)",
-                color: "#ffffff",
-                borderColor: "var(--color-primary)",
-                fontWeight: "600"
-              }}
-              onClick={handleUpdateApp}
-            >
-              Actualizar
-            </button>
-          </div>
-        </div>
+        <UpdateBanner onUpdate={handleUpdateApp} onRemindLater={handleRemindLater} />
       )}
 
       {/* Toast Notification */}
