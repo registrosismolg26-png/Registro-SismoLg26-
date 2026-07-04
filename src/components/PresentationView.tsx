@@ -208,9 +208,29 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
             <span className="pres__refugio">{refugio || "Todos los campamentos"}</span>
           </div>
         </div>
-        <div className="pres__clock">
-          <div className="pres__time"><b>{hh}</b>:<b>{mm}</b><span className="pres__sec">{ss}</span></div>
-          <div className="pres__date">{fecha}</div>
+        <div className="pres__headright">
+          {/* Controles: pausar rotación · tema claro/oscuro · salir */}
+          <div className="pres__controls">
+            <button type="button" className="pres__ctl" onClick={() => setPaused((p) => !p)} title={paused ? "Reanudar rotación" : "Pausar rotación"} aria-label={paused ? "Reanudar" : "Pausar"}>
+              {paused
+                ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                : <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>}
+            </button>
+            <button type="button" className="pres__ctl" onClick={toggleTheme} title={theme === "dark" ? "Tema claro" : "Tema oscuro"} aria-label="Cambiar tema">
+              {theme === "dark"
+                ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" /></svg>
+                : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>}
+            </button>
+            {onExit && (
+              <button type="button" className="pres__ctl pres__ctl--exit" onClick={onExit} title="Salir de presentación" aria-label="Salir de presentación">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            )}
+          </div>
+          <div className="pres__clock">
+            <div className="pres__time"><b>{hh}</b>:<b>{mm}</b><span className="pres__sec">{ss}</span></div>
+            <div className="pres__date">{fecha}</div>
+          </div>
         </div>
       </header>
 
@@ -234,25 +254,6 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
         </div>
         <div className="pres__bar"><span key={cycle} className="pres__bar-fill" style={{ animationDuration: `${ROTATE_MS}ms`, animationPlayState: paused ? "paused" : "running" }} /></div>
       </footer>
-
-      {/* Controles: pausar rotación · tema claro/oscuro · salir */}
-      <div className="pres__controls">
-        <button type="button" className="pres__ctl" onClick={() => setPaused((p) => !p)} title={paused ? "Reanudar rotación" : "Pausar rotación"} aria-label={paused ? "Reanudar" : "Pausar"}>
-          {paused
-            ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-            : <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>}
-        </button>
-        <button type="button" className="pres__ctl" onClick={toggleTheme} title={theme === "dark" ? "Tema claro" : "Tema oscuro"} aria-label="Cambiar tema">
-          {theme === "dark"
-            ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" /></svg>
-            : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>}
-        </button>
-        {onExit && (
-          <button type="button" className="pres__ctl pres__ctl--exit" onClick={onExit} title="Salir de presentación" aria-label="Salir de presentación">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-          </button>
-        )}
-      </div>
     </div>
   );
 }

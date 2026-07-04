@@ -33,6 +33,7 @@ import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CensoTab from "@/tabs/CensoTab";
 import MorbilidadTab from "@/tabs/MorbilidadTab";
 import BalanceTab from "@/tabs/BalanceTab";
+import HistorialClinicoTab from "@/tabs/HistorialClinicoTab";
 import { SwipeableToast } from "@/components/SwipeableToast";
 
 export default function Home() {
@@ -181,7 +182,7 @@ export default function Home() {
   // a Morbilidad. Espeja el gating del AppHeader/render.
   useEffect(() => {
     if (!currentUser || !isMedico(currentUser.role)) return;
-    const allowed = currentUser.role === "AdminMedico" ? ["morbilidad", "balance", "usuarios"] : ["morbilidad", "balance"];
+    const allowed = currentUser.role === "AdminMedico" ? ["morbilidad", "balance", "historial", "usuarios"] : ["morbilidad", "balance", "historial"];
     if (!allowed.includes(activeTab)) setActiveTab("morbilidad");
   }, [currentUser, activeTab]);
 
@@ -619,7 +620,7 @@ export default function Home() {
     if (activeTab === "asignaciones") {
       fetchRegistros();
     }
-    if (activeTab === "morbilidad") {
+    if (activeTab === "morbilidad" || activeTab === "balance" || activeTab === "historial") {
       fetchConsultas();
       refreshLocalConsultas();
     }
@@ -1293,6 +1294,9 @@ export default function Home() {
 
       {/* TAB 7: BALANCE DE SALUD (médicos + Master) */}
       {activeTab === "balance" && canManageMorbilidad(currentUser.role) && <BalanceTab />}
+
+      {/* TAB 8: HISTORIAL CLÍNICO (médicos + Master) */}
+      {activeTab === "historial" && canManageMorbilidad(currentUser.role) && <HistorialClinicoTab />}
 
       {/* Real-time internal PWA notification banner */}
       {internalNotification && (
