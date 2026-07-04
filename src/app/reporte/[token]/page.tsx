@@ -22,6 +22,22 @@ export default function ReportePublicoPage() {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [refugioLabel, setRefugioLabel] = useState("");
+  // Público → tema CLARO por defecto. Botón discreto para cambiar (persistido).
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    try { const s = localStorage.getItem("reporte_theme"); if (s === "dark" || s === "light") setTheme(s); } catch { /* noop */ }
+  }, []);
+  useEffect(() => {
+    const el = document.documentElement;
+    const prev = el.getAttribute("data-theme");
+    el.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+    return () => { if (prev) el.setAttribute("data-theme", prev); else el.removeAttribute("data-theme"); };
+  }, [theme]);
+  const toggleTheme = () => setTheme((t) => {
+    const next = t === "dark" ? "light" : "dark";
+    try { localStorage.setItem("reporte_theme", next); } catch { /* noop */ }
+    return next;
+  });
 
   // 1) Metadatos (sin estadísticas todavía).
   useEffect(() => {
@@ -77,16 +93,15 @@ export default function ReportePublicoPage() {
   }, [postAcceso]);
 
   // ── Pantallas ──────────────────────────────────────────────────────────────
-  if (phase === "loading") return <RepShell><div className="rep-spin" /></RepShell>;
-
-  if (phase === "notfound")
-    return <RepGate icon={IC.lockx} title="Reporte no disponible" text="Este enlace no existe o fue revocado por quien lo compartió." tone="bad" />;
-
-  if (phase === "error")
-    return <RepGate icon={IC.warn} title="No se pudo cargar" text="Ocurrió un problema al abrir el reporte. Intenta de nuevo más tarde." tone="bad" />;
-
-  if (phase === "intro")
-    return (
+  let screen: ReactNode;
+  if (phase === "loading") {
+    screen = <RepShell><div className="rep-spin" /></RepShell>;
+  } else if (phase === "notfound") {
+    screen = <RepGate icon={IC.lockx} title="Reporte no disponible" text="Este enlace no existe o fue revocado por quien lo compartió." tone="bad" />;
+  } else if (phase === "error") {
+    screen = <RepGate icon={IC.warn} title="No se pudo cargar" text="Ocurrió un problema al abrir el reporte. Intenta de nuevo más tarde." tone="bad" />;
+  } else if (phase === "intro") {
+    screen = (
       <RepGate
         icon={IC.pin}
         title="Reporte de estadísticas"
@@ -95,12 +110,10 @@ export default function ReportePublicoPage() {
         action={<button type="button" className="rep-btn" onClick={solicitarUbicacion}>{IC.pin} Permitir ubicación y ver reporte</button>}
       />
     );
-
-  if (phase === "locating")
-    return <RepGate icon={IC.pin} title="Solicitando ubicación…" text="Confirma el permiso de ubicación en tu navegador para continuar." tone="ok" action={<div className="rep-spin" />} />;
-
-  if (phase === "blocked")
-    return (
+  } else if (phase === "locating") {
+    screen = <RepGate icon={IC.pin} title="Solicitando ubicación…" text="Confirma el permiso de ubicación en tu navegador para continuar." tone="ok" action={<div className="rep-spin" />} />;
+  } else if (phase === "blocked") {
+    screen = (
       <RepGate
         icon={IC.lockx}
         title="Ubicación requerida"
@@ -109,12 +122,29 @@ export default function ReportePublicoPage() {
         action={<button type="button" className="rep-btn" onClick={solicitarUbicacion}>{IC.retry} Reintentar</button>}
       />
     );
+  } else {
+    screen = (
+      <div className="rep-page rep-page--report">
+        <PublicReportView stats={stats!} refugioLabel={refugioLabel} sharedBy={meta?.creadoPorNombre || ""} ubicacion={meta?.ubicacionRefugio || null} />
+      </div>
+    );
+  }
 
-  // phase === "ready"
   return (
-    <div className="rep-page rep-page--report">
-      <PublicReportView stats={stats!} refugioLabel={refugioLabel} sharedBy={meta?.creadoPorNombre || ""} ubicacion={meta?.ubicacionRefugio || null} />
-    </div>
+    <>
+      {screen}
+      <button
+        type="button"
+        className="rep-theme-toggle"
+        onClick={toggleTheme}
+        title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+        aria-label="Cambiar tema"
+      >
+        {theme === "dark"
+          ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" /></svg>
+          : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>}
+      </button>
+    </>
   );
 }
 
