@@ -810,6 +810,7 @@ export default function Home() {
     isSyncingRef.current = true;
     setIsSyncing(true);
 
+    let serverError: string | null = null; // detalle del primer 5xx (para no fallar en silencio)
     try {
       const pending = await getPending();
       // IMPORTANTE: no retornar si no hay censos pendientes — las CONSULTAS de
@@ -860,7 +861,11 @@ export default function Home() {
                 : "Datos inválidos en el registro.";
               await markPermanentError(record.id, reason);
             } else {
-              // 5xx u otros → temporal: backoff.
+              // 5xx u otros → temporal: backoff. Captura el detalle del servidor UNA vez
+              // (el offline enmascaraba estos 500 → nada llegaba a la BD sin aviso).
+              if (res.status >= 500 && !serverError) {
+                serverError = await res.json().then((d: any) => d?.details || d?.error || `HTTP ${res.status}`).catch(() => `HTTP ${res.status}`);
+              }
               await incrementAttempt(record.id);
             }
           })
@@ -919,6 +924,9 @@ export default function Home() {
                   : "Datos inválidos en la consulta.";
                 await markConsultaPermanentError(c.id, reason);
               } else {
+                if (res.status >= 500 && !serverError) {
+                  serverError = await res.json().then((d: any) => d?.details || d?.error || `HTTP ${res.status}`).catch(() => `HTTP ${res.status}`);
+                }
                 await incrementConsultaAttempt(c.id);
               }
             })
@@ -926,6 +934,11 @@ export default function Home() {
         }
         await refreshLocalConsultas();
         await fetchConsultas();
+      }
+
+      // Si hubo un 500 del servidor, avisar (una vez) en vez de reintentar en silencio.
+      if (serverError) {
+        showToast(`No se pudo guardar en el servidor: ${serverError}`, "error");
       }
     } catch (e) {
       console.error("Error en el ciclo de sincronización:", e);
