@@ -21,6 +21,8 @@ Antes de tocar código en este proyecto, lee la guía completa: **`docs/ARCHITEC
 
 ## Reglas de trabajo
 
+- **Estas guías son INNEGOCIABLES.** Léelas al empezar cada tarea y cúmplelas. Si el dueño pide una convención **nueva**, **pregúntale antes** de codificarla en AGENTS/SKILL; ya confirmada, escríbela para que toda IA la cumpla.
+- **UI "todo pill" (innegociable).** En formularios/modales, todos los controles comparten UNA altura y radio pill vía `.censo-form` o `.pill-form` (envuelve la sección con `pill-form`). Usa SIEMPRE `StyledSelect`/`DatePicker`/`SearchableSelect`/`SearchableSingleSelect`, nunca `<select>`/`<input type=date>` nativos. **Ningún control ni botón** (`btn-submit`/`btn-secondary`/`btn-back`) puede quedar con altura distinta. Búsquedas sin acentos con `normalizeText`. **Verifica visualmente** (mismo alto, esquinas pill, sin saltos de tamaño de letra).
 - Deja `npx tsc --noEmit` **limpio antes de cada commit**.
 - **Nada de hardcode:** no incrustes valores fijos (refugios, nombres, capacidades, credenciales, lo que deba venir de BD/config/estado/`.env`). Si ves hardcode existente, **adviértelo y propón solución**.
 - **Antes de cada `push`:** `git pull --rebase origin main` para integrar el trabajo de otros devs y no dejar nada fuera.

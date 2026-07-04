@@ -890,6 +890,8 @@ export default function AsignacionesTab() {
             {!editMode && (
               <>
                 <div className="detail-grid">
+                  {/* Identificación */}
+                  <div className="detail-section-title">Identificación</div>
                   <div className="detail-field detail-field--full">
                     <span className="detail-label">Nombre y Apellido</span>
                     <span className="detail-value">{selectedRegistro.nombreApellido}</span>
@@ -902,19 +904,9 @@ export default function AsignacionesTab() {
                     <span className="detail-label">Género</span>
                     <span className="detail-value">{selectedRegistro.genero}</span>
                   </div>
-                  <div className="detail-field">
-                    <span className="detail-label">Estado Físico</span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontWeight: "700", color: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
-                      <span style={{
-                        width: "7px",
-                        height: "7px",
-                        borderRadius: "50%",
-                        backgroundColor: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)",
-                        display: "inline-block"
-                      }}></span>
-                      {selectedRegistro.estadoFisico}
-                    </span>
-                  </div>
+
+                  {/* Grupo Familiar */}
+                  <div className="detail-section-title">Grupo Familiar</div>
                   <div className="detail-field">
                     <span className="detail-label">Jefe de Familia</span>
                     <span className="detail-value">{selectedRegistro.jefeFamilia}</span>
@@ -924,11 +916,14 @@ export default function AsignacionesTab() {
                     <span className="detail-value">{selectedRegistro.perteneceNucleo || "NO"}</span>
                   </div>
                   {selectedRegistro.perteneceNucleo === "SI" && selectedRegistro.jefeFamilia === "NO" && selectedRegistro.cedulaJefeFamilia && (
-                    <div className="detail-field">
+                    <div className="detail-field detail-field--full">
                       <span className="detail-label">Cédula Jefe de Familia</span>
                       <span className="detail-value">{selectedRegistro.cedulaJefeFamilia}</span>
                     </div>
                   )}
+
+                  {/* Ubicación */}
+                  <div className="detail-section-title">Ubicación</div>
                   <div className="detail-field detail-field--full">
                     <span className="detail-label">Parroquia</span>
                     <span className="detail-value">{selectedRegistro.parroquia}</span>
@@ -947,6 +942,16 @@ export default function AsignacionesTab() {
                       <span className="detail-value">{selectedRegistro.telefono}</span>
                     </div>
                   )}
+
+                  {/* Salud */}
+                  <div className="detail-section-title">Salud</div>
+                  <div className="detail-field">
+                    <span className="detail-label">Estado Físico</span>
+                    <span className="detail-value" style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", color: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
+                      <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: selectedRegistro.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)", display: "inline-block" }} />
+                      {selectedRegistro.estadoFisico}
+                    </span>
+                  </div>
                   {selectedRegistro.patologia === "SI" && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Patología</span>
@@ -977,46 +982,37 @@ export default function AsignacionesTab() {
                       </div>
                     </div>
                   )}
+
+                  {/* Alojamiento y Estatus */}
+                  {(selectedRegistro.cuarto || selectedRegistro.retirado === "SI" || selectedRegistro.intermitente === "SI") && (
+                    <div className="detail-section-title">Alojamiento y Estatus</div>
+                  )}
                   {selectedRegistro.cuarto && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Cuarto Asignado</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontWeight: "700", color: "var(--color-success)" }}>
-                        <span style={{
-                          width: "7px",
-                          height: "7px",
-                          borderRadius: "50%",
-                          backgroundColor: "var(--color-success)",
-                          display: "inline-block"
-                        }}></span>
+                      <span className="detail-value" style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", color: "var(--color-success)" }}>
+                        <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "var(--color-success)", display: "inline-block" }} />
                         {selectedRegistro.cuarto}
                       </span>
                     </div>
                   )}
                   {selectedRegistro.retirado === "SI" && (
-                    <div className="detail-field detail-field--full" style={{ borderLeft: "3px solid var(--color-danger, #e53e3e)", paddingLeft: "8px" }}>
-                      <span className="detail-label" style={{ color: "var(--color-danger, #e53e3e)" }}>Estado: RETIRADO / EGRESADO</span>
+                    <div className="detail-field detail-field--full">
+                      <span className="detail-label" style={{ color: "var(--color-danger)", opacity: 1 }}>Retirado / Egresado</span>
                       <span className="detail-value">
-                        {selectedRegistro.retiradoRazon && <div><strong>Razón:</strong> {selectedRegistro.retiradoRazon}</div>}
+                        {selectedRegistro.retiradoRazon && <>Razón: {selectedRegistro.retiradoRazon}</>}
                         {selectedRegistro.retiradoFecha && (
-                          <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-                            <strong>Fecha/Hora:</strong> {new Date(selectedRegistro.retiradoFecha).toLocaleString("es-VE")}
-                          </div>
+                          <span style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "0.15rem" }}>
+                            {new Date(selectedRegistro.retiradoFecha).toLocaleString("es-VE")}
+                          </span>
                         )}
                       </span>
                     </div>
                   )}
                   {selectedRegistro.intermitente === "SI" && (
-                    <div className="detail-field detail-field--full" style={{ borderLeft: "3px solid #f59e0b", paddingLeft: "8px" }}>
-                      <span className="detail-label" style={{ color: "#f59e0b", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                        </svg>
-                        Residente Intermitente
-                      </span>
-                      <span className="detail-value">
-                        Residente intermitente por el siguiente motivo: {selectedRegistro.motivoIntermitente}
-                      </span>
+                    <div className="detail-field detail-field--full">
+                      <span className="detail-label" style={{ color: "var(--color-warning)", opacity: 1 }}>Residente Intermitente</span>
+                      <span className="detail-value">{selectedRegistro.motivoIntermitente}</span>
                     </div>
                   )}
                 </div>
@@ -1132,6 +1128,7 @@ export default function AsignacionesTab() {
             {editMode && (
               <>
                 <div className="detail-edit-grid">
+                  <div className="detail-section-title">Identificación</div>
                   {canRegister(currentUser.role) && (
                     <>
                       <div className="form-group detail-field--full" style={{ marginBottom: "0.25rem" }}>
@@ -1256,6 +1253,13 @@ export default function AsignacionesTab() {
                     />
                   </div>
                   <div className="form-group">
+                    <label>Género</label>
+                    <StyledSelect value={editData.genero || ""} ariaLabel="Género" placeholder="Seleccionar…"
+                      onChange={v => setEditData(prev => ({ ...prev, genero: v }))}
+                      options={[{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }]} />
+                  </div>
+                  <div className="detail-section-title">Grupo Familiar</div>
+                  <div className="form-group">
                     <label>¿Es Jefe de Familia?</label>
                     <StyledSelect value={editData.jefeFamilia || "NO"} ariaLabel="¿Es Jefe de Familia?"
                       onChange={v => setEditData(prev => ({ ...prev, jefeFamilia: v }))}
@@ -1294,6 +1298,7 @@ export default function AsignacionesTab() {
                       )}
                     </div>
                   )}
+                  <div className="detail-section-title">Ubicación</div>
                   <div className="form-group">
                     <label>Parroquia</label>
                     <input type="text" value={editData.parroquia || ""}
@@ -1310,11 +1315,16 @@ export default function AsignacionesTab() {
                       onChange={e => setEditData(prev => ({ ...prev, comunidad: e.target.value }))} />
                   </div>
                   <div className="form-group">
-                    <label>Género</label>
-                    <StyledSelect value={editData.genero || ""} ariaLabel="Género" placeholder="Seleccionar…"
-                      onChange={v => setEditData(prev => ({ ...prev, genero: v }))}
-                      options={[{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }]} />
+                    <label>Teléfono</label>
+                    <input type="text" value={editData.telefono || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, telefono: e.target.value }))} />
                   </div>
+                  <div className="form-group detail-field--full">
+                    <label>Dirección Exacta</label>
+                    <input type="text" value={editData.direccionExacta || ""}
+                      onChange={e => setEditData(prev => ({ ...prev, direccionExacta: e.target.value }))} />
+                  </div>
+                  <div className="detail-section-title">Salud</div>
                   <div className="form-group">
                     <label>Estado Físico</label>
                     <StyledSelect value={editData.estadoFisico || ""} ariaLabel="Estado Físico" placeholder="Seleccionar…"
@@ -1421,16 +1431,7 @@ export default function AsignacionesTab() {
                       </div>
                     </div>
                   )}
-                  <div className="form-group">
-                    <label>Teléfono</label>
-                    <input type="text" value={editData.telefono || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, telefono: e.target.value }))} />
-                  </div>
-                  <div className="form-group detail-field--full">
-                    <label>Dirección Exacta</label>
-                    <input type="text" value={editData.direccionExacta || ""}
-                      onChange={e => setEditData(prev => ({ ...prev, direccionExacta: e.target.value }))} />
-                  </div>
+                  <div className="detail-section-title">Estatus</div>
                   <div className="form-group">
                     <label>Retirado / Egresado</label>
                     <StyledSelect value={editData.retirado || "NO"} ariaLabel="Retirado / Egresado"
