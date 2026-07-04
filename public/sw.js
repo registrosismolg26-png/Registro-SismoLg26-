@@ -52,7 +52,11 @@ self.addEventListener("fetch", (event) => {
           cached ||
           fetch(event.request).then((res) => {
             if (res.status === 200) {
-              caches.open(CACHE_NAME).then((c) => c.put(event.request, res.clone()));
+              // Clonar SINCRÓNICAMENTE (antes de devolver res): si se clona dentro
+              // del then async de caches.open, el body de res ya se consumió al
+              // responder → "Response body is already used".
+              const toCache = res.clone();
+              caches.open(CACHE_NAME).then((c) => c.put(event.request, toCache));
             }
             return res;
           })
@@ -67,7 +71,9 @@ self.addEventListener("fetch", (event) => {
       const networkFetch = fetch(event.request)
         .then((res) => {
           if (res.status === 200 && event.request.method === "GET") {
-            caches.open(CACHE_NAME).then((c) => c.put(event.request, res.clone()));
+            // Clonar SINCRÓNICAMENTE antes de devolver res (evita "body already used").
+            const toCache = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(event.request, toCache));
           }
           return res;
         })
