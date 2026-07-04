@@ -462,6 +462,10 @@ export default function CensoTab() {
   // Submit Handler: Saves to IndexedDB first, then triggers sync
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Enter en un input de un paso previo dispara submit: NO debe enviar ni marcar
+    // todo el form como tocado (eso pintaba en rojo los radios del paso 4 al llegar).
+    // El envío real solo procede desde el último paso.
+    if (step !== 4) return;
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -1068,35 +1072,33 @@ export default function CensoTab() {
                         {medicamentos.length === 0 ? (
                           <p className="med-empty">Sin medicamentos. Elige uno del catálogo arriba.</p>
                         ) : (
-                          <>
-                            <div className="med-row med-row--header">
-                              <span>Medicamento</span>
-                              <span>Dosis</span>
-                              <span>Período</span>
-                              <span />
-                            </div>
+                          <div className="med-items">
                             {medicamentos.map((m, i) => (
-                              <div key={i} className="med-row">
-                                <span className="med-cell med-cell--name">
-                                  {medLabel(m.id, predefinedMedicamentos)}
-                                </span>
-                                <span className="med-cell med-cell--dose">
-                                  {m.dosis || "—"}
-                                </span>
-                                <StyledSelect
-                                  dense
-                                  value={m.periodo}
-                                  onChange={(v) => updateMedicamento(i, "periodo", v)}
-                                  options={PERIODO_OPTIONS.map(op => ({ value: op, label: op }))}
-                                  placeholder="Período…"
-                                  ariaLabel="Período"
-                                />
-                                <button type="button" className="btn-remove-med" onClick={() => removeMedicamento(i)}>
-                                  ×
-                                </button>
+                              <div key={i} className="med-item">
+                                <div className="med-item__head">
+                                  <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
+                                  <button type="button" className="btn-remove-med" onClick={() => removeMedicamento(i)} aria-label="Quitar medicamento">×</button>
+                                </div>
+                                <div className="med-item__fields">
+                                  <div className="med-item__field med-item__field--dose">
+                                    <span className="med-item__label">Dosis</span>
+                                    <span className="med-item__dose">{m.dosis || "—"}</span>
+                                  </div>
+                                  <div className="med-item__field med-item__field--periodo">
+                                    <span className="med-item__label">Período</span>
+                                    <StyledSelect
+                                      dense
+                                      value={m.periodo}
+                                      onChange={(v) => updateMedicamento(i, "periodo", v)}
+                                      options={PERIODO_OPTIONS.map(op => ({ value: op, label: op }))}
+                                      placeholder="Elegir período…"
+                                      ariaLabel="Período"
+                                    />
+                                  </div>
+                                </div>
                               </div>
                             ))}
-                          </>
+                          </div>
                         )}
                       </div>
                     </div>

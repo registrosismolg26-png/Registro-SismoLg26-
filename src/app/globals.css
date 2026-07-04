@@ -4832,51 +4832,49 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 }
 .chip-pill__x:hover { background: rgba(0, 0, 0, 0.08); }
 
-/* Filas de medicamento: densas (más bajas) pero también pill y uniformes entre sí.
-   Va DESPUÉS del control base para ganar el empate de especificidad. */
-.censo-form .med-row .morb-select__trigger--dense {
-  height: var(--ctl-h-sm);
-  min-height: var(--ctl-h-sm);
-  border-radius: var(--ctl-radius);
-  font-size: 0.82rem;
-  padding: 0 0.9rem;
-}
-.med-cell {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  height: var(--ctl-h-sm, 44px);
-  padding: 0 0.9rem;
-  font-size: 0.8rem;
+/* Medicamentos: cada uno es una TARJETA legible en teléfono y escritorio.
+   (Reemplaza la fila-tabla que en móvil se comprimía y no se leía bien.) */
+.med-items { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.65rem; }
+.med-item {
   border: 1px solid var(--border-color);
-  border-radius: 999px;
+  border-radius: 16px;
   background: var(--bg-primary);
+  padding: 0.75rem 0.85rem;
+  animation: morbRowIn 0.18s ease both;
 }
-.med-cell--name {
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
+.med-item__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; }
+.med-item__name { font-weight: 700; font-size: 0.9rem; color: var(--text-primary); line-height: 1.32; }
+.med-item__fields { display: flex; gap: 0.75rem; margin-top: 0.65rem; align-items: flex-end; }
+.med-item__field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.med-item__field--dose { flex: 0 0 auto; min-width: 84px; }
+.med-item__field--periodo { flex: 1 1 auto; }
+.med-item__label { font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.med-item__dose {
+  display: flex; align-items: center;
+  height: var(--ctl-h-sm, 44px);
+  padding: 0 0.95rem;
+  font-size: 0.9rem; font-weight: 600;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 999px;
   white-space: nowrap;
 }
-.med-cell--dose { color: var(--text-secondary); }
+/* Select de período (dense) dentro de la tarjeta: pill, alto sm, ancho completo.
+   Va al final del archivo → gana el empate de especificidad con el control base. */
+.med-item__field--periodo .morb-select__trigger--dense {
+  height: var(--ctl-h-sm);
+  min-height: var(--ctl-h-sm);
+  border-radius: var(--ctl-radius, 999px);
+  font-size: 0.85rem;
+  padding: 0 1rem;
+}
+.med-item .btn-remove-med { flex: none; }
 
-/* En móvil las filas de medicamento apilan para no comprimir los controles */
+/* Teléfono: dosis y período apilan a ancho completo (se leen bien) */
 @media (max-width: 560px) {
-  .censo-form .med-row {
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "name  remove"
-      "dose  dose"
-      "per   per";
-    gap: 0.4rem;
-    padding: 0.6rem 0.5rem;
-  }
-  .censo-form .med-row--header { display: none; }
-  .censo-form .med-cell--name { grid-area: name; }
-  .censo-form .med-cell--dose { grid-area: dose; }
-  .censo-form .med-row > .morb-select { grid-area: per; }
-  .censo-form .med-row > .btn-remove-med { grid-area: remove; }
+  .med-item__fields { flex-direction: column; align-items: stretch; gap: 0.55rem; }
+  .med-item__field--dose { min-width: 0; }
+  .med-item__dose { width: 100%; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

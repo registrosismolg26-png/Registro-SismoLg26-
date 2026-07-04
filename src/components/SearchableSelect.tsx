@@ -80,17 +80,13 @@ export default function SearchableSelect({
     return { items: list.slice(0, maxRender), total: list.length };
   }, [options, query, maxRender]);
 
-  // keepOpen: en móvil la hoja permanece abierta para agregar varios seguidos.
-  const choose = (value: string, keepOpen = false) => {
+  // Se cierra al elegir (escritorio y móvil). Para agregar otro, se reabre.
+  const choose = (value: string) => {
     onSelect(value);
     setQuery("");
     setHighlight(0);
-    if (!keepOpen) {
-      setOpen(false);
-      inputRef.current?.blur();
-    } else {
-      sheetInputRef.current?.focus();
-    }
+    setOpen(false);
+    inputRef.current?.blur();
   };
 
   // ── Escritorio: menú anclado ──
@@ -196,7 +192,7 @@ export default function SearchableSelect({
                   key={o.value}
                   type="button"
                   className="msheet__opt"
-                  onClick={() => choose(o.value, true)}
+                  onClick={() => choose(o.value)}
                 >
                   {o.label}
                 </button>
