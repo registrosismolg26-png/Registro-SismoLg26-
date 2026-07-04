@@ -193,18 +193,34 @@ export default function MorbilidadTab() {
     setNotasDoctor("");
   };
 
-  // Si los antecedentes cambian respecto al censo, actualiza el Registro (cola offline + optimista).
-  const syncAntecedentesToRegistro = async () => {
+  // Al guardar, si el paciente está en el censo, propaga los cambios de Datos Básicos
+  // (nombre, género, fecha de nacimiento, edad) y de Antecedentes al Registro del censo.
+  const syncPatientToRegistro = async () => {
     if (!matchedRegistro) return;
     const prevPat = Array.isArray(matchedRegistro.patologiaIds) ? matchedRegistro.patologiaIds : [];
     const prevMed = Array.isArray(matchedRegistro.medicamentoIds) ? matchedRegistro.medicamentoIds : [];
+    const prevFechaYmd = ymdFromISO(matchedRegistro.fechaNacimiento);
+    const nuevaEdad = edad ? parseInt(edad) : null;
     const changed =
       JSON.stringify(antecedentesPatologiaIds) !== JSON.stringify(prevPat) ||
-      JSON.stringify(antecedentesMedicamentoIds) !== JSON.stringify(prevMed);
+      JSON.stringify(antecedentesMedicamentoIds) !== JSON.stringify(prevMed) ||
+      nombreApellido.trim() !== (matchedRegistro.nombreApellido || "") ||
+      genero !== matchedRegistro.genero ||
+      (fechaNacimiento || "") !== (prevFechaYmd || "") ||
+      nuevaEdad !== (matchedRegistro.edad ?? null);
     if (!changed) return;
 
     const patologia = antecedentesPatologiaIds.length > 0 ? "SI" : "NO";
-    const updatedReg = { ...matchedRegistro, patologia, patologiaIds: antecedentesPatologiaIds, medicamentoIds: antecedentesMedicamentoIds };
+    const updatedReg = {
+      ...matchedRegistro,
+      nombreApellido: nombreApellido.trim() || matchedRegistro.nombreApellido,
+      genero,
+      fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento + "T00:00:00").toISOString() : matchedRegistro.fechaNacimiento,
+      edad: nuevaEdad ?? matchedRegistro.edad,
+      patologia,
+      patologiaIds: antecedentesPatologiaIds,
+      medicamentoIds: antecedentesMedicamentoIds,
+    };
     setRegistros((prev) => {
       const next = prev.map((r) => (r.id === updatedReg.id ? updatedReg : r));
       if (typeof window !== "undefined") localStorage.setItem("cached_registros", JSON.stringify(next));
@@ -220,7 +236,7 @@ export default function MorbilidadTab() {
     };
     await saveLocal(regUpdate);
     await refreshLocalRecords();
-    showToast("Antecedentes actualizados en el censo.", "info");
+    showToast("Datos del paciente actualizados en el censo.", "info");
   };
 
   // --- GUARDAR CONSULTA (OFFLINE-FIRST) ---
@@ -251,7 +267,7 @@ export default function MorbilidadTab() {
     };
     try {
       await saveLocalConsulta(localConsultaData);
-      await syncAntecedentesToRegistro();
+      await syncPatientToRegistro();
       showToast("Consulta médica registrada localmente.", "success");
       handleReset();
       await refreshLocalConsultas();

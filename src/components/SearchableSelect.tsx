@@ -84,15 +84,15 @@ export default function SearchableSelect({
         style={{ width: "100%" }}
       />
       {open && !disabled && (
-        <ul className="custom-select-options" role="listbox">
+        <ul className="combo-menu" role="listbox">
           {filtered.items.length === 0 ? (
-            <li className="custom-select-option" style={{ opacity: 0.6, cursor: "default" }}>{emptyText}</li>
+            <li className="combo-menu__item combo-menu__item--muted">{emptyText}</li>
           ) : (
             <>
               {filtered.items.map((o, i) => (
                 <li
                   key={o.value}
-                  className={`custom-select-option ${i === highlight ? "selected" : ""}`}
+                  className={`combo-menu__item ${i === highlight ? "is-active" : ""}`}
                   role="option"
                   aria-selected={i === highlight}
                   onMouseEnter={() => setHighlight(i)}
@@ -102,7 +102,7 @@ export default function SearchableSelect({
                 </li>
               ))}
               {filtered.total > filtered.items.length && (
-                <li className="custom-select-option" style={{ opacity: 0.6, cursor: "default", fontStyle: "italic" }}>
+                <li className="combo-menu__item combo-menu__item--muted">
                   +{filtered.total - filtered.items.length} más… escribe para filtrar
                 </li>
               )}

@@ -47,13 +47,13 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
         <span className="morb-select__arrow" aria-hidden>▾</span>
       </button>
       {open && !disabled && (
-        <ul className="custom-select-options" role="listbox">
+        <ul className="combo-menu" role="listbox">
           {options.map((o) => (
             <li
               key={o.value}
               role="option"
               aria-selected={o.value === value}
-              className={`custom-select-option${o.value === value ? " selected" : ""}`}
+              className={`combo-menu__item${o.value === value ? " is-active is-selected" : ""}`}
               onClick={() => { onChange(o.value); setOpen(false); }}
             >
               {o.label}
