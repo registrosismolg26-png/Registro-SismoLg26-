@@ -4479,6 +4479,11 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 /* Datos Básicos: se reparte en tantas columnas como quepan (full-width en PC) */
 .morb-basic { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: clamp(0.7rem, 1.6vw, 1rem); }
 .morb-basic .full { grid-column: 1 / -1; }
+.morb-basic .morb-field--wide { grid-column: span 2; }
+@media (max-width: 480px) { .morb-basic .morb-field--wide { grid-column: 1 / -1; } }
+
+/* Fecha de nacimiento: día / mes / año como selectores estilizados */
+.morb-date { display: grid; grid-template-columns: 0.9fr 1.3fr 1fr; gap: 0.4rem; }
 
 /* ── Select estilizado (StyledSelect) — cumple el reformat, no nativo ── */
 .morb-select { position: relative; width: 100%; }

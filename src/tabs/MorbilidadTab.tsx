@@ -6,6 +6,7 @@ import { saveLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { patologiaNombre, medLabel, medItemsText } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
 import StyledSelect from "@/components/StyledSelect";
+import DateSelect from "@/components/DateSelect";
 import { PERIODO_OPTIONS } from "@/lib/constants";
 import type { Medicamento } from "@/types";
 
@@ -400,7 +401,7 @@ export default function MorbilidadTab() {
                 <label className="morb-field__label">Cédula</label>
                 <input className="morb-control" type="text" value={cedula} disabled />
               </div>
-              <div className="morb-field">
+              <div className="morb-field morb-field--wide">
                 <label className="morb-field__label">Nombre y Apellido</label>
                 <input className="morb-control" type="text" value={nombreApellido} onChange={(e) => setNombreApellido(e.target.value)} required />
               </div>
@@ -408,9 +409,9 @@ export default function MorbilidadTab() {
                 <label className="morb-field__label">Género</label>
                 <StyledSelect value={genero} onChange={setGenero} options={GENERO_OPTS} ariaLabel="Género" />
               </div>
-              <div className="morb-field">
+              <div className="morb-field morb-field--wide">
                 <label className="morb-field__label">Fecha de Nacimiento</label>
-                <input className="morb-control" type="date" value={fechaNacimiento} max={ymdFromISO(new Date().toISOString())} onChange={(e) => onFechaChange(e.target.value)} />
+                <DateSelect value={fechaNacimiento} onChange={onFechaChange} maxYear={new Date().getFullYear()} />
               </div>
               <div className="morb-field">
                 <label className="morb-field__label">Edad (años)</label>

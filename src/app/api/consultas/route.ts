@@ -78,6 +78,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, consulta }, { status: 201 });
   } catch (error: any) {
     console.error("Error en POST /api/consultas:", error);
-    return NextResponse.json({ error: "Error al registrar la consulta médica" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al registrar la consulta médica", code: error?.code, details: error?.message },
+      { status: 500 }
+    );
   }
 }
