@@ -418,10 +418,13 @@ export default function MorbilidadTab() {
 
   return (
     <div className="tab-view morb">
-      {/* 1. Header */}
+      {/* 1. Header (estilo hero, coherente con Balance) */}
       <div className="morb-head">
+        <span className="morb-head__icon" aria-hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 4.8a4 4 0 0 1 5.6 0L12 6.4l1.6-1.6a4 4 0 1 1 5.6 5.6L12 17.6 4.8 10.4a4 4 0 0 1 0-5.6z"/><path d="M2.5 12.5h4l1.8-3 2.4 5 1.8-3H16"/></svg>
+        </span>
         <div className="morb-head__titles">
-          <h2>Consultas Médicas (Morbilidad)</h2>
+          <h2>Consultas Médicas</h2>
           <p>Registro clínico y diagnóstico de pacientes refugiados</p>
         </div>
         {/* Catálogos médicos: dos botones discretos + modales (gestión de patologías

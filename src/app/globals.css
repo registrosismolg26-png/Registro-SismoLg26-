@@ -4551,8 +4551,20 @@ h2.dashboard-section-title {
   gap: var(--morb-gap);
 }
 
-.morb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.9rem 1.25rem; flex-wrap: wrap; }
-.morb-head__titles { min-width: 0; flex: 1 1 240px; }
+.morb-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.85rem 1.1rem; flex-wrap: wrap;
+  padding: 1rem 1.25rem; border-radius: 20px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 15%, var(--bg-secondary)), var(--bg-secondary) 72%);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 6px 24px -14px rgba(0,0,0,0.30);
+}
+.morb-head__icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 50px; height: 50px; border-radius: 15px; background: var(--color-primary); color: #fff;
+  box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--color-primary) 70%, transparent);
+}
+.morb-head__icon svg { width: 25px; height: 25px; }
+.morb-head__titles { min-width: 0; flex: 1 1 200px; }
 .morb-head h2 {
   font-family: var(--font-heading);
   font-size: clamp(1.15rem, 1rem + 1.1vw, 1.6rem);
@@ -5385,52 +5397,120 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .update-banner__text { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.4; margin: 0.15rem 0 0; }
 .update-banner__hint { color: var(--text-muted); }
 
-/* ── Balance de Salud (dashboard médico) ─────────────────────────────────────── */
-.balance-duo { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
-@media (min-width: 900px) { .balance-duo { grid-template-columns: 1fr 1fr; } }
-.balance-view .matrix-total-row td { border-top: 2px solid var(--border-color); background: var(--bg-primary); }
+/* ═══ Balance de Salud — módulo médico (diseño propio, NO clona el dashboard) ═══ */
+.balance-view { --bal-radius: 20px; }
 
-/* Lista de barras (patologías más frecuentes) */
-.balance-barlist { display: flex; flex-direction: column; gap: 0.55rem; }
-.balance-barlist__row { display: grid; grid-template-columns: minmax(90px, 1.4fr) minmax(0, 2fr) auto; align-items: center; gap: 0.6rem; }
-.balance-barlist__label { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.balance-barlist__track { height: 12px; border-radius: 999px; background: var(--bg-primary); border: 1px solid var(--border-color); overflow: hidden; }
-.balance-barlist__fill { display: block; height: 100%; border-radius: 999px; background: var(--color-primary); transition: width 0.4s cubic-bezier(0.4,0,0.2,1); }
-.balance-barlist__count { font-size: 0.82rem; font-weight: 800; color: var(--color-primary); font-variant-numeric: tabular-nums; min-width: 1.5rem; text-align: right; }
-@media (max-width: 480px) {
-  .balance-barlist__row { grid-template-columns: 1fr auto; grid-template-areas: "label count" "track track"; row-gap: 0.3rem; }
-  .balance-barlist__label { grid-area: label; }
-  .balance-barlist__count { grid-area: count; }
-  .balance-barlist__track { grid-area: track; }
+/* Hero */
+.bal-hero {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1.1rem 1.35rem; border-radius: var(--bal-radius);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 16%, var(--bg-secondary)), var(--bg-secondary) 72%);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 6px 24px -14px rgba(0,0,0,0.30);
 }
+.bal-hero__icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 52px; height: 52px; border-radius: 16px; background: var(--color-primary); color: #fff;
+  box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--color-primary) 70%, transparent);
+}
+.bal-hero__icon svg { width: 26px; height: 26px; }
+.bal-hero__text h2 { margin: 0; font-family: var(--font-heading); font-size: clamp(1.2rem, 1rem + 1.1vw, 1.6rem); font-weight: 800; color: var(--text-primary); line-height: 1.1; }
+.bal-hero__text p { margin: 3px 0 0; font-size: 0.82rem; color: var(--text-secondary); }
+.bal-hero__chip { display: inline-flex; align-items: center; padding: 0.12rem 0.6rem; border-radius: 999px; background: color-mix(in srgb, var(--color-primary) 14%, transparent); color: var(--color-primary); font-weight: 700; font-size: 0.76rem; }
 
-/* Matriz edad×género: en móvil se vuelve TARJETAS apiladas (sin scroll horizontal
-   interno). Cada fila una tarjeta: el grupo de edad es el encabezado y cada celda
-   numérica una línea «Etiqueta: valor» (vía data-label). */
+/* Cards con badge de ícono a color */
+.bal-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 0.85rem; }
+.bal-card {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  padding: 1.05rem 1.15rem 0.95rem; border-radius: var(--bal-radius);
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  box-shadow: 0 4px 18px -12px rgba(0,0,0,0.28);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.bal-card::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 4px; background: var(--accent); }
+.bal-card:hover { transform: translateY(-3px); box-shadow: 0 16px 32px -16px color-mix(in srgb, var(--accent) 55%, rgba(0,0,0,0.45)); border-color: color-mix(in srgb, var(--accent) 40%, var(--border-color)); }
+.bal-card__icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 13px; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.bal-card__icon svg { width: 22px; height: 22px; }
+.bal-card__value { font-family: var(--font-heading); font-size: 1.8rem; font-weight: 800; line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.bal-card__value em { font-size: 0.85rem; font-weight: 700; font-style: normal; color: var(--text-muted); margin-left: 0.28rem; }
+.bal-card__label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em; color: var(--text-secondary); text-transform: uppercase; }
+
+/* Panel de sección */
+.bal-panel { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--bal-radius); padding: 1.2rem 1.3rem; box-shadow: 0 4px 18px -12px rgba(0,0,0,0.24); }
+.bal-panel__head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.bal-panel__ico { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--color-primary) 13%, transparent); color: var(--color-primary); flex: none; }
+.bal-panel__ico svg { width: 18px; height: 18px; }
+.bal-panel__head h3 { margin: 0; font-size: 0.98rem; font-weight: 800; color: var(--text-primary); }
+.bal-duo { display: grid; grid-template-columns: 1fr; gap: 1.1rem; }
+@media (min-width: 900px) { .bal-duo { grid-template-columns: 1fr 1fr; } }
+.bal-muted { color: var(--text-muted); margin: 0; font-size: 0.85rem; }
+
+/* Estado vacío */
+.bal-empty { display: flex; flex-direction: column; align-items: center; gap: 0.7rem; text-align: center; padding: 2.2rem 1rem; }
+.bal-empty__ico { display: inline-flex; width: 56px; height: 56px; border-radius: 17px; align-items: center; justify-content: center; background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
+.bal-empty__ico svg { width: 28px; height: 28px; }
+.bal-empty p { margin: 0; color: var(--text-secondary); }
+
+/* Barra segmentada (edad) */
+.bal-seg { display: flex; height: 26px; border-radius: 999px; overflow: hidden; gap: 3px; background: var(--bg-primary); padding: 3px; border: 1px solid var(--border-color); }
+.bal-seg__part { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.7rem; font-weight: 800; border-radius: 999px; min-width: 0; overflow: hidden; white-space: nowrap; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+.bal-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 0.85rem; }
+.bal-legend--col { flex-direction: column; gap: 0.55rem; margin-top: 0; }
+.bal-legend__item { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-secondary); }
+.bal-legend__item strong { color: var(--text-primary); }
+.bal-legend__dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.bal-legend__pct { margin-left: auto; padding-left: 0.6rem; font-size: 0.72rem; font-weight: 800; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* Donut (género) */
+.bal-donut { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
+.bal-donut__svg { width: 132px; height: 132px; flex: none; }
+.bal-donut__num { font-size: 22px; font-weight: 800; fill: var(--text-primary); }
+.bal-donut__cap { font-size: 7.5px; fill: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.bal-donut .bal-legend { flex: 1; min-width: 150px; }
+
+/* Matriz edad × género */
+.bal-matrix-wrap { overflow-x: auto; border-radius: 14px; }
+.bal-matrix { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.bal-matrix thead th { text-align: center; font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border-color); }
+.bal-matrix thead th:first-child { text-align: left; }
+.bal-matrix td { padding: 0.6rem; border-bottom: 1px solid var(--border-color); text-align: center; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.bal-matrix td:first-child { text-align: left; }
+.bal-matrix tbody tr:last-child td { border-bottom: none; }
+.bal-cell { font-weight: 700; border-radius: 8px; }
+.bal-cell--f { color: #db2777; background: color-mix(in srgb, #db2777 9%, transparent); }
+.bal-cell--m { color: #2563eb; background: color-mix(in srgb, #2563eb 9%, transparent); }
+.bal-cell--tot { font-weight: 800; }
+.bal-matrix__total td { border-top: 2px solid var(--border-color); background: var(--bg-primary); }
+
+/* Ranking de patologías */
+.bal-rank { display: flex; flex-direction: column; gap: 0.6rem; }
+.bal-rank__row { display: grid; grid-template-columns: auto minmax(88px, 1.3fr) minmax(0, 2fr) auto; align-items: center; gap: 0.65rem; }
+.bal-rank__pos { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 8px; background: var(--bg-primary); border: 1px solid var(--border-color); font-size: 0.74rem; font-weight: 800; color: var(--text-muted); flex: none; }
+.bal-rank__pos--1 { background: #f59e0b; color: #fff; border-color: #f59e0b; }
+.bal-rank__pos--2 { background: #94a3b8; color: #fff; border-color: #94a3b8; }
+.bal-rank__pos--3 { background: #b45309; color: #fff; border-color: #b45309; }
+.bal-rank__label { font-size: 0.84rem; font-weight: 600; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bal-rank__track { height: 12px; border-radius: 999px; background: var(--bg-primary); border: 1px solid var(--border-color); overflow: hidden; }
+.bal-rank__fill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 55%, #22d3ee)); transition: width 0.55s cubic-bezier(0.4,0,0.2,1); }
+.bal-rank__count { font-size: 0.85rem; font-weight: 800; color: var(--color-primary); font-variant-numeric: tabular-nums; min-width: 1.5rem; text-align: right; }
+
+/* Responsive */
 @media (max-width: 560px) {
-  .balance-view .matrix-table-wrapper { overflow-x: visible; }
-  .balance-view .matrix-table { min-width: 0 !important; }
-  .balance-view .matrix-table thead { display: none; }
-  .balance-view .matrix-table, .balance-view .matrix-table tbody { display: block; width: 100%; }
-  .balance-view .matrix-table tr {
-    display: block; background: var(--bg-secondary); border: 1px solid var(--border-color);
-    border-radius: 14px; padding: 0.1rem 0.9rem; margin-bottom: 0.55rem;
-  }
-  .balance-view .matrix-table td {
-    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-    padding: 0.5rem 0 !important; border-bottom: 1px solid var(--border-color);
-    text-align: right; background: none !important;
-  }
-  .balance-view .matrix-table tr td:last-child { border-bottom: none; }
-  .balance-view .matrix-table td::before {
-    content: attr(data-label); font-weight: 700; font-size: 0.66rem; text-transform: uppercase;
-    letter-spacing: 0.04em; color: var(--text-muted); text-align: left; flex: none;
-  }
-  .balance-view .matrix-table td:first-child {
-    justify-content: flex-start; font-size: 0.92rem; padding-top: 0.65rem !important;
-    border-bottom: 2px solid var(--border-color);
-  }
-  .balance-view .matrix-table td:first-child::before { content: ""; }
+  .bal-rank__row { grid-template-columns: auto 1fr auto; grid-template-areas: "pos label count" "track track track"; row-gap: 0.35rem; }
+  .bal-rank__pos { grid-area: pos; } .bal-rank__label { grid-area: label; } .bal-rank__count { grid-area: count; } .bal-rank__track { grid-area: track; }
+
+  /* Matriz → tarjetas apiladas (sin scroll horizontal interno) */
+  .bal-matrix-wrap { overflow-x: visible; }
+  .bal-matrix, .bal-matrix tbody { display: block; width: 100%; }
+  .bal-matrix thead { display: none; }
+  .bal-matrix tr { display: block; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 14px; padding: 0.1rem 0.9rem; margin-bottom: 0.55rem; }
+  .bal-matrix td { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.5rem 0 !important; border-bottom: 1px solid var(--border-color); text-align: right; background: none !important; border-radius: 0; }
+  .bal-matrix tr td:last-child { border-bottom: none; }
+  .bal-matrix td::before { content: attr(data-label); font-weight: 700; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); flex: none; }
+  .bal-matrix td:first-child { justify-content: flex-start; font-size: 0.95rem; padding-top: 0.6rem !important; border-bottom: 2px solid var(--border-color); }
+  .bal-matrix td:first-child::before { content: ""; }
+  .bal-matrix__total td { border-top: none; }
 }
 
 /* ── Catálogos Médicos (botones + modal en Morbilidad) ───────────────────────── */
