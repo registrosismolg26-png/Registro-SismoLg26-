@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { computeAggregateStats } from "@/lib/stats";
 
-// ── Metadatos del reporte público (SIN autenticación, SIN estadísticas) ──────
-// Devuelve solo lo necesario para pintar la pantalla previa: si el link está
-// activo, de qué refugio es y quién lo compartió. Las estadísticas NO se
-// entregan aquí: solo tras conceder la ubicación (ver /acceso).
+// ── Reporte público (SIN autenticación) ──────────────────────────────────────
+// Devuelve metadatos + estadísticas AGREGADAS (sin PII). La ubicación NO es
+// obligatoria para ver el reporte; la auditoría (IP/navegador/ubicación) se hace
+// aparte y en 2do plano vía POST /acceso.
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await params;
@@ -27,12 +28,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       ubicacionRefugio = ref?.ubicacion ?? null;
     }
 
+    const stats = await computeAggregateStats(reporte.refugio);
+
     return NextResponse.json({
       success: true,
       refugio: reporte.refugio,
       refugioLabel: reporte.refugio || "Todos los campamentos",
       creadoPorNombre: reporte.creadoPorNombre,
       ubicacionRefugio,
+      stats,
     });
   } catch (error: any) {
     console.error("Error al obtener reporte público:", error);

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeAggregateStats } from "@/lib/stats";
 
-// ── Apertura del reporte público: auditoría + entrega condicionada ───────────
-// Cada apertura se AUDITA (navegador, IP, ubicación si la hay). La ubicación es
-// OBLIGATORIA: sin coordenadas válidas NO se entregan estadísticas (403), pero
-// el intento igual queda registrado. Con ubicación → se registra y se devuelven
-// las estadísticas AGREGADAS (sin PII) del refugio del link.
+// ── Auditoría de apertura del reporte público (SIN autenticación) ────────────
+// Registra CADA apertura: IP (del servidor), navegador y ubicación SI la
+// conceden. La ubicación NO es obligatoria para ver el reporte (eso lo entrega el
+// GET); esto es solo el registro, que el cliente envía en 2do plano cuando la
+// geolocalización responde (o falla/expira → se guarda sin ubicación).
 
 const clientIp = (req: Request): string | null => {
   const xff = req.headers.get("x-forwarded-for");
@@ -25,7 +24,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
     const reporte = await prisma.reporteCompartido.findUnique({
       where: { id: token },
-      select: { id: true, refugio: true, activo: true },
+      select: { id: true, activo: true },
     });
     if (!reporte || !reporte.activo) {
       return NextResponse.json({ error: "Reporte no disponible" }, { status: 404 });
@@ -37,15 +36,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const precision = asNum(body.precision);
     const ubicacionConcedida = lat !== null && lng !== null;
 
-    const ua = req.headers.get("user-agent");
-    const ip = clientIp(req);
-
-    // Auditoría SIEMPRE (con o sin ubicación).
     await prisma.reporteAcceso.create({
       data: {
         reporteId: reporte.id,
-        ip,
-        userAgent: ua,
+        ip: clientIp(req),
+        userAgent: req.headers.get("user-agent"),
         lat: ubicacionConcedida ? lat : null,
         lng: ubicacionConcedida ? lng : null,
         precision: ubicacionConcedida ? precision : null,
@@ -53,20 +48,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       },
     });
 
-    // Sin ubicación → NO se entregan estadísticas (pero el intento quedó auditado).
-    if (!ubicacionConcedida) {
-      return NextResponse.json({ granted: false, error: "Ubicación requerida" }, { status: 403 });
-    }
-
-    const stats = await computeAggregateStats(reporte.refugio);
-    return NextResponse.json({
-      granted: true,
-      refugio: reporte.refugio,
-      refugioLabel: reporte.refugio || "Todos los campamentos",
-      stats,
-    });
+    return NextResponse.json({ ok: true });
   } catch (error: any) {
-    console.error("Error en acceso a reporte público:", error);
-    return NextResponse.json({ error: "Error al abrir el reporte" }, { status: 500 });
+    console.error("Error al auditar acceso a reporte público:", error);
+    // La auditoría es best-effort: no rompe la vista del reporte.
+    return NextResponse.json({ ok: false }, { status: 200 });
   }
 }
