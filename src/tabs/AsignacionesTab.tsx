@@ -196,6 +196,7 @@ export default function AsignacionesTab() {
     try {
       const localRec = {
         id: updated.id,
+        type: 'update' as const,   // asignar cuarto ES una edición (no una creación)
         refugio: currentUser?.campamentoTransitorio,
         userId: currentUser?.id,
         data: {

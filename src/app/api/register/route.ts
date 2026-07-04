@@ -146,6 +146,13 @@ export async function POST(req: Request) {
       }
     }
 
+    // Un re-envío de una CREACIÓN ('new') de un registro que YA existe NO debe tocarlo:
+    // ya está creado; sobrescribirlo podría revertirlo a un estado viejo o pisar una
+    // edición hecha en otro dispositivo. Solo las EDICIONES ('update') modifican.
+    if (existing && body?._localType === "new") {
+      return NextResponse.json({ success: true, id: existing.id, alreadyExists: true }, { status: 200 });
+    }
+
     if (existing) {
       const updated = await withAuditUser(auth.email, (tx) => tx.registro.update({
         where: { id },

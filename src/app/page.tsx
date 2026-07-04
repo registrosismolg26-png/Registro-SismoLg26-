@@ -860,7 +860,7 @@ export default function Home() {
             apiFetch("/api/register", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...record.data, id: record.id, refugio: record.refugio }),
+              body: JSON.stringify({ ...record.data, id: record.id, refugio: record.refugio, _localType: record.type || "new" }),
               timeoutMs: 15000,
             })
           )
