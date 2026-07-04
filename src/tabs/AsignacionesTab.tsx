@@ -1135,7 +1135,7 @@ export default function AsignacionesTab() {
 
                       <div className="form-group detail-field--full">
                         <label>{editData.isChildDependent ? "Cédula del Representante" : "Cédula de Identidad"}</label>
-                        <div style={{ display: "flex", gap: "0.5rem", width: "100%", alignItems: "flex-start" }}>
+                        <div style={{ display: "flex", gap: "0.5rem", width: "100%", alignItems: "flex-start", flexWrap: "wrap" }}>
                           <div style={{ width: "84px", flex: "0 0 auto" }}>
                             <StyledSelect
                               value={editData.nacionalidad || "V"}
@@ -1148,7 +1148,7 @@ export default function AsignacionesTab() {
                             type="text"
                             value={editData.cedula || ""}
                             onChange={e => setEditData(prev => ({ ...prev, cedula: e.target.value.replace(/\D/g, "") }))}
-                            style={{ flex: 1, minWidth: 0 }}
+                            style={{ flex: "1 1 120px", minWidth: 0 }}
                           />
                           <button
                             type="button"
