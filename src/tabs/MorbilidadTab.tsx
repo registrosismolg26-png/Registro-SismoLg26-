@@ -303,7 +303,12 @@ export default function MorbilidadTab() {
     };
     await saveLocal(regUpdate);
     await refreshLocalRecords();
-    showToast("Datos del paciente actualizados en el censo.", "info");
+    // Confirmación explícita: si cambió el estado físico por las lesiones, se dice
+    // (el médico no ve el censo, así sabe que la sincronía ocurrió).
+    const estadoMsg = nuevoEstadoFisico !== (matchedRegistro.estadoFisico || "")
+      ? ` Estado físico → ${nuevoEstadoFisico === "LESIONADO" ? "Lesionado" : "Ileso"}.`
+      : "";
+    showToast("Datos del paciente actualizados en el censo." + estadoMsg, "info");
   };
 
   // --- GUARDAR CONSULTA (OFFLINE-FIRST) ---
