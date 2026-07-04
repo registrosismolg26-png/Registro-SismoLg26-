@@ -1175,6 +1175,17 @@ html[data-theme="dark"] .toast--info {
   overflow-y: auto;
 }
 
+/* Modal de EDITAR consulta: aprovecha el ancho en PC para el layout de 2 columnas
+   (Antecedentes | Diagnóstico), igual que el formulario de crear. Selector compuesto
+   (0,2,0) para ganar a los max-width de `.modal-content` en media queries. */
+.modal-content.modal-content--morb {
+  width: 94%;
+  max-width: min(1140px, 95vw);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.morb-editbody { width: 100%; max-width: none; margin: 0; }
+
 .modal-header {
   display: flex;
   justify-content: space-between;

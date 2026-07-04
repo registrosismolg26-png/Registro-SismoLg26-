@@ -7,6 +7,7 @@ export interface LocalConsulta {
     registroId?: string;  // UID del Registro del censo (null si no está censado)
     genero?: string;
     edad?: number;
+    fechaNacimiento?: string;  // yyyy-mm-dd; la edad se DERIVA de aquí (nunca manual)
     refugio: string;
     // Por-ID: patologías = ids del catálogo; medicamentos = { id, dosis, periodo }.
     antecedentesPatologiaIds: string[];

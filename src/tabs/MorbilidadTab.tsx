@@ -259,6 +259,7 @@ export default function MorbilidadTab() {
         registroId,
         genero,
         edad: edad ? parseInt(edad) : undefined,
+        fechaNacimiento: fechaNacimiento || undefined,
         refugio,
         antecedentesPatologiaIds,
         antecedentesMedicamentoIds,
@@ -291,16 +292,28 @@ export default function MorbilidadTab() {
   const [editSaving, setEditSaving] = useState(false);
   useBodyScrollLock(!!editForm);
 
-  const openEdit = (c: any) => setEditForm({
-    id: c.id, createdAt: c.createdAt, registroId: c.data.registroId, refugio: c.data.refugio,
-    cedula: c.data.cedula, nombreApellido: c.data.nombreApellido || "",
-    genero: c.data.genero || "MASCULINO", edad: c.data.edad != null ? String(c.data.edad) : "",
-    antPat: Array.isArray(c.data.antecedentesPatologiaIds) ? [...c.data.antecedentesPatologiaIds] : [],
-    antMed: Array.isArray(c.data.antecedentesMedicamentoIds) ? [...c.data.antecedentesMedicamentoIds] : [],
-    diagPat: Array.isArray(c.data.diagnosticoPatologiaIds) ? [...c.data.diagnosticoPatologiaIds] : [],
-    diagMed: Array.isArray(c.data.diagnosticoMedicamentoIds) ? [...c.data.diagnosticoMedicamentoIds] : [],
-    notas: c.data.notasDoctor || "",
-  });
+  const openEdit = (c: any) => {
+    // Fecha de nacimiento: la almacenada; si es una consulta vieja sin ella, se
+    // intenta recuperar del censo (por UID o cédula). La edad se DERIVA de aquí.
+    let fecha: string = c.data.fechaNacimiento || "";
+    if (!fecha) {
+      const ced = String(c.data.cedula || "").replace(/\D/g, "");
+      const reg = registros.find((r: any) => (c.data.registroId && r.id === c.data.registroId) || (r.cedula || "").replace(/\D/g, "") === ced);
+      if (reg) fecha = ymdFromISO(reg.fechaNacimiento);
+    }
+    setEditForm({
+      id: c.id, createdAt: c.createdAt, registroId: c.data.registroId, refugio: c.data.refugio,
+      cedula: c.data.cedula, nombreApellido: c.data.nombreApellido || "",
+      genero: c.data.genero || "MASCULINO",
+      fechaNacimiento: fecha,
+      edadFallback: c.data.edad != null ? c.data.edad : null, // solo si no hay fecha
+      antPat: Array.isArray(c.data.antecedentesPatologiaIds) ? [...c.data.antecedentesPatologiaIds] : [],
+      antMed: Array.isArray(c.data.antecedentesMedicamentoIds) ? [...c.data.antecedentesMedicamentoIds] : [],
+      diagPat: Array.isArray(c.data.diagnosticoPatologiaIds) ? [...c.data.diagnosticoPatologiaIds] : [],
+      diagMed: Array.isArray(c.data.diagnosticoMedicamentoIds) ? [...c.data.diagnosticoMedicamentoIds] : [],
+      notas: c.data.notasDoctor || "",
+    });
+  };
   const closeEdit = () => setEditForm(null);
 
   const efPatAdd = (key: "antPat" | "diagPat", id: string) => { if (id) setEditForm((f: any) => f && !f[key].includes(id) ? { ...f, [key]: [...f[key], id] } : f); };
@@ -313,12 +326,14 @@ export default function MorbilidadTab() {
     if (!editForm) return;
     setEditSaving(true);
     try {
+      const eStr = editForm.fechaNacimiento ? computeEdad(editForm.fechaNacimiento) : "";
       const data = {
         cedula: editForm.cedula,
         nombreApellido: editForm.nombreApellido.trim() || editForm.cedula,
         registroId: editForm.registroId,
         genero: editForm.genero,
-        edad: editForm.edad ? parseInt(editForm.edad) : undefined,
+        edad: eStr ? parseInt(eStr) : (editForm.edadFallback ?? undefined),
+        fechaNacimiento: editForm.fechaNacimiento || undefined,
         refugio: editForm.refugio,
         antecedentesPatologiaIds: editForm.antPat,
         antecedentesMedicamentoIds: editForm.antMed,
@@ -353,6 +368,7 @@ export default function MorbilidadTab() {
             registroId: c.registroId,
             genero: c.genero,
             edad: c.edad,
+            fechaNacimiento: c.fechaNacimiento,
             refugio: c.refugio,
             antecedentesPatologiaIds: c.antecedentesPatologiaIds || [],
             antecedentesMedicamentoIds: c.antecedentesMedicamentoIds || [],
@@ -595,10 +611,12 @@ export default function MorbilidadTab() {
         )}
       </div>
 
-      {/* Modal: EDITAR consulta (pill, responsive). Reusa los helpers de chips/meds. */}
+      {/* Modal: EDITAR consulta — mismo layout que el formulario de crear (Datos
+          Básicos + Antecedentes | Diagnóstico en 2 columnas). Ancho en PC, pill,
+          100% responsive. La edad se DERIVA de la fecha de nacimiento (no manual). */}
       {editForm && (
         <div className="modal-overlay" onClick={closeEdit}>
-          <div className="modal-content modal-content--detail" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "620px" }}>
+          <div className="modal-content modal-content--morb" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Editar consulta</span>
               <button className="modal-close" onClick={closeEdit} aria-label="Cerrar">
@@ -606,54 +624,81 @@ export default function MorbilidadTab() {
               </button>
             </div>
 
-            <div className="pill-form" style={{ display: "flex", flexDirection: "column", gap: "1rem", padding: "0.3rem 0 0" }}>
-              <div className="morb-field">
-                <label className="morb-field__label">Paciente</label>
-                <input className="morb-control" type="text" value={`${editForm.nombreApellido || "—"} · ${editForm.cedula}`} disabled />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                <div className="morb-field">
-                  <label className="morb-field__label">Género</label>
-                  <StyledSelect value={editForm.genero} onChange={(v) => setEditForm((f: any) => ({ ...f, genero: v }))} options={GENERO_OPTS} ariaLabel="Género" />
+            <div className="morb pill-form morb-editbody">
+              {/* Datos Básicos */}
+              <div className="morb-card morb-card--primary">
+                <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
+                <div className="morb-basic">
+                  <div className="morb-field f-cedula">
+                    <label className="morb-field__label">Cédula</label>
+                    <input className="morb-control" type="text" value={editForm.cedula} disabled />
+                  </div>
+                  <div className="morb-field f-nombre">
+                    <label className="morb-field__label">Nombre y Apellido</label>
+                    <input className="morb-control" type="text" value={editForm.nombreApellido} onChange={(e) => setEditForm((f: any) => ({ ...f, nombreApellido: e.target.value }))} />
+                  </div>
+                  <div className="morb-field f-genero">
+                    <label className="morb-field__label">Género</label>
+                    <StyledSelect value={editForm.genero} onChange={(v) => setEditForm((f: any) => ({ ...f, genero: v }))} options={GENERO_OPTS} ariaLabel="Género" />
+                  </div>
+                  <div className="morb-field f-fecha">
+                    <label className="morb-field__label">Fecha de Nacimiento</label>
+                    <DatePicker value={editForm.fechaNacimiento} onChange={(v) => setEditForm((f: any) => ({ ...f, fechaNacimiento: v }))} placeholder="Seleccionar fecha…" />
+                  </div>
+                  <div className="morb-field f-edad">
+                    <label className="morb-field__label">Edad (años)</label>
+                    <input className="morb-control" type="text" value={editForm.fechaNacimiento ? (computeEdad(editForm.fechaNacimiento) || "—") : (editForm.edadFallback ?? "—")} disabled title="Se calcula automáticamente de la fecha de nacimiento" />
+                  </div>
+                  <div className="morb-field f-refugio">
+                    <label className="morb-field__label">Campamento Transitorio (Refugio)</label>
+                    <input className="morb-control" type="text" value={editForm.refugio} disabled />
+                  </div>
                 </div>
-                <div className="morb-field">
-                  <label className="morb-field__label">Edad (años)</label>
-                  <input className="morb-control" type="text" inputMode="numeric" value={editForm.edad} onChange={(e) => setEditForm((f: any) => ({ ...f, edad: e.target.value.replace(/\D/g, "") }))} placeholder="—" />
+              </div>
+
+              {/* Antecedentes | Diagnóstico */}
+              <div className="morb-duo">
+                <div className="morb-card morb-card--primary">
+                  <h3 className="morb-card__title">Antecedentes Clínicos (Censo)</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Patologías del paciente</label>
+                      <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(editForm.antPat)} onSelect={(id) => efPatAdd("antPat", id)} />
+                      {patologiaChips(editForm.antPat, (id) => efPatRemove("antPat", id), "primary", "eantpat")}
+                    </div>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Medicamentos del paciente</label>
+                      <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(editForm.antMed)} onSelect={(id) => efMedAdd("antMed", id)} />
+                      {medRowsView(editForm.antMed, (i, f, v) => efMedUpdate("antMed", i, f, v), (id) => efMedRemove("antMed", id), "eantmed")}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="morb-card morb-card--success">
+                  <h3 className="morb-card__title">Diagnóstico de Consulta</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Patologías Diagnósticas</label>
+                      <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(editForm.diagPat)} onSelect={(id) => efPatAdd("diagPat", id)} />
+                      {patologiaChips(editForm.diagPat, (id) => efPatRemove("diagPat", id), "success", "ediagpat")}
+                    </div>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Medicamentos Diagnósticados (Receta)</label>
+                      <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(editForm.diagMed)} onSelect={(id) => efMedAdd("diagMed", id)} />
+                      {medRowsView(editForm.diagMed, (i, f, v) => efMedUpdate("diagMed", i, f, v), (id) => efMedRemove("diagMed", id), "ediagmed")}
+                    </div>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Notas Médicas / Observaciones</label>
+                      <textarea className="morb-control" value={editForm.notas} onChange={(e) => setEditForm((f: any) => ({ ...f, notas: e.target.value }))} placeholder="Comentarios del doctor…" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="morb-field">
-                <label className="morb-field__label">Antecedentes — Patologías</label>
-                <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(editForm.antPat)} onSelect={(id) => efPatAdd("antPat", id)} />
-                {patologiaChips(editForm.antPat, (id) => efPatRemove("antPat", id), "primary", "eantpat")}
-              </div>
-              <div className="morb-field">
-                <label className="morb-field__label">Antecedentes — Medicamentos</label>
-                <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(editForm.antMed)} onSelect={(id) => efMedAdd("antMed", id)} />
-                {medRowsView(editForm.antMed, (i, f, v) => efMedUpdate("antMed", i, f, v), (id) => efMedRemove("antMed", id), "eantmed")}
-              </div>
-
-              <div className="morb-field">
-                <label className="morb-field__label">Diagnóstico — Patologías</label>
-                <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(editForm.diagPat)} onSelect={(id) => efPatAdd("diagPat", id)} />
-                {patologiaChips(editForm.diagPat, (id) => efPatRemove("diagPat", id), "success", "ediagpat")}
-              </div>
-              <div className="morb-field">
-                <label className="morb-field__label">Diagnóstico — Medicamentos (Receta)</label>
-                <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(editForm.diagMed)} onSelect={(id) => efMedAdd("diagMed", id)} />
-                {medRowsView(editForm.diagMed, (i, f, v) => efMedUpdate("diagMed", i, f, v), (id) => efMedRemove("diagMed", id), "ediagmed")}
-              </div>
-
-              <div className="morb-field">
-                <label className="morb-field__label">Notas Médicas / Observaciones</label>
-                <textarea className="morb-control" value={editForm.notas} onChange={(e) => setEditForm((f: any) => ({ ...f, notas: e.target.value }))} placeholder="Comentarios del doctor…" />
-              </div>
-
-              <div className="modal-edit-actions" style={{ marginTop: "0.4rem" }}>
-                <button type="button" className="btn-secondary" onClick={closeEdit} disabled={editSaving}>Cancelar</button>
-                <button type="button" className="btn-submit" style={{ flex: 1 }} onClick={saveEdit} disabled={editSaving}>
-                  {editSaving ? <><span className="spinner spinner-sm" /> Guardando</> : "Guardar cambios"}
+              <div className="morb-actions">
+                <button type="button" className="morb-btn morb-btn--ghost" onClick={closeEdit} disabled={editSaving}>Cancelar</button>
+                <button type="button" className="morb-btn morb-btn--primary" style={{ minWidth: "160px" }} onClick={saveEdit} disabled={editSaving}>
+                  {editSaving ? <span className="spinner spinner-sm" /> : "Guardar cambios"}
                 </button>
               </div>
             </div>

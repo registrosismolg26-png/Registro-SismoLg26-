@@ -923,6 +923,7 @@ export default function Home() {
                   nombreApellido: c.data.nombreApellido,
                   genero: c.data.genero,
                   edad: c.data.edad,
+                  fechaNacimiento: c.data.fechaNacimiento,
                   refugio: c.data.refugio,
                   registroId: c.data.registroId,
                   antecedentesPatologiaIds: c.data.antecedentesPatologiaIds,

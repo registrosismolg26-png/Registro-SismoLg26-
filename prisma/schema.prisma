@@ -105,6 +105,7 @@ model ConsultaMedica {
   registroId                String?  // UID del Registro (Censo) vinculado — null si no está en el censo
   genero                    String?
   edad                      Int?
+  fechaNacimiento           String?  // yyyy-mm-dd; la edad se DERIVA de aquí (nunca manual)
   refugio                   String
   // Campos LEGADO (congelados, respaldo). El modelo por-ID usa las columnas *Ids de abajo.
   antecedentesPatologia     String?

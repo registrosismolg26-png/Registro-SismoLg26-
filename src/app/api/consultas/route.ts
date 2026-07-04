@@ -41,6 +41,7 @@ export async function POST(req: Request) {
       registroId,
       genero,
       edad,
+      fechaNacimiento,
       refugio,
       antecedentesPatologiaIds,
       antecedentesMedicamentoIds,
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
       registroId: registroId || null,
       genero,
       edad: edad ? parseInt(String(edad)) : null,
+      fechaNacimiento: fechaNacimiento || null,
       refugio,
       // Modelo por-ID (los campos legados quedan en su default).
       antecedentesPatologiaIds: arr(antecedentesPatologiaIds),
