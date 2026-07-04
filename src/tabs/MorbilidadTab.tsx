@@ -322,6 +322,45 @@ export default function MorbilidadTab() {
   const efMedRemove = (key: "antMed" | "diagMed", id: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].filter((m: Medicamento) => m.id !== id) } : f);
   const efMedUpdate = (key: "antMed" | "diagMed", i: number, field: "dosis" | "periodo", value: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].map((m: Medicamento, idx: number) => idx === i ? { ...m, [field]: value } : m) } : f);
 
+  // Al editar, si la consulta está vinculada al censo, propaga los Datos Básicos
+  // (nombre, género, fecha de nacimiento, edad) y los Antecedentes al Registro —
+  // igual que hace el formulario de crear (syncPatientToRegistro).
+  const syncEditToRegistro = async (ef: any, edad: number | null) => {
+    const reg = ef.registroId ? registros.find((r) => r.id === ef.registroId) : null;
+    if (!reg) return;
+    const prevPat = Array.isArray(reg.patologiaIds) ? reg.patologiaIds : [];
+    const prevMed = Array.isArray(reg.medicamentoIds) ? reg.medicamentoIds : [];
+    const prevFechaYmd = ymdFromISO(reg.fechaNacimiento);
+    const changed =
+      JSON.stringify(ef.antPat) !== JSON.stringify(prevPat) ||
+      JSON.stringify(ef.antMed) !== JSON.stringify(prevMed) ||
+      ef.nombreApellido.trim() !== (reg.nombreApellido || "") ||
+      ef.genero !== reg.genero ||
+      (ef.fechaNacimiento || "") !== (prevFechaYmd || "") ||
+      (edad ?? null) !== (reg.edad ?? null);
+    if (!changed) return;
+    const updatedReg = {
+      ...reg,
+      nombreApellido: ef.nombreApellido.trim() || reg.nombreApellido,
+      genero: ef.genero,
+      fechaNacimiento: ef.fechaNacimiento ? new Date(ef.fechaNacimiento + "T00:00:00").toISOString() : reg.fechaNacimiento,
+      edad: edad ?? reg.edad,
+      patologia: ef.antPat.length > 0 ? "SI" : "NO",
+      patologiaIds: ef.antPat,
+      medicamentoIds: ef.antMed,
+    };
+    setRegistros((prev) => {
+      const next = prev.map((r) => (r.id === updatedReg.id ? updatedReg : r));
+      if (typeof window !== "undefined") localStorage.setItem("cached_registros", JSON.stringify(next));
+      return next;
+    });
+    await saveLocal({
+      id: updatedReg.id, type: "update" as const,
+      refugio: reg.refugio || currentUser?.campamentoTransitorio, userId: currentUser?.id, data: updatedReg,
+    });
+    await refreshLocalRecords();
+  };
+
   const saveEdit = async () => {
     if (!editForm) return;
     setEditSaving(true);
@@ -342,6 +381,9 @@ export default function MorbilidadTab() {
         notasDoctor: editForm.notas.trim() || undefined,
       };
       await saveLocalConsulta({ id: editForm.id, data, userId: currentUser?.email, createdAt: editForm.createdAt });
+      // Persistir también en el censo (si el paciente está vinculado).
+      const edadNum = eStr ? parseInt(eStr) : (editForm.edadFallback ?? null);
+      await syncEditToRegistro(editForm, edadNum);
       showToast("Consulta actualizada. Se sincronizará cuando haya señal.", "success");
       setEditForm(null);
       await refreshLocalConsultas();
