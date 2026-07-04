@@ -69,11 +69,11 @@ export async function POST(req: Request) {
       notasDoctor,
       userId: auth.email,
     };
-    // IDEMPOTENTE y SEGURO: una consulta es un registro puntual; si su id ya existe
-    // (re-envío), NO se toca (update vacío = no-op) para no dañarla ni revertirla. Solo
-    // se crea si es nueva. Así reenviar una consulta ya creada no falla ni la modifica.
+    // Upsert por id: si es nueva se crea; si ya existe se ACTUALIZA con los datos
+    // enviados (habilita la EDICIÓN de consultas). Re-enviar datos idénticos no genera
+    // diff → el trigger de auditoría no registra cambio, así que reenviar es inocuo.
     const consulta = id
-      ? await withAuditUser(auth.email, (tx) => tx.consultaMedica.upsert({ where: { id }, update: {}, create: { id, ...data } }))
+      ? await withAuditUser(auth.email, (tx) => tx.consultaMedica.upsert({ where: { id }, update: data, create: { id, ...data } }))
       : await withAuditUser(auth.email, (tx) => tx.consultaMedica.create({ data }));
 
     return NextResponse.json({ success: true, consulta }, { status: 201 });

@@ -413,7 +413,7 @@ export async function buscarCedulaEnCliente(cedula: string): Promise<PadrónCiud
 }
 
 // --- QUEUE METHODS FOR MEDICAL CONSULTATIONS (MORBILIDAD) ---
-export async function saveLocalConsulta(consulta: Omit<LocalConsulta, 'status' | 'attempts' | 'createdAt'>): Promise<void> {
+export async function saveLocalConsulta(consulta: Omit<LocalConsulta, 'status' | 'attempts' | 'createdAt'> & { createdAt?: string }): Promise<void> {
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(CONSULTAS_STORE, 'readwrite');
@@ -433,7 +433,9 @@ export async function saveLocalConsulta(consulta: Omit<LocalConsulta, 'status' |
         attempts: 0,
         nextAttemptAt: undefined,
         permanentError: undefined,
-        createdAt: existing?.createdAt || new Date().toISOString()
+        // Preserva la fecha original: la del registro local si existe; si no, la que
+        // venga (al EDITAR una consulta remota se pasa su createdAt); si no, ahora.
+        createdAt: existing?.createdAt || consulta.createdAt || new Date().toISOString()
       };
       
       const putRequest = store.put(fullRecord);

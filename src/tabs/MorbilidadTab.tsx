@@ -8,6 +8,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
 import CatalogosMedicos from "@/components/CatalogosMedicos";
+import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import { PERIODO_OPTIONS } from "@/lib/constants";
 import type { Medicamento } from "@/types";
 
@@ -282,6 +283,62 @@ export default function MorbilidadTab() {
     }
   };
 
+  // ── EDICIÓN de una consulta existente (offline-first) ──────────────────────
+  // Guardar re-encola la consulta con su MISMO id (pending) y sincroniza; el backend
+  // hace upsert-update. Permiso: quien ve Morbilidad puede editar (Operador/Asistente/
+  // AdminMedico/Master); nadie elimina.
+  const [editForm, setEditForm] = useState<any | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  useBodyScrollLock(!!editForm);
+
+  const openEdit = (c: any) => setEditForm({
+    id: c.id, createdAt: c.createdAt, registroId: c.data.registroId, refugio: c.data.refugio,
+    cedula: c.data.cedula, nombreApellido: c.data.nombreApellido || "",
+    genero: c.data.genero || "MASCULINO", edad: c.data.edad != null ? String(c.data.edad) : "",
+    antPat: Array.isArray(c.data.antecedentesPatologiaIds) ? [...c.data.antecedentesPatologiaIds] : [],
+    antMed: Array.isArray(c.data.antecedentesMedicamentoIds) ? [...c.data.antecedentesMedicamentoIds] : [],
+    diagPat: Array.isArray(c.data.diagnosticoPatologiaIds) ? [...c.data.diagnosticoPatologiaIds] : [],
+    diagMed: Array.isArray(c.data.diagnosticoMedicamentoIds) ? [...c.data.diagnosticoMedicamentoIds] : [],
+    notas: c.data.notasDoctor || "",
+  });
+  const closeEdit = () => setEditForm(null);
+
+  const efPatAdd = (key: "antPat" | "diagPat", id: string) => { if (id) setEditForm((f: any) => f && !f[key].includes(id) ? { ...f, [key]: [...f[key], id] } : f); };
+  const efPatRemove = (key: "antPat" | "diagPat", id: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].filter((x: string) => x !== id) } : f);
+  const efMedAdd = (key: "antMed" | "diagMed", medId: string) => { const it = buildMedItem(medId); if (it) setEditForm((f: any) => f && !f[key].some((m: Medicamento) => m.id === medId) ? { ...f, [key]: [...f[key], it] } : f); };
+  const efMedRemove = (key: "antMed" | "diagMed", id: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].filter((m: Medicamento) => m.id !== id) } : f);
+  const efMedUpdate = (key: "antMed" | "diagMed", i: number, field: "dosis" | "periodo", value: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].map((m: Medicamento, idx: number) => idx === i ? { ...m, [field]: value } : m) } : f);
+
+  const saveEdit = async () => {
+    if (!editForm) return;
+    setEditSaving(true);
+    try {
+      const data = {
+        cedula: editForm.cedula,
+        nombreApellido: editForm.nombreApellido.trim() || editForm.cedula,
+        registroId: editForm.registroId,
+        genero: editForm.genero,
+        edad: editForm.edad ? parseInt(editForm.edad) : undefined,
+        refugio: editForm.refugio,
+        antecedentesPatologiaIds: editForm.antPat,
+        antecedentesMedicamentoIds: editForm.antMed,
+        diagnosticoPatologiaIds: editForm.diagPat,
+        diagnosticoMedicamentoIds: editForm.diagMed.filter((m: Medicamento) => m.id),
+        notasDoctor: editForm.notas.trim() || undefined,
+      };
+      await saveLocalConsulta({ id: editForm.id, data, userId: currentUser?.email, createdAt: editForm.createdAt });
+      showToast("Consulta actualizada. Se sincronizará cuando haya señal.", "success");
+      setEditForm(null);
+      await refreshLocalConsultas();
+      triggerSync();
+    } catch (err) {
+      console.error(err);
+      showToast("Error al actualizar la consulta.", "error");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   // Combinar consultas remotas y pendientes locales para historial
   const allConsultas = useMemo(() => {
     const combined = [...localConsultas];
@@ -491,7 +548,7 @@ export default function MorbilidadTab() {
             <table className="matrix-table" style={{ fontSize: "0.8rem", minWidth: "700px" }}>
               <thead>
                 <tr>
-                  <th>Fecha</th><th>Cédula</th><th>Paciente</th><th>Diagnóstico</th><th>Notas del Dr.</th><th>Estado</th>
+                  <th>Fecha</th><th>Cédula</th><th>Paciente</th><th>Diagnóstico</th><th>Notas del Dr.</th><th>Estado</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -520,6 +577,12 @@ export default function MorbilidadTab() {
                           {c.status === "synced" ? "Sincronizado" : c.status === "error" ? "Error" : "Pendiente"}
                         </span>
                       </td>
+                      <td data-label="" className="morb-hist__actioncell">
+                        <button type="button" className="morb-hist__edit" onClick={() => openEdit(c)} title="Editar consulta">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          <span className="morb-hist__edit-txt">Editar</span>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -528,6 +591,72 @@ export default function MorbilidadTab() {
           </div>
         )}
       </div>
+
+      {/* Modal: EDITAR consulta (pill, responsive). Reusa los helpers de chips/meds. */}
+      {editForm && (
+        <div className="modal-overlay" onClick={closeEdit}>
+          <div className="modal-content modal-content--detail" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "620px" }}>
+            <div className="modal-header">
+              <span className="modal-title">Editar consulta</span>
+              <button className="modal-close" onClick={closeEdit} aria-label="Cerrar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div className="pill-form" style={{ display: "flex", flexDirection: "column", gap: "1rem", padding: "0.3rem 0 0" }}>
+              <div className="morb-field">
+                <label className="morb-field__label">Paciente</label>
+                <input className="morb-control" type="text" value={`${editForm.nombreApellido || "—"} · ${editForm.cedula}`} disabled />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <div className="morb-field">
+                  <label className="morb-field__label">Género</label>
+                  <StyledSelect value={editForm.genero} onChange={(v) => setEditForm((f: any) => ({ ...f, genero: v }))} options={GENERO_OPTS} ariaLabel="Género" />
+                </div>
+                <div className="morb-field">
+                  <label className="morb-field__label">Edad (años)</label>
+                  <input className="morb-control" type="text" inputMode="numeric" value={editForm.edad} onChange={(e) => setEditForm((f: any) => ({ ...f, edad: e.target.value.replace(/\D/g, "") }))} placeholder="—" />
+                </div>
+              </div>
+
+              <div className="morb-field">
+                <label className="morb-field__label">Antecedentes — Patologías</label>
+                <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(editForm.antPat)} onSelect={(id) => efPatAdd("antPat", id)} />
+                {patologiaChips(editForm.antPat, (id) => efPatRemove("antPat", id), "primary", "eantpat")}
+              </div>
+              <div className="morb-field">
+                <label className="morb-field__label">Antecedentes — Medicamentos</label>
+                <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(editForm.antMed)} onSelect={(id) => efMedAdd("antMed", id)} />
+                {medRowsView(editForm.antMed, (i, f, v) => efMedUpdate("antMed", i, f, v), (id) => efMedRemove("antMed", id), "eantmed")}
+              </div>
+
+              <div className="morb-field">
+                <label className="morb-field__label">Diagnóstico — Patologías</label>
+                <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(editForm.diagPat)} onSelect={(id) => efPatAdd("diagPat", id)} />
+                {patologiaChips(editForm.diagPat, (id) => efPatRemove("diagPat", id), "success", "ediagpat")}
+              </div>
+              <div className="morb-field">
+                <label className="morb-field__label">Diagnóstico — Medicamentos (Receta)</label>
+                <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(editForm.diagMed)} onSelect={(id) => efMedAdd("diagMed", id)} />
+                {medRowsView(editForm.diagMed, (i, f, v) => efMedUpdate("diagMed", i, f, v), (id) => efMedRemove("diagMed", id), "ediagmed")}
+              </div>
+
+              <div className="morb-field">
+                <label className="morb-field__label">Notas Médicas / Observaciones</label>
+                <textarea className="morb-control" value={editForm.notas} onChange={(e) => setEditForm((f: any) => ({ ...f, notas: e.target.value }))} placeholder="Comentarios del doctor…" />
+              </div>
+
+              <div className="modal-edit-actions" style={{ marginTop: "0.4rem" }}>
+                <button type="button" className="btn-secondary" onClick={closeEdit} disabled={editSaving}>Cancelar</button>
+                <button type="button" className="btn-submit" style={{ flex: 1 }} onClick={saveEdit} disabled={editSaving}>
+                  {editSaving ? <><span className="spinner spinner-sm" /> Guardando</> : "Guardar cambios"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

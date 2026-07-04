@@ -4879,6 +4879,18 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .morb-history__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 16px; }
 .morb-hist__notas { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Botón "Editar" del historial de consultas (pill, icono + texto). */
+.morb-hist__actioncell { white-space: nowrap; }
+.morb-hist__edit {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  height: 32px; padding: 0 0.75rem; border-radius: 999px;
+  border: 1px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--color-primary); font-size: 0.74rem; font-weight: 700; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.morb-hist__edit:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+.morb-hist__edit svg { flex: none; }
+
 /* Estado de sincronización en el historial: pill con color (antes era texto sin estilo). */
 .sync-status-badge {
   display: inline-flex; align-items: center; gap: 0.3rem;
