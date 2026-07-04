@@ -255,7 +255,7 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
       <main className="pres__stage">
         <div className="pres__slide" key={idx}>
           <div className="pres__slide-head">
-            <span className="pres__slide-ico">{cur.icon}</span>
+            <span className="pres__slide-ico" style={{ background: "#2563eb", color: "#fff" }}>{cur.icon}</span>
             <h2>{cur.title}</h2>
           </div>
           <div className="pres__slide-body">{cur.body}</div>
@@ -281,7 +281,9 @@ const pct = (n: number, total: number) => (total > 0 ? Math.min(100, (n / total)
 function BigCard({ accent, label, value, icon, suffix }: { accent: string; label: string; value: number; icon: ReactNode; suffix?: string }) {
   return (
     <div className="pres-card" style={{ ["--accent" as any]: accent }}>
-      <span className="pres-card__icon">{icon}</span>
+      {/* Fondo del badge INLINE (a prueba de CSS cacheado / var(--accent) sin resolver):
+          así nunca queda blanco con el ícono blanco encima. */}
+      <span className="pres-card__icon" style={{ background: accent, color: "#fff" }}>{icon}</span>
       <span className="pres-card__value"><Num value={value} />{suffix && <em>{suffix}</em>}</span>
       <span className="pres-card__label">{label}</span>
     </div>
