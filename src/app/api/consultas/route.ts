@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, refugioScopeFor, canManageMorbilidad } from "@/lib/auth";
+import { getAuthUser, refugioScopeFor, canManageMorbilidad, isMaster, canActOnRefugio, hasRefugio } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
 
 export async function GET(req: Request) {
@@ -50,19 +50,19 @@ export async function POST(req: Request) {
       notasDoctor
     } = body;
 
-    if (!cedula || !nombreApellido || !refugio) {
-      return NextResponse.json({ error: "Cédula, nombre y refugio son obligatorios" }, { status: 400 });
+    if (!cedula || !nombreApellido) {
+      return NextResponse.json({ error: "Cédula y nombre son obligatorios" }, { status: 400 });
     }
 
     const arr = (v: any) => (Array.isArray(v) ? v : []);
-    const data = {
+    // Datos SIN refugio: el refugio lo decide el backend (nunca el cliente).
+    const baseData = {
       cedula,
       nombreApellido,
       registroId: registroId || null,
       genero,
       edad: edad ? parseInt(String(edad)) : null,
       fechaNacimiento: fechaNacimiento || null,
-      refugio,
       // Modelo por-ID (los campos legados quedan en su default).
       antecedentesPatologiaIds: arr(antecedentesPatologiaIds),
       antecedentesMedicamentoIds: arr(antecedentesMedicamentoIds),
@@ -71,12 +71,33 @@ export async function POST(req: Request) {
       notasDoctor,
       userId: auth.email,
     };
-    // Upsert por id: si es nueva se crea; si ya existe se ACTUALIZA con los datos
-    // enviados (habilita la EDICIÓN de consultas). Re-enviar datos idénticos no genera
-    // diff → el trigger de auditoría no registra cambio, así que reenviar es inocuo.
-    const consulta = id
-      ? await withAuditUser(auth.email, (tx) => tx.consultaMedica.upsert({ where: { id }, update: data, create: { id, ...data } }))
-      : await withAuditUser(auth.email, (tx) => tx.consultaMedica.create({ data }));
+
+    // Refugio = el del USUARIO (no se confía en el cliente). Master respeta el refugio
+    // de vista que envía (o el suyo); el resto se FUERZA a su propio refugio. Así toda
+    // consulta queda vinculada al refugio de quien la crea.
+    const bodyRefugio = refugio && String(refugio).trim() ? String(refugio).trim() : null;
+    const refugioForCreate = isMaster(auth) ? (bodyRefugio ?? auth.refugio) : auth.refugio;
+    if (!hasRefugio(refugioForCreate)) {
+      return NextResponse.json({ error: "Tu usuario no tiene un campamento asignado." }, { status: 400 });
+    }
+
+    let consulta;
+    if (id) {
+      const existing = await prisma.consultaMedica.findUnique({ where: { id } });
+      if (existing) {
+        // EDICIÓN: solo si el usuario puede actuar sobre el refugio de esa consulta
+        // (no master → únicamente las de su propio refugio). Mantiene el refugio original.
+        if (!canActOnRefugio(auth, existing.refugio)) {
+          return NextResponse.json({ error: "No puede editar consultas de otro campamento." }, { status: 403 });
+        }
+        consulta = await withAuditUser(auth.email, (tx) => tx.consultaMedica.update({ where: { id }, data: { ...baseData, refugio: existing.refugio } }));
+      } else {
+        // NUEVA con id provisto (cola offline): se crea con el refugio derivado.
+        consulta = await withAuditUser(auth.email, (tx) => tx.consultaMedica.create({ data: { id, ...baseData, refugio: refugioForCreate } }));
+      }
+    } else {
+      consulta = await withAuditUser(auth.email, (tx) => tx.consultaMedica.create({ data: { ...baseData, refugio: refugioForCreate } }));
+    }
 
     return NextResponse.json({ success: true, consulta }, { status: 201 });
   } catch (error: any) {
