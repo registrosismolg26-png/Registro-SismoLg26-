@@ -23,12 +23,13 @@ interface Props {
   disabled?: boolean;
   dense?: boolean;
   ariaLabel?: string;
+  error?: boolean;
 }
 
 const MENU_MARGIN = 6;
 const MENU_MAX_H = 300;
 
-export default function StyledSelect({ value, onChange, options, placeholder = "Seleccionar…", disabled = false, dense = false, ariaLabel }: Props) {
+export default function StyledSelect({ value, onChange, options, placeholder = "Seleccionar…", disabled = false, dense = false, ariaLabel, error = false }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
@@ -86,7 +87,7 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
     <div className="morb-select" ref={ref}>
       <button
         type="button"
-        className={`morb-control morb-select__trigger${dense ? " morb-select__trigger--dense" : ""}${open ? " is-open" : ""}`}
+        className={`morb-control morb-select__trigger${dense ? " morb-select__trigger--dense" : ""}${open ? " is-open" : ""}${error ? " has-error" : ""}`}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}

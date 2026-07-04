@@ -21,9 +21,10 @@ interface Props {
   disabled?: boolean;
   minYear?: number;
   placeholder?: string;
+  error?: boolean;
 }
 
-export default function DatePicker({ value, onChange, disabled = false, minYear = 1915, placeholder = "Seleccionar fecha…" }: Props) {
+export default function DatePicker({ value, onChange, disabled = false, minYear = 1915, placeholder = "Seleccionar fecha…", error = false }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"days" | "years">("days");
   const ref = useRef<HTMLDivElement>(null);
@@ -148,7 +149,7 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
     <div className="morb-select" ref={ref}>
       <button
         type="button"
-        className={`morb-control morb-select__trigger${open ? " is-open" : ""}`}
+        className={`morb-control morb-select__trigger${open ? " is-open" : ""}${error ? " has-error" : ""}`}
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}

@@ -176,6 +176,15 @@ export default function AsignacionesTab() {
     return counts;
   }, [registros, allCuartos]);
 
+  // Etiqueta de un cuarto con su semáforo de ocupación (para el searchable).
+  const roomLabel = (c: string) => {
+    const count = roomCounts[c] || 0;
+    const cap = roomCapacities[c] ?? 18;
+    const level = roomFillLevel(count, cap);
+    const emoji = level === "red" ? "🔴" : level === "yellow" ? "🟡" : "🟢";
+    return `${emoji} ${c} (${count}/${cap})`;
+  };
+
   const handleAsignarCuarto = async () => {
     if (!selectedRegistro || !asignCuarto) return;
     setSavingCuarto(true);
@@ -1485,28 +1494,23 @@ export default function AsignacionesTab() {
                 </div>
                 <div className="form-group">
                   <label htmlFor="cuarto-select">Cuarto / Salón</label>
-                  <select id="cuarto-select" value={asignCuarto}
-                    onChange={e => setAsignCuarto(e.target.value)}>
-                    <option value="">— Seleccionar cuarto —</option>
-                    {allCuartos.map(c => {
-                      const count = roomCounts[c] || 0;
-                      const cap = roomCapacities[c] ?? 18;
-                      const level = roomFillLevel(count, cap);
-                      const emoji = level === "red" ? "🔴" : level === "yellow" ? "🟡" : "🟢";
-                      return <option key={c} value={c}>{emoji} {c} ({count}/{cap})</option>;
-                    })}
-                  </select>
-                  {asignCuarto && (() => {
-                    const count = roomCounts[asignCuarto] || 0;
-                    const cap = roomCapacities[asignCuarto] ?? 18;
-                    const level = roomFillLevel(count, cap);
-                    const color = level === "red" ? "#ef4444" : level === "yellow" ? "#f59e0b" : "#10b981";
-                    return (
-                      <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", fontWeight: "800", color: color }}>
-                        Ocupantes: {count}/{cap}
-                      </div>
-                    );
-                  })()}
+                  <SearchableSelect
+                    placeholder="Buscar cuarto… (más nuevos primero)"
+                    inputClassName="morb-control"
+                    emptyText="Sin cuartos configurados"
+                    options={allCuartos
+                      .filter(c => c !== asignCuarto)
+                      .map(c => ({ value: c, label: roomLabel(c) }))}
+                    onSelect={(c) => setAsignCuarto(c)}
+                  />
+                  {asignCuarto && (
+                    <div className="pathology-pills-grid">
+                      <span className="chip-pill chip-pill--room">
+                        {roomLabel(asignCuarto)}
+                        <button type="button" className="chip-pill__x" aria-label="Quitar cuarto" onClick={() => setAsignCuarto("")}>×</button>
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <button type="button" className="btn-submit" style={{ marginTop: "0.625rem" }}
                   onClick={handleAsignarCuarto}

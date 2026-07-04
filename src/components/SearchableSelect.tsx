@@ -28,6 +28,7 @@ interface Props {
   emptyText?: string;
   maxRender?: number; // tope de opciones renderizadas (perf con listas enormes)
   inputClassName?: string; // clase del input (p.ej. "morb-control" para sincronizar tamaño)
+  error?: boolean; // marca el input con borde de error
 }
 
 const MENU_MARGIN = 6;
@@ -41,6 +42,7 @@ export default function SearchableSelect({
   emptyText = "Sin resultados",
   maxRender = 80,
   inputClassName = "",
+  error = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -131,7 +133,7 @@ export default function SearchableSelect({
       <input
         ref={inputRef}
         type="text"
-        className={inputClassName}
+        className={`${inputClassName}${error ? " has-error" : ""}`.trim()}
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"

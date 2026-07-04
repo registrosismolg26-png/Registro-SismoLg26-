@@ -6,6 +6,13 @@
 // campo/paso, el lookup de cédula en el padrón local y el envío que guarda en
 // IndexedDB y dispara la sincronización.
 //
+// Controles: todos los selects/fechas usan los componentes con reformat
+// (StyledSelect, SearchableSelect, DatePicker) — ya no hay <select>/inputs de
+// fecha nativos. La validación se muestra por campo SOLO cuando el campo fue
+// tocado o se intentó avanzar/enviar (gating por `touched`) para no marcar
+// errores en secciones a las que apenas se llega. El duplicado de cédula se
+// evalúa EN VIVO al escribir (encadenado con el padrón y la precarga del jefe).
+//
 // Del context global consume: coords, registros (lookup del jefe de familia),
 // showToast, triggerSync, refreshLocalRecords, currentUser. saveLocal y
 // buscarCedulaEnCliente se importan directo de @/lib/db.
@@ -19,6 +26,10 @@ import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
 import { roomFillLevel, patologiaNombre, medLabel } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
+import StyledSelect from "@/components/StyledSelect";
+import DatePicker from "@/components/DatePicker";
+
+const TELEFONO_CODIGOS = ["0424", "0414", "0416", "0426", "0412", "0422", "0212"];
 
 export default function CensoTab() {
   const {
@@ -45,6 +56,7 @@ export default function CensoTab() {
     const current = Array.isArray(formData.patologiaIds) ? formData.patologiaIds : [];
     if (current.includes(id)) return;
     dispatch({ type: "SET", field: "patologiaIds", value: [...current, id] });
+    setErrors(prev => ({ ...prev, patologiaIds: "" }));
   };
   const removePatologia = (id: string) => {
     const current = Array.isArray(formData.patologiaIds) ? formData.patologiaIds : [];
@@ -71,6 +83,14 @@ export default function CensoTab() {
     });
     return counts;
   }, [registros]);
+  // Etiqueta de un cuarto con su semáforo de ocupación (para el searchable).
+  const roomLabel = (c: string) => {
+    const count = roomCounts[c] || 0;
+    const cap = roomCapacities[c] ?? 18;
+    const level = roomFillLevel(count, cap);
+    const emoji = level === "red" ? "🔴" : level === "yellow" ? "🟡" : "🟢";
+    return `${emoji} ${c} (${count}/${cap})`;
+  };
   // Carga la ocupación una vez si aún no está (para el semáforo del select).
   useEffect(() => {
     if (registros.length === 0) fetchRegistros();
@@ -89,6 +109,18 @@ export default function CensoTab() {
   // Client Validation State
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Campos "tocados": un error solo se muestra si el campo fue tocado o si se
+  // intentó avanzar/enviar (evita marcar en rojo secciones recién abiertas).
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const markTouched = (...fields: string[]) => setTouched(prev => {
+    let changed = false;
+    const next = { ...prev };
+    fields.forEach(f => { if (!next[f]) { next[f] = true; changed = true; } });
+    return changed ? next : prev;
+  });
+  // Mensaje de error a mostrar para un campo (respeta el gating por touched).
+  const err = (field: string): string => (touched[field] ? (errors[field] || "") : "");
+
   // Submission guard (distinct from background sync)
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -99,19 +131,70 @@ export default function CensoTab() {
   const [jefeLookup, setJefeLookup] = useState<{ found: boolean; nombre?: string } | null>(null);
   const lookupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // ── Conversión de fecha (DatePicker usa yyyy-mm-dd; el form guarda dd/mm/aaaa) ─
+  const dmyToYmd = (dmy: string): string => {
+    const p = (dmy || "").split("/");
+    if (p.length !== 3 || p[2].length !== 4) return "";
+    return `${p[2]}-${p[1].padStart(2, "0")}-${p[0].padStart(2, "0")}`;
+  };
+  const ymdToDmy = (ymd: string): string => {
+    if (!ymd) return "";
+    const p = ymd.split("-");
+    if (p.length !== 3) return "";
+    return `${p[2]}/${p[1]}/${p[0]}`;
+  };
+
   const handleDateChange = (dateVal: string) => {
     if (!dateVal) return "";
     const birthDate = new Date(dateVal);
     const today = new Date();
     let calculatedAge = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       calculatedAge--;
     }
-    
+
     return calculatedAge >= 0 ? calculatedAge.toString() : "0";
   };
+
+  // ── Duplicado de cédula (adulto activo), en vivo ────────────────────────────
+  // Construye la cédula final (respeta nacionalidad y menor-sin-cédula) y la
+  // busca entre registros sincronizados y locales pendientes (ignora retirados).
+  const cedulaDupInfo = useMemo<{ dup: boolean; nombre?: string; finalCedula: string }>(() => {
+    let raw = (formData.cedula || "").trim();
+    if (!raw) return { dup: false, finalCedula: "" };
+    if (formData.isChildDependent) raw = `${raw}-${formData.dependentNumber}`;
+    const clean = raw.toUpperCase();
+    const finalCedula = (clean.startsWith("V-") || clean.startsWith("E-"))
+      ? clean
+      : `${formData.nacionalidad}-${clean}`;
+
+    const inSynced = registros.find((r: any) =>
+      r.retirado !== "SI" && r.cedula && r.cedula.toUpperCase().trim() === finalCedula);
+    if (inSynced) return { dup: true, nombre: inSynced.nombreApellido, finalCedula };
+
+    const inLocal = localRecords.find((r: any) =>
+      r.status !== "synced" && r.data?.retirado !== "SI" &&
+      r.data?.cedula && r.data.cedula.toUpperCase().trim() === finalCedula);
+    if (inLocal) return { dup: true, nombre: inLocal.data?.nombreApellido, finalCedula };
+
+    return { dup: false, finalCedula };
+  }, [formData.cedula, formData.nacionalidad, formData.isChildDependent, formData.dependentNumber, registros, localRecords]);
+
+  const cedulaDupMsg = cedulaDupInfo.nombre
+    ? `Esta cédula ya está registrada: ${cedulaDupInfo.nombre}`
+    : "Esta cédula ya se encuentra registrada en el sistema local.";
+
+  // Sincroniza el error de cédula EN VIVO (formato → duplicado). Solo si el
+  // campo ya fue tocado, para no marcarlo al llegar al paso 3 sin escribir nada.
+  useEffect(() => {
+    if (!touched.cedula) return;
+    const fmt = validateField("cedula", formData.cedula);
+    const msg = fmt || (cedulaDupInfo.dup ? cedulaDupMsg : "");
+    setErrors(prev => (prev.cedula === msg ? prev : { ...prev, cedula: msg }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.cedula, cedulaDupInfo, touched.cedula]);
 
   // Validation function for a single field
   const validateField = (name: string, value: string): string => {
@@ -150,6 +233,16 @@ export default function CensoTab() {
         if (!value) return "El número de teléfono es obligatorio";
         if (value.length < 7) return "Debe tener exactamente 7 dígitos";
         return "";
+      case "genero":
+        return value ? "" : "Seleccione el género";
+      case "perteneceNucleo":
+        return value ? "" : "Seleccione una opción";
+      case "jefeFamilia":
+        return value ? "" : "Seleccione si es jefe de familia";
+      case "estadoFisico":
+        return value ? "" : "Seleccione el estado físico";
+      case "patologia":
+        return value ? "" : "Seleccione si posee patología";
       case "cedulaJefeFamilia":
         if (formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") {
           if (!value) return "La cédula del jefe de familia es obligatoria";
@@ -182,16 +275,16 @@ export default function CensoTab() {
 
     requiredKeys.forEach(key => {
       const val = formData[key as keyof typeof formData] as string;
-      const err = validateField(key, val);
-      if (err) {
-        newErrors[key] = err;
+      const errMsg = validateField(key, val);
+      if (errMsg) {
+        newErrors[key] = errMsg;
       }
     });
 
     // Conditional validations
     if (formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") {
-      const err = validateField("cedulaJefeFamilia", formData.cedulaJefeFamilia);
-      if (err) newErrors.cedulaJefeFamilia = err;
+      const e = validateField("cedulaJefeFamilia", formData.cedulaJefeFamilia);
+      if (e) newErrors.cedulaJefeFamilia = e;
     }
 
     if (formData.patologia === "SI" && (!formData.patologiaIds || formData.patologiaIds.length === 0)) {
@@ -199,8 +292,8 @@ export default function CensoTab() {
     }
 
     if (formData.intermitente === "SI") {
-      const err = validateField("motivoIntermitente", formData.motivoIntermitente);
-      if (err) newErrors.motivoIntermitente = err;
+      const e = validateField("motivoIntermitente", formData.motivoIntermitente);
+      if (e) newErrors.motivoIntermitente = e;
     }
 
     // Required toggles
@@ -210,29 +303,9 @@ export default function CensoTab() {
     if (!formData.estadoFisico) newErrors.estadoFisico = "Seleccione el estado físico";
     if (!formData.patologia) newErrors.patologia = "Seleccione si posee patología";
 
-    // Offline duplicate check
-    let rawCedula = formData.cedula.trim();
-    if (formData.isChildDependent) {
-      rawCedula = `${rawCedula}-${formData.dependentNumber}`;
-    }
-    const cleanCed = rawCedula.toUpperCase();
-    const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-"))
-      ? cleanCed
-      : `${formData.nacionalidad}-${cleanCed}`;
-
-    const isDuplicateSynced = registros.some((r: any) => {
-      if (r.retirado === "SI") return false;
-      return r.cedula && r.cedula.toUpperCase().trim() === finalCedula;
-    });
-
-    const isDuplicateLocal = localRecords.some((r: any) => {
-      if (r.status === "synced") return false;
-      if (r.data?.retirado === "SI") return false;
-      return r.data?.cedula && r.data.cedula.toUpperCase().trim() === finalCedula;
-    });
-
-    if (isDuplicateSynced || isDuplicateLocal) {
-      newErrors.cedula = "Esta cédula ya se encuentra registrada en el sistema local.";
+    // Duplicado (mismo cálculo que el chequeo en vivo)
+    if (!newErrors.cedula && cedulaDupInfo.dup) {
+      newErrors.cedula = cedulaDupMsg;
     }
 
     setErrors(newErrors);
@@ -246,7 +319,8 @@ export default function CensoTab() {
     if (name === "cedula") {
       const cleanCedula = value.replace(/\D/g, "");
       dispatch({ type: "SET", field: "cedula", value: cleanCedula });
-      setErrors(prev => ({ ...prev, cedula: validateField("cedula", cleanCedula) }));
+      markTouched("cedula");
+      // El error (formato + duplicado) lo sincroniza el useEffect en vivo.
       triggerLookup(cleanCedula);
       return;
     }
@@ -254,6 +328,7 @@ export default function CensoTab() {
     if (name === "cedulaJefeFamilia") {
       const cleanVal = value.replace(/\D/g, "");
       dispatch({ type: "SET", field: "cedulaJefeFamilia", value: cleanVal });
+      markTouched("cedulaJefeFamilia");
       setErrors(prev => ({ ...prev, cedulaJefeFamilia: validateField("cedulaJefeFamilia", cleanVal) }));
 
       if (cleanVal.length >= 5) {
@@ -284,29 +359,15 @@ export default function CensoTab() {
       return;
     }
 
-    // Formatted Date Input Mask (DD/MM/AAAA)
-    if (name === "fechaNacimiento") {
-      const rawVal = value.replace(/\D/g, "");
-      let formatted = rawVal.slice(0, 2);
-      if (rawVal.length > 2) formatted += "/" + rawVal.slice(2, 4);
-      if (rawVal.length > 4) formatted += "/" + rawVal.slice(4, 8);
-
-      const edad = rawVal.length === 8
-        ? handleDateChange(`${rawVal.slice(4, 8)}-${rawVal.slice(2, 4)}-${rawVal.slice(0, 2)}`)
-        : "";
-      dispatch({ type: "SET_MANY", patch: { fechaNacimiento: formatted, edad } });
-      setErrors(prev => ({ ...prev, fechaNacimiento: validateField("fechaNacimiento", formatted) }));
-      return;
-    }
-
     dispatch({ type: "SET", field: name as keyof FormData, value });
+    markTouched(name);
     setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
   };
 
   // Search voter locally in IndexedDB (100% offline)
   const triggerLookup = (cedulaVal: string) => {
     const cleanCedula = cedulaVal.replace(/\D/g, "");
-    
+
     if (lookupTimeoutRef.current) {
       clearTimeout(lookupTimeoutRef.current);
     }
@@ -322,10 +383,10 @@ export default function CensoTab() {
     lookupTimeoutRef.current = setTimeout(async () => {
       try {
         const citizen = await buscarCedulaEnCliente(cleanCedula);
-        
+
         if (citizen) {
           setLookupStatus("found");
-          
+
           // Map gender from database format
           let mappedGenero = "";
           if (citizen.sexo === "F" || citizen.sexo === "FEMENINO") mappedGenero = "FEMENINO";
@@ -347,6 +408,7 @@ export default function CensoTab() {
             fechaNacimiento: formattedDate,
             edad: handleDateChange(citizen.fechaNacimiento),
           } });
+          // Los datos autocompletados son válidos: limpia sus errores (NO toca la cédula).
           setErrors(prev => ({
             ...prev,
             nombreApellido: "",
@@ -363,7 +425,7 @@ export default function CensoTab() {
     }, 250);
   };
 
-  // Per-step validation for the wizard (Swapped: Step 1 is Family Group, Step 2 is Geo, Step 3 is Personal ID, Step 4 is Health)
+  // Per-step validation for the wizard (Step 1 Family Group, 2 Geo, 3 Personal ID, 4 Health)
   const STEP_FIELDS: Record<number, string[]> = {
     1: ["perteneceNucleo", "jefeFamilia"],
     2: ["parroquia", "sector", "comunidad", "direccionExacta"],
@@ -373,47 +435,26 @@ export default function CensoTab() {
 
   const handleNextStep = () => {
     const fields = STEP_FIELDS[step];
+    // Revela los errores del paso actual (marca sus campos como tocados).
+    markTouched(...fields);
     const newErrors: Record<string, string> = {};
     fields.forEach(field => {
-      const err = validateField(field, (formData as any)[field] as string);
-      if (err) newErrors[field] = err;
+      const e = validateField(field, (formData as any)[field] as string);
+      if (e) newErrors[field] = e;
     });
     if (step === 1 && formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") {
-      const err = validateField("cedulaJefeFamilia", formData.cedulaJefeFamilia);
-      if (err) newErrors.cedulaJefeFamilia = err;
+      markTouched("cedulaJefeFamilia");
+      const e = validateField("cedulaJefeFamilia", formData.cedulaJefeFamilia);
+      if (e) newErrors.cedulaJefeFamilia = e;
     }
-    if (step === 3) {
-      let rawCedula = formData.cedula.trim();
-      if (formData.isChildDependent) {
-        rawCedula = `${rawCedula}-${formData.dependentNumber}`;
-      }
-      const cleanCed = rawCedula.toUpperCase();
-      const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-"))
-        ? cleanCed
-        : `${formData.nacionalidad}-${cleanCed}`;
-
-      const isDuplicateSynced = registros.some((r: any) => {
-        if (r.retirado === "SI") return false;
-        return r.cedula && r.cedula.toUpperCase().trim() === finalCedula;
-      });
-
-      const isDuplicateLocal = localRecords.some((r: any) => {
-        if (r.status === "synced") return false;
-        if (r.data?.retirado === "SI") return false;
-        return r.data?.cedula && r.data.cedula.toUpperCase().trim() === finalCedula;
-      });
-
-      if (isDuplicateSynced || isDuplicateLocal) {
-        newErrors.cedula = "Esta cédula ya se encuentra registrada en el sistema local.";
-      }
+    if (step === 3 && !newErrors.cedula && cedulaDupInfo.dup) {
+      newErrors.cedula = cedulaDupMsg;
     }
     if (step === 4 && formData.patologia === "SI" && (!formData.patologiaIds || formData.patologiaIds.length === 0)) {
       newErrors.patologiaIds = "Seleccione al menos una patología";
     }
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(prev => ({ ...prev, ...newErrors }));
-      return;
-    }
+    setErrors(prev => ({ ...prev, ...newErrors }));
+    if (Object.keys(newErrors).length > 0) return;
     setStep(s => (s + 1) as 1|2|3|4);
   };
 
@@ -429,6 +470,14 @@ export default function CensoTab() {
       setIsSubmitting(false);
       return;
     }
+
+    // Al enviar, todo se considera tocado (revela cualquier error pendiente).
+    markTouched(
+      "parroquia", "sector", "comunidad", "direccionExacta", "nombreApellido",
+      "cedula", "fechaNacimiento", "telefonoNum", "genero", "jefeFamilia",
+      "perteneceNucleo", "estadoFisico", "patologia", "cedulaJefeFamilia",
+      "patologiaIds", "motivoIntermitente"
+    );
 
     if (!validateForm()) {
       showToast("Faltan campos obligatorios o poseen formato inválido.", "warning");
@@ -455,7 +504,7 @@ export default function CensoTab() {
         ? cleanCed
         : `${formData.nacionalidad}-${cleanCed}`;
 
-      const rawJefeCed = (formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") 
+      const rawJefeCed = (formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO")
         ? formData.cedulaJefeFamilia.trim().toUpperCase()
         : "";
       const finalJefeCedula = rawJefeCed
@@ -463,7 +512,7 @@ export default function CensoTab() {
         : undefined;
 
       const finalTelefono = formData.telefonoNum ? `${formData.telefonoCod}-${formData.telefonoNum}` : null;
-      
+
       let finalFechaNac = new Date();
       const dateParts = formData.fechaNacimiento.split("/");
       if (dateParts.length === 3) {
@@ -512,7 +561,9 @@ export default function CensoTab() {
       dispatch({ type: "RESET" });
       setMedicamentos([]);
       setErrors({});
+      setTouched({});
       setLookupStatus("idle");
+      setJefeLookup(null);
       setAsignCuartoCenso("");
       setStep(1);
 
@@ -544,7 +595,7 @@ export default function CensoTab() {
               </p>
             </div>
           ) : canRegister(currentUser.role) ? (
-            <form onSubmit={handleSubmit} className="form-card">
+            <form onSubmit={handleSubmit} className="form-card censo-form">
               {/* Wizard Progress Bar */}
               <div className="wizard-progress">
                 {([1, 2, 3, 4] as const).map((s) => (
@@ -567,19 +618,19 @@ export default function CensoTab() {
 
               {/* PASO 1: Grupo Familiar */}
               {step === 1 && (
-                <div className="form-section form-step-content">
+                <div className="form-section form-step-content" key="step-1">
                   <div className="form-group">
                     <label>¿Pertenece a un núcleo familiar?<span className="required-star">*</span></label>
                     <div className="radio-group">
                       <label
-                        className={`radio-card ${formData.perteneceNucleo === "SI" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}
+                        className={`radio-card ${formData.perteneceNucleo === "SI" ? "selected" : ""} ${err("perteneceNucleo") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input type="radio" name="perteneceNucleo" value="SI" checked={formData.perteneceNucleo === "SI"} onChange={handleInputChange} />
                         SI
                       </label>
                       <label
-                        className={`radio-card ${formData.perteneceNucleo === "NO" ? "selected" : ""} ${errors.perteneceNucleo ? "has-error" : ""}`}
+                        className={`radio-card ${formData.perteneceNucleo === "NO" ? "selected" : ""} ${err("perteneceNucleo") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input type="radio" name="perteneceNucleo" value="NO" checked={formData.perteneceNucleo === "NO"} onChange={handleInputChange} />
@@ -587,7 +638,7 @@ export default function CensoTab() {
                       </label>
                     </div>
                     <div className="error-container">
-                      {errors.perteneceNucleo && <span className="field-error-message">{errors.perteneceNucleo}</span>}
+                      {err("perteneceNucleo") && <span className="field-error-message">{err("perteneceNucleo")}</span>}
                     </div>
                   </div>
 
@@ -595,14 +646,14 @@ export default function CensoTab() {
                     <label>¿Usted es el Jefe de Familia?<span className="required-star">*</span></label>
                     <div className="radio-group">
                       <label
-                        className={`radio-card ${formData.jefeFamilia === "SI" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}
+                        className={`radio-card ${formData.jefeFamilia === "SI" ? "selected" : ""} ${err("jefeFamilia") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input type="radio" name="jefeFamilia" value="SI" checked={formData.jefeFamilia === "SI"} onChange={handleInputChange} />
                         SI
                       </label>
                       <label
-                        className={`radio-card ${formData.jefeFamilia === "NO" ? "selected" : ""} ${errors.jefeFamilia ? "has-error" : ""}`}
+                        className={`radio-card ${formData.jefeFamilia === "NO" ? "selected" : ""} ${err("jefeFamilia") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input type="radio" name="jefeFamilia" value="NO" checked={formData.jefeFamilia === "NO"} onChange={handleInputChange} />
@@ -610,7 +661,7 @@ export default function CensoTab() {
                       </label>
                     </div>
                     <div className="error-container">
-                      {errors.jefeFamilia && <span className="field-error-message">{errors.jefeFamilia}</span>}
+                      {err("jefeFamilia") && <span className="field-error-message">{err("jefeFamilia")}</span>}
                     </div>
                   </div>
 
@@ -626,10 +677,10 @@ export default function CensoTab() {
                         placeholder="Cédula del jefe (si ya está en sistema se precargará la residencia)"
                         value={formData.cedulaJefeFamilia}
                         onChange={handleInputChange}
-                        className={errors.cedulaJefeFamilia ? "has-error" : ""}
+                        className={err("cedulaJefeFamilia") ? "has-error" : ""}
                       />
                       <div className="error-container">
-                        {errors.cedulaJefeFamilia && <span className="field-error-message">{errors.cedulaJefeFamilia}</span>}
+                        {err("cedulaJefeFamilia") && <span className="field-error-message">{err("cedulaJefeFamilia")}</span>}
                       </div>
                       {jefeLookup?.found && (
                         <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--color-success)", fontSize: "0.75rem", fontWeight: 700, marginTop: "-0.15rem" }}>
@@ -650,26 +701,23 @@ export default function CensoTab() {
 
               {/* PASO 2: Ubicación */}
               {step === 2 && (
-                <div className="form-section form-step-content">
+                <div className="form-section form-step-content" key="step-2">
                   <div className="form-group">
                     <label htmlFor="parroquia">Parroquia donde vive<span className="required-star">*</span></label>
-                    <div className="native-select-wrapper">
-                      <select
-                        id="parroquia"
-                        className={`native-select ${errors.parroquia ? "has-error" : ""}`}
-                        value={formData.parroquia}
-                        onChange={(e) => {
-                          dispatch({ type: "SET", field: "parroquia", value: e.target.value });
-                          setErrors(prev => ({ ...prev, parroquia: validateField("parroquia", e.target.value) }));
-                        }}
-                      >
-                        <option value="">Seleccione una parroquia...</option>
-                        {PARROQUIAS.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                      <svg className="native-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                    </div>
+                    <StyledSelect
+                      value={formData.parroquia}
+                      onChange={(v) => {
+                        dispatch({ type: "SET", field: "parroquia", value: v });
+                        markTouched("parroquia");
+                        setErrors(prev => ({ ...prev, parroquia: validateField("parroquia", v) }));
+                      }}
+                      options={PARROQUIAS.map(p => ({ value: p, label: p }))}
+                      placeholder="Seleccione una parroquia..."
+                      ariaLabel="Parroquia donde vive"
+                      error={!!err("parroquia")}
+                    />
                     <div className="error-container">
-                      {errors.parroquia && <span className="field-error-message">{errors.parroquia}</span>}
+                      {err("parroquia") && <span className="field-error-message">{err("parroquia")}</span>}
                     </div>
                   </div>
 
@@ -682,10 +730,10 @@ export default function CensoTab() {
                       placeholder="Ej: Barrio Aeropuerto"
                       value={formData.sector}
                       onChange={handleInputChange}
-                      className={errors.sector ? "has-error" : ""}
+                      className={err("sector") ? "has-error" : ""}
                     />
                     <div className="error-container">
-                      {errors.sector && <span className="field-error-message">{errors.sector}</span>}
+                      {err("sector") && <span className="field-error-message">{err("sector")}</span>}
                     </div>
                   </div>
 
@@ -698,10 +746,10 @@ export default function CensoTab() {
                       placeholder="Ej: Consejo Comunal Luchadores"
                       value={formData.comunidad}
                       onChange={handleInputChange}
-                      className={errors.comunidad ? "has-error" : ""}
+                      className={err("comunidad") ? "has-error" : ""}
                     />
                     <div className="error-container">
-                      {errors.comunidad && <span className="field-error-message">{errors.comunidad}</span>}
+                      {err("comunidad") && <span className="field-error-message">{err("comunidad")}</span>}
                     </div>
                   </div>
 
@@ -713,10 +761,10 @@ export default function CensoTab() {
                       placeholder="Ej: Calle principal, casa N° 12, frente al abasto..."
                       value={formData.direccionExacta}
                       onChange={handleInputChange}
-                      className={errors.direccionExacta ? "has-error" : ""}
+                      className={err("direccionExacta") ? "has-error" : ""}
                     />
                     <div className="error-container">
-                      {errors.direccionExacta && <span className="field-error-message">{errors.direccionExacta}</span>}
+                      {err("direccionExacta") && <span className="field-error-message">{err("direccionExacta")}</span>}
                     </div>
                   </div>
                 </div>
@@ -724,9 +772,9 @@ export default function CensoTab() {
 
               {/* PASO 3: Identificación Personal */}
               {step === 3 && (
-                <div className="form-section form-step-content">
+                <div className="form-section form-step-content" key="step-3">
                   <div className="form-group" style={{ marginBottom: "1rem" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem", fontWeight: "normal" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem", fontWeight: "normal", textTransform: "none", letterSpacing: 0 }}>
                       <input
                         type="checkbox"
                         checked={formData.isChildDependent}
@@ -735,6 +783,7 @@ export default function CensoTab() {
                           if (e.target.checked && formData.cedulaJefeFamilia) {
                             const numOnly = formData.cedulaJefeFamilia.replace(/^[VE]-/, "");
                             dispatch({ type: "SET", field: "cedula", value: numOnly });
+                            markTouched("cedula");
                           }
                         }}
                         style={{ width: "auto", height: "auto" }}
@@ -769,25 +818,25 @@ export default function CensoTab() {
                         placeholder="Solo números (ej: 12345678)"
                         value={formData.cedula}
                         onChange={handleInputChange}
-                        className={errors.cedula ? "has-error" : ""}
+                        className={err("cedula") ? "has-error" : ""}
                       />
                     </div>
                     {formData.isChildDependent && (
                       <div className="form-group" style={{ marginTop: "0.75rem", marginBottom: "0.5rem" }}>
                         <label htmlFor="dependentNumber" style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Número correlativo de hijo/dependiente</label>
-                        <select
-                          id="dependentNumber"
+                        <StyledSelect
                           value={formData.dependentNumber}
-                          onChange={(e) => dispatch({ type: "SET", field: "dependentNumber", value: e.target.value })}
-                          style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem", background: "var(--bg-secondary)", color: "var(--text-primary)" }}
-                        >
-                          <option value="1">1er Hijo/Representado (-1)</option>
-                          <option value="2">2do Hijo/Representado (-2)</option>
-                          <option value="3">3er Hijo/Representado (-3)</option>
-                          <option value="4">4to Hijo/Representado (-4)</option>
-                          <option value="5">5to Hijo/Representado (-5)</option>
-                          <option value="6">6to Hijo/Representado (-6)</option>
-                        </select>
+                          onChange={(v) => dispatch({ type: "SET", field: "dependentNumber", value: v })}
+                          options={[
+                            { value: "1", label: "1er Hijo/Representado (-1)" },
+                            { value: "2", label: "2do Hijo/Representado (-2)" },
+                            { value: "3", label: "3er Hijo/Representado (-3)" },
+                            { value: "4", label: "4to Hijo/Representado (-4)" },
+                            { value: "5", label: "5to Hijo/Representado (-5)" },
+                            { value: "6", label: "6to Hijo/Representado (-6)" },
+                          ]}
+                          ariaLabel="Número correlativo de hijo/dependiente"
+                        />
                       </div>
                     )}
                     <div className="helper-box">
@@ -798,7 +847,7 @@ export default function CensoTab() {
                       </span>
                     </div>
                     <div className="error-container">
-                      {errors.cedula && <span className="field-error-message">{errors.cedula}</span>}
+                      {err("cedula") && <span className="field-error-message">{err("cedula")}</span>}
                     </div>
                   </div>
 
@@ -811,10 +860,10 @@ export default function CensoTab() {
                       placeholder="Nombre completo"
                       value={formData.nombreApellido}
                       onChange={handleInputChange}
-                      className={errors.nombreApellido ? "has-error" : ""}
+                      className={err("nombreApellido") ? "has-error" : ""}
                     />
                     <div className="error-container">
-                      {errors.nombreApellido && <span className="field-error-message">{errors.nombreApellido}</span>}
+                      {err("nombreApellido") && <span className="field-error-message">{err("nombreApellido")}</span>}
                     </div>
                   </div>
 
@@ -822,7 +871,7 @@ export default function CensoTab() {
                     <label>Género<span className="required-star">*</span></label>
                     <div className="radio-group">
                       <label
-                        className={`radio-card ${formData.genero === "MASCULINO" ? "selected" : ""} ${errors.genero ? "has-error" : ""}`}
+                        className={`radio-card ${formData.genero === "MASCULINO" ? "selected" : ""} ${err("genero") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input
@@ -830,15 +879,12 @@ export default function CensoTab() {
                           name="genero"
                           value="MASCULINO"
                           checked={formData.genero === "MASCULINO"}
-                          onChange={(e) => {
-                            handleInputChange(e);
-                            setTimeout(() => document.getElementById("fechaNacimiento")?.focus(), 50);
-                          }}
+                          onChange={handleInputChange}
                         />
                         MASCULINO
                       </label>
                       <label
-                        className={`radio-card ${formData.genero === "FEMENINO" ? "selected" : ""} ${errors.genero ? "has-error" : ""}`}
+                        className={`radio-card ${formData.genero === "FEMENINO" ? "selected" : ""} ${err("genero") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input
@@ -846,33 +892,30 @@ export default function CensoTab() {
                           name="genero"
                           value="FEMENINO"
                           checked={formData.genero === "FEMENINO"}
-                          onChange={(e) => {
-                            handleInputChange(e);
-                            setTimeout(() => document.getElementById("fechaNacimiento")?.focus(), 50);
-                          }}
+                          onChange={handleInputChange}
                         />
                         FEMENINO
                       </label>
                     </div>
                     <div className="error-container">
-                      {errors.genero && <span className="field-error-message">{errors.genero}</span>}
+                      {err("genero") && <span className="field-error-message">{err("genero")}</span>}
                     </div>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="fechaNacimiento">Fecha de Nacimiento (DD/MM/AAAA)<span className="required-star">*</span></label>
-                    <input
-                      type="text"
-                      name="fechaNacimiento"
-                      id="fechaNacimiento"
-                      inputMode="numeric"
-                      placeholder="DD/MM/AAAA (ej: 15/05/1990)"
-                      value={formData.fechaNacimiento}
-                      onChange={handleInputChange}
-                      className={errors.fechaNacimiento ? "has-error" : ""}
+                    <label htmlFor="fechaNacimiento">Fecha de Nacimiento<span className="required-star">*</span></label>
+                    <DatePicker
+                      value={dmyToYmd(formData.fechaNacimiento)}
+                      onChange={(ymd) => {
+                        dispatch({ type: "SET_MANY", patch: { fechaNacimiento: ymdToDmy(ymd), edad: ymd ? handleDateChange(ymd) : "" } });
+                        markTouched("fechaNacimiento");
+                        setErrors(prev => ({ ...prev, fechaNacimiento: validateField("fechaNacimiento", ymdToDmy(ymd)) }));
+                      }}
+                      placeholder="Seleccione la fecha de nacimiento…"
+                      error={!!err("fechaNacimiento")}
                     />
                     <div className="error-container">
-                      {errors.fechaNacimiento && <span className="field-error-message">{errors.fechaNacimiento}</span>}
+                      {err("fechaNacimiento") && <span className="field-error-message">{err("fechaNacimiento")}</span>}
                     </div>
                   </div>
 
@@ -884,7 +927,7 @@ export default function CensoTab() {
                       id="edad"
                       placeholder="—"
                       value={formData.edad}
-                      onChange={handleInputChange}
+                      readOnly
                       disabled
                       className="input-disabled"
                     />
@@ -894,18 +937,12 @@ export default function CensoTab() {
                   <div className="form-group">
                     <label>Teléfono de Contacto<span className="required-star">*</span></label>
                     <div className="field-row-phone">
-                      <div className="native-select-wrapper">
-                        <select
-                          className="native-select"
-                          value={formData.telefonoCod}
-                          onChange={(e) => dispatch({ type: "SET", field: "telefonoCod", value: e.target.value })}
-                        >
-                          {["0424", "0414", "0416", "0426", "0412", "0422", "0212"].map(c => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
-                        </select>
-                        <svg className="native-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                      </div>
+                      <StyledSelect
+                        value={formData.telefonoCod}
+                        onChange={(v) => dispatch({ type: "SET", field: "telefonoCod", value: v })}
+                        options={TELEFONO_CODIGOS.map(c => ({ value: c, label: c }))}
+                        ariaLabel="Código de área"
+                      />
                       <input
                         type="text"
                         name="telefonoNum"
@@ -916,13 +953,14 @@ export default function CensoTab() {
                         onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, "").slice(0, 7);
                           dispatch({ type: "SET", field: "telefonoNum", value: val });
+                          markTouched("telefonoNum");
                           setErrors(prev => ({ ...prev, telefonoNum: validateField("telefonoNum", val) }));
                         }}
-                        className={errors.telefonoNum ? "has-error" : ""}
+                        className={err("telefonoNum") ? "has-error" : ""}
                       />
                     </div>
                     <div className="error-container">
-                      {errors.telefonoNum && <span className="field-error-message">{errors.telefonoNum}</span>}
+                      {err("telefonoNum") && <span className="field-error-message">{err("telefonoNum")}</span>}
                     </div>
                   </div>
                 </div>
@@ -930,19 +968,19 @@ export default function CensoTab() {
 
               {/* PASO 4: Estado de Salud */}
               {step === 4 && (
-                <div className="form-section form-step-content">
+                <div className="form-section form-step-content" key="step-4">
                   <div className="form-group">
                     <label>Estado Físico Actual<span className="required-star">*</span></label>
                     <div className="radio-group">
                       <label
-                        className={`radio-card ${formData.estadoFisico === "ILESO" ? "selected" : ""} ${errors.estadoFisico ? "has-error" : ""}`}
+                        className={`radio-card ${formData.estadoFisico === "ILESO" ? "selected" : ""} ${err("estadoFisico") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input type="radio" name="estadoFisico" value="ILESO" checked={formData.estadoFisico === "ILESO"} onChange={handleInputChange} />
                         ILESO
                       </label>
                       <label
-                        className={`radio-card ${formData.estadoFisico === "LESIONADO" ? "selected" : ""} ${errors.estadoFisico ? "has-error" : ""}`}
+                        className={`radio-card ${formData.estadoFisico === "LESIONADO" ? "selected" : ""} ${err("estadoFisico") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input type="radio" name="estadoFisico" value="LESIONADO" checked={formData.estadoFisico === "LESIONADO"} onChange={handleInputChange} />
@@ -950,7 +988,7 @@ export default function CensoTab() {
                       </label>
                     </div>
                     <div className="error-container">
-                      {errors.estadoFisico && <span className="field-error-message">{errors.estadoFisico}</span>}
+                      {err("estadoFisico") && <span className="field-error-message">{err("estadoFisico")}</span>}
                     </div>
                   </div>
 
@@ -958,14 +996,14 @@ export default function CensoTab() {
                     <label>¿Posee alguna patología crónica?<span className="required-star">*</span></label>
                     <div className="radio-group">
                       <label
-                        className={`radio-card ${formData.patologia === "SI" ? "selected" : ""} ${errors.patologia ? "has-error" : ""}`}
+                        className={`radio-card ${formData.patologia === "SI" ? "selected" : ""} ${err("patologia") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input type="radio" name="patologia" value="SI" checked={formData.patologia === "SI"} onChange={handleInputChange} />
                         SI
                       </label>
                       <label
-                        className={`radio-card ${formData.patologia === "NO" ? "selected" : ""} ${errors.patologia ? "has-error" : ""}`}
+                        className={`radio-card ${formData.patologia === "NO" ? "selected" : ""} ${err("patologia") ? "has-error" : ""}`}
                         onPointerDown={(e) => e.preventDefault()}
                       >
                         <input type="radio" name="patologia" value="NO" checked={formData.patologia === "NO"} onChange={handleInputChange} />
@@ -973,7 +1011,7 @@ export default function CensoTab() {
                       </label>
                     </div>
                     <div className="error-container">
-                      {errors.patologia && <span className="field-error-message">{errors.patologia}</span>}
+                      {err("patologia") && <span className="field-error-message">{err("patologia")}</span>}
                     </div>
                   </div>
 
@@ -983,37 +1021,25 @@ export default function CensoTab() {
                       <div style={{ marginTop: "0.5rem" }}>
                         <SearchableSelect
                           placeholder="Buscar y agregar patología…"
+                          inputClassName="morb-control"
                           options={patologias
                             .filter(p => !(formData.patologiaIds || []).includes(p.id))
                             .map(p => ({ value: p.id, label: p.nombre }))}
                           onSelect={addPatologia}
+                          error={!!errors.patologiaIds}
                         />
                       </div>
-                      <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem", marginBottom: "0.5rem" }}>
+                      <div className="pathology-pills-grid">
                         {(formData.patologiaIds || []).length === 0 ? (
-                          <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic" }}>(Ninguna seleccionada)</span>
+                          <span className="pills-empty">(Ninguna seleccionada)</span>
                         ) : (formData.patologiaIds || []).map((id: string) => (
-                          <span
-                            key={id}
-                            style={{
-                              padding: "0.4rem 0.35rem 0.4rem 0.75rem",
-                              borderRadius: "20px",
-                              border: "1.5px solid var(--color-primary)",
-                              backgroundColor: "var(--color-primary-light)",
-                              color: "var(--color-primary)",
-                              fontSize: "0.8rem",
-                              fontWeight: "600",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "0.25rem",
-                            }}
-                          >
+                          <span key={id} className="chip-pill">
                             {patologiaNombre(id, patologias)}
                             <button
                               type="button"
                               onClick={() => removePatologia(id)}
                               aria-label="Quitar"
-                              style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", fontSize: "1rem", lineHeight: 1, padding: "0 0.25rem" }}
+                              className="chip-pill__x"
                             >×</button>
                           </span>
                         ))}
@@ -1031,6 +1057,7 @@ export default function CensoTab() {
                           <span className="med-section-title">Medicamentos</span>
                           <SearchableSelect
                             placeholder="Buscar y agregar medicamento…"
+                            inputClassName="morb-control"
                             options={predefinedMedicamentos
                               .filter(m => !medicamentos.some(x => x.id === m.id))
                               .map(m => ({ value: m.id, label: [m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ") }))}
@@ -1049,20 +1076,20 @@ export default function CensoTab() {
                             </div>
                             {medicamentos.map((m, i) => (
                               <div key={i} className="med-row">
-                                <span className="med-input" style={{ display: "flex", alignItems: "center", fontWeight: 600 }}>
+                                <span className="med-cell med-cell--name">
                                   {medLabel(m.id, predefinedMedicamentos)}
                                 </span>
-                                <span className="med-input" style={{ display: "flex", alignItems: "center", color: "var(--text-secondary)" }}>
+                                <span className="med-cell med-cell--dose">
                                   {m.dosis || "—"}
                                 </span>
-                                <select
-                                  className="med-input"
+                                <StyledSelect
+                                  dense
                                   value={m.periodo}
-                                  onChange={e => updateMedicamento(i, "periodo", e.target.value)}
-                                >
-                                  <option value="">Período…</option>
-                                  {PERIODO_OPTIONS.map(op => <option key={op} value={op}>{op}</option>)}
-                                </select>
+                                  onChange={(v) => updateMedicamento(i, "periodo", v)}
+                                  options={PERIODO_OPTIONS.map(op => ({ value: op, label: op }))}
+                                  placeholder="Período…"
+                                  ariaLabel="Período"
+                                />
                                 <button type="button" className="btn-remove-med" onClick={() => removeMedicamento(i)}>
                                   ×
                                 </button>
@@ -1110,10 +1137,10 @@ export default function CensoTab() {
                         placeholder="Ej: Sale a trabajar de lunes a viernes, regresa los fines de semana."
                         value={formData.motivoIntermitente}
                         onChange={handleInputChange}
-                        className={errors.motivoIntermitente ? "has-error" : ""}
+                        className={err("motivoIntermitente") ? "has-error" : ""}
                       />
                       <div className="error-container">
-                        {errors.motivoIntermitente && <span className="field-error-message">{errors.motivoIntermitente}</span>}
+                        {err("motivoIntermitente") && <span className="field-error-message">{err("motivoIntermitente")}</span>}
                       </div>
                     </div>
                   </div>
@@ -1124,27 +1151,32 @@ export default function CensoTab() {
               {step === 4 && (
                 <div className="form-section form-step-content">
                   <div className="form-group">
-                    <label htmlFor="censo-cuarto">
-                      Habitación / Salón <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span>
+                    <label>
+                      Habitación / Salón <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
                     </label>
-                    <select id="censo-cuarto" value={asignCuartoCenso} onChange={e => setAsignCuartoCenso(e.target.value)}>
-                      <option value="">— Sin habitación asignada —</option>
-                      {allCuartos.map(c => {
-                        const count = roomCounts[c] || 0;
-                        const cap = roomCapacities[c] ?? 18;
-                        const level = roomFillLevel(count, cap);
-                        const emoji = level === "red" ? "🔴" : level === "yellow" ? "🟡" : "🟢";
-                        return <option key={c} value={c}>{emoji} {c} ({count}/{cap})</option>;
-                      })}
-                    </select>
-                    {asignCuartoCenso && (() => {
-                      const count = roomCounts[asignCuartoCenso] || 0;
-                      const cap = roomCapacities[asignCuartoCenso] ?? 18;
-                      const level = roomFillLevel(count, cap);
-                      const color = level === "red" ? "#ef4444" : level === "yellow" ? "#f59e0b" : "#10b981";
-                      return <div style={{ marginTop: "0.4rem", fontSize: "0.8rem", fontWeight: 700, color }}>Ocupantes: {count}/{cap}</div>;
-                    })()}
-                    <p style={{ margin: "0.4rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    <SearchableSelect
+                      placeholder="Buscar habitación… (más nuevas primero)"
+                      inputClassName="morb-control"
+                      emptyText="Sin habitaciones configuradas"
+                      options={allCuartos
+                        .filter(c => c !== asignCuartoCenso)
+                        .map(c => ({ value: c, label: roomLabel(c) }))}
+                      onSelect={(c) => setAsignCuartoCenso(c)}
+                    />
+                    {asignCuartoCenso ? (
+                      <div className="pathology-pills-grid">
+                        <span className="chip-pill chip-pill--room">
+                          {roomLabel(asignCuartoCenso)}
+                          <button
+                            type="button"
+                            onClick={() => setAsignCuartoCenso("")}
+                            aria-label="Quitar habitación"
+                            className="chip-pill__x"
+                          >×</button>
+                        </span>
+                      </div>
+                    ) : null}
+                    <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
                       Si lo dejas vacío, la persona queda registrada sin habitación asignada.
                     </p>
                   </div>

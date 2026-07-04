@@ -190,6 +190,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, id: updated.id, updated: true }, { status: 200 });
     }
 
+    // Guard explícito de cédula duplicada (además del índice @unique): no crear un
+    // nuevo censo si ya existe uno ACTIVO (no retirado) con esa cédula. Mensaje
+    // claro para el operador; el @unique queda como backstop ante carreras.
+    const dupExistente = await prisma.registro.findUnique({
+      where: { cedula: normalizedCedula },
+      select: { id: true, nombreApellido: true, retirado: true },
+    });
+    if (dupExistente && dupExistente.retirado !== "SI") {
+      return NextResponse.json(
+        { error: `Ya existe un registro activo con la cédula ${normalizedCedula} (${dupExistente.nombreApellido}).`, code: "DUPLICATED" },
+        { status: 409 }
+      );
+    }
+
     const newRegistro = await withAuditUser(auth.email, (tx) => tx.registro.create({
       data: {
         id: id || undefined,
