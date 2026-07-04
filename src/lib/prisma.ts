@@ -29,11 +29,15 @@ if (!globalForPrisma.prisma) {
     process.env.DATABASE_URL ||
     "postgresql://postgres:postgres@localhost:5432/postgres";
 
+  // Serverless (Vercel) + Supabase: cada instancia debe usar el MÍNIMO de conexiones
+  // y soltarlas rápido, o se agota el pool ("EMAXCONNSESSION max clients reached").
+  // Lo ideal es además apuntar DATABASE_URL al pooler en modo TRANSACTION (puerto 6543).
   const pool = new pg.Pool({
     connectionString: buildConnectionString(connectionString),
-    max: 2,
-    idleTimeoutMillis: 60_000,
-    connectionTimeoutMillis: 30_000,
+    max: 1,                      // 1 conexión por instancia (antes 2)
+    idleTimeoutMillis: 10_000,   // suelta la conexión ociosa pronto (antes 60s) → libera el pool
+    connectionTimeoutMillis: 15_000,
+    allowExitOnIdle: true,       // no retiene conexiones cuando no hay trabajo
     keepAlive: true,
     keepAliveInitialDelayMillis: 10_000,
   });
