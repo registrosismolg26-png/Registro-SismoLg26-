@@ -4482,8 +4482,52 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
 .morb-basic .morb-field--wide { grid-column: span 2; }
 @media (max-width: 480px) { .morb-basic .morb-field--wide { grid-column: 1 / -1; } }
 
-/* Fecha de nacimiento: día / mes / año como selectores estilizados */
-.morb-date { display: grid; grid-template-columns: 0.9fr 1.3fr 1fr; gap: 0.4rem; }
+/* ── Date picker (un solo control con calendario) ── */
+.morb-datepicker {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(300px, 92vw);
+  padding: 0.6rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  z-index: 200;
+  box-shadow: 0 14px 32px -10px rgba(0, 0, 0, 0.30), 0 4px 10px -6px rgba(0, 0, 0, 0.20);
+  transform-origin: top center;
+  animation: comboMenuIn 0.16s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.morb-dp__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; }
+.morb-dp__nav {
+  width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent;
+  color: var(--text-secondary); font-size: 1.1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background 0.12s ease, color 0.12s ease;
+}
+.morb-dp__nav:hover { background: var(--color-primary-light); color: var(--color-primary); }
+.morb-dp__title {
+  flex: 1; border: none; background: transparent; cursor: pointer;
+  font-weight: 700; font-size: 0.9rem; color: var(--text-primary);
+  padding: 0.35rem 0.5rem; border-radius: 8px; transition: background 0.12s ease, color 0.12s ease;
+}
+.morb-dp__title:hover { background: var(--color-primary-light); color: var(--color-primary); }
+.morb-dp__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.morb-dp__dow { text-align: center; font-size: 0.66rem; font-weight: 700; color: var(--text-muted); padding: 0.25rem 0; }
+.morb-dp__day {
+  aspect-ratio: 1; border: none; background: transparent; border-radius: 8px; cursor: pointer;
+  font-size: 0.82rem; color: var(--text-primary);
+  display: flex; align-items: center; justify-content: center; transition: background 0.12s ease, color 0.12s ease;
+}
+.morb-dp__day:hover:not(:disabled) { background: var(--color-primary-light); color: var(--color-primary); }
+.morb-dp__day.is-selected { background: var(--color-primary); color: #fff; font-weight: 700; }
+.morb-dp__day:disabled { opacity: 0.28; cursor: default; }
+.morb-dp__day--empty { visibility: hidden; }
+.morb-dp__years { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; max-height: 220px; overflow-y: auto; scrollbar-width: thin; }
+.morb-dp__year {
+  border: none; background: transparent; border-radius: 8px; cursor: pointer;
+  padding: 0.5rem 0; font-size: 0.82rem; color: var(--text-primary); transition: background 0.12s ease, color 0.12s ease;
+}
+.morb-dp__year:hover { background: var(--color-primary-light); color: var(--color-primary); }
+.morb-dp__year.is-selected { background: var(--color-primary); color: #fff; font-weight: 700; }
 
 /* ── Select estilizado (StyledSelect) — cumple el reformat, no nativo ── */
 .morb-select { position: relative; width: 100%; }

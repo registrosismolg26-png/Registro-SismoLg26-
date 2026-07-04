@@ -6,7 +6,7 @@ import { saveLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { patologiaNombre, medLabel, medItemsText } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
 import StyledSelect from "@/components/StyledSelect";
-import DateSelect from "@/components/DateSelect";
+import DatePicker from "@/components/DatePicker";
 import { PERIODO_OPTIONS } from "@/lib/constants";
 import type { Medicamento } from "@/types";
 
@@ -409,9 +409,9 @@ export default function MorbilidadTab() {
                 <label className="morb-field__label">Género</label>
                 <StyledSelect value={genero} onChange={setGenero} options={GENERO_OPTS} ariaLabel="Género" />
               </div>
-              <div className="morb-field morb-field--wide">
+              <div className="morb-field">
                 <label className="morb-field__label">Fecha de Nacimiento</label>
-                <DateSelect value={fechaNacimiento} onChange={onFechaChange} maxYear={new Date().getFullYear()} />
+                <DatePicker value={fechaNacimiento} onChange={onFechaChange} placeholder="Seleccionar fecha…" />
               </div>
               <div className="morb-field">
                 <label className="morb-field__label">Edad (años)</label>
