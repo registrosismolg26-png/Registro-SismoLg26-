@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
+import PresentationView from "@/components/PresentationView";
 import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import { DEFAULT_ENTES } from "@/lib/constants";
 
@@ -334,6 +335,17 @@ ${entesList}`;
   return (
     <>
         <div ref={dashboardRef} className={`tab-view tab-view--dashboard tab-enter ${isFullscreen ? "presentation-mode" : ""}`}>
+          {isFullscreen ? (
+            <PresentationView
+              stats={currentStats}
+              roomCounts={roomCounts}
+              roomCapacities={roomCapacities}
+              allCuartos={allCuartos}
+              refugio={campamentoActivo}
+              onExit={() => { try { document.exitFullscreen?.(); } catch {} }}
+            />
+          ) : (
+          <>
 
           {/* Membrete institucional — solo visible al imprimir / exportar PDF */}
           <div className="print-letterhead">
@@ -861,6 +873,8 @@ ${entesList}`;
             </div>
           </>
         )}
+          </>
+          )}
         </div>
 
       {/* WhatsApp Report Generator Modal */}
