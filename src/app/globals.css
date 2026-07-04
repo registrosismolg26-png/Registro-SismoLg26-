@@ -4736,6 +4736,28 @@ h2.dashboard-section-title {
 .morb-datetime { display: grid; grid-template-columns: 1fr; gap: clamp(0.7rem, 1.6vw, 1rem); margin-bottom: 1rem; }
 @media (min-width: 560px) { .morb-datetime { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 
+/* Estados explícitos (Estado físico + Embarazo): toggles segmentados pill, misma altura. */
+.morb-estados { display: grid; grid-template-columns: 1fr; gap: clamp(0.7rem, 1.6vw, 1rem); margin-bottom: 1rem; }
+@media (min-width: 560px) { .morb-estados { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.morb-seg {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  height: var(--morb-h); padding: 3px; gap: 3px;
+  background: var(--input-bg); border: 1px solid var(--border-color);
+  border-radius: var(--morb-ctl-radius); box-sizing: border-box;
+}
+.morb-seg__btn {
+  border: none; background: transparent; cursor: pointer;
+  border-radius: calc(var(--morb-ctl-radius) - 3px);
+  font-family: var(--font-system); font-size: 0.84rem; font-weight: 700;
+  color: var(--text-secondary); transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  display: flex; align-items: center; justify-content: center; min-width: 0;
+}
+.morb-seg__btn:hover:not(.is-active) { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 6%, transparent); }
+.morb-seg__btn.is-active { background: var(--bg-secondary); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.morb-seg__btn.is-active.is-ok      { color: var(--color-success); }
+.morb-seg__btn.is-active.is-danger  { background: color-mix(in srgb, #e11d48 90%, #fff); color: #fff; box-shadow: 0 1px 4px color-mix(in srgb, #e11d48 45%, transparent); }
+.morb-seg__btn.is-active.is-accent  { background: color-mix(in srgb, #db2777 90%, #fff); color: #fff; box-shadow: 0 1px 4px color-mix(in srgb, #db2777 45%, transparent); }
+
 /* Lesiones, heridas y curas: tarjetas apiladas dentro de la card de la sección */
 .morb-lesiones { display: flex; flex-direction: column; gap: 0.85rem; margin-top: 0.9rem; }
 .morb-les {
@@ -5725,6 +5747,10 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .hc-chip--apoyo_institucional { background: #7c3aed; }
 .hc-chip--apoyo_comunitario { background: #0d9488; }
 .hc-chip--emergencia { background: #e11d48; }
+.hc-chip--estado { border: none; color: #fff; }
+.hc-chip--ileso { background: var(--color-success); }
+.hc-chip--lesionado { background: #e11d48; }
+.hc-chip--embarazo { background: #db2777; border: none; color: #fff; }
 
 /* Resumen: lista de problemas · antecedentes · medicación */
 .hc-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 258px), 1fr)); gap: 0.85rem; }

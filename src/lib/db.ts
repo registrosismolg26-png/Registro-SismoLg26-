@@ -12,6 +12,8 @@ export interface LocalConsulta {
     tipoNota?: string;         // nota opcional para atenciones de apoyo
     fechaConsulta?: string;    // ISO de la fecha-hora REAL de la consulta (elegida a mano)
     lesiones?: { tipoId: string; zona: string; estado: string; cura: string }[];
+    estadoFisico?: string;     // "ILESO" / "LESIONADO" (estado explícito, se sincroniza al censo)
+    embarazo?: string;         // "SI" / "NO" (estado explícito, se sincroniza al censo)
     refugio: string;
     // Por-ID: patologías = ids del catálogo; medicamentos = { id, dosis, periodo }.
     antecedentesPatologiaIds: string[];

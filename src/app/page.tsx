@@ -890,6 +890,8 @@ export default function Home() {
                   tipoNota: c.data.tipoNota,
                   fechaConsulta: c.data.fechaConsulta,
                   lesiones: c.data.lesiones,
+                  estadoFisico: c.data.estadoFisico,
+                  embarazo: c.data.embarazo,
                   refugio: c.data.refugio,
                   registroId: c.data.registroId,
                   antecedentesPatologiaIds: c.data.antecedentesPatologiaIds,

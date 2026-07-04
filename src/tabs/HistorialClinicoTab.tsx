@@ -45,6 +45,7 @@ const initials = (name: string) =>
 interface PacienteEntry {
   cedula: string; cedulaDigits: string; nombre: string;
   genero: string; edad: number | null; tipo: string; refugio: string;
+  estadoFisico: string; embarazo: string; // estado explícito más reciente (consulta o censo)
   consultas: any[]; // ordenadas desc
   ultima: string; // ISO
 }
@@ -72,7 +73,7 @@ export default function HistorialClinicoTab() {
       const ced = onlyDigits(c.cedula);
       if (!ced) continue;
       if (!byCed.has(ced)) {
-        byCed.set(ced, { cedula: c.cedula, cedulaDigits: ced, nombre: c.nombreApellido || "", genero: "", edad: null, tipo: "REFUGIADO", refugio: c.refugio || "", consultas: [], ultima: c.fechaConsulta || c.createdAt });
+        byCed.set(ced, { cedula: c.cedula, cedulaDigits: ced, nombre: c.nombreApellido || "", genero: "", edad: null, tipo: "REFUGIADO", refugio: c.refugio || "", estadoFisico: "ILESO", embarazo: "NO", consultas: [], ultima: c.fechaConsulta || c.createdAt });
       }
       const p = byCed.get(ced)!;
       p.consultas.push(c);
@@ -87,6 +88,8 @@ export default function HistorialClinicoTab() {
       p.edad = latest.edad ?? edadFromISO(latest.fechaNacimiento) ?? (reg ? (reg.edad ?? edadFromISO(reg.fechaNacimiento)) : null);
       p.tipo = latest.tipoPaciente || "REFUGIADO";
       p.refugio = latest.refugio || reg?.refugio || "";
+      p.estadoFisico = latest.estadoFisico || reg?.estadoFisico || "ILESO";
+      p.embarazo = latest.embarazo || reg?.embarazo || "NO";
       p.ultima = latest.fechaConsulta || latest.createdAt || p.ultima;
       return p;
     }).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
@@ -168,6 +171,8 @@ export default function HistorialClinicoTab() {
                 <span className="hc-chip">C.I. {paciente.cedula}</span>
                 {paciente.edad != null && <span className="hc-chip">{paciente.edad} años</span>}
                 {paciente.genero && <span className="hc-chip">{paciente.genero === "FEMENINO" ? "Femenino" : paciente.genero === "MASCULINO" ? "Masculino" : paciente.genero}</span>}
+                <span className={`hc-chip hc-chip--estado ${paciente.estadoFisico === "LESIONADO" ? "hc-chip--lesionado" : "hc-chip--ileso"}`}>{paciente.estadoFisico === "LESIONADO" ? "Lesionado" : "Ileso"}</span>
+                {paciente.embarazo === "SI" && <span className="hc-chip hc-chip--embarazo">Embarazada</span>}
                 {paciente.tipo && paciente.tipo !== "REFUGIADO" && <span className={`hc-chip hc-chip--tipo hc-chip--${paciente.tipo.toLowerCase()}`}>{TIPO_LABEL[paciente.tipo] || paciente.tipo}</span>}
                 {paciente.refugio && <span className="hc-chip hc-chip--muted">{paciente.refugio}</span>}
               </div>

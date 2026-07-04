@@ -46,6 +46,8 @@ export async function POST(req: Request) {
       tipoNota,
       fechaConsulta,
       lesiones,
+      estadoFisico,
+      embarazo,
       refugio,
       antecedentesPatologiaIds,
       antecedentesMedicamentoIds,
@@ -72,6 +74,9 @@ export async function POST(req: Request) {
     // Fecha-hora manual de la consulta (si viene inválida → null → se usa createdAt).
     const fc = fechaConsulta ? new Date(fechaConsulta) : null;
     const fechaConsultaClean = fc && !isNaN(fc.getTime()) ? fc : null;
+    // Estados explícitos del paciente (saneados a los valores válidos; fuera de rango → null).
+    const estadoFisicoClean = ["ILESO", "LESIONADO"].includes(estadoFisico) ? estadoFisico : null;
+    const embarazoClean = ["SI", "NO"].includes(embarazo) ? embarazo : null;
 
     // Datos SIN refugio: el refugio lo decide el backend (nunca el cliente).
     const baseData = {
@@ -85,6 +90,8 @@ export async function POST(req: Request) {
       tipoNota: tipoNota ? String(tipoNota).trim() : null,
       fechaConsulta: fechaConsultaClean,
       lesiones: lesionesClean,
+      estadoFisico: estadoFisicoClean,
+      embarazo: embarazoClean,
       // Modelo por-ID (los campos legados quedan en su default).
       antecedentesPatologiaIds: arr(antecedentesPatologiaIds),
       antecedentesMedicamentoIds: arr(antecedentesMedicamentoIds),

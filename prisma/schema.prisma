@@ -25,7 +25,8 @@ model Registro {
   edad                 Int
   perteneceNucleo      String    // "SI" / "NO"
   cedulaJefeFamilia    String?
-  estadoFisico         String    // "ILESO" / "LECIONADO"
+  estadoFisico         String    // "ILESO" / "LESIONADO"
+  embarazo             String    @default("NO") // "SI" / "NO" (estado explícito de la persona)
   patologia            String    // "SI" / "NO"
   patologiaDescripcion String?
   gpsLat               Float?
@@ -122,6 +123,10 @@ model ConsultaMedica {
   fechaConsulta             DateTime?
   // Lesiones / heridas / curas: [{ tipoId, zona, estado, cura }] (tipoId → TipoLesion).
   lesiones                  Json?    @default("[]")
+  // Estados explícitos del paciente en ESTA consulta (auto-sugeridos por lesiones/
+  // patologías, pero el médico decide). Se sincronizan al Registro del censo.
+  estadoFisico              String?  // "ILESO" / "LESIONADO"
+  embarazo                  String?  // "SI" / "NO"
   refugio                   String
   // Campos LEGADO (congelados, respaldo). El modelo por-ID usa las columnas *Ids de abajo.
   antecedentesPatologia     String?

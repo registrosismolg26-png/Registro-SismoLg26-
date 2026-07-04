@@ -35,6 +35,7 @@ export async function POST(req: Request) {
       perteneceNucleo,
       cedulaJefeFamilia,
       estadoFisico,
+      embarazo,
       patologia,
       patologiaDescripcion,
       patologiaIds,
@@ -65,6 +66,8 @@ export async function POST(req: Request) {
     if (!VALID_ESTADO_FISICO.includes(estadoFisico)) {
       return NextResponse.json({ error: "Estado físico inválido" }, { status: 400 });
     }
+    // Embarazo: "SI"/"NO". Si no viene, en UPDATE se deja como está; en CREATE usa "NO".
+    const embarazoClean = VALID_SI_NO.includes(embarazo) ? embarazo : null;
     if (!VALID_SI_NO.includes(jefeFamilia)) {
       return NextResponse.json({ error: "Valor de jefeFamilia inválido" }, { status: 400 });
     }
@@ -186,6 +189,7 @@ export async function POST(req: Request) {
           perteneceNucleo,
           cedulaJefeFamilia: normalizedJefeCedula,
           estadoFisico,
+          embarazo: embarazoClean ?? undefined, // undefined = no cambiar el valor existente
           patologia,
           patologiaDescripcion: patologiaDescripcion || null,
           patologiaIds: Array.isArray(patologiaIds) ? patologiaIds : [],
@@ -236,6 +240,7 @@ export async function POST(req: Request) {
         perteneceNucleo,
         cedulaJefeFamilia: normalizedJefeCedula,
         estadoFisico,
+        embarazo: embarazoClean ?? "NO",
         patologia,
         patologiaDescripcion: patologiaDescripcion || null,
         patologiaIds: Array.isArray(patologiaIds) ? patologiaIds : [],

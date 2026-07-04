@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText } from "@/lib/helpers";
@@ -51,16 +51,14 @@ const isInjuryPatologiaId = (id: string, catalogo: Patologia[]): boolean => {
   const nombre = normalizeText(catalogo.find((p) => p.id === id)?.nombre ?? "");
   return !!nombre && INJURY_KEYWORDS.some((k) => nombre.includes(k));
 };
-
-// Estado físico del censo (SINCRONÍA TOTAL bidireccional, decisión del dueño): LESIONADO
-// si hay ≥1 lesión ACTIVA en la sección Lesiones (estado ≠ cicatrizada) O una patología de
-// tipo lesión/trauma en antecedentes O diagnóstico; si no hay ninguna señal → ILESO.
-// Así se marca sin importar DÓNDE se registró la herida (sección Lesiones o patología).
-const deriveEstadoFisico = (lesiones: Lesion[], patologiaIds: string[], catalogo: Patologia[]): "ILESO" | "LESIONADO" => {
-  const activeLesion = (Array.isArray(lesiones) ? lesiones : []).some((l) => l?.tipoId && l.estado !== "CICATRIZADA");
-  const injuryPat = (Array.isArray(patologiaIds) ? patologiaIds : []).some((id) => isInjuryPatologiaId(id, catalogo));
-  return activeLesion || injuryPat ? "LESIONADO" : "ILESO";
-};
+// Una patología es de EMBARAZO si su nombre contiene "embarazo" (cualquier variante).
+const isEmbarazoPatologiaId = (id: string, catalogo: Patologia[]): boolean =>
+  normalizeText(catalogo.find((p) => p.id === id)?.nombre ?? "").includes("embarazo");
+// ¿Hay señal de lesión? (lesión activa en la sección Lesiones o patología de trauma en
+// antecedentes/diagnóstico). Alimenta la AUTO-SUGERENCIA del toggle de estado físico.
+const hasInjurySignal = (lesiones: Lesion[], patologiaIds: string[], catalogo: Patologia[]): boolean =>
+  (Array.isArray(lesiones) ? lesiones : []).some((l) => l?.tipoId && l.estado !== "CICATRIZADA") ||
+  (Array.isArray(patologiaIds) ? patologiaIds : []).some((id) => isInjuryPatologiaId(id, catalogo));
 
 // Edad (a hoy) a partir de una fecha yyyy-mm-dd. Siempre se recalcula desde la fecha.
 const computeEdad = (ymd: string): string => {
@@ -138,6 +136,38 @@ export default function MorbilidadTab() {
   // Lesiones, heridas y curas de esta consulta: [{ tipoId, zona, estado, cura }].
   const [lesiones, setLesiones] = useState<Lesion[]>([]);
 
+  // ── Estados EXPLÍCITOS del paciente (toggles): auto-sugeridos por lesiones/patologías
+  //    pero el médico decide (una vez que toca el toggle, `touched` congela su elección).
+  //    La "base" = valor del censo al cargar (para no revertir un lesionado/embarazo del
+  //    triaje solo porque esta consulta no traiga señal).
+  const [estadoFisico, setEstadoFisico] = useState<"ILESO" | "LESIONADO">("ILESO");
+  const [estadoTouched, setEstadoTouched] = useState(false);
+  const estadoBaseRef = useRef<"ILESO" | "LESIONADO">("ILESO");
+  const [embarazo, setEmbarazo] = useState<"SI" | "NO">("NO");
+  const [embarazoTouched, setEmbarazoTouched] = useState(false);
+  const embarazoBaseRef = useRef<"SI" | "NO">("NO");
+
+  // Señales clínicas para auto-sugerir (lesión activa / patología de trauma o embarazo).
+  const injuryPresent = useMemo(
+    () => hasInjurySignal(lesiones, [...antecedentesPatologiaIds, ...diagnosticoPatologiaIds], patologias),
+    [lesiones, antecedentesPatologiaIds, diagnosticoPatologiaIds, patologias]
+  );
+  const embarazoPresent = useMemo(
+    () => [...antecedentesPatologiaIds, ...diagnosticoPatologiaIds].some((id) => isEmbarazoPatologiaId(id, patologias)),
+    [antecedentesPatologiaIds, diagnosticoPatologiaIds, patologias]
+  );
+  // Auto-sugerencia (mientras el médico no haya tocado el toggle).
+  useEffect(() => { if (!estadoTouched) setEstadoFisico(injuryPresent ? "LESIONADO" : estadoBaseRef.current); }, [injuryPresent, estadoTouched]);
+  useEffect(() => { if (!embarazoTouched) setEmbarazo(embarazoPresent ? "SI" : embarazoBaseRef.current); }, [embarazoPresent, embarazoTouched]);
+  const toggleEstado = (v: "ILESO" | "LESIONADO") => { setEstadoTouched(true); setEstadoFisico(v); };
+  const toggleEmbarazo = (v: "SI" | "NO") => { setEmbarazoTouched(true); setEmbarazo(v); };
+  // Fija la "base" (valor del censo) y reinicia la auto-sugerencia (sin tocar).
+  const seedEstados = (estado: "ILESO" | "LESIONADO", emb: "SI" | "NO") => {
+    estadoBaseRef.current = estado; embarazoBaseRef.current = emb;
+    setEstadoTouched(false); setEmbarazoTouched(false);
+    setEstadoFisico(estado); setEmbarazo(emb);
+  };
+
   const [saving, setSaving] = useState(false);
 
   // Animación de salida: marca una clave (namespaced) como "saliendo" y la remueve al terminar.
@@ -187,6 +217,8 @@ export default function MorbilidadTab() {
       setAntecedentesPatologiaIds(Array.isArray(localMatch.patologiaIds) ? localMatch.patologiaIds : []);
       setAntecedentesMedicamentoIds(Array.isArray(localMatch.medicamentoIds) ? localMatch.medicamentoIds : []);
       setTipoPaciente("REFUGIADO"); setTipoNota("");   // está en el censo → refugiado
+      // Estados explícitos: base = valor actual del censo; sin tocar aún.
+      seedEstados(localMatch.estadoFisico === "LESIONADO" ? "LESIONADO" : "ILESO", localMatch.embarazo === "SI" ? "SI" : "NO");
       showToast("Paciente encontrado en el Censo.", "success");
     } else {
       // 2. Buscar en Padrón Electoral local en IndexedDB
@@ -197,6 +229,7 @@ export default function MorbilidadTab() {
         setAntecedentesPatologiaIds([]);
         setAntecedentesMedicamentoIds([]);
         setTipoPaciente("APOYO_COMUNITARIO");   // no está en el censo → apoyo externo (editable)
+        seedEstados("ILESO", "NO"); // no está en el censo → base neutra
         if (padronMatch) {
           setNombreApellido(padronMatch.nombreCompleto);
           setGenero(padronMatch.sexo === "M" ? "MASCULINO" : "FEMENINO");
@@ -272,6 +305,7 @@ export default function MorbilidadTab() {
     setFechaConsulta(todayYmd());
     setHoraConsulta(nowHm());
     setLesiones([]);
+    seedEstados("ILESO", "NO");
   };
 
   // Al guardar, si el paciente está en el censo, propaga los cambios de Datos Básicos
@@ -282,8 +316,9 @@ export default function MorbilidadTab() {
     const prevMed = Array.isArray(matchedRegistro.medicamentoIds) ? matchedRegistro.medicamentoIds : [];
     const prevFechaYmd = ymdFromISO(matchedRegistro.fechaNacimiento);
     const nuevaEdad = edad ? parseInt(edad) : null;
-    // Estado físico: lesiones (sección) + patologías de tipo lesión en antecedentes/diagnóstico.
-    const nuevoEstadoFisico = deriveEstadoFisico(lesiones, [...antecedentesPatologiaIds, ...diagnosticoPatologiaIds], patologias);
+    // Estados EXPLÍCITOS elegidos en los toggles (auto-sugeridos pero decididos por el médico).
+    const nuevoEstadoFisico = estadoFisico;
+    const nuevoEmbarazo = genero === "FEMENINO" ? embarazo : "NO"; // embarazo solo aplica a mujeres
     const changed =
       JSON.stringify(antecedentesPatologiaIds) !== JSON.stringify(prevPat) ||
       JSON.stringify(antecedentesMedicamentoIds) !== JSON.stringify(prevMed) ||
@@ -291,7 +326,8 @@ export default function MorbilidadTab() {
       genero !== matchedRegistro.genero ||
       (fechaNacimiento || "") !== (prevFechaYmd || "") ||
       nuevaEdad !== (matchedRegistro.edad ?? null) ||
-      nuevoEstadoFisico !== (matchedRegistro.estadoFisico || "");
+      nuevoEstadoFisico !== (matchedRegistro.estadoFisico || "") ||
+      nuevoEmbarazo !== (matchedRegistro.embarazo || "NO");
     if (!changed) return;
 
     const patologia = antecedentesPatologiaIds.length > 0 ? "SI" : "NO";
@@ -302,6 +338,7 @@ export default function MorbilidadTab() {
       fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento + "T00:00:00").toISOString() : matchedRegistro.fechaNacimiento,
       edad: nuevaEdad ?? matchedRegistro.edad,
       estadoFisico: nuevoEstadoFisico,
+      embarazo: nuevoEmbarazo,
       patologia,
       patologiaIds: antecedentesPatologiaIds,
       medicamentoIds: antecedentesMedicamentoIds,
@@ -326,7 +363,10 @@ export default function MorbilidadTab() {
     const estadoMsg = nuevoEstadoFisico !== (matchedRegistro.estadoFisico || "")
       ? ` Estado físico → ${nuevoEstadoFisico === "LESIONADO" ? "Lesionado" : "Ileso"}.`
       : "";
-    showToast("Datos del paciente actualizados en el censo." + estadoMsg, "info");
+    const embMsg = nuevoEmbarazo !== (matchedRegistro.embarazo || "NO")
+      ? ` Embarazo → ${nuevoEmbarazo === "SI" ? "Sí" : "No"}.`
+      : "";
+    showToast("Datos del paciente actualizados en el censo." + estadoMsg + embMsg, "info");
   };
 
   // --- GUARDAR CONSULTA (OFFLINE-FIRST) ---
@@ -351,6 +391,8 @@ export default function MorbilidadTab() {
         tipoNota: tipoPaciente !== "REFUGIADO" && tipoNota.trim() ? tipoNota.trim() : undefined,
         fechaConsulta: combineFechaHora(fechaConsulta, horaConsulta),
         lesiones: lesiones.filter((l) => l.tipoId),
+        estadoFisico,
+        embarazo: genero === "FEMENINO" ? embarazo : "NO",
         refugio,
         antecedentesPatologiaIds,
         antecedentesMedicamentoIds,
@@ -433,6 +475,19 @@ export default function MorbilidadTab() {
     // Fecha-hora de la consulta: la guardada; si la consulta es vieja y no la tiene,
     // se parte de su createdAt como valor editable.
     const fh = splitFechaHora(c.data.fechaConsulta || c.createdAt);
+    const antPat: string[] = Array.isArray(c.data.antecedentesPatologiaIds) ? [...c.data.antecedentesPatologiaIds] : [];
+    const diagPat: string[] = Array.isArray(c.data.diagnosticoPatologiaIds) ? [...c.data.diagnosticoPatologiaIds] : [];
+    const lesionesE: Lesion[] = Array.isArray(c.data.lesiones) ? c.data.lesiones.map((l: Lesion) => ({ ...l })) : [];
+    // Estados explícitos: base = valor del censo (para no revertir); valor guardado en la
+    // consulta si existe. `touched` = el valor guardado difiere de la auto-sugerencia (fue un
+    // override manual → se respeta y no se auto-recalcula).
+    const regE = registros.find((r: any) => (c.data.registroId && r.id === c.data.registroId) || (r.cedula || "").replace(/\D/g, "") === String(c.data.cedula || "").replace(/\D/g, ""));
+    const baseEstado: "ILESO" | "LESIONADO" = regE?.estadoFisico === "LESIONADO" ? "LESIONADO" : "ILESO";
+    const baseEmb: "SI" | "NO" = regE?.embarazo === "SI" ? "SI" : "NO";
+    const autoEstado = hasInjurySignal(lesionesE, [...antPat, ...diagPat], patologias) ? "LESIONADO" : baseEstado;
+    const autoEmb = [...antPat, ...diagPat].some((id) => isEmbarazoPatologiaId(id, patologias)) ? "SI" : baseEmb;
+    const savedEstado: "ILESO" | "LESIONADO" = c.data.estadoFisico === "LESIONADO" ? "LESIONADO" : c.data.estadoFisico === "ILESO" ? "ILESO" : baseEstado;
+    const savedEmb: "SI" | "NO" = c.data.embarazo === "SI" ? "SI" : c.data.embarazo === "NO" ? "NO" : baseEmb;
     setEditForm({
       id: c.id, createdAt: c.createdAt, registroId: c.data.registroId, refugio: c.data.refugio,
       cedula: c.data.cedula, nombreApellido: c.data.nombreApellido || "",
@@ -443,11 +498,11 @@ export default function MorbilidadTab() {
       edadFallback: c.data.edad != null ? c.data.edad : null, // solo si no hay fecha
       fechaConsulta: fh.ymd,
       horaConsulta: fh.hm,
-      antPat: Array.isArray(c.data.antecedentesPatologiaIds) ? [...c.data.antecedentesPatologiaIds] : [],
-      antMed: Array.isArray(c.data.antecedentesMedicamentoIds) ? [...c.data.antecedentesMedicamentoIds] : [],
-      diagPat: Array.isArray(c.data.diagnosticoPatologiaIds) ? [...c.data.diagnosticoPatologiaIds] : [],
-      diagMed: Array.isArray(c.data.diagnosticoMedicamentoIds) ? [...c.data.diagnosticoMedicamentoIds] : [],
-      lesiones: Array.isArray(c.data.lesiones) ? c.data.lesiones.map((l: Lesion) => ({ ...l })) : [],
+      antPat, antMed: Array.isArray(c.data.antecedentesMedicamentoIds) ? [...c.data.antecedentesMedicamentoIds] : [],
+      diagPat, diagMed: Array.isArray(c.data.diagnosticoMedicamentoIds) ? [...c.data.diagnosticoMedicamentoIds] : [],
+      lesiones: lesionesE,
+      estadoFisico: savedEstado, estadoTouched: savedEstado !== autoEstado, estadoBase: baseEstado,
+      embarazo: savedEmb, embarazoTouched: savedEmb !== autoEmb, embarazoBase: baseEmb,
       notas: c.data.notasDoctor || "",
     });
   };
@@ -464,6 +519,21 @@ export default function MorbilidadTab() {
   const efLesRemove = (i: number) => setEditForm((f: any) => f ? { ...f, lesiones: f.lesiones.filter((_: Lesion, idx: number) => idx !== i) } : f);
   const efLesUpdate = (i: number, field: keyof Lesion, value: string) => setEditForm((f: any) => f ? { ...f, lesiones: f.lesiones.map((l: Lesion, idx: number) => idx === i ? { ...l, [field]: value } : l) } : f);
 
+  // Toggles de estado en el modal de edición (mismo comportamiento: auto-sugerido + override).
+  const efToggleEstado = (v: "ILESO" | "LESIONADO") => setEditForm((f: any) => f ? { ...f, estadoTouched: true, estadoFisico: v } : f);
+  const efToggleEmbarazo = (v: "SI" | "NO") => setEditForm((f: any) => f ? { ...f, embarazoTouched: true, embarazo: v } : f);
+  // Auto-sugerencia dentro del modal (solo mientras no se haya tocado el toggle).
+  useEffect(() => {
+    if (!editForm || editForm.estadoTouched) return;
+    const v = hasInjurySignal(editForm.lesiones || [], [...(editForm.antPat || []), ...(editForm.diagPat || [])], patologias) ? "LESIONADO" : editForm.estadoBase;
+    if (v !== editForm.estadoFisico) setEditForm((f: any) => f ? { ...f, estadoFisico: v } : f);
+  }, [editForm?.lesiones, editForm?.antPat, editForm?.diagPat, editForm?.estadoTouched, editForm?.estadoBase, patologias]);
+  useEffect(() => {
+    if (!editForm || editForm.embarazoTouched) return;
+    const v = [...(editForm.antPat || []), ...(editForm.diagPat || [])].some((id: string) => isEmbarazoPatologiaId(id, patologias)) ? "SI" : editForm.embarazoBase;
+    if (v !== editForm.embarazo) setEditForm((f: any) => f ? { ...f, embarazo: v } : f);
+  }, [editForm?.antPat, editForm?.diagPat, editForm?.embarazoTouched, editForm?.embarazoBase, patologias]);
+
   // Al editar, si la consulta está vinculada al censo, propaga los Datos Básicos
   // (nombre, género, fecha de nacimiento, edad) y los Antecedentes al Registro —
   // igual que hace el formulario de crear (syncPatientToRegistro).
@@ -473,7 +543,9 @@ export default function MorbilidadTab() {
     const prevPat = Array.isArray(reg.patologiaIds) ? reg.patologiaIds : [];
     const prevMed = Array.isArray(reg.medicamentoIds) ? reg.medicamentoIds : [];
     const prevFechaYmd = ymdFromISO(reg.fechaNacimiento);
-    const nuevoEstadoFisico = deriveEstadoFisico(ef.lesiones || [], [...(ef.antPat || []), ...(ef.diagPat || [])], patologias);
+    // Estados EXPLÍCITOS elegidos en el modal (toggles).
+    const nuevoEstadoFisico = ef.estadoFisico === "LESIONADO" ? "LESIONADO" : "ILESO";
+    const nuevoEmbarazo = ef.genero === "FEMENINO" ? (ef.embarazo === "SI" ? "SI" : "NO") : "NO";
     const changed =
       JSON.stringify(ef.antPat) !== JSON.stringify(prevPat) ||
       JSON.stringify(ef.antMed) !== JSON.stringify(prevMed) ||
@@ -481,7 +553,8 @@ export default function MorbilidadTab() {
       ef.genero !== reg.genero ||
       (ef.fechaNacimiento || "") !== (prevFechaYmd || "") ||
       (edad ?? null) !== (reg.edad ?? null) ||
-      nuevoEstadoFisico !== (reg.estadoFisico || "");
+      nuevoEstadoFisico !== (reg.estadoFisico || "") ||
+      nuevoEmbarazo !== (reg.embarazo || "NO");
     if (!changed) return;
     const updatedReg = {
       ...reg,
@@ -490,6 +563,7 @@ export default function MorbilidadTab() {
       fechaNacimiento: ef.fechaNacimiento ? new Date(ef.fechaNacimiento + "T00:00:00").toISOString() : reg.fechaNacimiento,
       edad: edad ?? reg.edad,
       estadoFisico: nuevoEstadoFisico,
+      embarazo: nuevoEmbarazo,
       patologia: ef.antPat.length > 0 ? "SI" : "NO",
       patologiaIds: ef.antPat,
       medicamentoIds: ef.antMed,
@@ -522,6 +596,8 @@ export default function MorbilidadTab() {
         tipoNota: editForm.tipoPaciente !== "REFUGIADO" && editForm.tipoNota?.trim() ? editForm.tipoNota.trim() : undefined,
         fechaConsulta: combineFechaHora(editForm.fechaConsulta, editForm.horaConsulta),
         lesiones: (Array.isArray(editForm.lesiones) ? editForm.lesiones : []).filter((l: Lesion) => l.tipoId),
+        estadoFisico: editForm.estadoFisico === "LESIONADO" ? "LESIONADO" : "ILESO",
+        embarazo: editForm.genero === "FEMENINO" ? (editForm.embarazo === "SI" ? "SI" : "NO") : "NO",
         refugio: editForm.refugio,
         antecedentesPatologiaIds: editForm.antPat,
         antecedentesMedicamentoIds: editForm.antMed,
@@ -564,6 +640,8 @@ export default function MorbilidadTab() {
             tipoNota: c.tipoNota,
             fechaConsulta: c.fechaConsulta,
             lesiones: c.lesiones || [],
+            estadoFisico: c.estadoFisico,
+            embarazo: c.embarazo,
             refugio: c.refugio,
             antecedentesPatologiaIds: c.antecedentesPatologiaIds || [],
             antecedentesMedicamentoIds: c.antecedentesMedicamentoIds || [],
@@ -642,6 +720,29 @@ export default function MorbilidadTab() {
         <label className="morb-field__label">Hora de la consulta</label>
         <TimePicker value={hm} onChange={onHm} minuteStep={5} />
       </div>
+    </div>
+  );
+
+  // Estados explícitos del paciente (toggles segmentados pill). El de embarazo solo aparece
+  // en mujeres. Auto-sugeridos por lesiones/patologías; el médico decide.
+  const estadosRow = (estadoVal: string, embVal: string, gen: string, onEstado: (v: "ILESO" | "LESIONADO") => void, onEmb: (v: "SI" | "NO") => void) => (
+    <div className="morb-estados">
+      <div className="morb-field">
+        <label className="morb-field__label">Estado físico</label>
+        <div className="morb-seg" role="group" aria-label="Estado físico">
+          <button type="button" className={`morb-seg__btn ${estadoVal === "ILESO" ? "is-active is-ok" : ""}`} aria-pressed={estadoVal === "ILESO"} onClick={() => onEstado("ILESO")}>Ileso</button>
+          <button type="button" className={`morb-seg__btn ${estadoVal === "LESIONADO" ? "is-active is-danger" : ""}`} aria-pressed={estadoVal === "LESIONADO"} onClick={() => onEstado("LESIONADO")}>Lesionado</button>
+        </div>
+      </div>
+      {gen === "FEMENINO" && (
+        <div className="morb-field">
+          <label className="morb-field__label">Embarazo</label>
+          <div className="morb-seg" role="group" aria-label="Embarazo">
+            <button type="button" className={`morb-seg__btn ${embVal === "NO" ? "is-active" : ""}`} aria-pressed={embVal === "NO"} onClick={() => onEmb("NO")}>No</button>
+            <button type="button" className={`morb-seg__btn ${embVal === "SI" ? "is-active is-accent" : ""}`} aria-pressed={embVal === "SI"} onClick={() => onEmb("SI")}>Sí</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -742,6 +843,7 @@ export default function MorbilidadTab() {
               )}
             </div>
             {fechaHoraField(fechaConsulta, horaConsulta, setFechaConsulta, setHoraConsulta)}
+            {estadosRow(estadoFisico, embarazo, genero, toggleEstado, toggleEmbarazo)}
             <div className="morb-basic">
               <div className="morb-field f-cedula">
                 <label className="morb-field__label">Cédula</label>
@@ -928,6 +1030,7 @@ export default function MorbilidadTab() {
                   )}
                 </div>
                 {fechaHoraField(editForm.fechaConsulta, editForm.horaConsulta, (v) => setEditForm((f: any) => ({ ...f, fechaConsulta: v })), (v) => setEditForm((f: any) => ({ ...f, horaConsulta: v })))}
+                {estadosRow(editForm.estadoFisico, editForm.embarazo, editForm.genero, efToggleEstado, efToggleEmbarazo)}
                 <div className="morb-basic">
                   <div className="morb-field f-cedula">
                     <label className="morb-field__label">Cédula</label>

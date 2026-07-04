@@ -87,10 +87,11 @@ export default function BalanceTab() {
       let edad: number | null = c.edad ?? null;
       if (edad == null && reg) edad = reg.edad ?? edadFromISO(reg.fechaNacimiento);
       const conPat = diagPat.length > 0 || antPat.length > 0 || (reg && Array.isArray(reg.patologiaIds) && reg.patologiaIds.length > 0);
-      // Embarazada = tiene "embarazo" en cualquiera de sus registros: antecedentes o
-      // diagnóstico de la consulta, o antecedentes del censo (así cuenta sin importar
-      // dónde el médico registró el embarazo/control prenatal).
-      const embarazada = hasEmbarazo(antPat) || hasEmbarazo(diagPat) || (reg && hasEmbarazo(reg.patologiaIds));
+      // Embarazada = estado EXPLÍCITO (consulta o censo) marcado "SI"; con respaldo por
+      // palabras clave para datos legados sin el campo explícito (antecedentes/diagnóstico
+      // de la consulta o antecedentes del censo).
+      const embarazada = c.embarazo === "SI" || reg?.embarazo === "SI"
+        || hasEmbarazo(antPat) || hasEmbarazo(diagPat) || (reg && hasEmbarazo(reg.patologiaIds));
 
       if (!patients.has(ced)) patients.set(ced, { genero, edad, conPat, embarazada });
       else {
