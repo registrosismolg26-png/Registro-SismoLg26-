@@ -397,18 +397,24 @@ h1 {
 .header-refugio:hover {
   box-shadow: 0 3px 10px rgba(30, 58, 138, 0.22);
 }
-.header-refugio-select {
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  font-weight: 700;
-  max-width: 175px;
-  padding: 0.1rem 0.15rem;
-  cursor: pointer;
-  outline: none;
-  text-overflow: ellipsis;
+/* Selector de refugio ahora usa StyledSelect (pill reformateado, no nativo). Se
+   estiliza compacto y transparente para vivir dentro de la píldora .header-refugio. */
+.header-refugio .morb-select { min-width: 0; max-width: 185px; }
+.header-refugio .morb-select__trigger {
+  height: auto; min-height: 0; border: none; background: transparent; box-shadow: none;
+  padding: 0.05rem 0.1rem; font-size: 0.75rem; font-weight: 700; color: var(--text-primary);
+  border-radius: 999px; gap: 0.3rem;
 }
+.header-refugio .morb-select__trigger:focus,
+.header-refugio .morb-select__trigger.is-open { box-shadow: none; border: none; }
+.header-refugio .morb-select__arrow { color: var(--color-primary); }
+
+/* Membrete — franja de operación: chips/píldoras con alto uniforme y bien alineados */
+.header-ops { --hdr-h: 36px; }
+.header-ops-status,
+.header-refugio,
+.logout-btn { min-height: var(--hdr-h); align-self: center; }
+.header-ops-user .role-badge { align-self: center; }
 
 /* Botón de cierre de sesión */
 .logout-btn {
@@ -511,8 +517,8 @@ h1 {
 .queue-badge {
   background-color: var(--color-primary-light);
   color: var(--color-primary);
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
   font-size: 0.675rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1913,7 +1919,8 @@ html[data-theme="dark"] .spinner {
     flex-basis: 100%;
     max-width: 100%;
   }
-  .header-refugio-select { max-width: none; flex: 1; }
+  /* En móvil el selector de refugio ocupa toda la fila */
+  .header-refugio .morb-select { max-width: none; flex: 1; }
 }
 
 .app-header-conn {
@@ -1936,8 +1943,8 @@ html[data-theme="dark"] .spinner {
   font-size: 0.675rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  padding: 0.24rem 0.65rem;
+  border-radius: 999px;
   background: var(--color-primary-light);
   color: var(--color-primary);
   text-transform: uppercase;
@@ -1960,20 +1967,8 @@ html[data-theme="dark"] .spinner {
   box-shadow: 0 1px 5px var(--color-gold-light);
 }
 
-.logout-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-danger);
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 0.775rem;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-.logout-btn:hover {
-  text-decoration: underline;
-}
+/* (El .logout-btn legacy de texto plano se eliminó: usa el pill definido arriba,
+   consistente con el sistema de píldoras del membrete.) */
 
 /* Login Card Layout */
 .login-container {

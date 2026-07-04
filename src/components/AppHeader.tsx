@@ -12,6 +12,7 @@
 import { useState, useLayoutEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { canManageUsers, canViewDashboard, isMaster, canManageMorbilidad, canRegister, isMedico } from "@/lib/permissions";
+import StyledSelect from "@/components/StyledSelect";
 
 export default function AppHeader() {
   const {
@@ -101,16 +102,12 @@ export default function AppHeader() {
           {isMaster(currentUser.role) && refugiosList.length > 0 && (
             <div className="header-refugio" title="Campamento que estás viendo en todo el sistema">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              <select
-                className="header-refugio-select"
+              <StyledSelect
                 value={viewRefugio}
-                onChange={e => setViewRefugio(e.target.value)}
-                aria-label="Campamento activo"
-              >
-                {refugiosList.map(rf => (
-                  <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
-                ))}
-              </select>
+                onChange={setViewRefugio}
+                options={refugiosList.map(rf => ({ value: rf.nombre, label: rf.nombre }))}
+                ariaLabel="Campamento activo"
+              />
             </div>
           )}
           <div className="header-ops-user">
