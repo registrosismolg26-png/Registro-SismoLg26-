@@ -9,6 +9,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "./useBodyScrollLock";
 
 interface Props {
   open: boolean;
@@ -38,12 +39,7 @@ export default function MobileSheet({ open, onClose, title, children, search, fu
   }, [open, render]);
 
   // Bloquea el scroll del fondo mientras la hoja está montada.
-  useEffect(() => {
-    if (!render) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [render]);
+  useBodyScrollLock(render);
 
   // Cerrar con Escape.
   useEffect(() => {

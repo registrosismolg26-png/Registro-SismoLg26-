@@ -23,6 +23,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
+import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -56,6 +57,9 @@ export default function AsignacionesTab() {
   const [assignRoomFor, setAssignRoomFor] = useState<any | null>(null);
   const openAssignRoom = (reg: any) => { setAssignRoomFor(reg); setAsignCuarto(reg.cuarto || ""); };
   const closeAssignRoom = () => { setAssignRoomFor(null); setAsignCuarto(""); };
+
+  // Con un modal abierto (detalle/edición o asignar habitación), el fondo NO hace scroll.
+  useBodyScrollLock(!!selectedRegistro || !!assignRoomFor);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [savingEdit, setSavingEdit] = useState(false);

@@ -13,6 +13,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAnchoredRect } from "./useAnchoredRect";
 import { useIsMobile } from "./useIsMobile";
+import { useBodyScrollLock } from "./useBodyScrollLock";
 import MobileSheet from "./MobileSheet";
 import { normalizeText } from "@/lib/helpers";
 
@@ -57,6 +58,7 @@ export default function SearchableSingleSelect({
   const sheetInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
   const rect = useAnchoredRect(open && !isMobile, ref);
+  useBodyScrollLock(open && !isMobile);
 
   useEffect(() => {
     if (isMobile) return;

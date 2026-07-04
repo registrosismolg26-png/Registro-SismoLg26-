@@ -12,6 +12,7 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAnchoredRect } from "./useAnchoredRect";
 import { useIsMobile } from "./useIsMobile";
+import { useBodyScrollLock } from "./useBodyScrollLock";
 import MobileSheet from "./MobileSheet";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -36,6 +37,7 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
   const popRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const rect = useAnchoredRect(open && !isMobile, ref);
+  useBodyScrollLock(open && !isMobile && !disabled);
 
   const today = new Date();
   const maxYear = today.getFullYear();

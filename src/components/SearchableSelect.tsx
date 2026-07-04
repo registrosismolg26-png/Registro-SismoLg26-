@@ -13,6 +13,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAnchoredRect } from "./useAnchoredRect";
 import { useIsMobile } from "./useIsMobile";
+import { useBodyScrollLock } from "./useBodyScrollLock";
 import MobileSheet from "./MobileSheet";
 import { normalizeText } from "@/lib/helpers";
 
@@ -55,6 +56,7 @@ export default function SearchableSelect({
   const isMobile = useIsMobile();
 
   const rect = useAnchoredRect(open && !isMobile, ref);
+  useBodyScrollLock(open && !isMobile); // en móvil lo bloquea MobileSheet
 
   useEffect(() => {
     if (isMobile) return; // en móvil el cierre lo maneja el overlay del MobileSheet
