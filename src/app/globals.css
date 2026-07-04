@@ -5536,6 +5536,39 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .bal-tipo__count { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
 .bal-tipo__label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
 
+/* ── Panel de Estadísticas reformateado con el lenguaje .bal-* ─────────────── */
+/* El radio pill de las piezas .bal-* está definido en .balance-view; lo
+   exponemos también aquí para que hero/cards/paneles hereden su redondeo. */
+.tab-view--dashboard { --bal-radius: 20px; }
+/* Las tarjetas ocupan todo el ancho dentro de la grilla del dashboard. */
+.tab-view.tab-view--dashboard > .dash-cards { grid-column: 1 / -1; }
+.bal-card__sub { color: var(--accent); font-weight: 800; }
+/* Chip "Actualizando…" en el hero del panel */
+.dash-hero { flex-wrap: wrap; gap: 0.75rem 1rem; }
+.dash-hero .dash-action-group { margin-left: auto; }
+.dash-hero__live { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem; padding: 0.1rem 0.55rem; border-radius: 999px; background: color-mix(in srgb, var(--color-success) 16%, transparent); color: var(--color-success); font-size: 0.72rem; font-weight: 800; }
+.dash-hero__live .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-success); animation: dashPulse 1.3s ease-in-out infinite; }
+@keyframes dashPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.7); } }
+/* Encabezado de sección con badge de ícono (coherente con Balance) */
+.dash-sec-head { display: flex; align-items: center; gap: 0.6rem; }
+.dash-sec-head__ico { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px; background: color-mix(in srgb, var(--accent, var(--color-primary)) 14%, transparent); color: var(--accent, var(--color-primary)); flex: none; }
+.dash-sec-head__ico svg { width: 17px; height: 17px; }
+.dash-sec-head h3 { margin: 0; }
+/* Distribución por cuarto — semáforo de ocupación */
+.dash-rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; }
+.dash-room { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.7rem 0.85rem; border-radius: 14px; border: 1px solid; }
+.dash-room__name { font-size: 0.82rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.dash-room__name small { display: block; font-size: 0.66rem; font-weight: 600; color: var(--text-muted); }
+.dash-room__num { font-family: var(--font-heading); font-weight: 800; font-size: 1rem; font-variant-numeric: tabular-nums; flex: none; }
+.dash-room--green { background: color-mix(in srgb, #10b981 12%, transparent); border-color: color-mix(in srgb, #10b981 40%, var(--border-color)); }
+.dash-room--green .dash-room__num { color: #059669; }
+.dash-room--yellow { background: color-mix(in srgb, #f59e0b 15%, transparent); border-color: color-mix(in srgb, #f59e0b 44%, var(--border-color)); }
+.dash-room--yellow .dash-room__num { color: #d97706; }
+.dash-room--red { background: color-mix(in srgb, #ef4444 14%, transparent); border-color: color-mix(in srgb, #ef4444 44%, var(--border-color)); }
+.dash-room--red .dash-room__num { color: #dc2626; }
+.dash-room--gray { background: color-mix(in srgb, #94a3b8 12%, transparent); border-color: color-mix(in srgb, #94a3b8 38%, var(--border-color)); }
+.dash-room--gray .dash-room__num { color: var(--text-muted); }
+
 /* ═══════════════════════════════════════════════════════════════════════════
    PRESENTACIÓN (modo TV) — dashboard "control room": membrete + reloj, cards
    grandes, animaciones al cambiar de sección/dato, semáforos. 100% pill.

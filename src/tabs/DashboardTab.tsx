@@ -13,6 +13,29 @@ import PresentationView from "@/components/PresentationView";
 import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import { DEFAULT_ENTES } from "@/lib/constants";
 
+// ── Íconos (stroke 24×24) para las tarjetas y paneles del panel de estadísticas.
+// Mismo lenguaje visual que Balance de Salud (badge a color + acento por tarjeta).
+const DASH_ICONS = {
+  users: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  family: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>,
+  user: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  child: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 18a6 6 0 0 0-12 0"/><circle cx="8" cy="8" r="4"/><path d="M12 11h8M12 15h6"/></svg>,
+  elder: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M2 21h12"/><circle cx="8" cy="7" r="4"/></svg>,
+  userx: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>,
+  refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>,
+  calendar: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+  alert: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+  heart: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>,
+  homeoff: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><line x1="9" y1="21" x2="9" y2="12"/><line x1="15" y1="21" x2="15" y2="12"/></svg>,
+  chart: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7" rx="1"/><rect x="12" y="6" width="3" height="11" rx="1"/><rect x="17" y="13" width="3" height="4" rx="1"/></svg>,
+  cake: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21h16M4 21v-8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8M4 15c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1M12 8V5"/></svg>,
+  venus: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="5"/><path d="M12 13v8M9 18h6"/></svg>,
+  grid: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>,
+  map: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
+  bed: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20M6 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+};
+
 export default function DashboardTab() {
   const {
     isOnline,
@@ -358,15 +381,16 @@ ${entesList}`;
             <div className="print-letterhead-meta">Generado:<br />{new Date().toLocaleString("es-VE")}</div>
           </div>
 
-          <div className="dashboard-header-card">
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <h2 className="dashboard-section-title">Panel de Estadísticas</h2>
-              {isUpdatingPresentation && (
-                <span className="updating-pulse-indicator" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontSize: "0.7rem", color: "var(--color-success)", fontWeight: "600" }}>
-                  <span className="pulse-dot" style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "var(--color-success)" }}></span>
-                  Actualizando...
-                </span>
-              )}
+          <div className="dashboard-header-card bal-hero dash-hero">
+            <span className="bal-hero__icon">{DASH_ICONS.chart}</span>
+            <div className="bal-hero__text">
+              <h2>Panel de Estadísticas</h2>
+              <p>
+                {campamentoActivo ? <span className="bal-hero__chip">{campamentoActivo}</span> : "Consolidado general"}
+                {isUpdatingPresentation && (
+                  <span className="dash-hero__live"><span className="pulse-dot" /> Actualizando…</span>
+                )}
+              </p>
             </div>
             <div className="dash-action-group">
               <button
@@ -420,138 +444,43 @@ ${entesList}`;
             </div>
           ) : (
             <>
-              {/* Stat Cards Grid */}
-              <div className="stats-grid">
-                <div className="stat-card stat-card--primary">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Total Registrados</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-primary"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+              {/* Tarjetas de indicadores (lenguaje .bal-* con acento por métrica) */}
+              {(() => {
+                const S = currentStats;
+                const tot = S.total || 0;
+                const pc = (n: number) => (tot > 0 ? `${((n / tot) * 100).toFixed(1)}%` : null);
+                const statCards: { label: string; value: number; suffix?: string; sub?: string | null; accent: string; icon: React.ReactNode }[] = [
+                  { label: "Total Registrados", value: S.totalRegistrados || 0, accent: "#2563eb", icon: DASH_ICONS.users },
+                  { label: "Presentes en Campamento", value: S.total || 0, accent: "#0d9488", icon: DASH_ICONS.home },
+                  { label: "Núcleos Familiares", value: S.nucleosFamiliares || 0, accent: "#7c3aed", icon: DASH_ICONS.family },
+                  { label: "Individuos Solos", value: S.individuosSolos || 0, accent: "#64748b", icon: DASH_ICONS.user },
+                  { label: "Menores (<18)", value: S.menores || 0, sub: pc(S.menores || 0), accent: "#10b981", icon: DASH_ICONS.child },
+                  { label: "Adultos (18–59)", value: S.adultos || 0, sub: pc(S.adultos || 0), accent: "#f59e0b", icon: DASH_ICONS.user },
+                  { label: "Mayores (60+)", value: S.mayores || 0, sub: pc(S.mayores || 0), accent: "#8b5cf6", icon: DASH_ICONS.elder },
+                  { label: "Personas Retiradas", value: S.totalRetirados || 0, accent: "#dc2626", icon: DASH_ICONS.userx },
+                  { label: "Intermitentes Activos", value: S.intermitentes || 0, sub: pc(S.intermitentes || 0), accent: "#d97706", icon: DASH_ICONS.refresh },
+                  { label: "Edad Promedio", value: S.promedioEdad || 0, suffix: "años", accent: "#0284c7", icon: DASH_ICONS.calendar },
+                  { label: "Lesionados", value: S.lesionados || 0, sub: pc(S.lesionados || 0), accent: "#e11d48", icon: DASH_ICONS.alert },
+                  { label: "Con Patología", value: S.conPatologia || 0, sub: pc(S.conPatologia || 0), accent: "#db2777", icon: DASH_ICONS.heart },
+                  { label: "Sin Alojamiento", value: S.sinCuarto || 0, sub: pc(S.sinCuarto || 0), accent: "#64748b", icon: DASH_ICONS.homeoff },
+                ];
+                return (
+                  <div className="bal-cards dash-cards">
+                    {statCards.map((c) => (
+                      <div key={c.label} className="bal-card" style={{ ["--accent" as any]: c.accent } as React.CSSProperties}>
+                        <span className="bal-card__icon">{c.icon}</span>
+                        <span key={c.value} className="bal-card__value stat-card-value-animate">{c.value}{c.suffix && <em>{c.suffix}</em>}</span>
+                        <span className="bal-card__label">{c.label}{c.sub && <span className="bal-card__sub"> · {c.sub}</span>}</span>
+                      </div>
+                    ))}
                   </div>
-                  <span key={currentStats.totalRegistrados} className="stat-value stat-card-value-animate">{currentStats.totalRegistrados || 0}</span>
-                </div>
-                <div className="stat-card stat-card--success">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Presentes en Campamento</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-success"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                  </div>
-                  <span key={currentStats.total} className="stat-value stat-card-value-animate">{currentStats.total || 0}</span>
-                </div>
-                <div className="stat-card stat-card--violet">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Núcleos Familiares</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-violet"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /></svg>
-                  </div>
-                  <span key={currentStats.nucleosFamiliares} className="stat-value stat-card-value-animate">{currentStats.nucleosFamiliares || 0}</span>
-                </div>
-                <div className="stat-card stat-card--muted">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Individuos Solos</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-muted"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8"/></svg>
-                  </div>
-                  <span key={currentStats.individuosSolos} className="stat-value stat-card-value-animate">{currentStats.individuosSolos || 0}</span>
-                </div>
-                <div className="stat-card stat-card--warning">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Menores (&lt;18)</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-warning"><path d="M14 18a6 6 0 0 0-12 0" /><circle cx="8" cy="8" r="4" /><path d="M12 11h8" /><path d="M12 15h6" /></svg>
-                  </div>
-                  <span key={currentStats.menores} className="stat-value stat-card-value-animate">
-                    {currentStats.menores || 0}
-                    <span className="stat-pct">
-                      ({currentStats.total > 0 ? ((currentStats.menores / currentStats.total) * 100).toFixed(1) : 0}%)
-                    </span>
-                  </span>
-                </div>
-                <div className="stat-card stat-card--success">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Adultos (18-59)</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-success"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
-                  </div>
-                  <span key={currentStats.adultos} className="stat-value stat-card-value-animate">
-                    {currentStats.adultos || 0}
-                    <span className="stat-pct">
-                      ({currentStats.total > 0 ? ((currentStats.adultos / currentStats.total) * 100).toFixed(1) : 0}%)
-                    </span>
-                  </span>
-                </div>
-                <div className="stat-card stat-card--violet">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Mayores (60+)</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-violet"><path d="M20 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M2 21h12" /><circle cx="8" cy="7" r="4" /></svg>
-                  </div>
-                  <span key={currentStats.mayores} className="stat-value stat-card-value-animate">
-                    {currentStats.mayores || 0}
-                    <span className="stat-pct">
-                      ({currentStats.total > 0 ? ((currentStats.mayores / currentStats.total) * 100).toFixed(1) : 0}%)
-                    </span>
-                  </span>
-                </div>
-                <div className="stat-card stat-card--danger">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Personas Retiradas</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon stat-icon-danger" style={{ color: "var(--color-danger)" }}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="17" y1="8" x2="22" y2="13" /><line x1="22" y1="8" x2="17" y2="13" /></svg>
-                  </div>
-                  <span key={currentStats.totalRetirados} className="stat-value stat-card-value-animate">{currentStats.totalRetirados || 0}</span>
-                </div>
-                <div className="stat-card stat-card--amber">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Intermitentes Activos</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon" style={{ color: "#f59e0b" }}><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                  </div>
-                  <span key={currentStats.intermitentes} className="stat-value stat-card-value-animate">{currentStats.intermitentes || 0}
-                    {(currentStats.total || 0) > 0 && (
-                      <span className="stat-pct">({(((currentStats.intermitentes || 0) / currentStats.total) * 100).toFixed(1)}%)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="stat-card stat-card--info">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Edad Promedio</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon" style={{ color: "#0ea5e9" }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  </div>
-                  <span key={currentStats.promedioEdad} className="stat-value stat-card-value-animate">{currentStats.promedioEdad || 0}
-                    <span className="stat-pct" style={{ fontSize: "0.85rem", fontWeight: 600 }}> años</span>
-                  </span>
-                </div>
-                <div className="stat-card stat-card--danger">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Lesionados</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon" style={{ color: "var(--color-danger)" }}><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                  </div>
-                  <span key={currentStats.lesionados} className="stat-value stat-card-value-animate">{currentStats.lesionados || 0}
-                    {(currentStats.total || 0) > 0 && (
-                      <span className="stat-pct">({(((currentStats.lesionados || 0) / currentStats.total) * 100).toFixed(1)}%)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="stat-card stat-card--violet">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Con Patología</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon" style={{ color: "var(--color-slate-deep)" }}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                  </div>
-                  <span key={currentStats.conPatologia} className="stat-value stat-card-value-animate">{currentStats.conPatologia || 0}
-                    {(currentStats.total || 0) > 0 && (
-                      <span className="stat-pct">({(((currentStats.conPatologia || 0) / currentStats.total) * 100).toFixed(1)}%)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="stat-card stat-card--muted">
-                  <div className="stat-card-header">
-                    <span className="stat-label">Sin Alojamiento</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="stat-icon" style={{ color: "var(--color-muted-accent)" }}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><line x1="9" y1="21" x2="9" y2="12"/><line x1="15" y1="21" x2="15" y2="12"/><line x1="12" y1="12" x2="12" y2="21"/></svg>
-                  </div>
-                  <span key={currentStats.sinCuarto} className="stat-value stat-card-value-animate">{currentStats.sinCuarto || 0}
-                    {(currentStats.total || 0) > 0 && (
-                      <span className="stat-pct">({(((currentStats.sinCuarto || 0) / currentStats.total) * 100).toFixed(1)}%)</span>
-                    )}
-                  </span>
-                </div>
-              </div>
+                );
+              })()}
 
               <div className="stats-charts-grid">
                 {/* Distribución por Grupos de Edad - Segmentado */}
                 <div className="dashboard-section">
-                <h3 className="dashboard-section-title">Distribución de Población por Edad</h3>
+                <div className="dash-sec-head" style={{ ["--accent" as any]: "#f59e0b" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.cake}</span><h3 className="dashboard-section-title">Distribución de Población por Edad</h3></div>
                 {currentStats.total === 0 ? (
                   <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "0.5rem 0" }}>Sin datos</p>
                 ) : (
@@ -593,7 +522,7 @@ ${entesList}`;
 
               {/* Distribución por Género - Dona SVG pura */}
               <div className="dashboard-section">
-                <h3 className="dashboard-section-title">Distribución de Población por Género</h3>
+                <div className="dash-sec-head" style={{ ["--accent" as any]: "#db2777" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.venus}</span><h3 className="dashboard-section-title">Distribución de Población por Género</h3></div>
                 {currentStats.total === 0 ? (
                   <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "0.5rem 0" }}>Sin datos</p>
                 ) : (
@@ -658,7 +587,7 @@ ${entesList}`;
 
               {/* Matriz de Frecuencias Demográficas (Cruce de variables) */}
               <div className="dashboard-section">
-                <h3 className="dashboard-section-title">Matriz de Frecuencias Demográficas</h3>
+                <div className="dash-sec-head" style={{ ["--accent" as any]: "#7c3aed" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.grid}</span><h3 className="dashboard-section-title">Matriz de Frecuencias Demográficas</h3></div>
                 {(() => {
                   const mx = currentStats.matrix || {
                     menores: { femenino: 0, masculino: 0, otro: 0 },
@@ -681,40 +610,40 @@ ${entesList}`;
                   const hOtr  = (v: number) => ({ background: `rgba(100, 116, 139, ${(v / maxOtr)  * 0.18})` });
 
                   return (
-                    <div className="matrix-table-wrapper">
-                      <table className="matrix-table">
+                    <div className="bal-matrix-wrap">
+                      <table className="bal-matrix">
                         <thead>
                           <tr>
                             <th>Grupo de Edad</th>
                             <th>Femenino</th>
                             <th>Masculino</th>
-                            <th style={{ textAlign: "right" }}>Total</th>
+                            <th>Total</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
                             <td><strong>Menores (&lt;18)</strong></td>
-                            <td className="cell-fem"  style={hFem(mx.menores.femenino)}>{mx.menores.femenino}</td>
-                            <td className="cell-masc" style={hMasc(mx.menores.masculino)}>{mx.menores.masculino}</td>
-                            <td style={{ textAlign: "right" }}><strong>{tMen}</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(mx.menores.femenino)}>{mx.menores.femenino}</td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(mx.menores.masculino)}>{mx.menores.masculino}</td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{tMen}</strong></td>
                           </tr>
                           <tr>
                             <td><strong>Adultos (18-59)</strong></td>
-                            <td className="cell-fem"  style={hFem(mx.adultos.femenino)}>{mx.adultos.femenino}</td>
-                            <td className="cell-masc" style={hMasc(mx.adultos.masculino)}>{mx.adultos.masculino}</td>
-                            <td style={{ textAlign: "right" }}><strong>{tAd}</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(mx.adultos.femenino)}>{mx.adultos.femenino}</td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(mx.adultos.masculino)}>{mx.adultos.masculino}</td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{tAd}</strong></td>
                           </tr>
                           <tr>
                             <td><strong>Mayores (60+)</strong></td>
-                            <td className="cell-fem"  style={hFem(mx.mayores.femenino)}>{mx.mayores.femenino}</td>
-                            <td className="cell-masc" style={hMasc(mx.mayores.masculino)}>{mx.mayores.masculino}</td>
-                            <td style={{ textAlign: "right" }}><strong>{tMay}</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(mx.mayores.femenino)}>{mx.mayores.femenino}</td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(mx.mayores.masculino)}>{mx.mayores.masculino}</td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{tMay}</strong></td>
                           </tr>
-                          <tr style={{ borderTop: "2px solid var(--border-color)" }}>
+                          <tr className="bal-matrix__total">
                             <td><strong>Total General</strong></td>
-                            <td><strong>{tFem}</strong></td>
-                            <td><strong>{tMasc}</strong></td>
-                            <td style={{ textAlign: "right" }}><strong>{currentStats.total}</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino"><strong>{tFem}</strong></td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino"><strong>{tMasc}</strong></td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{currentStats.total}</strong></td>
                           </tr>
                         </tbody>
                       </table>
@@ -725,42 +654,32 @@ ${entesList}`;
 
               {/* Afectados por Parroquia */}
               <div className="dashboard-section">
-                <h3 className="dashboard-section-title">Afectados por Parroquia</h3>
+                <div className="dash-sec-head" style={{ ["--accent" as any]: "#0d9488" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.map}</span><h3 className="dashboard-section-title">Afectados por Parroquia</h3></div>
                 {currentStats.byParroquia.length === 0 ? (
                   <p className="data-empty">
                     No hay datos registrados aún.
                   </p>
-                ) : (
-                  <div className="bar-list">
-                    {[...currentStats.byParroquia]
-                      .sort((a: any, b: any) => b.count - a.count)
-                      .map((p: any, i: number) => {
-                        const pct = currentStats.total > 0 ? Math.round((p.count / currentStats.total) * 100) : 0;
-                        return (
-                          <div key={p.name} className="bar-item">
-                            <div className="bar-item-header">
-                              <span>{p.name}</span>
-                              <span className="bar-item-meta">{p.count} <span className="bar-item-pct">({pct}%)</span></span>
-                            </div>
-                            <div className="bar-track">
-                              <div
-                                className="parroquia-bar"
-                                style={{
-                                  "--bar-width": `${pct}%`,
-                                  animationDelay: `${i * 60}ms`
-                                } as React.CSSProperties}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
+                ) : (() => {
+                  const rows = [...currentStats.byParroquia].sort((a: any, b: any) => b.count - a.count);
+                  const maxP = Math.max(1, ...rows.map((x: any) => x.count));
+                  return (
+                    <div className="bal-rank">
+                      {rows.map((p: any, i: number) => (
+                        <div key={p.name} className="bal-rank__row">
+                          <span className={`bal-rank__pos ${i < 3 ? `bal-rank__pos--${i + 1}` : ""}`}>{i + 1}</span>
+                          <span className="bal-rank__label" title={p.name}>{p.name}</span>
+                          <span className="bal-rank__track"><span className="bal-rank__fill" style={{ width: `${Math.round((p.count / maxP) * 100)}%` }} /></span>
+                          <span className="bal-rank__count">{p.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Salud y Condición Física */}
               <div className="dashboard-section">
-                <h3 className="dashboard-section-title">Salud y Condición Física</h3>
+                <div className="dash-sec-head" style={{ ["--accent" as any]: "#e11d48" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.heart}</span><h3 className="dashboard-section-title">Salud y Condición Física</h3></div>
                 <div className="tab-view" style={{ gap: "1rem" }}>
                   {/* Estado Físico - Gauges semicirculares SVG */}
                   <div>
@@ -835,35 +754,29 @@ ${entesList}`;
 
               {/* Distribución por Habitación / Salón */}
               <div className="dashboard-section" style={{ gridColumn: "1 / -1", marginTop: "1rem" }}>
-                <h3 className="dashboard-section-title">Distribución por Habitación / Salón</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem" }}>
+                <div className="dash-sec-head" style={{ ["--accent" as any]: "#2563eb" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.bed}</span><h3 className="dashboard-section-title">Distribución por Habitación / Salón</h3></div>
+                <div className="dash-rooms">
                   {dashboardRooms.map(room => {
                     const count = roomCounts[room] || 0;
                     const isDeleted = !allCuartos.includes(room);
                     const cap = roomCapacities[room] ?? 18;
 
-                    let colorClass = "salon-green";
+                    let level: "green" | "yellow" | "red" | "gray" = "green";
                     if (isDeleted) {
-                      colorClass = "salon-gray";
+                      level = "gray";
                     } else {
-                      const level = roomFillLevel(count, cap);
-                      colorClass = level === "red" ? "salon-red" : level === "yellow" ? "salon-yellow" : "salon-green";
+                      const f = roomFillLevel(count, cap);
+                      level = f === "red" ? "red" : f === "yellow" ? "yellow" : "green";
                     }
 
                     return (
-                      <div
-                        key={room}
-                        className={`stat-card ${colorClass}`}
-                        style={{ padding: "0.75rem", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                      >
-                        <span style={{ fontSize: "0.85rem", fontWeight: "700" }}>
-                          {formatRoomLabel(room)} {isDeleted && <span style={{ opacity: 0.7, fontWeight: "500", fontSize: "0.75rem" }}>(Inactiva)</span>}
+                      <div key={room} className={`dash-room dash-room--${level}`}>
+                        <span className="dash-room__name">
+                          {formatRoomLabel(room)}
+                          {isDeleted && <small>Inactiva</small>}
                         </span>
-                        <span style={{
-                          fontWeight: "800",
-                          fontSize: "0.95rem"
-                        }}>
-                          {isDeleted ? `${count} ${count === 1 ? 'ocupante' : 'ocupantes'}` : `${count}/${cap}`}
+                        <span className="dash-room__num">
+                          {isDeleted ? `${count}` : `${count}/${cap}`}
                         </span>
                       </div>
                     );
