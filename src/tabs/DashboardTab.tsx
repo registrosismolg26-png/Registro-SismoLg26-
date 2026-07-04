@@ -426,7 +426,12 @@ ${entesList}`;
 
   return (
     <>
-        <div ref={dashboardRef} className={`tab-view tab-view--dashboard tab-enter ${isFullscreen ? "presentation-mode" : ""}`}>
+        {/* Nota: NO se agrega la clase `presentation-mode` en pantalla completa.
+            Esas reglas eran para el viejo dashboard-en-fullscreen (ya no se
+            renderiza; lo reemplaza <PresentationView/>). Una de ellas
+            (`.presentation-mode svg { background:#fff !important }`) pintaba un
+            cuadrado blanco detrás de CADA ícono de la presentación. */}
+        <div ref={dashboardRef} className={`tab-view tab-view--dashboard tab-enter`}>
           {isFullscreen ? (
             <PresentationView
               stats={currentStats}

@@ -4496,16 +4496,12 @@ h2.dashboard-section-title {
   text-align: left !important;
 }
 
-/* Force dark SVG text labels for charts in presentation mode */
-.presentation-mode svg text {
-  fill: #475569 !important; /* slate 600 */
-  font-weight: 600 !important;
-}
-
-.presentation-mode svg {
-  background: #ffffff !important;
-}
-
+/* NOTA: se eliminaron `.presentation-mode svg text { fill }` y
+   `.presentation-mode svg { background:#fff !important }`. Eran para el viejo
+   dashboard-en-fullscreen (charts SVG) y, al reemplazarlo por <PresentationView/>,
+   ese `background:#fff !important` pintaba un cuadrado blanco detrás de CADA ícono
+   de la presentación (selector `svg` demasiado amplio + !important). Además ya no se
+   agrega la clase `presentation-mode`. */
 .presentation-mode .donut-chart-wrapper > svg {
   width: 140px !important;
   height: 140px !important;
