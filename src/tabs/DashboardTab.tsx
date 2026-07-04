@@ -12,6 +12,8 @@ import { useAppContext } from "@/context/AppContext";
 import PresentationView from "@/components/PresentationView";
 import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import { DEFAULT_ENTES } from "@/lib/constants";
+import { apiFetch } from "@/lib/apiFetch";
+import StyledSelect from "@/components/StyledSelect";
 
 // ── Íconos (stroke 24×24) para las tarjetas y paneles del panel de estadísticas.
 // Mismo lenguaje visual que Balance de Salud (badge a color + acento por tarjeta).
@@ -64,6 +66,73 @@ export default function DashboardTab() {
   const [incluirDistribucion, setIncluirDistribucion] = useState(true);
   const [entes, setEntes] = useState<string[]>(DEFAULT_ENTES);
   const [newEnte, setNewEnte] = useState("");
+
+  // Estado de "Compartir reporte por link público"
+  const isMasterUser = currentUser?.role === "MASTER";
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareRefugio, setShareRefugio] = useState(""); // Master: "" = todos
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareLink, setShareLink] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
+  const [myShares, setMyShares] = useState<Array<{ id: string; refugio: string | null; activo: boolean; createdAt: string; _count: { accesos: number } }>>([]);
+
+  const cargarShares = async () => {
+    try {
+      const r = await apiFetch("/api/reporte");
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && Array.isArray(d.reportes)) setMyShares(d.reportes);
+    } catch { /* noop */ }
+  };
+
+  const abrirCompartir = () => {
+    setShareLink("");
+    setShareCopied(false);
+    setShareRefugio(isMasterUser ? "" : (campamentoActivo || ""));
+    setShowShareModal(true);
+    cargarShares();
+  };
+
+  const generarShare = async () => {
+    setShareLoading(true);
+    try {
+      const body = isMasterUser ? { refugio: shareRefugio || null } : {};
+      const r = await apiFetch("/api/reporte", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.token) {
+        setShareLink(`${window.location.origin}/reporte/${d.token}`);
+        setShareCopied(false);
+        cargarShares();
+      } else {
+        showToast(d.error || "No se pudo generar el link", "error");
+      }
+    } catch {
+      showToast("No se pudo generar el link", "error");
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const copiarShare = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      showToast("No se pudo copiar", "error");
+    }
+  };
+
+  const revocarShare = async (id: string) => {
+    try {
+      const r = await apiFetch(`/api/reporte?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (r.ok) {
+        setMyShares((prev) => prev.map((s) => (s.id === id ? { ...s, activo: false } : s)));
+        showToast("Link revocado", "success");
+      }
+    } catch {
+      showToast("No se pudo revocar", "error");
+    }
+  };
 
   // Listen to fullscreen changes to sync React state
   useEffect(() => {
@@ -414,6 +483,14 @@ ${entesList}`;
                 onClick={() => window.print()}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              </button>
+              <button
+                type="button"
+                className="dash-icon-btn"
+                data-tip="Compartir por link"
+                onClick={abrirCompartir}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
               </button>
               <div className="dash-action-sep" />
               <button
@@ -885,6 +962,74 @@ ${entesList}`;
               <button type="button" className="btn-submit" style={{ flex: "2 1 180px", margin: 0, whiteSpace: "normal", height: "auto", minHeight: "var(--element-height)", padding: "6px 12px", lineHeight: "1.2" }} onClick={handleShareReport}>
                 Copiar y Abrir WhatsApp
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Compartir reporte por link público */}
+      {showShareModal && (
+        <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+          <div className="modal-content pill-form" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "540px", width: "95%" }}>
+            <div className="modal-header">
+              <span className="modal-title">Compartir reporte por link</span>
+              <button type="button" className="modal-close" onClick={() => setShowShareModal(false)}>&times;</button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem", padding: "0.25rem 0" }}>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                Genera un enlace público de <strong>solo lectura</strong> con estadísticas agregadas (sin datos personales).
+                Quien lo abra deberá <strong>permitir su ubicación</strong>; cada apertura queda auditada (navegador, IP y ubicación).
+              </p>
+
+              {isMasterUser && (
+                <div>
+                  <label className="form-label" style={{ display: "block", marginBottom: "0.35rem" }}>Refugio del reporte</label>
+                  <StyledSelect
+                    value={shareRefugio}
+                    onChange={setShareRefugio}
+                    options={[{ value: "", label: "Todos los campamentos (consolidado)" }, ...refugiosList.map((r: any) => ({ value: r.nombre, label: r.nombre }))]}
+                    ariaLabel="Refugio del reporte"
+                  />
+                </div>
+              )}
+              {!isMasterUser && (
+                <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                  Refugio: <strong>{campamentoActivo || "—"}</strong>
+                </div>
+              )}
+
+              <button type="button" className="btn-submit" style={{ margin: 0 }} onClick={generarShare} disabled={shareLoading}>
+                {shareLoading ? "Generando…" : "Generar link"}
+              </button>
+
+              {shareLink && (
+                <div className="share-link-box">
+                  <input type="text" readOnly value={shareLink} className="share-link-input" onFocus={(e) => e.currentTarget.select()} />
+                  <button type="button" className="btn-secondary" style={{ margin: 0, whiteSpace: "nowrap" }} onClick={copiarShare}>
+                    {shareCopied ? "¡Copiado!" : "Copiar"}
+                  </button>
+                </div>
+              )}
+
+              {myShares.length > 0 && (
+                <div>
+                  <div className="form-label" style={{ marginBottom: "0.4rem" }}>Mis links</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", maxHeight: "180px", overflowY: "auto" }}>
+                    {myShares.map((s) => (
+                      <div key={s.id} className="share-row">
+                        <div style={{ minWidth: 0 }}>
+                          <div className="share-row__ref">{s.refugio || "Todos los campamentos"}</div>
+                          <div className="share-row__meta">{s._count.accesos} apertura{s._count.accesos === 1 ? "" : "s"}{!s.activo && " · revocado"}</div>
+                        </div>
+                        {s.activo && (
+                          <button type="button" className="share-row__revoke" onClick={() => revocarShare(s.id)} title="Revocar link">Revocar</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

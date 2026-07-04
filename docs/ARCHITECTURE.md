@@ -80,6 +80,12 @@ El estado GLOBAL (`currentUser`, `isOnline`, `theme`, `registros`, `localRecords
 - `patologias` (GET devuelve `{id,nombre}[]`; POST/DELETE gestionan el catálogo con guarda `canManageCatalogosMedicos`). **Sin auto-seed.**
 - `medicamentos` (GET catálogo con `id`; POST/DELETE con guarda `canManageCatalogosMedicos`). **Sin auto-seed.**
 - `consultas` (GET scoped; POST con guarda `canManageMorbilidad`; guarda antecedentes/diagnóstico **por-ID** + `registroId`).
+- **`stats`** ahora es un *thin wrapper*: la agregación vive en `src/lib/stats.ts` (`computeAggregateStats(scopeRefugio)`), **fuente única** reusada también por el reporte público.
+- **Reporte público por link** (`reporte/*`, modelos `ReporteCompartido` + `ReporteAcceso`, SQL `prisma/migrate_reporte_compartido.sql`):
+  - `POST /api/reporte` (auth) crea un link; Master **elige el refugio** (o `null` = consolidado), el resto queda **forzado a su refugio**. `GET` lista los míos (con conteo de aperturas), `DELETE ?id=` revoca (soft, `activo=false`; la auditoría se conserva).
+  - `GET /api/reporte/[token]` (**público, sin auth**) devuelve solo metadatos (refugio, quién lo compartió, ubicación GMaps) — **nunca** estadísticas.
+  - `POST /api/reporte/[token]/acceso` (**público**) AUDITA cada apertura (IP vía `x-forwarded-for`, `user-agent`, y ubicación si la hay) en `ReporteAcceso`. **Ubicación obligatoria**: sin coordenadas válidas → `403` sin estadísticas (el intento igual queda auditado); con ubicación → devuelve los agregados (`computeAggregateStats`).
+  - Página pública `src/app/reporte/[token]/page.tsx` (fuera del shell de la app): compuerta de geolocalización (intro → pide permiso → `ready`/`blocked`) y render de solo lectura con `src/components/PublicReportView.tsx` (lenguaje `.bal-*`, sin PII). Se comparte desde el botón "Compartir" del Panel de Estadísticas.
 
 ## Esquemas de trabajo (cómo trabajar aquí)
 

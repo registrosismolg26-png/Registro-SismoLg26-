@@ -125,6 +125,38 @@ model ConsultaMedica {
   userId                    String
 }
 
+// Reporte público compartido por link. El `id` es el token de la URL
+// (/reporte/<id>). Solo expone estadísticas AGREGADAS del refugio indicado
+// (sin PII). `refugio = null` → consolidado de todos (solo lo crea Master).
+model ReporteCompartido {
+  id              String          @id @default(cuid())
+  refugio         String? // null = todos los refugios (solo Master)
+  creadoPor       String // User.id que generó el link
+  creadoPorNombre String // snapshot del nombre para mostrar "compartido por…"
+  activo          Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  accesos         ReporteAcceso[]
+
+  @@index([creadoPor])
+}
+
+// Auditoría: se registra CADA apertura del reporte público (con o sin ubicación).
+// Sin ubicación el reporte NO se muestra, pero el intento igual queda auditado.
+model ReporteAcceso {
+  id                 String            @id @default(uuid())
+  reporteId          String
+  reporte            ReporteCompartido @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  ip                 String?
+  userAgent          String?
+  lat                Float?
+  lng                Float?
+  precision          Float? // exactitud reportada por el navegador (metros)
+  ubicacionConcedida Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+
+  @@index([reporteId])
+}
+
 model MedicamentoPredefinido {
   id            String   @id @default(uuid())
   nombre        String   // principio activo (NO único por sí solo: se repite con distinta presentación)
