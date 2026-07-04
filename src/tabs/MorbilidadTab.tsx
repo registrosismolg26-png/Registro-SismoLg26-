@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
-import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre } from "@/lib/helpers";
+import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText } from "@/lib/helpers";
 import { apiFetch } from "@/lib/apiFetch";
 import { canDeleteConsulta } from "@/lib/permissions";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -13,7 +13,7 @@ import TimePicker from "@/components/TimePicker";
 import CatalogosMedicos from "@/components/CatalogosMedicos";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS, ZONAS_CUERPO, ESTADO_LESION_OPTS, ESTADO_LESION_LABELS } from "@/lib/constants";
-import type { Medicamento, Lesion } from "@/types";
+import type { Medicamento, Lesion, Patologia } from "@/types";
 
 const GENERO_OPTS = [{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }];
 const PERIODO_OPTS = [{ value: "", label: "Período…" }, ...PERIODO_OPTIONS.map((op) => ({ value: op, label: op }))];
@@ -38,11 +38,29 @@ const splitFechaHora = (iso?: string): { ymd: string; hm: string } => {
   return { ymd: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`, hm: `${pad2(d.getHours())}:${pad2(d.getMinutes())}` };
 };
 
-// Estado físico del censo derivado de las lesiones de la consulta (SINCRONÍA TOTAL,
-// decisión del dueño): si hay ≥1 lesión ACTIVA (no cicatrizada) → LESIONADO; si no hay
-// ninguna activa (sin lesiones o todas cicatrizadas) → ILESO. Valores válidos del censo.
-const estadoFisicoFromLesiones = (lesiones: Lesion[]): "ILESO" | "LESIONADO" =>
-  (Array.isArray(lesiones) ? lesiones : []).some((l) => l?.tipoId && l.estado !== "CICATRIZADA") ? "LESIONADO" : "ILESO";
+// Palabras clave que identifican una LESIÓN/trauma en el NOMBRE de una patología.
+// Sirven para marcar el estado físico del censo cuando la herida se registró como
+// PATOLOGÍA (en diagnóstico o antecedentes) y no en la sección Lesiones. Ajustable:
+// agrega/quita términos aquí (se comparan sin acentos/mayúsculas).
+const INJURY_KEYWORDS = [
+  "herida", "fractura", "quemadura", "traumatismo", "politraumatismo", "contusion",
+  "laceracion", "escoriacion", "excoriacion", "abrasion", "esguince", "luxacion",
+  "amputacion", "mordedura", "aplastamiento", "avulsion", "hematoma",
+];
+const isInjuryPatologiaId = (id: string, catalogo: Patologia[]): boolean => {
+  const nombre = normalizeText(catalogo.find((p) => p.id === id)?.nombre ?? "");
+  return !!nombre && INJURY_KEYWORDS.some((k) => nombre.includes(k));
+};
+
+// Estado físico del censo (SINCRONÍA TOTAL bidireccional, decisión del dueño): LESIONADO
+// si hay ≥1 lesión ACTIVA en la sección Lesiones (estado ≠ cicatrizada) O una patología de
+// tipo lesión/trauma en antecedentes O diagnóstico; si no hay ninguna señal → ILESO.
+// Así se marca sin importar DÓNDE se registró la herida (sección Lesiones o patología).
+const deriveEstadoFisico = (lesiones: Lesion[], patologiaIds: string[], catalogo: Patologia[]): "ILESO" | "LESIONADO" => {
+  const activeLesion = (Array.isArray(lesiones) ? lesiones : []).some((l) => l?.tipoId && l.estado !== "CICATRIZADA");
+  const injuryPat = (Array.isArray(patologiaIds) ? patologiaIds : []).some((id) => isInjuryPatologiaId(id, catalogo));
+  return activeLesion || injuryPat ? "LESIONADO" : "ILESO";
+};
 
 // Edad (a hoy) a partir de una fecha yyyy-mm-dd. Siempre se recalcula desde la fecha.
 const computeEdad = (ymd: string): string => {
@@ -264,8 +282,8 @@ export default function MorbilidadTab() {
     const prevMed = Array.isArray(matchedRegistro.medicamentoIds) ? matchedRegistro.medicamentoIds : [];
     const prevFechaYmd = ymdFromISO(matchedRegistro.fechaNacimiento);
     const nuevaEdad = edad ? parseInt(edad) : null;
-    // Estado físico derivado de las lesiones de ESTA consulta (sincronía total).
-    const nuevoEstadoFisico = estadoFisicoFromLesiones(lesiones);
+    // Estado físico: lesiones (sección) + patologías de tipo lesión en antecedentes/diagnóstico.
+    const nuevoEstadoFisico = deriveEstadoFisico(lesiones, [...antecedentesPatologiaIds, ...diagnosticoPatologiaIds], patologias);
     const changed =
       JSON.stringify(antecedentesPatologiaIds) !== JSON.stringify(prevPat) ||
       JSON.stringify(antecedentesMedicamentoIds) !== JSON.stringify(prevMed) ||
@@ -455,7 +473,7 @@ export default function MorbilidadTab() {
     const prevPat = Array.isArray(reg.patologiaIds) ? reg.patologiaIds : [];
     const prevMed = Array.isArray(reg.medicamentoIds) ? reg.medicamentoIds : [];
     const prevFechaYmd = ymdFromISO(reg.fechaNacimiento);
-    const nuevoEstadoFisico = estadoFisicoFromLesiones(ef.lesiones || []);
+    const nuevoEstadoFisico = deriveEstadoFisico(ef.lesiones || [], [...(ef.antPat || []), ...(ef.diagPat || [])], patologias);
     const changed =
       JSON.stringify(ef.antPat) !== JSON.stringify(prevPat) ||
       JSON.stringify(ef.antMed) !== JSON.stringify(prevMed) ||
