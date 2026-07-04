@@ -467,13 +467,20 @@ h1 {
 .hops-logout:hover { background: var(--color-danger); border-color: var(--color-danger); color: #fff; }
 .hops-logout > svg { flex: none; }
 
-/* Responsive: el cluster y el usuario se reparten en filas limpias en móvil */
+/* Responsive: en móvil, 2 filas limpias — (1) conexión + refugio juntos,
+   (2) usuario (avatar + nombre/rol que se recorta) + salir a la derecha. */
 @media (max-width: 640px) {
-  .hops-cluster { width: 100%; }
-  .hops-refugio { flex: 1 1 auto; max-width: none; }
-  .hops-refugio .morb-select { max-width: none; flex: 1; }
-  .hops-user { width: 100%; justify-content: space-between; }
-  .hops-user__name { max-width: 60vw; }
+  .header-ops { row-gap: 0.55rem; padding: 0.7rem 1rem; }
+  /* Fila 1: conexión (fija) + refugio (crece y se encoge, sin envolver) */
+  .hops-cluster { width: 100%; flex-wrap: nowrap; gap: 0.5rem; }
+  .hops-conn { flex: 0 0 auto; }
+  .hops-refugio { flex: 1 1 auto; min-width: 0; max-width: none; }
+  .hops-refugio .morb-select { max-width: none; flex: 1; min-width: 0; }
+  /* Fila 2: usuario a todo el ancho; el nombre/rol ocupan el centro y Salir a la derecha */
+  .hops-user { width: 100%; }
+  .hops-user__meta { flex: 1 1 auto; min-width: 0; }
+  .hops-user__name { max-width: none; }
+  .hops-logout { flex: 0 0 auto; }
 }
 
 /* Botón de cierre de sesión */
