@@ -55,3 +55,14 @@ export const DEFAULT_ENTES = [
 
 // Tiempo de expiración de sesión por inactividad (1 hora)
 export const INACTIVITY_MS = 60 * 60 * 1000;
+
+// Frecuencias (período) para la posología de medicamentos. Es lo único que el
+// operador elige por prescripción; el nombre/dosis salen del catálogo por ID.
+export const PERIODO_OPTIONS = [
+  "Interdiario",
+  "1 vez al día",
+  "Cada 12 horas",
+  "Cada 8 horas",
+  "Cada 6 horas",
+  "Cada 4 horas",
+];

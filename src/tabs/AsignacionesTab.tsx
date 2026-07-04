@@ -17,7 +17,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
-import { PARROQUIAS } from "@/lib/constants";
+import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
 import type { Medicamento } from "@/types";
@@ -75,8 +75,8 @@ export default function AsignacionesTab() {
     if (!medId) return;
     const match = predefinedMedicamentos.find(m => m.id === medId);
     if (match && !editMedicamentos.some(x => x.id === medId)) {
-      // Precarga Dosis con la dosis sugerida del catálogo o, si falta, la concentración.
-      setEditMedicamentos(prev => [...prev, { id: match.id, dosis: match.dosis || match.concentracion || "", periodo: match.periodo || "" }]);
+      // Nombre y dosis salen del catálogo por ID (solo lectura); dosis = concentración.
+      setEditMedicamentos(prev => [...prev, { id: match.id, dosis: match.concentracion || "", periodo: "" }]);
     }
   };
 
@@ -1386,20 +1386,18 @@ export default function AsignacionesTab() {
                                   <span className="med-input" style={{ display: "flex", alignItems: "center", fontWeight: 600 }}>
                                     {medLabel(m.id, predefinedMedicamentos)}
                                   </span>
-                                  <input
+                                  <span className="med-input" style={{ display: "flex", alignItems: "center", color: "var(--text-secondary)" }}>
+                                    {m.dosis || "—"}
+                                  </span>
+                                  <select
                                     className="med-input"
-                                    placeholder="ej: 500mg"
-                                    value={m.dosis}
-                                    disabled={isMedReadOnly}
-                                    onChange={e => updateEditMed(i, "dosis", e.target.value)}
-                                  />
-                                  <input
-                                    className="med-input"
-                                    placeholder="ej: 2 veces/día"
                                     value={m.periodo}
                                     disabled={isMedReadOnly}
                                     onChange={e => updateEditMed(i, "periodo", e.target.value)}
-                                  />
+                                  >
+                                    <option value="">Período…</option>
+                                    {PERIODO_OPTIONS.map(op => <option key={op} value={op}>{op}</option>)}
+                                  </select>
                                   {!isMedReadOnly && (
                                     <button type="button" className="btn-remove-med" onClick={() => removeEditMed(i)}>×</button>
                                   )}

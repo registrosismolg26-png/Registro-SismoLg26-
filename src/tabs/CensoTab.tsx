@@ -13,7 +13,7 @@
 import { useState, useRef, useReducer, useMemo, useEffect } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import type { Medicamento, FormData } from "@/types";
-import { PARROQUIAS, INITIAL_FORM } from "@/lib/constants";
+import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
@@ -56,8 +56,8 @@ export default function CensoTab() {
     if (!medId) return;
     const match = predefinedMedicamentos.find(m => m.id === medId);
     if (match && !medicamentos.some(x => x.id === medId)) {
-      // Precarga Dosis con la dosis sugerida del catálogo o, si falta, la concentración.
-      setMedicamentos(prev => [...prev, { id: match.id, dosis: match.dosis || match.concentracion || "", periodo: match.periodo || "" }]);
+      // Nombre y dosis salen del catálogo por ID (solo lectura); dosis = concentración.
+      setMedicamentos(prev => [...prev, { id: match.id, dosis: match.concentracion || "", periodo: "" }]);
     }
   };
 
@@ -1051,18 +1051,17 @@ export default function CensoTab() {
                                 <span className="med-input" style={{ display: "flex", alignItems: "center", fontWeight: 600 }}>
                                   {medLabel(m.id, predefinedMedicamentos)}
                                 </span>
-                                <input
+                                <span className="med-input" style={{ display: "flex", alignItems: "center", color: "var(--text-secondary)" }}>
+                                  {m.dosis || "—"}
+                                </span>
+                                <select
                                   className="med-input"
-                                  placeholder="ej: 500mg"
-                                  value={m.dosis}
-                                  onChange={e => updateMedicamento(i, "dosis", e.target.value)}
-                                />
-                                <input
-                                  className="med-input"
-                                  placeholder="ej: 2 veces/día"
                                   value={m.periodo}
                                   onChange={e => updateMedicamento(i, "periodo", e.target.value)}
-                                />
+                                >
+                                  <option value="">Período…</option>
+                                  {PERIODO_OPTIONS.map(op => <option key={op} value={op}>{op}</option>)}
+                                </select>
                                 <button type="button" className="btn-remove-med" onClick={() => removeMedicamento(i)}>
                                   ×
                                 </button>

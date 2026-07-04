@@ -21,11 +21,17 @@ export function medById(id: string, catalogo: MedicamentoPredefinido[]): Medicam
   return catalogo.find(m => m.id === id);
 }
 
-// Etiqueta legible de un medicamento: "NOMBRE · CONCENTRACIÓN · PRESENTACIÓN".
+// Etiqueta de un medicamento en fila/receta: "NOMBRE - PRESENTACIÓN".
+// (La concentración se muestra aparte, en la columna Dosis.)
 export function medLabel(id: string, catalogo: MedicamentoPredefinido[]): string {
   const m = medById(id, catalogo);
   if (!m) return "(no disponible)";
-  return [m.nombre, m.concentracion, m.presentacion].map(s => (s || "").trim()).filter(Boolean).join(" · ");
+  return [m.nombre, m.presentacion].map(s => (s || "").trim()).filter(Boolean).join(" - ");
+}
+
+// Concentración (dosis) de un medicamento por id — solo lectura, viene del catálogo.
+export function medConcentracion(id: string, catalogo: MedicamentoPredefinido[]): string {
+  return (medById(id, catalogo)?.concentracion || "").trim();
 }
 
 // Solo el nombre (principio activo) de un medicamento por id.

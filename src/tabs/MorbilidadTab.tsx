@@ -5,6 +5,7 @@ import { useAppContext } from "@/context/AppContext";
 import { saveLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { patologiaNombre, medLabel, medItemsText } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
+import { PERIODO_OPTIONS } from "@/lib/constants";
 import type { Medicamento } from "@/types";
 
 export default function MorbilidadTab() {
@@ -52,7 +53,8 @@ export default function MorbilidadTab() {
   const buildMedItem = (medId: string): Medicamento | null => {
     const match = predefinedMedicamentos.find(m => m.id === medId);
     if (!match) return null;
-    return { id: match.id, dosis: match.dosis || match.concentracion || "", periodo: match.periodo || "" };
+    // Nombre y dosis salen del catálogo por ID (solo lectura); dosis = concentración.
+    return { id: match.id, dosis: match.concentracion || "", periodo: "" };
   };
 
   // --- BÚSQUEDA ---
@@ -312,8 +314,11 @@ export default function MorbilidadTab() {
         {items.map((m, i) => (
           <div key={i} className="med-row" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 24px", gap: "0.25rem" }}>
             <span className="med-input" style={{ padding: "0.35rem", fontSize: "0.8rem", display: "flex", alignItems: "center", fontWeight: 600 }}>{medLabel(m.id, predefinedMedicamentos)}</span>
-            <input className="med-input" placeholder="ej: 400mg" value={m.dosis} onChange={e => onUpdate(i, "dosis", e.target.value)} style={{ padding: "0.35rem", fontSize: "0.8rem" }} />
-            <input className="med-input" placeholder="ej: c/8h" value={m.periodo} onChange={e => onUpdate(i, "periodo", e.target.value)} style={{ padding: "0.35rem", fontSize: "0.8rem" }} />
+            <span className="med-input" style={{ padding: "0.35rem", fontSize: "0.8rem", display: "flex", alignItems: "center", color: "var(--text-secondary)" }}>{m.dosis || "—"}</span>
+            <select className="med-input" value={m.periodo} onChange={e => onUpdate(i, "periodo", e.target.value)} style={{ padding: "0.35rem", fontSize: "0.8rem" }}>
+              <option value="">Período…</option>
+              {PERIODO_OPTIONS.map(op => <option key={op} value={op}>{op}</option>)}
+            </select>
             <button type="button" className="btn-remove-med" onClick={() => onRemove(i)} style={{ width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", color: "var(--text-muted)", fontSize: "1rem", cursor: "pointer" }}>×</button>
           </div>
         ))}
