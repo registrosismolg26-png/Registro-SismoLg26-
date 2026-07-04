@@ -87,8 +87,10 @@ export default function BalanceTab() {
       let edad: number | null = c.edad ?? null;
       if (edad == null && reg) edad = reg.edad ?? edadFromISO(reg.fechaNacimiento);
       const conPat = diagPat.length > 0 || antPat.length > 0 || (reg && Array.isArray(reg.patologiaIds) && reg.patologiaIds.length > 0);
-      // Embarazada = tiene "embarazo" entre sus antecedentes (de la consulta o del censo).
-      const embarazada = hasEmbarazo(antPat) || (reg && hasEmbarazo(reg.patologiaIds));
+      // Embarazada = tiene "embarazo" en cualquiera de sus registros: antecedentes o
+      // diagnóstico de la consulta, o antecedentes del censo (así cuenta sin importar
+      // dónde el médico registró el embarazo/control prenatal).
+      const embarazada = hasEmbarazo(antPat) || hasEmbarazo(diagPat) || (reg && hasEmbarazo(reg.patologiaIds));
 
       if (!patients.has(ced)) patients.set(ced, { genero, edad, conPat, embarazada });
       else {
