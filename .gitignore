@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# secreto del agente: API key de Resend para el correo-resumen tras cada push
+.claude/resend.key
+
 # vercel
 .vercel
 

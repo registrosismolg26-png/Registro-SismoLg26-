@@ -3605,7 +3605,25 @@ h2.dashboard-section-title {
   /* Acción: sin etiqueta, botones a la derecha (anula el width:4rem de la base) */
   .registro-table td.col-action { width: auto; justify-content: flex-end; gap: 0; }
   .registro-table td.col-action::before { display: none; }
-  .registro-table td.col-action .row-actions { justify-content: flex-end; }
+  .registro-table td.col-action .row-actions { justify-content: flex-end; gap: 0.5rem; }
+
+  /* En tarjeta (teléfono/tablet) los botones muestran texto: pill icono + rótulo,
+     sin exagerar. En escritorio siguen siendo íconos circulares (ver .btn-ver). */
+  .registro-table td.col-action .btn-ver {
+    width: auto;
+    height: 40px;
+    padding: 0 0.9rem;
+    gap: 0.4rem;
+    border-radius: 999px;
+  }
+  .registro-table td.col-action .btn-ver:hover { transform: none; }
+  .registro-table td.col-action .btn-ver__txt {
+    display: inline;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .registro-table td.col-action .btn-ver::after { display: none; } /* ya hay texto */
 }
 
 /* Estado Físico pills */
@@ -3651,6 +3669,8 @@ h2.dashboard-section-title {
   position: relative;
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
+/* El rótulo de texto solo se muestra en modo tarjeta (ver media query <1024px) */
+.btn-ver__txt { display: none; }
 .btn-ver:hover {
   background-color: var(--color-primary);
   color: #fff;
