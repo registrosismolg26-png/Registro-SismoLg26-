@@ -119,8 +119,20 @@ export default function CensoTab() {
     fields.forEach(f => { if (!next[f]) { next[f] = true; changed = true; } });
     return changed ? next : prev;
   });
-  // Mensaje de error a mostrar para un campo (respeta el gating por touched).
-  const err = (field: string): string => (touched[field] ? (errors[field] || "") : "");
+
+  // ¿Se intentó registrar? Los campos del ÚLTIMO paso (Estado de Salud) NO se
+  // validan por navegación ni por el precargado de cédula: SOLO se revelan al
+  // pulsar "Registrar". Así llegar al paso 4 nunca lo pinta en rojo.
+  const [triedSubmit, setTriedSubmit] = useState(false);
+  const SUBMIT_ONLY_FIELDS = new Set(["estadoFisico", "patologia"]);
+
+  // Mensaje de error a mostrar para un campo (respeta el gating):
+  //  - campos del paso 4 (SUBMIT_ONLY): solo tras intentar registrar.
+  //  - resto: al tocar el campo o tras intentar avanzar/registrar.
+  const err = (field: string): string => {
+    const reveal = SUBMIT_ONLY_FIELDS.has(field) ? triedSubmit : (touched[field] || triedSubmit);
+    return reveal ? (errors[field] || "") : "";
+  };
 
   // Submission guard (distinct from background sync)
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -456,6 +468,9 @@ export default function CensoTab() {
       clearFields.forEach(f => { delete n[f]; });
       return n;
     });
+    // Navegar limpia la revelación de "intento de registro": el paso destino
+    // arranca limpio (los campos SUBMIT_ONLY vuelven a ocultarse).
+    setTriedSubmit(false);
     setStep(next);
   };
 
@@ -501,7 +516,9 @@ export default function CensoTab() {
       return;
     }
 
-    // Al enviar, todo se considera tocado (revela cualquier error pendiente).
+    // Intento de registro: valida TODO el form y revela cualquier error pendiente
+    // (incluidos los campos SUBMIT_ONLY del paso 4).
+    setTriedSubmit(true);
     markTouched(
       "parroquia", "sector", "comunidad", "direccionExacta", "nombreApellido",
       "cedula", "fechaNacimiento", "telefonoNum", "genero", "jefeFamilia",
@@ -592,6 +609,7 @@ export default function CensoTab() {
       setMedicamentos([]);
       setErrors({});
       setTouched({});
+      setTriedSubmit(false);
       setLookupStatus("idle");
       setJefeLookup(null);
       setAsignCuartoCenso("");
