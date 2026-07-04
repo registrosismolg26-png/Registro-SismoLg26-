@@ -1623,12 +1623,16 @@ html[data-theme="dark"] .spinner {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.25rem;
-    align-items: start;
+    align-items: stretch; /* filas de igual altura → sin huecos verticales */
   }
   .tab-view.tab-view--dashboard > .stats-grid,
-  .tab-view.tab-view--dashboard > .dashboard-section:last-child,
+  .tab-view.tab-view--dashboard > .dash-cards,
   .tab-view.tab-view--dashboard > .status-bar,
   .tab-view.tab-view--dashboard > .form-card { grid-column: 1 / -1; }
+  /* Los paneles viven dentro de .stats-charts-grid (display:contents) → son
+     ítems del grid del dashboard aunque no sean hijos directos. grid-column
+     aplica igual al ítem; por eso el "wide" no necesita combinador `>`. */
+  .tab-view.tab-view--dashboard .dashboard-section--wide { grid-column: 1 / -1; }
 
   /* ── Sección Salud: gauges + patologías lado a lado ── */
   .dashboard-section .tab-view {
@@ -1680,9 +1684,9 @@ html[data-theme="dark"] .spinner {
     font-size: 0.78rem;
   }
 
-  /* DASHBOARD: 3 columnas en desktop para aprovechar el ancho */
+  /* DASHBOARD: 2 columnas parejas en desktop (los paneles tilean sin huecos) */
   .tab-view.tab-view--dashboard {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
   }
   /* stats-grid y status-bar siguen ocupando todo el ancho */
@@ -4979,8 +4983,8 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .morb-hist__notas { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Botón "Editar" del historial de consultas (pill, icono + texto). */
-.morb-hist__actioncell { white-space: nowrap; }
-.morb-hist__edit {
+.morb-hist__actioncell { white-space: nowrap; display: flex; gap: 0.35rem; }
+.morb-hist__edit, .morb-hist__delete {
   display: inline-flex; align-items: center; gap: 0.35rem;
   height: 32px; padding: 0 0.75rem; border-radius: 999px;
   border: 1px solid var(--border-color); background: var(--bg-secondary);
@@ -4988,7 +4992,26 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .morb-hist__edit:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
-.morb-hist__edit svg { flex: none; }
+.morb-hist__edit svg, .morb-hist__delete svg { flex: none; }
+.morb-hist__delete { color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 32%, var(--border-color)); }
+.morb-hist__delete:hover { border-color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
+
+/* Modal de confirmación (eliminar consulta) */
+.confirm-modal { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.8rem; padding: 1.6rem 1.4rem; }
+.confirm-modal__icon { display: inline-flex; align-items: center; justify-content: center; width: 58px; height: 58px; border-radius: 18px; }
+.confirm-modal__icon--danger { background: color-mix(in srgb, var(--color-danger) 14%, transparent); color: var(--color-danger); }
+.confirm-modal__title { margin: 0; font-family: var(--font-heading); font-size: 1.1rem; font-weight: 800; color: var(--text-primary); }
+.confirm-modal__text { margin: 0; font-size: 0.88rem; line-height: 1.5; color: var(--text-secondary); }
+.confirm-modal__actions { display: flex; gap: 0.6rem; width: 100%; margin-top: 0.4rem; }
+.confirm-modal__actions > button { flex: 1; }
+.btn-danger {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: var(--ctl-h, 48px); border: none; border-radius: var(--ctl-radius, 999px);
+  background: var(--color-danger); color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.btn-danger:hover { filter: brightness(1.08); }
+.btn-danger:disabled { opacity: 0.6; cursor: default; }
 
 /* Estado de sincronización en el historial: pill con color (antes era texto sin estilo). */
 .sync-status-badge {
@@ -5555,9 +5578,9 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .dash-sec-head__ico svg { width: 17px; height: 17px; }
 .dash-sec-head h3 { margin: 0; }
 /* Distribución por cuarto — semáforo de ocupación */
-.dash-rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; }
-.dash-room { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.7rem 0.85rem; border-radius: 14px; border: 1px solid; }
-.dash-room__name { font-size: 0.82rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.dash-rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 0.6rem; }
+.dash-room { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.7rem 0.85rem; border-radius: 14px; border: 1px solid; min-height: 52px; }
+.dash-room__name { font-size: 0.8rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; color: var(--text-primary); min-width: 0; }
 .dash-room__name small { display: block; font-size: 0.66rem; font-weight: 600; color: var(--text-muted); }
 .dash-room__num { font-family: var(--font-heading); font-weight: 800; font-size: 1rem; font-variant-numeric: tabular-nums; flex: none; }
 .dash-room--green { background: color-mix(in srgb, #10b981 12%, transparent); border-color: color-mix(in srgb, #10b981 40%, var(--border-color)); }
@@ -5603,6 +5626,7 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
    grandes, animaciones al cambiar de sección/dato, semáforos. 100% pill.
    ═══════════════════════════════════════════════════════════════════════════ */
 .pres {
+  --pres-track: rgba(255,255,255,0.14); /* aro base del donut (tema-consciente) */
   position: fixed; inset: 0; z-index: 60;
   display: flex; flex-direction: column;
   padding: clamp(1rem, 2.4vh, 2rem) clamp(1rem, 3vw, 2.6rem);
@@ -5689,7 +5713,7 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .pres-room--yellow { background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.4); }
 .pres-room--red { background: rgba(239,68,68,0.16); border-color: rgba(239,68,68,0.45); }
 .pres-room--none { background: rgba(148,163,184,0.12); border-color: rgba(148,163,184,0.32); }
-.pres-room__name { font-size: clamp(0.66rem, 0.9vw, 0.9rem); font-weight: 700; color: #c7d4ee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pres-room__name { font-size: clamp(0.66rem, 0.9vw, 0.9rem); font-weight: 700; color: #c7d4ee; line-height: 1.2; overflow-wrap: anywhere; }
 .pres-room__num { font-family: var(--font-heading); font-size: clamp(1.1rem, 1.8vw, 1.8rem); font-weight: 800; color: #fff; }
 .pres-room__num em { font-size: 0.55em; font-style: normal; color: #8ba0c9; }
 
@@ -5701,9 +5725,31 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .pres__bar-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #3b82f6, #22d3ee); animation: presBar linear forwards; }
 @keyframes presBar { from { width: 0; } to { width: 100%; } }
 
-.pres__exit { position: absolute; top: clamp(0.7rem, 2vh, 1.4rem); right: clamp(0.7rem, 2vw, 1.4rem); width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #c7d4ee; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s; z-index: 2; }
-.pres__exit:hover { background: rgba(239,68,68,0.25); color: #fff; border-color: rgba(239,68,68,0.5); }
-.pres__exit svg { width: 20px; height: 20px; }
+.pres__controls { position: absolute; top: clamp(0.7rem, 2vh, 1.4rem); right: clamp(0.7rem, 2vw, 1.4rem); display: flex; gap: 0.5rem; z-index: 3; }
+.pres__ctl { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #c7d4ee; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.pres__ctl:hover { background: rgba(255,255,255,0.14); color: #fff; }
+.pres__ctl svg { width: 19px; height: 19px; }
+.pres__ctl--exit:hover { background: rgba(239,68,68,0.25); color: #fff; border-color: rgba(239,68,68,0.5); }
+
+/* ── Tema CLARO de la presentación (el usuario lo elige) ─────────────────────── */
+.pres--light { --pres-track: rgba(15,23,42,0.1); background: radial-gradient(120% 120% at 0% 0%, #ffffff 0%, #f1f5f9 55%, #e2e8f0 100%); color: #1e293b; }
+.pres--light .pres__org { color: #b45309; }
+.pres--light .pres__title, .pres--light .pres__time, .pres--light .pres__slide-head h2 { color: #0f172a; }
+.pres--light .pres__refugio, .pres--light .pres__date, .pres--light .pres__sec { color: #64748b; }
+.pres--light .pres-card { background: #fff; border-color: #e2e8f0; box-shadow: 0 10px 30px -18px rgba(15,23,42,0.25); }
+.pres--light .pres-card__value, .pres--light .pres-donut__num, .pres--light .pres-barrow__val, .pres--light .pres-rank__count, .pres--light .pres-room__num, .pres--light .pres-matrix td.t, .pres--light .pres-matrix .tot td { color: #0f172a; }
+.pres--light .pres-card__value em, .pres--light .pres-card__label, .pres--light .pres-panel__title, .pres--light .pres-barrow__label, .pres--light .pres-donut__legend, .pres--light .pres-donut__cap, .pres--light .pres-rank__label, .pres--light .pres-room__name, .pres--light .pres-matrix, .pres--light .pres-empty { color: #475569; }
+.pres--light .pres-panel { background: #fff; border-color: #e2e8f0; box-shadow: 0 8px 26px -18px rgba(15,23,42,0.2); }
+.pres--light .pres-barrow__track, .pres--light .pres-rank__track { background: #eef2f7; }
+.pres--light .pres-rank__pos { background: #eef2f7; color: #475569; }
+.pres--light .pres__slide-ico { background: rgba(37,99,235,0.12); color: #2563eb; }
+.pres--light .pres-matrix th { color: #64748b; border-color: #e2e8f0; }
+.pres--light .pres-matrix td { border-color: #eef2f7; }
+.pres--light .pres-donut__legend b { color: #0f172a; }
+.pres--light .pres__ctl { border-color: #cbd5e1; background: #fff; color: #475569; }
+.pres--light .pres__ctl:hover { background: #f1f5f9; color: #0f172a; }
+.pres--light .pres__dot { background: rgba(15,23,42,0.18); }
+.pres--light .pres__bar { background: rgba(15,23,42,0.1); }
 
 @media (max-width: 760px) {
   .pres-demo { grid-template-columns: 1fr; grid-template-rows: none; }

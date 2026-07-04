@@ -45,6 +45,21 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
   const [now, setNow] = useState<Date | null>(null);
   const [idx, setIdx] = useState(0);
   const [cycle, setCycle] = useState(0); // fuerza reinicio de la barra de progreso
+  const [theme, setTheme] = useState<"dark" | "light">("dark"); // el usuario elige
+  const [paused, setPaused] = useState(false); // pausa SOLO la autorrotación (no el refresh de datos)
+
+  // Preferencia de tema persistida (por dispositivo).
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("pres_theme");
+      if (saved === "light" || saved === "dark") setTheme(saved);
+    } catch { /* noop */ }
+  }, []);
+  const toggleTheme = () => setTheme((t) => {
+    const next = t === "dark" ? "light" : "dark";
+    try { localStorage.setItem("pres_theme", next); } catch { /* noop */ }
+    return next;
+  });
 
   // Reloj en vivo (solo cliente).
   useEffect(() => {
@@ -167,11 +182,12 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
     },
   ];
 
-  // Autorrotación.
+  // Autorrotación (se detiene si el usuario pausa; el refresh de datos sigue aparte).
   useEffect(() => {
+    if (paused) return;
     const t = setInterval(() => { setIdx((i) => (i + 1) % slides.length); setCycle((c) => c + 1); }, ROTATE_MS);
     return () => clearInterval(t);
-  }, [slides.length]);
+  }, [slides.length, paused]);
 
   const go = (i: number) => { setIdx(i); setCycle((c) => c + 1); };
   const cur = slides[idx];
@@ -181,7 +197,7 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
   const fecha = now ? now.toLocaleDateString("es-VE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }) : "";
 
   return (
-    <div className="pres">
+    <div className={`pres pres--${theme}`}>
       {/* Membrete */}
       <header className="pres__header">
         <div className="pres__brand">
@@ -216,14 +232,27 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
             <button key={s.id} type="button" className={`pres__dot ${i === idx ? "is-active" : ""}`} onClick={() => go(i)} aria-label={s.title} />
           ))}
         </div>
-        <div className="pres__bar"><span key={cycle} className="pres__bar-fill" style={{ animationDuration: `${ROTATE_MS}ms` }} /></div>
+        <div className="pres__bar"><span key={cycle} className="pres__bar-fill" style={{ animationDuration: `${ROTATE_MS}ms`, animationPlayState: paused ? "paused" : "running" }} /></div>
       </footer>
 
-      {onExit && (
-        <button type="button" className="pres__exit" onClick={onExit} title="Salir de presentación" aria-label="Salir de presentación">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      {/* Controles: pausar rotación · tema claro/oscuro · salir */}
+      <div className="pres__controls">
+        <button type="button" className="pres__ctl" onClick={() => setPaused((p) => !p)} title={paused ? "Reanudar rotación" : "Pausar rotación"} aria-label={paused ? "Reanudar" : "Pausar"}>
+          {paused
+            ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+            : <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>}
         </button>
-      )}
+        <button type="button" className="pres__ctl" onClick={toggleTheme} title={theme === "dark" ? "Tema claro" : "Tema oscuro"} aria-label="Cambiar tema">
+          {theme === "dark"
+            ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" /></svg>
+            : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>}
+        </button>
+        {onExit && (
+          <button type="button" className="pres__ctl pres__ctl--exit" onClick={onExit} title="Salir de presentación" aria-label="Salir de presentación">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -265,7 +294,7 @@ function Donut({ fem, masc }: { fem: number; masc: number }) {
   return (
     <div className="pres-donut">
       <svg viewBox="0 0 130 130" className="pres-donut__svg">
-        <circle cx="65" cy="65" r={R} fill="none" stroke="var(--border-color)" strokeWidth="16" opacity="0.5" />
+        <circle cx="65" cy="65" r={R} fill="none" stroke="var(--pres-track)" strokeWidth="16" />
         <circle cx="65" cy="65" r={R} fill="none" stroke="#db2777" strokeWidth="16" strokeDasharray={`${fDash} ${C - fDash}`} transform="rotate(-90 65 65)" strokeLinecap="round" />
         <circle cx="65" cy="65" r={R} fill="none" stroke="#2563eb" strokeWidth="16" strokeDasharray={`${C - fDash} ${fDash}`} transform={`rotate(${-90 + fFrac * 360} 65 65)`} strokeLinecap="round" />
         <text x="65" y="70" textAnchor="middle" className="pres-donut__num">{total}</text>

@@ -512,6 +512,19 @@ export async function getAllLocalConsultas(): Promise<LocalConsulta[]> {
   }
 }
 
+// Borra una consulta del store local (cola offline). Se usa al eliminar una
+// consulta: la remota la borra el backend; ésta limpia la copia local.
+export async function deleteLocalConsulta(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONSULTAS_STORE, 'readwrite');
+    const store = transaction.objectStore(CONSULTAS_STORE);
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function markConsultaSynced(id: string): Promise<void> {
   const db = await getDB();
   return new Promise((resolve, reject) => {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, refugioScopeFor, canManageMorbilidad, isMaster, canActOnRefugio, hasRefugio } from "@/lib/auth";
+import { getAuthUser, refugioScopeFor, canManageMorbilidad, canDeleteConsulta, isMaster, canActOnRefugio, hasRefugio } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
 
 export async function GET(req: Request) {
@@ -110,5 +110,39 @@ export async function POST(req: Request) {
       { error: "Error al registrar la consulta médica", code: error?.code, details: error?.message },
       { status: 500 }
     );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const auth = await getAuthUser(req);
+    if (!auth) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    // Eliminar consultas: SOLO AdminMedico y Master.
+    if (!canDeleteConsulta(auth)) {
+      return NextResponse.json({ error: "No autorizado para eliminar consultas" }, { status: 403 });
+    }
+
+    const id = new URL(req.url).searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Falta el id de la consulta" }, { status: 400 });
+    }
+
+    const existing = await prisma.consultaMedica.findUnique({ where: { id } });
+    if (!existing) {
+      // Ya no existe (p. ej. consulta local nunca sincronizada): el cliente igual la borra local.
+      return NextResponse.json({ success: true, alreadyGone: true });
+    }
+    // Solo se pueden eliminar consultas del propio refugio (Master: cualquiera).
+    if (!canActOnRefugio(auth, existing.refugio)) {
+      return NextResponse.json({ error: "No puede eliminar consultas de otro campamento." }, { status: 403 });
+    }
+
+    await withAuditUser(auth.email, (tx) => tx.consultaMedica.delete({ where: { id } }));
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Error en DELETE /api/consultas:", error);
+    return NextResponse.json({ error: "Error al eliminar la consulta médica" }, { status: 500 });
   }
 }

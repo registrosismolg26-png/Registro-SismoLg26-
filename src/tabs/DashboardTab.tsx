@@ -755,7 +755,7 @@ ${entesList}`;
               </div>
 
               {/* Salud y Condición Física */}
-              <div className="dashboard-section">
+              <div className="dashboard-section dashboard-section--wide">
                 <div className="dash-sec-head" style={{ ["--accent" as any]: "#e11d48" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.heart}</span><h3 className="dashboard-section-title">Salud y Condición Física</h3></div>
                 <div className="tab-view" style={{ gap: "1rem" }}>
                   {/* Estado Físico - Gauges semicirculares SVG */}

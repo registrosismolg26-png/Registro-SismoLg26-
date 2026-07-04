@@ -75,6 +75,8 @@ export const canManageRooms    = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u
 export const canManagePadron   = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 // Morbilidad: registrar consultas médicas.
 export const canManageMorbilidad = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
+// Eliminar consultas médicas: SOLO AdminMedico y Master (Operador/Asistente no eliminan).
+export const canDeleteConsulta = (u: AuthUser) => ["MASTER", "AdminMedico"].includes(u.role);
 // ¿Es un rol médico? (solo ven Morbilidad; AdminMedico además ve Usuarios filtrado a médicos).
 export const isMedico = (u: AuthUser) => ["AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
 // Catálogos médicos — CREAR/EDITAR (renombrar): AdminMedico, OperadorMedico y Master.
