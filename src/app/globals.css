@@ -4538,8 +4538,8 @@ h2.dashboard-section-title {
    Namespace .morb-* para no colisionar con el resto. Usa las variables del tema.
    ════════════════════════════════════════════════════════════════════════════ */
 .morb {
-  --morb-h: var(--element-height);          /* alto sincronizado de inputs/selects/botones */
-  --morb-h-sm: 42px;                         /* controles densos (filas de medicamento)     */
+  --morb-h: 48px;                            /* alto ÚNICO de controles/botones = --ctl-h del sistema pill */
+  --morb-h-sm: 44px;                         /* filas densas de medicamento = --ctl-h-sm    */
   --morb-radius: 18px;                       /* radio de tarjetas/contenedores               */
   --morb-ctl-radius: 999px;                  /* controles de una línea = PILL (sistema todo pill) */
   --morb-gap: clamp(1rem, 2.2vw, 1.6rem);
@@ -4650,7 +4650,7 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 1.05rem;
    selector tipo+clase igualamos especificidad y, al ir después en el archivo, ganamos:
    controles de una línea = PILL, coherente con .censo-form/.pill-form. */
 input.morb-control,
-select.morb-control { border-radius: var(--morb-ctl-radius); padding: 0 1.05rem; }
+select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-radius: var(--morb-ctl-radius); padding: 0 1.05rem; }
 
 /* Datos Básicos: grilla determinista por áreas (llena el espacio, sin huecos).
    Móvil = 1 col; tablet = 4 cols; PC = 6 cols. Nombre y Refugio más anchos. */
@@ -4879,9 +4879,21 @@ select.morb-control { border-radius: var(--morb-ctl-radius); padding: 0 1.05rem;
 .morb-history__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 16px; }
 .morb-hist__notas { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Historial de morbilidad: en móvil la tabla se vuelve TARJETAS apiladas para que
-   fluya con la página (sin scroll horizontal interno), igual que Registrados. */
-@media (max-width: 767px) {
+/* Estado de sincronización en el historial: pill con color (antes era texto sin estilo). */
+.sync-status-badge {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.22rem 0.62rem; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+  white-space: nowrap; border: 1px solid transparent;
+}
+.sync-status-badge.synced { background: var(--color-success-light); color: var(--color-success); border-color: rgba(5,150,105,0.20); }
+.sync-status-badge.pending { background: rgba(245,158,11,0.15); color: #b45309; border-color: rgba(245,158,11,0.40); }
+.sync-status-badge.error { background: var(--color-danger-light, #fee2e2); color: var(--color-danger, #dc2626); border-color: rgba(220,38,38,0.20); }
+
+/* Historial de morbilidad: TABLA solo a ≥1024px (donde caben las 6 columnas); por
+   debajo se vuelve TARJETAS apiladas para que fluya con la página (sin scroll
+   horizontal interno), igual que Registrados. */
+@media (max-width: 1023px) {
   .morb-history__scroll { overflow-x: visible; }
   .morb-history__scroll .matrix-table { min-width: 0 !important; }
   .morb-history__scroll .matrix-table thead { display: none; }
@@ -5365,7 +5377,7 @@ select.morb-control { border-radius: var(--morb-ctl-radius); padding: 0 1.05rem;
 .cat-triggers { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .cat-trigger {
   display: inline-flex; align-items: center; gap: 0.45rem;
-  height: 40px; padding: 0 0.95rem;
+  height: 48px; padding: 0 1.05rem;
   border-radius: 999px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
