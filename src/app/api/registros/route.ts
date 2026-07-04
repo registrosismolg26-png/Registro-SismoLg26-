@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error("Error en GET /api/registros:", error);
     return NextResponse.json(
-      { error: "Error interno del servidor" },
+      { error: "Error interno del servidor", code: error?.code, details: error?.message },
       { status: 500 }
     );
   }
