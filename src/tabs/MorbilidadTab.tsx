@@ -49,11 +49,20 @@ export default function MorbilidadTab() {
 
   const [saving, setSaving] = useState(false);
 
-  // Agregar un medicamento a una receta/lista (precarga dosis con la concentración si no hay dosis sugerida).
+  // Animación de salida: marca una clave (namespaced) como "saliendo" y la remueve al terminar.
+  const [exiting, setExiting] = useState<Record<string, boolean>>({});
+  const animateOut = (key: string, remove: () => void) => {
+    setExiting((e) => ({ ...e, [key]: true }));
+    window.setTimeout(() => {
+      remove();
+      setExiting((e) => { const n = { ...e }; delete n[key]; return n; });
+    }, 200);
+  };
+
+  // Agregar un medicamento (nombre y dosis salen del catálogo por ID; dosis = concentración).
   const buildMedItem = (medId: string): Medicamento | null => {
-    const match = predefinedMedicamentos.find(m => m.id === medId);
+    const match = predefinedMedicamentos.find((m) => m.id === medId);
     if (!match) return null;
-    // Nombre y dosis salen del catálogo por ID (solo lectura); dosis = concentración.
     return { id: match.id, dosis: match.concentracion || "", periodo: "" };
   };
 
@@ -106,7 +115,6 @@ export default function MorbilidadTab() {
           setRefugio(effectiveRefugio || currentUser?.campamentoTransitorio || "");
           showToast("Paciente encontrado en el Padrón.", "info");
         } else {
-          // 3. No encontrado en ningún lado: carga manual
           setNombreApellido("");
           setGenero("MASCULINO");
           setEdad("");
@@ -122,32 +130,26 @@ export default function MorbilidadTab() {
   };
 
   // --- ANTECEDENTES (editables) ---
-  const addAntPatologia = (id: string) => {
-    if (!id) return;
-    setAntecedentesPatologiaIds(prev => (prev.includes(id) ? prev : [...prev, id]));
-  };
-  const removeAntPatologia = (id: string) => setAntecedentesPatologiaIds(prev => prev.filter(x => x !== id));
+  const addAntPatologia = (id: string) => { if (id) setAntecedentesPatologiaIds((p) => (p.includes(id) ? p : [...p, id])); };
+  const removeAntPatologia = (id: string) => setAntecedentesPatologiaIds((p) => p.filter((x) => x !== id));
   const addAntMed = (medId: string) => {
     const item = buildMedItem(medId);
-    if (item && !antecedentesMedicamentoIds.some(x => x.id === medId)) setAntecedentesMedicamentoIds(prev => [...prev, item]);
+    if (item && !antecedentesMedicamentoIds.some((x) => x.id === medId)) setAntecedentesMedicamentoIds((p) => [...p, item]);
   };
-  const removeAntMed = (i: number) => setAntecedentesMedicamentoIds(p => p.filter((_, idx) => idx !== i));
+  const removeAntMed = (id: string) => setAntecedentesMedicamentoIds((p) => p.filter((m) => m.id !== id));
   const updateAntMed = (i: number, field: "dosis" | "periodo", value: string) =>
-    setAntecedentesMedicamentoIds(p => p.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
+    setAntecedentesMedicamentoIds((p) => p.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
 
   // --- DIAGNÓSTICO ---
-  const addDiagPatologia = (id: string) => {
-    if (!id) return;
-    setDiagnosticoPatologiaIds(prev => (prev.includes(id) ? prev : [...prev, id]));
-  };
-  const removeDiagPatologia = (id: string) => setDiagnosticoPatologiaIds(prev => prev.filter(x => x !== id));
+  const addDiagPatologia = (id: string) => { if (id) setDiagnosticoPatologiaIds((p) => (p.includes(id) ? p : [...p, id])); };
+  const removeDiagPatologia = (id: string) => setDiagnosticoPatologiaIds((p) => p.filter((x) => x !== id));
   const addDiagMed = (medId: string) => {
     const item = buildMedItem(medId);
-    if (item && !diagnosticoMedicamentoIds.some(x => x.id === medId)) setDiagnosticoMedicamentoIds(prev => [...prev, item]);
+    if (item && !diagnosticoMedicamentoIds.some((x) => x.id === medId)) setDiagnosticoMedicamentoIds((p) => [...p, item]);
   };
-  const removeMed = (index: number) => setDiagnosticoMedicamentoIds(p => p.filter((_, i) => i !== index));
-  const updateMed = (index: number, field: "dosis" | "periodo", value: string) =>
-    setDiagnosticoMedicamentoIds(p => p.map((m, i) => (i === index ? { ...m, [field]: value } : m)));
+  const removeDiagMed = (id: string) => setDiagnosticoMedicamentoIds((p) => p.filter((m) => m.id !== id));
+  const updateDiagMed = (i: number, field: "dosis" | "periodo", value: string) =>
+    setDiagnosticoMedicamentoIds((p) => p.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
 
   // --- RESET STATE ---
   const handleReset = () => {
@@ -178,20 +180,13 @@ export default function MorbilidadTab() {
     if (!changed) return;
 
     const patologia = antecedentesPatologiaIds.length > 0 ? "SI" : "NO";
-    const updatedReg = {
-      ...matchedRegistro,
-      patologia,
-      patologiaIds: antecedentesPatologiaIds,
-      medicamentoIds: antecedentesMedicamentoIds,
-    };
-    // Optimista (mismo cache que Asignaciones/Home).
-    setRegistros(prev => {
-      const next = prev.map(r => (r.id === updatedReg.id ? updatedReg : r));
+    const updatedReg = { ...matchedRegistro, patologia, patologiaIds: antecedentesPatologiaIds, medicamentoIds: antecedentesMedicamentoIds };
+    setRegistros((prev) => {
+      const next = prev.map((r) => (r.id === updatedReg.id ? updatedReg : r));
       if (typeof window !== "undefined") localStorage.setItem("cached_registros", JSON.stringify(next));
       return next;
     });
     setMatchedRegistro(updatedReg);
-    // Encolar update del censo (se sincroniza por /api/register, preservando el resto de campos).
     const regUpdate = {
       id: updatedReg.id,
       type: "update" as const,
@@ -211,10 +206,8 @@ export default function MorbilidadTab() {
       showToast("Por favor complete los datos del paciente.", "error");
       return;
     }
-
     setSaving(true);
     const docId = crypto.randomUUID();
-
     const localConsultaData = {
       id: docId,
       data: {
@@ -227,15 +220,13 @@ export default function MorbilidadTab() {
         antecedentesPatologiaIds,
         antecedentesMedicamentoIds,
         diagnosticoPatologiaIds,
-        diagnosticoMedicamentoIds: diagnosticoMedicamentoIds.filter(m => m.id),
+        diagnosticoMedicamentoIds: diagnosticoMedicamentoIds.filter((m) => m.id),
         notasDoctor: notasDoctor.trim() || undefined,
       },
       userId: currentUser?.email,
     };
-
     try {
       await saveLocalConsulta(localConsultaData);
-      // Si el paciente está en el censo y editaste los antecedentes, actualiza el registro.
       await syncAntecedentesToRegistro();
       showToast("Consulta médica registrada localmente.", "success");
       handleReset();
@@ -280,79 +271,80 @@ export default function MorbilidadTab() {
     return combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [localConsultas, consultas]);
 
-  // Helpers de UI reutilizados (chips de patología + filas de medicamento).
+  // Opciones para los buscadores (excluyendo lo ya elegido).
   const patologiaOptions = (excluir: string[]) =>
-    patologias.filter(p => !excluir.includes(p.id)).map(p => ({ value: p.id, label: p.nombre }));
+    patologias.filter((p) => !excluir.includes(p.id)).map((p) => ({ value: p.id, label: p.nombre }));
   const medOptions = (excluir: Medicamento[]) =>
     predefinedMedicamentos
-      .filter(m => !excluir.some(x => x.id === m.id))
-      .map(m => ({ value: m.id, label: [m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ") }));
+      .filter((m) => !excluir.some((x) => x.id === m.id))
+      .map((m) => ({ value: m.id, label: [m.nombre, m.concentracion, m.presentacion].filter(Boolean).join(" · ") }));
 
-  // Render helpers como FUNCIONES (no componentes locales) para no remontar los
-  // inputs en cada tecla (perderían el foco).
-  const patologiaChips = (ids: string[], onRemove: (id: string) => void, color: string) => (
-    <div className="pathology-pills-grid" style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.5rem" }}>
+  // ── Render helpers (funciones, no componentes: evita remonte de inputs) ──
+  const patologiaChips = (ids: string[], onRemove: (id: string) => void, variant: "primary" | "success", ns: string) => (
+    <div className="morb-pills">
       {ids.length === 0 ? (
-        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>(Ninguna seleccionada)</span>
-      ) : ids.map((id) => (
-        <span key={id} style={{ padding: "0.4rem 0.35rem 0.4rem 0.75rem", borderRadius: "15px", border: `1.5px solid ${color}`, backgroundColor: "var(--bg-secondary)", color, fontSize: "0.75rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-          {patologiaNombre(id, patologias)}
-          <button type="button" onClick={() => onRemove(id)} aria-label="Quitar" style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", fontSize: "0.95rem", lineHeight: 1, padding: "0 0.2rem" }}>×</button>
-        </span>
-      ))}
+        <span className="morb-pills__empty">(Ninguna seleccionada)</span>
+      ) : ids.map((id) => {
+        const key = `${ns}:${id}`;
+        return (
+          <span key={id} className={`morb-pill morb-pill--${variant} ${exiting[key] ? "morb-pill--out" : ""}`}>
+            {patologiaNombre(id, patologias)}
+            <button type="button" className="morb-pill__x" aria-label="Quitar" onClick={() => animateOut(key, () => onRemove(id))}>×</button>
+          </span>
+        );
+      })}
     </div>
   );
 
-  const medRowsView = (items: Medicamento[], onUpdate: (i: number, f: "dosis" | "periodo", v: string) => void, onRemove: (i: number) => void) => (
+  const medRowsView = (items: Medicamento[], onUpdate: (i: number, f: "dosis" | "periodo", v: string) => void, onRemove: (id: string) => void, ns: string) => (
     items.length === 0 ? (
-      <p className="med-empty" style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic", margin: "8px 0 0 0" }}>Sin medicamentos. Búscalo y agrégalo del catálogo.</p>
+      <p className="morb-meds__empty">Sin medicamentos. Búscalo y agrégalo del catálogo.</p>
     ) : (
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
-        <div className="med-row med-row--header" style={{ fontSize: "0.75rem" }}>
-          <span>Medicamento</span><span>Dosis</span><span>Período</span><span />
-        </div>
-        {items.map((m, i) => (
-          <div key={i} className="med-row" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 24px", gap: "0.25rem" }}>
-            <span className="med-input" style={{ padding: "0.35rem", fontSize: "0.8rem", display: "flex", alignItems: "center", fontWeight: 600 }}>{medLabel(m.id, predefinedMedicamentos)}</span>
-            <span className="med-input" style={{ padding: "0.35rem", fontSize: "0.8rem", display: "flex", alignItems: "center", color: "var(--text-secondary)" }}>{m.dosis || "—"}</span>
-            <select className="med-input" value={m.periodo} onChange={e => onUpdate(i, "periodo", e.target.value)} style={{ padding: "0.35rem", fontSize: "0.8rem" }}>
-              <option value="">Período…</option>
-              {PERIODO_OPTIONS.map(op => <option key={op} value={op}>{op}</option>)}
-            </select>
-            <button type="button" className="btn-remove-med" onClick={() => onRemove(i)} style={{ width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", color: "var(--text-muted)", fontSize: "1rem", cursor: "pointer" }}>×</button>
-          </div>
-        ))}
+      <div className="morb-meds">
+        <div className="morb-meds__head"><span>Medicamento</span><span>Dosis</span><span>Período</span><span /></div>
+        {items.map((m, i) => {
+          const key = `${ns}:${m.id}`;
+          return (
+            <div key={m.id} className={`morb-med ${exiting[key] ? "morb-med--out" : ""}`}>
+              <span className="morb-med__name" title={medLabel(m.id, predefinedMedicamentos)}>{medLabel(m.id, predefinedMedicamentos)}</span>
+              <span className="morb-med__dosis" title={m.dosis}>{m.dosis || "—"}</span>
+              <select className="morb-control" value={m.periodo} onChange={(e) => onUpdate(i, "periodo", e.target.value)}>
+                <option value="">Período…</option>
+                {PERIODO_OPTIONS.map((op) => <option key={op} value={op}>{op}</option>)}
+              </select>
+              <button type="button" className="morb-med__x" aria-label="Quitar" onClick={() => animateOut(key, () => onRemove(m.id))}>×</button>
+            </div>
+          );
+        })}
       </div>
     )
   );
 
   return (
-    <div className="tab-view" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      {/* 1. Header de Sección */}
-      <div className="section-title-container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>Consultas Médicas (Morbilidad)</h2>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "4px 0 0 0" }}>Registro clínico y diagnóstico de pacientes refugiados</p>
-        </div>
+    <div className="tab-view morb">
+      {/* 1. Header */}
+      <div className="morb-head">
+        <h2>Consultas Médicas (Morbilidad)</h2>
+        <p>Registro clínico y diagnóstico de pacientes refugiados</p>
       </div>
 
       {/* 2. Buscador por Cédula */}
       {!searched && (
-        <div className="dashboard-section" style={{ maxWidth: "500px", margin: "0 auto", width: "100%" }}>
-          <form onSubmit={handleSearch} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label htmlFor="search-cedula" style={{ fontWeight: "700" }}>Buscar Paciente por Cédula</label>
-              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+        <div className="morb-search">
+          <form onSubmit={handleSearch} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div className="morb-field">
+              <label className="morb-field__label" htmlFor="search-cedula">Buscar paciente por cédula</label>
+              <div className="morb-search__row">
                 <input
+                  className="morb-control"
                   type="text"
                   id="search-cedula"
                   placeholder="ej: V-12345678"
                   value={searchCedula}
                   onChange={(e) => setSearchCedula(e.target.value.replace(/[^\dVEve-]/g, ""))}
-                  style={{ flex: 1, height: "42px" }}
                 />
-                <button type="submit" className="btn-submit" disabled={searching} style={{ height: "42px", width: "100px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {searching ? <span className="spinner spinner-sm"></span> : "Buscar"}
+                <button type="submit" className="morb-btn morb-btn--primary" disabled={searching} style={{ minWidth: "104px" }}>
+                  {searching ? <span className="spinner spinner-sm" /> : "Buscar"}
                 </button>
               </div>
             </div>
@@ -362,133 +354,108 @@ export default function MorbilidadTab() {
 
       {/* 3. Panel de Carga de Consulta */}
       {searched && (
-        <form onSubmit={handleSave} className="grid-responsive-2col" style={{ display: "grid", gap: "1.5rem" }}>
-
-          {/* Columna Izquierda: Información Básica e Historial */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-
-            {/* Ficha básica del paciente */}
-            <div className="dashboard-section">
-              <h3 className="dashboard-section-title" style={{ fontSize: "0.95rem" }}>Datos Básicos del Paciente</h3>
-              <div className="wizard-step" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
-                <div className="form-group">
-                  <label>Cédula</label>
-                  <input type="text" value={cedula} disabled style={{ backgroundColor: "var(--border-color)", opacity: 0.8 }} />
+        <form onSubmit={handleSave} className="morb-form">
+          {/* Columna Izquierda */}
+          <div className="morb-col">
+            {/* Ficha básica */}
+            <div className="morb-card morb-card--primary">
+              <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
+              <div className="morb-basic">
+                <div className="morb-field">
+                  <label className="morb-field__label">Cédula</label>
+                  <input className="morb-control" type="text" value={cedula} disabled />
                 </div>
-                <div className="form-group">
-                  <label>Nombre y Apellido</label>
-                  <input type="text" value={nombreApellido} onChange={(e) => setNombreApellido(e.target.value)} required />
+                <div className="morb-field">
+                  <label className="morb-field__label">Nombre y Apellido</label>
+                  <input className="morb-control" type="text" value={nombreApellido} onChange={(e) => setNombreApellido(e.target.value)} required />
                 </div>
-                <div className="form-group">
-                  <label>Género</label>
-                  <select value={genero} onChange={(e) => setGenero(e.target.value)}>
+                <div className="morb-field">
+                  <label className="morb-field__label">Género</label>
+                  <select className="morb-control" value={genero} onChange={(e) => setGenero(e.target.value)}>
                     <option value="MASCULINO">Masculino</option>
                     <option value="FEMENINO">Femenino</option>
                   </select>
                 </div>
-                <div className="form-group">
-                  <label>Edad</label>
-                  <input type="number" min="0" max="120" value={edad} onChange={(e) => setEdad(e.target.value)} required />
+                <div className="morb-field">
+                  <label className="morb-field__label">Edad</label>
+                  <input className="morb-control" type="number" min="0" max="120" value={edad} onChange={(e) => setEdad(e.target.value)} required />
                 </div>
-                <div className="form-group" style={{ gridColumn: "span 2" }}>
-                  <label>Campamento Transitorio (Refugio)</label>
-                  <input type="text" value={refugio} disabled style={{ backgroundColor: "var(--border-color)", opacity: 0.8 }} />
+                <div className="morb-field full">
+                  <label className="morb-field__label">Campamento Transitorio (Refugio)</label>
+                  <input className="morb-control" type="text" value={refugio} disabled />
                 </div>
               </div>
             </div>
 
-            {/* Antecedentes clínicos (EDITABLES — guardar actualiza el censo) */}
-            <div className="dashboard-section">
-              <h3 className="dashboard-section-title" style={{ fontSize: "0.95rem", color: "var(--color-primary)" }}>Antecedentes Clínicos (Censo)</h3>
-              <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", margin: "0 0 0.75rem 0" }}>
+            {/* Antecedentes editables */}
+            <div className="morb-card morb-card--primary">
+              <h3 className="morb-card__title">Antecedentes Clínicos (Censo)</h3>
+              <p className="morb-hint">
                 {matchedRegistro ? "Editables: al guardar la consulta se actualizan en el censo del paciente." : "El paciente no está en el censo; estos datos solo quedan en la consulta."}
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)" }}>Patologías del paciente</label>
-                  <div style={{ marginTop: "0.4rem" }}>
-                    <SearchableSelect placeholder="Buscar y agregar patología…" options={patologiaOptions(antecedentesPatologiaIds)} onSelect={addAntPatologia} />
-                  </div>
-                  {patologiaChips(antecedentesPatologiaIds, removeAntPatologia, "var(--color-primary)")}
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+                <div className="morb-field">
+                  <label className="morb-field__label">Patologías del paciente</label>
+                  <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(antecedentesPatologiaIds)} onSelect={addAntPatologia} />
+                  {patologiaChips(antecedentesPatologiaIds, removeAntPatologia, "primary", "antpat")}
                 </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)" }}>Medicamentos del paciente</label>
-                  <div style={{ marginTop: "0.4rem" }}>
-                    <SearchableSelect placeholder="Buscar y agregar medicamento…" options={medOptions(antecedentesMedicamentoIds)} onSelect={addAntMed} />
-                  </div>
-                  {medRowsView(antecedentesMedicamentoIds, updateAntMed, removeAntMed)}
+                <div className="morb-field">
+                  <label className="morb-field__label">Medicamentos del paciente</label>
+                  <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(antecedentesMedicamentoIds)} onSelect={addAntMed} />
+                  {medRowsView(antecedentesMedicamentoIds, updateAntMed, removeAntMed, "antmed")}
                 </div>
               </div>
             </div>
-
           </div>
 
-          {/* Columna Derecha: Diagnóstico y Notas */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-
-            <div className="dashboard-section">
-              <h3 className="dashboard-section-title" style={{ fontSize: "0.95rem", color: "var(--color-success)" }}>Diagnóstico de Consulta</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ marginBottom: "0.5rem", display: "block" }}>Patologías Diagnósticas</label>
-                  <SearchableSelect placeholder="Buscar y agregar patología…" options={patologiaOptions(diagnosticoPatologiaIds)} onSelect={addDiagPatologia} />
-                  {patologiaChips(diagnosticoPatologiaIds, removeDiagPatologia, "var(--color-success)")}
+          {/* Columna Derecha */}
+          <div className="morb-col">
+            <div className="morb-card morb-card--success">
+              <h3 className="morb-card__title">Diagnóstico de Consulta</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+                <div className="morb-field">
+                  <label className="morb-field__label">Patologías Diagnósticas</label>
+                  <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar patología…" options={patologiaOptions(diagnosticoPatologiaIds)} onSelect={addDiagPatologia} />
+                  {patologiaChips(diagnosticoPatologiaIds, removeDiagPatologia, "success", "diagpat")}
                 </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <div className="med-section">
-                    <div className="med-section-header" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                      <span className="med-section-title" style={{ fontSize: "0.8rem", fontWeight: "700" }}>Medicamentos Diagnósticados (Receta)</span>
-                      <SearchableSelect placeholder="Buscar y agregar medicamento…" options={medOptions(diagnosticoMedicamentoIds)} onSelect={addDiagMed} />
-                    </div>
-                    {medRowsView(diagnosticoMedicamentoIds, updateMed, removeMed)}
-                  </div>
+                <div className="morb-field">
+                  <label className="morb-field__label">Medicamentos Diagnósticados (Receta)</label>
+                  <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(diagnosticoMedicamentoIds)} onSelect={addDiagMed} />
+                  {medRowsView(diagnosticoMedicamentoIds, updateDiagMed, removeDiagMed, "diagmed")}
                 </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label htmlFor="notas-doctor">Notas Médicas / Observaciones</label>
-                  <textarea id="notas-doctor" placeholder="Escriba aquí los comentarios del doctor..." value={notasDoctor} onChange={(e) => setNotasDoctor(e.target.value)} style={{ height: "80px", marginTop: "0.5rem", fontSize: "0.8rem" }} />
+                <div className="morb-field">
+                  <label className="morb-field__label" htmlFor="notas-doctor">Notas Médicas / Observaciones</label>
+                  <textarea className="morb-control" id="notas-doctor" placeholder="Escriba aquí los comentarios del doctor..." value={notasDoctor} onChange={(e) => setNotasDoctor(e.target.value)} />
                 </div>
-
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-              <button type="button" className="btn-secondary" onClick={handleReset} style={{ width: "120px", height: "42px", margin: 0 }}>Cancelar</button>
-              <button type="submit" className="btn-submit" disabled={saving} style={{ width: "160px", height: "42px", margin: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {saving ? <span className="spinner spinner-sm"></span> : "Guardar Consulta"}
+            <div className="morb-actions">
+              <button type="button" className="morb-btn morb-btn--ghost" onClick={handleReset}>Cancelar</button>
+              <button type="submit" className="morb-btn morb-btn--primary" disabled={saving} style={{ minWidth: "160px" }}>
+                {saving ? <span className="spinner spinner-sm" /> : "Guardar Consulta"}
               </button>
             </div>
-
           </div>
-
         </form>
       )}
 
       {/* 4. Historial de Consultas */}
-      <div className="dashboard-section">
-        <h3 className="dashboard-section-title" style={{ fontSize: "0.95rem", marginBottom: "1rem" }}>Historial de Consultas Médicas</h3>
+      <div className="morb-card">
+        <h3 className="morb-card__title" style={{ marginBottom: "1rem" }}>Historial de Consultas Médicas</h3>
         {allConsultas.length === 0 ? (
           <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "1.5rem 0", margin: 0 }}>No hay consultas registradas en este refugio.</p>
         ) : (
-          <div className="matrix-table-wrapper" style={{ overflowX: "auto" }}>
+          <div className="morb-history__scroll">
             <table className="matrix-table" style={{ fontSize: "0.8rem", minWidth: "700px" }}>
               <thead>
                 <tr>
-                  <th>Fecha</th>
-                  <th>Cédula</th>
-                  <th>Paciente</th>
-                  <th>Diagnóstico</th>
-                  <th>Notas del Dr.</th>
-                  <th>Estado</th>
+                  <th>Fecha</th><th>Cédula</th><th>Paciente</th><th>Diagnóstico</th><th>Notas del Dr.</th><th>Estado</th>
                 </tr>
               </thead>
               <tbody>
                 {allConsultas.map((c) => {
-                  const dateStr = new Date(c.createdAt).toLocaleDateString("es-VE", {
-                    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-                  });
+                  const dateStr = new Date(c.createdAt).toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
                   const diagPatIds: string[] = Array.isArray(c.data.diagnosticoPatologiaIds) ? c.data.diagnosticoPatologiaIds : [];
                   const diagMeds: Medicamento[] = Array.isArray(c.data.diagnosticoMedicamentoIds) ? c.data.diagnosticoMedicamentoIds : [];
                   return (
@@ -498,21 +465,15 @@ export default function MorbilidadTab() {
                       <td>{c.data.nombreApellido}</td>
                       <td>
                         {diagPatIds.length > 0 ? (
-                          <span style={{ color: "var(--color-success-hover, #059669)", fontWeight: "600" }}>
-                            {diagPatIds.map(id => patologiaNombre(id, patologias)).join(", ")}
-                          </span>
+                          <span style={{ color: "var(--color-success)", fontWeight: "600" }}>{diagPatIds.map((id) => patologiaNombre(id, patologias)).join(", ")}</span>
                         ) : (
                           <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Ninguno</span>
                         )}
                         {diagMeds.length > 0 && (
-                          <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-                            R: {medItemsText(diagMeds, predefinedMedicamentos)}
-                          </div>
+                          <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)", marginTop: "4px" }}>R: {medItemsText(diagMeds, predefinedMedicamentos)}</div>
                         )}
                       </td>
-                      <td style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.data.notasDoctor}>
-                        {c.data.notasDoctor || "-"}
-                      </td>
+                      <td style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.data.notasDoctor}>{c.data.notasDoctor || "-"}</td>
                       <td>
                         <span className={`sync-status-badge ${c.status === "synced" ? "synced" : c.status === "error" ? "error" : "pending"}`}>
                           {c.status === "synced" ? "Sincronizado" : c.status === "error" ? "Error" : "Pendiente"}
@@ -526,7 +487,6 @@ export default function MorbilidadTab() {
           </div>
         )}
       </div>
-
     </div>
   );
 }

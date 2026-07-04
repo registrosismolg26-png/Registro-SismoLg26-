@@ -4366,3 +4366,219 @@ h2.dashboard-section-title {
   color: #475569 !important;
   border: 1.5px dashed #94a3b8 !important;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MORBILIDAD / CONSULTA — UI moderna, responsive (teléfono → TV) y animada.
+   Namespace .morb-* para no colisionar con el resto. Usa las variables del tema.
+   ════════════════════════════════════════════════════════════════════════════ */
+.morb {
+  --morb-h: var(--element-height);          /* alto sincronizado de inputs/selects/botones */
+  --morb-h-sm: 42px;                         /* controles densos (filas de medicamento)     */
+  --morb-radius: 14px;
+  --morb-gap: clamp(1rem, 2.2vw, 1.6rem);
+  width: 100%;
+  max-width: 1500px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--morb-gap);
+}
+
+.morb-head h2 {
+  font-family: var(--font-heading);
+  font-size: clamp(1.15rem, 1rem + 1.1vw, 1.6rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.15;
+}
+.morb-head p { font-size: clamp(0.78rem, 0.75rem + 0.2vw, 0.9rem); color: var(--text-secondary); margin: 4px 0 0; }
+
+/* ── Buscador ── */
+.morb-search {
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--morb-radius);
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  animation: morbFadeUp 0.3s ease both;
+}
+.morb-search__row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+.morb-search__row .morb-control { flex: 1; }
+
+/* ── Layout responsive: 1 col en móvil, 2 col en ≥960px, centrado en ultra-ancho ── */
+.morb-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--morb-gap);
+  align-items: start;
+  animation: morbFadeUp 0.34s ease both;
+}
+@media (min-width: 960px) { .morb-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.morb-col { display: flex; flex-direction: column; gap: var(--morb-gap); min-width: 0; }
+
+/* ── Tarjetas ── */
+.morb-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--morb-radius);
+  padding: clamp(1rem, 2.4vw, 1.5rem);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  min-width: 0;
+}
+.morb-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1rem);
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+}
+.morb-card__title::before {
+  content: "";
+  width: 4px; height: 1.05em;
+  border-radius: 3px;
+  background: var(--accent, var(--color-primary));
+}
+.morb-card--primary { --accent: var(--color-primary); }
+.morb-card--success { --accent: var(--color-success); }
+.morb-hint { font-size: 0.72rem; color: var(--text-muted); margin: 0.15rem 0 0.9rem; }
+
+/* ── Campos y controles (tamaño sincronizado) ── */
+.morb-field { display: flex; flex-direction: column; gap: 0.4rem; margin: 0; min-width: 0; }
+.morb-field__label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; color: var(--text-secondary); }
+.morb-control {
+  width: 100%;
+  height: var(--morb-h);
+  padding: 0 0.85rem;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-system);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  box-sizing: border-box;
+}
+select.morb-control { cursor: pointer; }
+.morb-control:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-ring); }
+.morb-control:disabled { opacity: 0.7; background: var(--border-color); cursor: not-allowed; }
+textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem; resize: vertical; line-height: 1.4; }
+
+.morb-basic { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(0.7rem, 1.6vw, 1rem); }
+.morb-basic .full { grid-column: 1 / -1; }
+@media (max-width: 420px) { .morb-basic { grid-template-columns: 1fr; } }
+
+/* ── Pills flotantes ── */
+.morb-pills { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.55rem; }
+.morb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.5rem 0.4rem 0.8rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--accent, var(--color-primary));
+  background: var(--accent-bg, var(--color-primary-light));
+  color: var(--accent, var(--color-primary));
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.18);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  animation: morbPop 0.22s cubic-bezier(0.2, 0.8, 0.3, 1.15) both;
+  will-change: transform;
+}
+.morb-pill:hover { transform: translateY(-2px); box-shadow: 0 6px 14px -4px rgba(0, 0, 0, 0.28); }
+.morb-pill--out { animation: morbPopOut 0.2s ease forwards; pointer-events: none; }
+.morb-pill--primary { --accent: var(--color-primary); --accent-bg: var(--color-primary-light); }
+.morb-pill--success { --accent: var(--color-success); --accent-bg: var(--color-success-light); }
+.morb-pill__x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: none; border-radius: 50%;
+  background: transparent; color: inherit; cursor: pointer;
+  font-size: 0.95rem; line-height: 1; transition: background 0.15s ease, transform 0.15s ease;
+}
+.morb-pill__x:hover { background: rgba(127, 127, 127, 0.22); transform: scale(1.12); }
+.morb-pills__empty { font-size: 0.75rem; color: var(--text-muted); font-style: italic; padding: 0.2rem 0; }
+
+/* ── Filas de medicamentos (sincronizadas + responsive) ── */
+.morb-meds { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.55rem; }
+.morb-med, .morb-meds__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.15fr) 36px;
+  gap: 0.4rem;
+  align-items: center;
+}
+.morb-meds__head { font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; padding: 0 0.2rem; }
+.morb-med { animation: morbRowIn 0.24s ease both; }
+.morb-med--out { animation: morbRowOut 0.2s ease forwards; pointer-events: none; }
+.morb-med__name {
+  font-weight: 600; font-size: 0.82rem; color: var(--text-primary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: flex; align-items: center; height: var(--morb-h-sm);
+  padding: 0 0.55rem; background: var(--bg-primary); border-radius: 9px;
+}
+.morb-med__dosis {
+  display: flex; align-items: center; height: var(--morb-h-sm);
+  padding: 0 0.55rem; font-size: 0.8rem; color: var(--text-secondary);
+  background: var(--bg-primary); border-radius: 9px;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.morb-med .morb-control { height: var(--morb-h-sm); font-size: 0.8rem; padding: 0 0.5rem; }
+.morb-med__x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: var(--morb-h-sm); border: none; border-radius: 9px;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  font-size: 1.15rem; line-height: 1; transition: background 0.15s ease, color 0.15s ease;
+}
+.morb-med__x:hover { background: var(--color-danger-light); color: var(--color-danger); }
+.morb-meds__empty { font-size: 0.76rem; color: var(--text-muted); font-style: italic; margin: 0.4rem 0 0; }
+
+/* Filas de medicamento: apiladas en teléfonos angostos */
+@media (max-width: 560px) {
+  .morb-meds__head { display: none; }
+  .morb-med {
+    grid-template-columns: 1fr 1fr 34px;
+    grid-template-areas: "name name x" "dosis periodo periodo";
+    row-gap: 0.35rem;
+    padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 11px;
+  }
+  .morb-med__name { grid-area: name; background: transparent; padding: 0; height: auto; white-space: normal; }
+  .morb-med__dosis { grid-area: dosis; }
+  .morb-med .morb-control { grid-area: periodo; }
+  .morb-med__x { grid-area: x; justify-self: end; }
+}
+
+/* ── Acciones ── */
+.morb-actions { display: flex; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap; }
+.morb-btn {
+  height: var(--morb-h); min-width: 120px; padding: 0 1.25rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  border: 1px solid transparent; transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.morb-btn--primary { background: var(--color-primary); color: #fff; }
+.morb-btn--primary:hover:not(:disabled) { background: var(--color-primary-hover); transform: translateY(-1px); box-shadow: 0 6px 16px -6px var(--color-primary-ring); }
+.morb-btn--ghost { background: transparent; border-color: var(--border-color); color: var(--text-secondary); }
+.morb-btn--ghost:hover { background: var(--bg-primary); }
+.morb-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+@media (max-width: 520px) { .morb-actions { flex-direction: column-reverse; } .morb-btn { width: 100%; } }
+
+/* ── Historial ── */
+.morb-history__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+
+/* ── Keyframes ── */
+@keyframes morbFadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes morbPop { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: scale(1); } }
+@keyframes morbPopOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.8); } }
+@keyframes morbRowIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes morbRowOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(14px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .morb, .morb * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}

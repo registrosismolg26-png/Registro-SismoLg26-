@@ -21,6 +21,7 @@ interface Props {
   disabled?: boolean;
   emptyText?: string;
   maxRender?: number; // tope de opciones renderizadas (perf con listas enormes)
+  inputClassName?: string; // clase del input (p.ej. "morb-control" para sincronizar tamaño)
 }
 
 export default function SearchableSelect({
@@ -30,6 +31,7 @@ export default function SearchableSelect({
   disabled = false,
   emptyText = "Sin resultados",
   maxRender = 80,
+  inputClassName = "",
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -64,6 +66,7 @@ export default function SearchableSelect({
       <input
         ref={inputRef}
         type="text"
+        className={inputClassName}
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
