@@ -924,6 +924,8 @@ export default function Home() {
                   genero: c.data.genero,
                   edad: c.data.edad,
                   fechaNacimiento: c.data.fechaNacimiento,
+                  tipoPaciente: c.data.tipoPaciente,
+                  tipoNota: c.data.tipoNota,
                   refugio: c.data.refugio,
                   registroId: c.data.registroId,
                   antecedentesPatologiaIds: c.data.antecedentesPatologiaIds,

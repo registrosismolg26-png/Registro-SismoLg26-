@@ -4708,6 +4708,20 @@ h2.dashboard-section-title {
 .morb-card--success { --accent: var(--color-success); }
 .morb-hint { font-size: 0.72rem; color: var(--text-muted); margin: 0.15rem 0 0.9rem; }
 
+/* Tipo de atención (refugiado / apoyos) — fila arriba de Datos Básicos */
+.morb-tipo { display: grid; grid-template-columns: 1fr; gap: 0.9rem; margin-bottom: 1rem; }
+@media (min-width: 560px) { .morb-tipo { grid-template-columns: minmax(200px, 260px) 1fr; align-items: end; } }
+/* Badge del tipo en el historial */
+.morb-tipo-badge {
+  display: inline-flex; align-items: center; margin-left: 0.45rem;
+  padding: 0.1rem 0.55rem; border-radius: 999px;
+  font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; vertical-align: middle;
+  border: 1px solid transparent;
+}
+.morb-tipo-badge--apoyo_institucional { background: color-mix(in srgb, #2563eb 14%, transparent); color: #2563eb; border-color: color-mix(in srgb, #2563eb 30%, transparent); }
+.morb-tipo-badge--apoyo_comunitario   { background: color-mix(in srgb, #0d9488 15%, transparent); color: #0f766e; border-color: color-mix(in srgb, #0d9488 30%, transparent); }
+.morb-tipo-badge--emergencia          { background: color-mix(in srgb, #e11d48 14%, transparent); color: #e11d48; border-color: color-mix(in srgb, #e11d48 32%, transparent); }
+
 /* ── Campos y controles (tamaño sincronizado) ── */
 .morb-field { display: flex; flex-direction: column; gap: 0.4rem; margin: 0; min-width: 0; }
 .morb-field__label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; color: var(--text-secondary); }
@@ -5508,6 +5522,19 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .bal-card__value { font-family: var(--font-heading); font-size: 1.8rem; font-weight: 800; line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .bal-card__value em { font-size: 0.85rem; font-weight: 700; font-style: normal; color: var(--text-muted); margin-left: 0.28rem; }
 .bal-card__label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em; color: var(--text-secondary); text-transform: uppercase; }
+
+/* Atenciones por tipo — mini-cards a color */
+.bal-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 0.7rem; }
+.bal-tipo {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 0.15rem;
+  padding: 0.85rem 1rem; border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-secondary));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border-color));
+}
+.bal-tipo::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 4px; background: var(--accent); }
+.bal-tipo__count { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.bal-tipo__label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
 
 /* Panel de sección */
 .bal-panel { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--bal-radius); padding: 1.2rem 1.3rem; box-shadow: 0 4px 18px -12px rgba(0,0,0,0.24); }

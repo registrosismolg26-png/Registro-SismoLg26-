@@ -42,6 +42,8 @@ export async function POST(req: Request) {
       genero,
       edad,
       fechaNacimiento,
+      tipoPaciente,
+      tipoNota,
       refugio,
       antecedentesPatologiaIds,
       antecedentesMedicamentoIds,
@@ -63,6 +65,8 @@ export async function POST(req: Request) {
       genero,
       edad: edad ? parseInt(String(edad)) : null,
       fechaNacimiento: fechaNacimiento || null,
+      tipoPaciente: ["REFUGIADO", "APOYO_INSTITUCIONAL", "APOYO_COMUNITARIO", "EMERGENCIA"].includes(tipoPaciente) ? tipoPaciente : "REFUGIADO",
+      tipoNota: tipoNota ? String(tipoNota).trim() : null,
       // Modelo por-ID (los campos legados quedan en su default).
       antecedentesPatologiaIds: arr(antecedentesPatologiaIds),
       antecedentesMedicamentoIds: arr(antecedentesMedicamentoIds),

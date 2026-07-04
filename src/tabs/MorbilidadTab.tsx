@@ -9,7 +9,7 @@ import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
 import CatalogosMedicos from "@/components/CatalogosMedicos";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
-import { PERIODO_OPTIONS } from "@/lib/constants";
+import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS } from "@/lib/constants";
 import type { Medicamento } from "@/types";
 
 const GENERO_OPTS = [{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }];
@@ -62,6 +62,10 @@ export default function MorbilidadTab() {
   const [fechaNacimiento, setFechaNacimiento] = useState(""); // yyyy-mm-dd (editable)
   const [edad, setEdad] = useState("");                       // calculada desde la fecha
   const [refugio, setRefugio] = useState(effectiveRefugio || "");
+
+  // Tipo de atención: refugiado (censo) o apoyo externo (con nota opcional).
+  const [tipoPaciente, setTipoPaciente] = useState("REFUGIADO");
+  const [tipoNota, setTipoNota] = useState("");
 
   const onFechaChange = (ymd: string) => { setFechaNacimiento(ymd); setEdad(computeEdad(ymd)); };
 
@@ -122,6 +126,7 @@ export default function MorbilidadTab() {
       setRefugio(localMatch.refugio);
       setAntecedentesPatologiaIds(Array.isArray(localMatch.patologiaIds) ? localMatch.patologiaIds : []);
       setAntecedentesMedicamentoIds(Array.isArray(localMatch.medicamentoIds) ? localMatch.medicamentoIds : []);
+      setTipoPaciente("REFUGIADO"); setTipoNota("");   // está en el censo → refugiado
       showToast("Paciente encontrado en el Censo.", "success");
     } else {
       // 2. Buscar en Padrón Electoral local en IndexedDB
@@ -131,6 +136,7 @@ export default function MorbilidadTab() {
         setMatchedRegistro(null);
         setAntecedentesPatologiaIds([]);
         setAntecedentesMedicamentoIds([]);
+        setTipoPaciente("APOYO_COMUNITARIO");   // no está en el censo → apoyo externo (editable)
         if (padronMatch) {
           setNombreApellido(padronMatch.nombreCompleto);
           setGenero(padronMatch.sexo === "M" ? "MASCULINO" : "FEMENINO");
@@ -189,6 +195,8 @@ export default function MorbilidadTab() {
     setFechaNacimiento("");
     setEdad("");
     setRefugio(effectiveRefugio || "");
+    setTipoPaciente("REFUGIADO");
+    setTipoNota("");
     setAntecedentesPatologiaIds([]);
     setAntecedentesMedicamentoIds([]);
     setDiagnosticoPatologiaIds([]);
@@ -260,6 +268,8 @@ export default function MorbilidadTab() {
         genero,
         edad: edad ? parseInt(edad) : undefined,
         fechaNacimiento: fechaNacimiento || undefined,
+        tipoPaciente,
+        tipoNota: tipoPaciente !== "REFUGIADO" && tipoNota.trim() ? tipoNota.trim() : undefined,
         refugio,
         antecedentesPatologiaIds,
         antecedentesMedicamentoIds,
@@ -305,6 +315,8 @@ export default function MorbilidadTab() {
       id: c.id, createdAt: c.createdAt, registroId: c.data.registroId, refugio: c.data.refugio,
       cedula: c.data.cedula, nombreApellido: c.data.nombreApellido || "",
       genero: c.data.genero || "MASCULINO",
+      tipoPaciente: c.data.tipoPaciente || "REFUGIADO",
+      tipoNota: c.data.tipoNota || "",
       fechaNacimiento: fecha,
       edadFallback: c.data.edad != null ? c.data.edad : null, // solo si no hay fecha
       antPat: Array.isArray(c.data.antecedentesPatologiaIds) ? [...c.data.antecedentesPatologiaIds] : [],
@@ -373,6 +385,8 @@ export default function MorbilidadTab() {
         genero: editForm.genero,
         edad: eStr ? parseInt(eStr) : (editForm.edadFallback ?? undefined),
         fechaNacimiento: editForm.fechaNacimiento || undefined,
+        tipoPaciente: editForm.tipoPaciente,
+        tipoNota: editForm.tipoPaciente !== "REFUGIADO" && editForm.tipoNota?.trim() ? editForm.tipoNota.trim() : undefined,
         refugio: editForm.refugio,
         antecedentesPatologiaIds: editForm.antPat,
         antecedentesMedicamentoIds: editForm.antMed,
@@ -411,6 +425,8 @@ export default function MorbilidadTab() {
             genero: c.genero,
             edad: c.edad,
             fechaNacimiento: c.fechaNacimiento,
+            tipoPaciente: c.tipoPaciente || "REFUGIADO",
+            tipoNota: c.tipoNota,
             refugio: c.refugio,
             antecedentesPatologiaIds: c.antecedentesPatologiaIds || [],
             antecedentesMedicamentoIds: c.antecedentesMedicamentoIds || [],
@@ -520,6 +536,18 @@ export default function MorbilidadTab() {
           {/* Datos Básicos — ocupa todo el ancho */}
           <div className="morb-card morb-card--primary">
             <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
+            <div className="morb-tipo">
+              <div className="morb-field">
+                <label className="morb-field__label">Tipo de atención</label>
+                <StyledSelect value={tipoPaciente} onChange={(v) => setTipoPaciente(v)} options={TIPO_PACIENTE_OPTS} ariaLabel="Tipo de atención" />
+              </div>
+              {tipoPaciente !== "REFUGIADO" && (
+                <div className="morb-field">
+                  <label className="morb-field__label">Nota del apoyo (opcional)</label>
+                  <input className="morb-control" type="text" value={tipoNota} onChange={(e) => setTipoNota(e.target.value)} placeholder="Institución, contexto de la atención…" />
+                </div>
+              )}
+            </div>
             <div className="morb-basic">
               <div className="morb-field f-cedula">
                 <label className="morb-field__label">Cédula</label>
@@ -621,7 +649,14 @@ export default function MorbilidadTab() {
                     <tr key={c.id}>
                       <td data-label="Fecha" style={{ whiteSpace: "nowrap" }}>{dateStr}</td>
                       <td data-label="Cédula" style={{ fontWeight: "700" }}>{c.data.cedula}</td>
-                      <td data-label="Paciente">{c.data.nombreApellido}</td>
+                      <td data-label="Paciente">
+                        {c.data.nombreApellido}
+                        {c.data.tipoPaciente && c.data.tipoPaciente !== "REFUGIADO" && (
+                          <span className={`morb-tipo-badge morb-tipo-badge--${c.data.tipoPaciente.toLowerCase()}`} title={c.data.tipoNota || ""}>
+                            {TIPO_PACIENTE_LABELS[c.data.tipoPaciente] || c.data.tipoPaciente}
+                          </span>
+                        )}
+                      </td>
                       <td data-label="Diagnóstico">
                         {diagPatIds.length > 0 ? (
                           <span style={{ color: "var(--color-success)", fontWeight: "600" }}>{diagPatIds.map((id) => patologiaNombre(id, patologias)).join(", ")}</span>
@@ -670,6 +705,18 @@ export default function MorbilidadTab() {
               {/* Datos Básicos */}
               <div className="morb-card morb-card--primary">
                 <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
+                <div className="morb-tipo">
+                  <div className="morb-field">
+                    <label className="morb-field__label">Tipo de atención</label>
+                    <StyledSelect value={editForm.tipoPaciente} onChange={(v) => setEditForm((f: any) => ({ ...f, tipoPaciente: v }))} options={TIPO_PACIENTE_OPTS} ariaLabel="Tipo de atención" />
+                  </div>
+                  {editForm.tipoPaciente !== "REFUGIADO" && (
+                    <div className="morb-field">
+                      <label className="morb-field__label">Nota del apoyo (opcional)</label>
+                      <input className="morb-control" type="text" value={editForm.tipoNota} onChange={(e) => setEditForm((f: any) => ({ ...f, tipoNota: e.target.value }))} placeholder="Institución, contexto…" />
+                    </div>
+                  )}
+                </div>
                 <div className="morb-basic">
                   <div className="morb-field f-cedula">
                     <label className="morb-field__label">Cédula</label>

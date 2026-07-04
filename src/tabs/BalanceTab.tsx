@@ -59,6 +59,8 @@ export default function BalanceTab() {
     const patients = new Map<string, { genero: string; edad: number | null; conPat: boolean }>();
     let totalMedsRecetados = 0;
     const patCount = new Map<string, number>();
+    // Desglose de ATENCIONES (consultas) por tipo.
+    const tipoCount: Record<string, number> = { REFUGIADO: 0, APOYO_INSTITUCIONAL: 0, APOYO_COMUNITARIO: 0, EMERGENCIA: 0 };
 
     for (const c of all) {
       const ced = onlyDigits(c.cedula);
@@ -67,6 +69,8 @@ export default function BalanceTab() {
       const diagMeds: any[] = Array.isArray(c.diagnosticoMedicamentoIds) ? c.diagnosticoMedicamentoIds : [];
       totalMedsRecetados += diagMeds.filter((m) => m && m.id).length;
       diagPat.forEach((id) => patCount.set(id, (patCount.get(id) || 0) + 1));
+      const tp = c.tipoPaciente || "REFUGIADO";
+      tipoCount[tp] = (tipoCount[tp] ?? 0) + 1;
 
       if (!ced) continue;
       const reg = regByCedula.get(ced);
@@ -109,7 +113,7 @@ export default function BalanceTab() {
       totalConsultas: all.length, pacientes: patients.size, conPatologia: conPatCount,
       medsRecetados: totalMedsRecetados, patologiasDistintas: patCount.size,
       promedioEdad: nEdad > 0 ? Math.round(sumEdad / nEdad) : 0,
-      gen, matrix, ageTot, topPatologias,
+      gen, matrix, ageTot, topPatologias, tipoCount,
     };
   }, [consultas, localConsultas, registros, patologias]);
 
@@ -246,6 +250,24 @@ export default function BalanceTab() {
             </div>
 
             <SegBar segs={ageSegs} icon={I.cake} title="Pacientes por edad" />
+          </div>
+
+          {/* Atenciones por tipo (refugiados + apoyos) */}
+          <div className="bal-panel">
+            <div className="bal-panel__head"><span className="bal-panel__ico">{I.users}</span><h3>Atenciones por tipo</h3></div>
+            <div className="bal-tipos">
+              {[
+                { key: "REFUGIADO", label: "Refugiados", color: "#2563eb" },
+                { key: "APOYO_INSTITUCIONAL", label: "Apoyo Institucional", color: "#7c3aed" },
+                { key: "APOYO_COMUNITARIO", label: "Apoyo Comunitario", color: "#0d9488" },
+                { key: "EMERGENCIA", label: "Emergencia", color: "#e11d48" },
+              ].map((t) => (
+                <div key={t.key} className="bal-tipo" style={{ ["--accent" as any]: t.color } as CSSProperties}>
+                  <span className="bal-tipo__count">{B.tipoCount[t.key] || 0}</span>
+                  <span className="bal-tipo__label">{t.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Matriz edad × género */}

@@ -106,6 +106,9 @@ model ConsultaMedica {
   genero                    String?
   edad                      Int?
   fechaNacimiento           String?  // yyyy-mm-dd; la edad se DERIVA de aquí (nunca manual)
+  // Tipo de atención: REFUGIADO (censado) | APOYO_INSTITUCIONAL | APOYO_COMUNITARIO | EMERGENCIA
+  tipoPaciente              String?  @default("REFUGIADO")
+  tipoNota                  String?  // nota opcional para atenciones de apoyo (institución, contexto…)
   refugio                   String
   // Campos LEGADO (congelados, respaldo). El modelo por-ID usa las columnas *Ids de abajo.
   antecedentesPatologia     String?

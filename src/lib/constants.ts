@@ -56,6 +56,20 @@ export const DEFAULT_ENTES = [
 // Tiempo de expiración de sesión por inactividad (1 hora)
 export const INACTIVITY_MS = 60 * 60 * 1000;
 
+// Tipo de atención en Morbilidad: refugiado (censado) o apoyos externos.
+export const TIPO_PACIENTE_OPTS = [
+  { value: "REFUGIADO", label: "Refugiado (del censo)" },
+  { value: "APOYO_INSTITUCIONAL", label: "Apoyo Institucional" },
+  { value: "APOYO_COMUNITARIO", label: "Apoyo Comunitario" },
+  { value: "EMERGENCIA", label: "Emergencia" },
+];
+export const TIPO_PACIENTE_LABELS: Record<string, string> = {
+  REFUGIADO: "Refugiado",
+  APOYO_INSTITUCIONAL: "Apoyo Institucional",
+  APOYO_COMUNITARIO: "Apoyo Comunitario",
+  EMERGENCIA: "Emergencia",
+};
+
 // Frecuencias (período) para la posología de medicamentos. Es lo único que el
 // operador elige por prescripción; el nombre/dosis salen del catálogo por ID.
 export const PERIODO_OPTIONS = [

@@ -8,6 +8,8 @@ export interface LocalConsulta {
     genero?: string;
     edad?: number;
     fechaNacimiento?: string;  // yyyy-mm-dd; la edad se DERIVA de aquí (nunca manual)
+    tipoPaciente?: string;     // REFUGIADO | APOYO_INSTITUCIONAL | APOYO_COMUNITARIO | EMERGENCIA
+    tipoNota?: string;         // nota opcional para atenciones de apoyo
     refugio: string;
     // Por-ID: patologías = ids del catálogo; medicamentos = { id, dosis, periodo }.
     antecedentesPatologiaIds: string[];
