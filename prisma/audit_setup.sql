@@ -68,3 +68,10 @@ DROP TRIGGER IF EXISTS trg_audit_user ON "User";
 CREATE TRIGGER trg_audit_user
 AFTER INSERT OR UPDATE OR DELETE ON "User"
 FOR EACH ROW EXECUTE FUNCTION audit_row();
+
+-- Auditoría de consultas de morbilidad (CREATE = fila completa con uuid + registroId
+-- vinculado + ids de patologías/medicamentos; UPDATE = diff; DELETE = fila completa).
+DROP TRIGGER IF EXISTS trg_audit_consulta ON "ConsultaMedica";
+CREATE TRIGGER trg_audit_consulta
+AFTER INSERT OR UPDATE OR DELETE ON "ConsultaMedica"
+FOR EACH ROW EXECUTE FUNCTION audit_row();

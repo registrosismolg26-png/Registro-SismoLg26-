@@ -5,8 +5,29 @@ import { useAppContext } from "@/context/AppContext";
 import { saveLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { patologiaNombre, medLabel, medItemsText } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
+import StyledSelect from "@/components/StyledSelect";
 import { PERIODO_OPTIONS } from "@/lib/constants";
 import type { Medicamento } from "@/types";
+
+const GENERO_OPTS = [{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }];
+const PERIODO_OPTS = [{ value: "", label: "Período…" }, ...PERIODO_OPTIONS.map((op) => ({ value: op, label: op }))];
+
+// Edad (a hoy) a partir de una fecha yyyy-mm-dd. Siempre se recalcula desde la fecha.
+const computeEdad = (ymd: string): string => {
+  if (!ymd) return "";
+  const d = new Date(ymd + "T00:00:00");
+  if (isNaN(d.getTime())) return "";
+  const t = new Date();
+  let age = t.getFullYear() - d.getFullYear();
+  const m = t.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
+  return age >= 0 ? String(age) : "";
+};
+const ymdFromISO = (iso?: string): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+};
 
 export default function MorbilidadTab() {
   const {
@@ -35,8 +56,11 @@ export default function MorbilidadTab() {
   const [matchedRegistro, setMatchedRegistro] = useState<any | null>(null);     // registro completo (para actualizar el censo)
   const [nombreApellido, setNombreApellido] = useState("");
   const [genero, setGenero] = useState("MASCULINO");
-  const [edad, setEdad] = useState("");
+  const [fechaNacimiento, setFechaNacimiento] = useState(""); // yyyy-mm-dd (editable)
+  const [edad, setEdad] = useState("");                       // calculada desde la fecha
   const [refugio, setRefugio] = useState(effectiveRefugio || "");
+
+  const onFechaChange = (ymd: string) => { setFechaNacimiento(ymd); setEdad(computeEdad(ymd)); };
 
   // Antecedentes del censo — EDITABLES (guardar actualiza el registro del censo). Por-ID.
   const [antecedentesPatologiaIds, setAntecedentesPatologiaIds] = useState<string[]>([]);
@@ -89,7 +113,9 @@ export default function MorbilidadTab() {
       setMatchedRegistro(localMatch);
       setNombreApellido(localMatch.nombreApellido);
       setGenero(localMatch.genero);
-      setEdad(String(localMatch.edad));
+      const fnCenso = ymdFromISO(localMatch.fechaNacimiento);
+      setFechaNacimiento(fnCenso);
+      setEdad(fnCenso ? computeEdad(fnCenso) : String(localMatch.edad ?? "")); // recalcula a hoy
       setRefugio(localMatch.refugio);
       setAntecedentesPatologiaIds(Array.isArray(localMatch.patologiaIds) ? localMatch.patologiaIds : []);
       setAntecedentesMedicamentoIds(Array.isArray(localMatch.medicamentoIds) ? localMatch.medicamentoIds : []);
@@ -105,18 +131,15 @@ export default function MorbilidadTab() {
         if (padronMatch) {
           setNombreApellido(padronMatch.nombreCompleto);
           setGenero(padronMatch.sexo === "M" ? "MASCULINO" : "FEMENINO");
-          if (padronMatch.fechaNacimiento) {
-            const diff = Date.now() - new Date(padronMatch.fechaNacimiento).getTime();
-            const calcEdad = Math.floor(Math.abs(new Date(diff).getUTCFullYear() - 1970));
-            setEdad(String(calcEdad));
-          } else {
-            setEdad("");
-          }
+          const fnPad = ymdFromISO(padronMatch.fechaNacimiento);
+          setFechaNacimiento(fnPad);
+          setEdad(computeEdad(fnPad));
           setRefugio(effectiveRefugio || currentUser?.campamentoTransitorio || "");
           showToast("Paciente encontrado en el Padrón.", "info");
         } else {
           setNombreApellido("");
           setGenero("MASCULINO");
+          setFechaNacimiento("");
           setEdad("");
           setRefugio(effectiveRefugio || currentUser?.campamentoTransitorio || "");
           showToast("No encontrado. Rellene los datos manualmente.", "warning");
@@ -160,6 +183,7 @@ export default function MorbilidadTab() {
     setMatchedRegistro(null);
     setNombreApellido("");
     setGenero("MASCULINO");
+    setFechaNacimiento("");
     setEdad("");
     setRefugio(effectiveRefugio || "");
     setAntecedentesPatologiaIds([]);
@@ -308,10 +332,7 @@ export default function MorbilidadTab() {
             <div key={m.id} className={`morb-med ${exiting[key] ? "morb-med--out" : ""}`}>
               <span className="morb-med__name" title={medLabel(m.id, predefinedMedicamentos)}>{medLabel(m.id, predefinedMedicamentos)}</span>
               <span className="morb-med__dosis" title={m.dosis}>{m.dosis || "—"}</span>
-              <select className="morb-control" value={m.periodo} onChange={(e) => onUpdate(i, "periodo", e.target.value)}>
-                <option value="">Período…</option>
-                {PERIODO_OPTIONS.map((op) => <option key={op} value={op}>{op}</option>)}
-              </select>
+              <StyledSelect dense value={m.periodo} onChange={(v) => onUpdate(i, "periodo", v)} options={PERIODO_OPTS} placeholder="Período…" ariaLabel="Período" />
               <button type="button" className="morb-med__x" aria-label="Quitar" onClick={() => animateOut(key, () => onRemove(m.id))}>×</button>
             </div>
           );
@@ -355,39 +376,39 @@ export default function MorbilidadTab() {
       {/* 3. Panel de Carga de Consulta */}
       {searched && (
         <form onSubmit={handleSave} className="morb-form">
-          {/* Columna Izquierda */}
-          <div className="morb-col">
-            {/* Ficha básica */}
-            <div className="morb-card morb-card--primary">
-              <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
-              <div className="morb-basic">
-                <div className="morb-field">
-                  <label className="morb-field__label">Cédula</label>
-                  <input className="morb-control" type="text" value={cedula} disabled />
-                </div>
-                <div className="morb-field">
-                  <label className="morb-field__label">Nombre y Apellido</label>
-                  <input className="morb-control" type="text" value={nombreApellido} onChange={(e) => setNombreApellido(e.target.value)} required />
-                </div>
-                <div className="morb-field">
-                  <label className="morb-field__label">Género</label>
-                  <select className="morb-control" value={genero} onChange={(e) => setGenero(e.target.value)}>
-                    <option value="MASCULINO">Masculino</option>
-                    <option value="FEMENINO">Femenino</option>
-                  </select>
-                </div>
-                <div className="morb-field">
-                  <label className="morb-field__label">Edad</label>
-                  <input className="morb-control" type="number" min="0" max="120" value={edad} onChange={(e) => setEdad(e.target.value)} required />
-                </div>
-                <div className="morb-field full">
-                  <label className="morb-field__label">Campamento Transitorio (Refugio)</label>
-                  <input className="morb-control" type="text" value={refugio} disabled />
-                </div>
+          {/* Datos Básicos — ocupa todo el ancho */}
+          <div className="morb-card morb-card--primary">
+            <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
+            <div className="morb-basic">
+              <div className="morb-field">
+                <label className="morb-field__label">Cédula</label>
+                <input className="morb-control" type="text" value={cedula} disabled />
+              </div>
+              <div className="morb-field">
+                <label className="morb-field__label">Nombre y Apellido</label>
+                <input className="morb-control" type="text" value={nombreApellido} onChange={(e) => setNombreApellido(e.target.value)} required />
+              </div>
+              <div className="morb-field">
+                <label className="morb-field__label">Género</label>
+                <StyledSelect value={genero} onChange={setGenero} options={GENERO_OPTS} ariaLabel="Género" />
+              </div>
+              <div className="morb-field">
+                <label className="morb-field__label">Fecha de Nacimiento</label>
+                <input className="morb-control" type="date" value={fechaNacimiento} max={ymdFromISO(new Date().toISOString())} onChange={(e) => onFechaChange(e.target.value)} />
+              </div>
+              <div className="morb-field">
+                <label className="morb-field__label">Edad (años)</label>
+                <input className="morb-control" type="text" value={edad === "" ? "—" : edad} disabled title="Se calcula automáticamente de la fecha de nacimiento" />
+              </div>
+              <div className="morb-field full">
+                <label className="morb-field__label">Campamento Transitorio (Refugio)</label>
+                <input className="morb-control" type="text" value={refugio} disabled />
               </div>
             </div>
+          </div>
 
-            {/* Antecedentes editables */}
+          {/* Antecedentes | Diagnóstico — 2 columnas simétricas */}
+          <div className="morb-duo">
             <div className="morb-card morb-card--primary">
               <h3 className="morb-card__title">Antecedentes Clínicos (Censo)</h3>
               <p className="morb-hint">
@@ -406,10 +427,7 @@ export default function MorbilidadTab() {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Columna Derecha */}
-          <div className="morb-col">
             <div className="morb-card morb-card--success">
               <h3 className="morb-card__title">Diagnóstico de Consulta</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
@@ -429,13 +447,13 @@ export default function MorbilidadTab() {
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="morb-actions">
-              <button type="button" className="morb-btn morb-btn--ghost" onClick={handleReset}>Cancelar</button>
-              <button type="submit" className="morb-btn morb-btn--primary" disabled={saving} style={{ minWidth: "160px" }}>
-                {saving ? <span className="spinner spinner-sm" /> : "Guardar Consulta"}
-              </button>
-            </div>
+          <div className="morb-actions">
+            <button type="button" className="morb-btn morb-btn--ghost" onClick={handleReset}>Cancelar</button>
+            <button type="submit" className="morb-btn morb-btn--primary" disabled={saving} style={{ minWidth: "160px" }}>
+              {saving ? <span className="spinner spinner-sm" /> : "Guardar Consulta"}
+            </button>
           </div>
         </form>
       )}

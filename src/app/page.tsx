@@ -812,7 +812,10 @@ export default function Home() {
 
     try {
       const pending = await getPending();
-      if (pending.length === 0) return;
+      // IMPORTANTE: no retornar si no hay censos pendientes — las CONSULTAS de
+      // morbilidad también se sincronizan abajo y deben correr aunque no haya censos.
+      const pendingConsultasInit = await getPendingConsultas();
+      if (pending.length === 0 && pendingConsultasInit.length === 0) return;
 
       // Prioridad: censos NUEVOS antes que ediciones/asignaciones. En zona de
       // desastre, registrar a la persona afectada es más urgente que el cuarto.

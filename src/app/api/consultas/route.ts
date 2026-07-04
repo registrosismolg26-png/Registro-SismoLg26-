@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, refugioScopeFor, canManageMorbilidad } from "@/lib/auth";
+import { withAuditUser } from "@/lib/audit";
 
 export async function GET(req: Request) {
   try {
@@ -53,7 +54,9 @@ export async function POST(req: Request) {
     }
 
     const arr = (v: any) => (Array.isArray(v) ? v : []);
-    const consulta = await prisma.consultaMedica.create({
+    // Envuelto en withAuditUser → el trigger de BD registra la consulta en AuditLog
+    // (CREATE con la fila completa: incluye el uuid de la consulta y el registroId vinculado).
+    const consulta = await withAuditUser(auth.email, (tx) => tx.consultaMedica.create({
       data: {
         id: id || undefined,
         cedula,
@@ -70,7 +73,7 @@ export async function POST(req: Request) {
         notasDoctor,
         userId: auth.email
       }
-    });
+    }));
 
     return NextResponse.json({ success: true, consulta }, { status: 201 });
   } catch (error: any) {

@@ -4406,19 +4406,25 @@ h2.dashboard-section-title {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   animation: morbFadeUp 0.3s ease both;
 }
-.morb-search__row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-.morb-search__row .morb-control { flex: 1; }
+.morb-search__row { display: flex; gap: 0.5rem; margin-top: 0.5rem; align-items: stretch; }
+.morb-search__row .morb-control { flex: 1 1 auto; min-width: 0; }
+.morb-search__row .morb-btn { flex: none; }
+@media (max-width: 420px) {
+  .morb-search__row { flex-direction: column; }
+  .morb-search__row .morb-btn { width: 100%; min-width: 0; }
+}
 
-/* ── Layout responsive: 1 col en móvil, 2 col en ≥960px, centrado en ultra-ancho ── */
+/* ── Layout: Datos Básicos a todo lo ancho arriba; Antecedentes | Diagnóstico
+      en 2 columnas simétricas debajo; centrado y con tope en ultra-ancho. ── */
 .morb-form {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: var(--morb-gap);
-  align-items: start;
   animation: morbFadeUp 0.34s ease both;
 }
-@media (min-width: 960px) { .morb-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-.morb-col { display: flex; flex-direction: column; gap: var(--morb-gap); min-width: 0; }
+.morb-duo { display: grid; grid-template-columns: 1fr; gap: var(--morb-gap); align-items: stretch; }
+@media (min-width: 960px) { .morb-duo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.morb-duo > .morb-card { display: flex; flex-direction: column; min-width: 0; }
 
 /* ── Tarjetas ── */
 .morb-card {
@@ -4470,9 +4476,19 @@ select.morb-control { cursor: pointer; }
 .morb-control:disabled { opacity: 0.7; background: var(--border-color); cursor: not-allowed; }
 textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem; resize: vertical; line-height: 1.4; }
 
-.morb-basic { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(0.7rem, 1.6vw, 1rem); }
+/* Datos Básicos: se reparte en tantas columnas como quepan (full-width en PC) */
+.morb-basic { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: clamp(0.7rem, 1.6vw, 1rem); }
 .morb-basic .full { grid-column: 1 / -1; }
-@media (max-width: 420px) { .morb-basic { grid-template-columns: 1fr; } }
+
+/* ── Select estilizado (StyledSelect) — cumple el reformat, no nativo ── */
+.morb-select { position: relative; width: 100%; }
+.morb-select__trigger { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; text-align: left; cursor: pointer; }
+.morb-select__trigger--dense { height: var(--morb-h-sm); font-size: 0.8rem; padding: 0 0.55rem; border-radius: 9px; }
+.morb-select__trigger:disabled { cursor: not-allowed; opacity: 0.7; }
+.morb-select__trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.morb-select__ph { color: var(--text-muted); }
+.morb-select__arrow { color: var(--text-secondary); font-size: 0.7rem; flex: none; transition: transform 0.18s ease; }
+.morb-select__trigger.is-open .morb-select__arrow { transform: rotate(180deg); }
 
 /* ── Pills flotantes ── */
 .morb-pills { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.55rem; }
@@ -4550,7 +4566,7 @@ textarea.morb-control { height: auto; min-height: 84px; padding: 0.6rem 0.85rem;
   }
   .morb-med__name { grid-area: name; background: transparent; padding: 0; height: auto; white-space: normal; }
   .morb-med__dosis { grid-area: dosis; }
-  .morb-med .morb-control { grid-area: periodo; }
+  .morb-med .morb-select { grid-area: periodo; }
   .morb-med__x { grid-area: x; justify-self: end; }
 }
 

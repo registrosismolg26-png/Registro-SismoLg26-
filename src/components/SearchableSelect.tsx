@@ -57,8 +57,8 @@ export default function SearchableSelect({
     onSelect(value);
     setQuery("");
     setHighlight(0);
-    setOpen(true); // permanece abierto para agregar varios
-    inputRef.current?.focus();
+    setOpen(false); // se cierra al elegir; para agregar otro, se enfoca de nuevo (reabre al escribir/enfocar)
+    inputRef.current?.blur();
   };
 
   return (
