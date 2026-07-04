@@ -52,6 +52,10 @@ export default function AsignacionesTab() {
   const [modalClosing, setModalClosing] = useState(false);
   const [asignCuarto, setAsignCuarto] = useState("");
   const [savingCuarto, setSavingCuarto] = useState(false);
+  // Modal DEDICADO de asignar habitación (independiente del de ver/editar).
+  const [assignRoomFor, setAssignRoomFor] = useState<any | null>(null);
+  const openAssignRoom = (reg: any) => { setAssignRoomFor(reg); setAsignCuarto(reg.cuarto || ""); };
+  const closeAssignRoom = () => { setAssignRoomFor(null); setAsignCuarto(""); };
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [savingEdit, setSavingEdit] = useState(false);
@@ -223,11 +227,11 @@ export default function AsignacionesTab() {
     return `${emoji} ${c} (${count}/${cap})`;
   };
 
-  const handleAsignarCuarto = async () => {
-    if (!selectedRegistro || !asignCuarto) return;
+  const handleAsignarCuarto = async (target: any = selectedRegistro, room: string = asignCuarto) => {
+    if (!target || !room) return;
     setSavingCuarto(true);
 
-    const updated = { ...selectedRegistro, cuarto: asignCuarto };
+    const updated = { ...target, cuarto: room };
 
     // 1. Optimistic UI update
     setRegistros(prev => {
@@ -237,7 +241,8 @@ export default function AsignacionesTab() {
       }
       return next;
     });
-    setSelectedRegistro(updated);
+    // Si el afectado está abierto en el modal de detalle, refléjalo también.
+    if (selectedRegistro && selectedRegistro.id === updated.id) setSelectedRegistro(updated);
 
     // 2. Queue in IndexedDB in the background
     try {
@@ -834,18 +839,31 @@ export default function AsignacionesTab() {
                         }
                       </td>
                       <td className="col-action">
-                        <button
-                          className="btn-ver"
-                          aria-label="Ver detalles"
-                          onClick={() => {
-                            setSelectedRegistro(reg);
-                            setAsignCuarto(reg.cuarto || "");
-                            setEditMode(false);
-                            setEditData({});
-                          }}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        </button>
+                        <div className="row-actions">
+                          {canRegister(currentUser.role) && (
+                            <button
+                              className="btn-ver btn-ver--room"
+                              aria-label="Asignar habitación"
+                              title="Asignar habitación"
+                              onClick={() => openAssignRoom(reg)}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            </button>
+                          )}
+                          <button
+                            className="btn-ver"
+                            aria-label="Ver detalles"
+                            title="Ver detalles"
+                            onClick={() => {
+                              setSelectedRegistro(reg);
+                              setAsignCuarto(reg.cuarto || "");
+                              setEditMode(false);
+                              setEditData({});
+                            }}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1130,6 +1148,7 @@ export default function AsignacionesTab() {
                             cedulaJefeFamilia: jefeNum,
                             intermitente: selectedRegistro.intermitente || "NO",
                             motivoIntermitente: selectedRegistro.motivoIntermitente || "",
+                            cuarto: selectedRegistro.cuarto || "",
                           });
                           const initialMeds = Array.isArray(selectedRegistro.medicamentoIds) ? selectedRegistro.medicamentoIds : [];
                           setEditMedicamentos(initialMeds);
@@ -1438,6 +1457,20 @@ export default function AsignacionesTab() {
                       </div>
                     </div>
                   )}
+                  <div className="detail-section-title">Alojamiento</div>
+                  <div className="form-group detail-field--full">
+                    <label>Habitación / Salón</label>
+                    <SearchableSingleSelect
+                      value={editData.cuarto || ""}
+                      onChange={v => setEditData(prev => ({ ...prev, cuarto: v }))}
+                      options={allCuartos.map(c => ({ value: c, label: roomLabel(c) }))}
+                      placeholder="Sin habitación asignada"
+                      searchPlaceholder="Buscar habitación…"
+                      clearLabel="— Sin habitación —"
+                      emptyText="Sin habitaciones configuradas"
+                      ariaLabel="Habitación / Salón"
+                    />
+                  </div>
                   <div className="detail-section-title">Estatus</div>
                   <div className="form-group">
                     <label>Retirado / Egresado</label>
@@ -1491,34 +1524,50 @@ export default function AsignacionesTab() {
               </>
             )}
 
-            {/* ── ASIGNAR CUARTO (visible si puede registrar: MASTER/ADMIN/REGISTRADOR) ── */}
-            {canRegister(currentUser.role) && (
-              <div className="modal-cuarto-section">
-                <div className="section-title" style={{ margin: "0 0 0.625rem" }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                  Asignación de Alojamiento
-                </div>
-                <div className="form-group">
-                  <label>Cuarto / Salón</label>
-                  <SearchableSingleSelect
-                    value={asignCuarto}
-                    onChange={setAsignCuarto}
-                    options={allCuartos.map(c => ({ value: c, label: roomLabel(c) }))}
-                    placeholder="Seleccionar cuarto…"
-                    searchPlaceholder="Buscar cuarto…"
-                    clearLabel="— Sin cuarto —"
-                    emptyText="Sin cuartos configurados"
-                    ariaLabel="Cuarto / Salón"
-                  />
-                </div>
-                <button type="button" className="btn-submit" style={{ marginTop: "0.625rem" }}
-                  onClick={handleAsignarCuarto}
-                  disabled={savingCuarto || !asignCuarto || asignCuarto === selectedRegistro.cuarto}>
-                  {savingCuarto ? "Guardando..." : selectedRegistro.cuarto ? "Reasignar Cuarto" : "Confirmar Asignación"}
-                </button>
-              </div>
-            )}
+          </div>
+        </div>
+      )}
 
+      {/* ── MODAL DEDICADO: asignar habitación (desde el botón de la tabla) ── */}
+      {assignRoomFor && (
+        <div className="modal-overlay" onClick={closeAssignRoom}>
+          <div className="modal-content pill-form" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", minWidth: 0 }}>
+                <span className="modal-title" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  Asignar Habitación
+                </span>
+              </div>
+              <button className="modal-close" onClick={closeAssignRoom} aria-label="Cerrar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "0 0 0.75rem" }}>
+              {assignRoomFor.nombreApellido} · {assignRoomFor.cedula}
+            </div>
+            <div className="form-group">
+              <label>Cuarto / Salón</label>
+              <SearchableSingleSelect
+                value={asignCuarto}
+                onChange={setAsignCuarto}
+                options={allCuartos.map(c => ({ value: c, label: roomLabel(c) }))}
+                placeholder="Seleccionar cuarto…"
+                searchPlaceholder="Buscar cuarto…"
+                clearLabel="— Sin cuarto —"
+                emptyText="Sin cuartos configurados"
+                ariaLabel="Cuarto / Salón"
+              />
+            </div>
+            <button
+              type="button"
+              className="btn-submit"
+              style={{ marginTop: "0.875rem" }}
+              onClick={async () => { await handleAsignarCuarto(assignRoomFor, asignCuarto); closeAssignRoom(); }}
+              disabled={savingCuarto || !asignCuarto || asignCuarto === (assignRoomFor.cuarto || "")}
+            >
+              {savingCuarto ? "Guardando..." : assignRoomFor.cuarto ? "Reasignar Cuarto" : "Confirmar Asignación"}
+            </button>
           </div>
         </div>
       )}
