@@ -75,7 +75,8 @@ export default function AsignacionesTab() {
     if (!medId) return;
     const match = predefinedMedicamentos.find(m => m.id === medId);
     if (match && !editMedicamentos.some(x => x.id === medId)) {
-      setEditMedicamentos(prev => [...prev, { id: match.id, dosis: match.dosis, periodo: match.periodo }]);
+      // Precarga Dosis con la dosis sugerida del catálogo o, si falta, la concentración.
+      setEditMedicamentos(prev => [...prev, { id: match.id, dosis: match.dosis || match.concentracion || "", periodo: match.periodo || "" }]);
     }
     e.target.value = "";
   };
