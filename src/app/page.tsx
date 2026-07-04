@@ -855,10 +855,15 @@ export default function Home() {
               showToast(`La cédula de ${record.data.nombreApellido} ya está registrada en el servidor.`, "warning");
             } else if (res.status === 400 || res.status === 401 || res.status === 403) {
               // Rechazo definitivo: reintentar no ayuda. Sale de la cola y se avisa.
-              const reason =
+              let reason =
                 res.status === 401 ? "Sesión no válida para sincronizar. Vuelva a iniciar sesión."
                 : res.status === 403 ? "Sin permiso para sincronizar este registro (refugio o rol)."
                 : "Datos inválidos en el registro.";
+              if (res.status === 400) {
+                const d = await res.json().catch(() => ({} as any));
+                if (d?.error || d?.details) reason = [d.error, d.details].filter(Boolean).join(" — ");
+              }
+              if (!serverError) serverError = `${record.data.nombreApellido}: ${reason}`;
               await markPermanentError(record.id, reason);
             } else {
               // 5xx u otros → temporal: backoff. Captura el detalle del servidor UNA vez
