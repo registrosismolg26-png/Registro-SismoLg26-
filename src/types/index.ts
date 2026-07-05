@@ -35,7 +35,7 @@ export type FormData = {
   parroquia: string; sector: string; comunidad: string; direccionExacta: string;
   nacionalidad: string; cedula: string; nombreApellido: string; genero: string;
   fechaNacimiento: string; edad: string; perteneceNucleo: string; jefeFamilia: string;
-  cedulaJefeFamilia: string; estadoFisico: string; patologia: string;
+  cedulaJefeFamilia: string; estadoFisico: string; embarazo: string; patologia: string;
   patologiaIds: string[]; telefonoCod: string; telefonoNum: string;
   isChildDependent: boolean; dependentNumber: string;
   intermitente: string; motivoIntermitente: string;

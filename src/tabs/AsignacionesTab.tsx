@@ -386,6 +386,7 @@ export default function AsignacionesTab() {
           perteneceNucleo: updated.perteneceNucleo,
           cedulaJefeFamilia: updated.cedulaJefeFamilia || undefined,
           estadoFisico: updated.estadoFisico,
+          embarazo: updated.genero === "FEMENINO" ? (updated.embarazo === "SI" ? "SI" : "NO") : "NO",
           patologia: updated.patologia,
           patologiaIds: updated.patologia === "SI" ? (Array.isArray(updated.patologiaIds) ? updated.patologiaIds : []) : [],
           telefono: updated.telefono || undefined,
@@ -998,6 +999,15 @@ export default function AsignacionesTab() {
                       {selectedRegistro.estadoFisico}
                     </span>
                   </div>
+                  {selectedRegistro.genero === "FEMENINO" && selectedRegistro.embarazo === "SI" && (
+                    <div className="detail-field">
+                      <span className="detail-label">Embarazo</span>
+                      <span className="detail-value" style={{ color: "#db2777" }}>
+                        <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "#db2777", display: "inline-block" }} />
+                        Embarazada
+                      </span>
+                    </div>
+                  )}
                   {selectedRegistro.patologia === "SI" && (
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Patología</span>
@@ -1143,6 +1153,7 @@ export default function AsignacionesTab() {
                             direccionExacta: selectedRegistro.direccionExacta,
                             genero: selectedRegistro.genero,
                             estadoFisico: selectedRegistro.estadoFisico,
+                            embarazo: selectedRegistro.embarazo === "SI" ? "SI" : "NO",
                             patologia: selectedRegistro.patologia,
                             patologiaIds: Array.isArray(selectedRegistro.patologiaIds) ? selectedRegistro.patologiaIds : [],
                             telefono: selectedRegistro.telefono || "",
@@ -1363,6 +1374,14 @@ export default function AsignacionesTab() {
                       onChange={v => setEditData(prev => ({ ...prev, estadoFisico: v }))}
                       options={[{ value: "ILESO", label: "Ileso" }, { value: "LESIONADO", label: "Lesionado" }]} />
                   </div>
+                  {editData.genero === "FEMENINO" && (
+                    <div className="form-group">
+                      <label>Embarazo</label>
+                      <StyledSelect value={editData.embarazo || "NO"} ariaLabel="Embarazo" placeholder="Seleccionar…"
+                        onChange={v => setEditData(prev => ({ ...prev, embarazo: v }))}
+                        options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]} />
+                    </div>
+                  )}
                   {(() => {
                     const isPrivileged = currentUser?.role === "MASTER" || currentUser?.role === "ADMIN";
                     return (

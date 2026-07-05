@@ -589,6 +589,7 @@ export default function CensoTab() {
           perteneceNucleo: formData.perteneceNucleo,
           cedulaJefeFamilia: finalJefeCedula,
           estadoFisico: formData.estadoFisico,
+          embarazo: formData.genero === "FEMENINO" ? (formData.embarazo === "SI" ? "SI" : "NO") : "NO",
           patologia: formData.patologia,
           patologiaIds: formData.patologia === "SI" ? (formData.patologiaIds || []) : [],
           gpsLat: coords.lat !== null ? coords.lat : undefined,
@@ -1039,6 +1040,28 @@ export default function CensoTab() {
                       {err("estadoFisico") && <span className="field-error-message">{err("estadoFisico")}</span>}
                     </div>
                   </div>
+
+                  {formData.genero === "FEMENINO" && (
+                    <div className="form-group">
+                      <label>¿Está embarazada?</label>
+                      <div className="radio-group">
+                        <label
+                          className={`radio-card ${formData.embarazo === "NO" ? "selected" : ""}`}
+                          onPointerDown={(e) => e.preventDefault()}
+                        >
+                          <input type="radio" name="embarazo" value="NO" checked={formData.embarazo === "NO"} onChange={handleInputChange} />
+                          NO
+                        </label>
+                        <label
+                          className={`radio-card ${formData.embarazo === "SI" ? "selected" : ""}`}
+                          onPointerDown={(e) => e.preventDefault()}
+                        >
+                          <input type="radio" name="embarazo" value="SI" checked={formData.embarazo === "SI"} onChange={handleInputChange} />
+                          SI
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="form-group">
                     <label>¿Posee alguna patología crónica?<span className="required-star">*</span></label>
