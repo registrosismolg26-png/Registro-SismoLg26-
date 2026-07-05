@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText } from "@/lib/helpers";
+import { exportMorbilidadExcel } from "@/lib/exportMorbilidadExcel";
 import { apiFetch } from "@/lib/apiFetch";
 import { canDeleteConsulta } from "@/lib/permissions";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -319,6 +320,27 @@ export default function MorbilidadTab() {
     setHoraConsulta(nowHm());
     setLesiones([]);
     seedEstados("ILESO", "NO");
+  };
+
+  // Descargar Excel (XLSX con membrete) del historial filtrado.
+  const [exporting, setExporting] = useState(false);
+  const handleExportExcel = async () => {
+    if (filteredConsultas.length === 0) { showToast("No hay consultas para exportar.", "warning"); return; }
+    setExporting(true);
+    try {
+      await exportMorbilidadExcel({
+        consultas: filteredConsultas,
+        patologias, predefinedMedicamentos, tiposLesion,
+        refugio: effectiveRefugio || currentUser?.campamentoTransitorio || "",
+        generadoEn: new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      });
+      showToast("Excel descargado.", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("No se pudo generar el Excel.", "error");
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Modal "Nueva consulta": abrir (arranca en el buscador de cédula) / cerrar.
@@ -991,6 +1013,14 @@ export default function MorbilidadTab() {
             <h3 className="morb-card__title" style={{ margin: 0 }}>Historial de Consultas Médicas</h3>
             <span className="morb-hist__count">{filteredConsultas.length} de {allConsultas.length}</span>
           </div>
+          {allConsultas.length > 0 && (
+            <button type="button" className="toolbar-btn" onClick={handleExportExcel} disabled={exporting} title="Descargar el historial (filtrado) en Excel">
+              {exporting ? <span className="spinner spinner-sm" /> : (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+              )}
+              Descargar Excel
+            </button>
+          )}
         </div>
 
         {allConsultas.length > 0 && (
