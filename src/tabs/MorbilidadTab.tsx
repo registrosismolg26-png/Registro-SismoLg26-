@@ -94,14 +94,27 @@ export default function MorbilidadTab() {
     predefinedMedicamentos,
     isOnline,
     fetchConsultas,
+    setActiveTab,
+    setPendingHistorialCedula,
   } = useAppContext();
 
   const canDelete = canDeleteConsulta(currentUser?.role || "");
+
+  // Modal "Nueva consulta" (antes era el flujo inline buscar + formulario).
+  const [showCreate, setShowCreate] = useState(false);
+  useBodyScrollLock(showCreate);
 
   // Búsqueda y formulario
   const [searchCedula, setSearchCedula] = useState("");
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+
+  // Historial (tabla): buscador + filtros avanzados propios.
+  const [histSearch, setHistSearch] = useState("");
+  const [histFiltersOpen, setHistFiltersOpen] = useState(false);
+  const [fTipo, setFTipo] = useState("");
+  const [fDiag, setFDiag] = useState("");
+  const [fEstado, setFEstado] = useState("");
 
   // Datos Básicos del Paciente
   const [cedula, setCedula] = useState("");
@@ -308,6 +321,12 @@ export default function MorbilidadTab() {
     seedEstados("ILESO", "NO");
   };
 
+  // Modal "Nueva consulta": abrir (arranca en el buscador de cédula) / cerrar.
+  const openCreate = () => { handleReset(); setShowCreate(true); };
+  const closeCreate = () => { setShowCreate(false); handleReset(); };
+  // "Ver historial": salta a la pestaña Historial Clínico y abre a ese paciente.
+  const verHistorial = (cedula: string) => { setPendingHistorialCedula(String(cedula || "")); setActiveTab("historial"); };
+
   // Al guardar, si el paciente está en el censo, propaga los cambios de Datos Básicos
   // (nombre, género, fecha de nacimiento, edad) y de Antecedentes al Registro del censo.
   const syncPatientToRegistro = async () => {
@@ -407,6 +426,7 @@ export default function MorbilidadTab() {
       await syncPatientToRegistro();
       showToast("Consulta médica registrada localmente.", "success");
       handleReset();
+      setShowCreate(false);
       await refreshLocalConsultas();
       triggerSync();
     } catch (err) {
@@ -661,6 +681,28 @@ export default function MorbilidadTab() {
     return combined.sort((a, b) => when(b) - when(a));
   }, [localConsultas, consultas]);
 
+  // Historial filtrado (buscador + filtros avanzados). Insensible a acentos/mayúsculas.
+  const filteredConsultas = useMemo(() => {
+    let list = allConsultas;
+    const q = normalizeText(histSearch.trim());
+    const qDigits = histSearch.replace(/\D/g, "");
+    if (q) {
+      list = list.filter((c) => {
+        const nom = normalizeText(c.data?.nombreApellido || "");
+        const ced = String(c.data?.cedula || "").replace(/\D/g, "");
+        return nom.includes(q) || (!!qDigits && ced.includes(qDigits));
+      });
+    }
+    if (fTipo) list = list.filter((c) => (c.data?.tipoPaciente || "REFUGIADO") === fTipo);
+    if (fDiag) list = list.filter((c) => {
+      const has = Array.isArray(c.data?.diagnosticoPatologiaIds) && c.data.diagnosticoPatologiaIds.length > 0;
+      return fDiag === "con" ? has : !has;
+    });
+    if (fEstado) list = list.filter((c) => (c.data?.estadoFisico || "") === fEstado);
+    return list;
+  }, [allConsultas, histSearch, fTipo, fDiag, fEstado]);
+  const histFiltersActive = !!(fTipo || fDiag || fEstado);
+
   // Opciones para los buscadores (excluyendo lo ya elegido).
   const patologiaOptions = (excluir: string[]) =>
     patologias.filter((p) => !excluir.includes(p.id)).map((p) => ({ value: p.id, label: p.nombre }));
@@ -795,15 +837,31 @@ export default function MorbilidadTab() {
           <h2>Consultas Médicas</h2>
           <p>Registro clínico y diagnóstico de pacientes refugiados</p>
         </div>
-        {/* Catálogos médicos: dos botones discretos + modales (gestión de patologías
-            y medicamentos). Solo se muestran a quien puede editar catálogos. */}
-        <CatalogosMedicos />
+        {/* Acciones: "Nueva consulta" (abre el modal) ANTES de los catálogos médicos. */}
+        <div className="morb-head__actions">
+          <button type="button" className="morb-newbtn" onClick={openCreate}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nueva consulta
+          </button>
+          {/* Catálogos médicos: botones discretos + modales. Solo a quien puede editar catálogos. */}
+          <CatalogosMedicos />
+        </div>
       </div>
 
-      {/* 2. Buscador por Cédula */}
-      {!searched && (
-        <div className="morb-search">
-          <form onSubmit={handleSearch} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      {/* 2. Modal "Nueva consulta": buscar cédula → formulario de carga */}
+      {showCreate && (
+        <div className="modal-overlay" onClick={closeCreate}>
+          <div className="modal-content modal-content--morb" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">Nueva consulta médica</span>
+              <button className="modal-close" onClick={closeCreate} aria-label="Cerrar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="morb morb-editbody">
+            {!searched ? (
+              <div className="morb-search">
+                <form onSubmit={handleSearch} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             <div className="morb-field">
               <label className="morb-field__label" htmlFor="search-cedula">Buscar paciente por cédula</label>
               <div className="morb-search__row">
@@ -820,13 +878,10 @@ export default function MorbilidadTab() {
                 </button>
               </div>
             </div>
-          </form>
-        </div>
-      )}
-
-      {/* 3. Panel de Carga de Consulta */}
-      {searched && (
-        <form onSubmit={handleSave} className="morb-form">
+                </form>
+              </div>
+            ) : (
+              <form onSubmit={handleSave} className="morb-form">
           {/* Datos Básicos — ocupa todo el ancho */}
           <div className="morb-card morb-card--primary">
             <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
@@ -917,29 +972,79 @@ export default function MorbilidadTab() {
           </div>
 
           <div className="morb-actions">
-            <button type="button" className="morb-btn morb-btn--ghost" onClick={handleReset}>Cancelar</button>
+            <button type="button" className="morb-btn morb-btn--ghost" onClick={closeCreate}>Cancelar</button>
             <button type="submit" className="morb-btn morb-btn--primary" disabled={saving} style={{ minWidth: "160px" }}>
               {saving ? <span className="spinner spinner-sm" /> : "Guardar Consulta"}
             </button>
           </div>
-        </form>
+              </form>
+            )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 4. Historial de Consultas */}
       <div className="morb-card">
-        <h3 className="morb-card__title" style={{ marginBottom: "1rem" }}>Historial de Consultas Médicas</h3>
+        <div className="morb-hist__head">
+          <div className="morb-hist__titlewrap">
+            <h3 className="morb-card__title" style={{ margin: 0 }}>Historial de Consultas Médicas</h3>
+            <span className="morb-hist__count">{filteredConsultas.length} de {allConsultas.length}</span>
+          </div>
+        </div>
+
+        {allConsultas.length > 0 && (
+          <>
+            <div className="asign-search-wrap" style={{ marginBottom: "0.5rem" }}>
+              <input type="text" placeholder="Buscar por nombre o cédula…" value={histSearch} onChange={(e) => setHistSearch(e.target.value)} />
+              {histSearch && (
+                <button className="asign-search-clear" onClick={() => setHistSearch("")} aria-label="Limpiar búsqueda">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              )}
+            </div>
+            <div className="toolbar-row" style={{ marginTop: "0.5rem", marginBottom: "1rem" }}>
+              <button type="button" className={`toolbar-btn${histFiltersOpen ? " is-active" : ""}`} onClick={() => setHistFiltersOpen((o) => !o)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                {histFiltersOpen ? "Ocultar Filtros" : "Filtros Avanzados"}
+              </button>
+              {histFiltersActive && (
+                <button type="button" className="toolbar-btn toolbar-btn--danger" onClick={() => { setFTipo(""); setFDiag(""); setFEstado(""); }}>Limpiar Filtros</button>
+              )}
+            </div>
+            {histFiltersOpen && (
+              <div className="reg-filters-panel pill-form">
+                <div className="form-group">
+                  <label>Tipo de atención</label>
+                  <StyledSelect value={fTipo} onChange={setFTipo} ariaLabel="Tipo de atención" options={[{ value: "", label: "Todos" }, ...TIPO_PACIENTE_OPTS]} />
+                </div>
+                <div className="form-group">
+                  <label>Diagnóstico</label>
+                  <StyledSelect value={fDiag} onChange={setFDiag} ariaLabel="Diagnóstico" options={[{ value: "", label: "Todos" }, { value: "con", label: "Con diagnóstico" }, { value: "sin", label: "Sin diagnóstico" }]} />
+                </div>
+                <div className="form-group">
+                  <label>Estado físico</label>
+                  <StyledSelect value={fEstado} onChange={setFEstado} ariaLabel="Estado físico" options={[{ value: "", label: "Todos" }, { value: "ILESO", label: "Ileso" }, { value: "LESIONADO", label: "Lesionado" }]} />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
         {allConsultas.length === 0 ? (
           <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "1.5rem 0", margin: 0 }}>No hay consultas registradas en este refugio.</p>
+        ) : filteredConsultas.length === 0 ? (
+          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "1.5rem 0", margin: 0 }}>Ninguna consulta coincide con la búsqueda o los filtros.</p>
         ) : (
           <div className="morb-history__scroll">
             <table className="matrix-table" style={{ fontSize: "0.8rem", minWidth: "700px" }}>
               <thead>
                 <tr>
-                  <th>Fecha</th><th>Cédula</th><th>Paciente</th><th>Diagnóstico</th><th>Notas del Dr.</th><th>Estado</th><th></th>
+                  <th>Fecha</th><th>Cédula</th><th>Paciente</th><th>Diagnóstico</th><th>Notas del Dr.</th><th></th>
                 </tr>
               </thead>
               <tbody>
-                {allConsultas.map((c) => {
+                {filteredConsultas.map((c) => {
                   const dateStr = new Date(c.data.fechaConsulta || c.createdAt).toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
                   const diagPatIds: string[] = Array.isArray(c.data.diagnosticoPatologiaIds) ? c.data.diagnosticoPatologiaIds : [];
                   const diagMeds: Medicamento[] = Array.isArray(c.data.diagnosticoMedicamentoIds) ? c.data.diagnosticoMedicamentoIds : [];
@@ -975,12 +1080,11 @@ export default function MorbilidadTab() {
                         )}
                       </td>
                       <td data-label="Notas del Dr." className="morb-hist__notas" title={c.data.notasDoctor}>{c.data.notasDoctor || "-"}</td>
-                      <td data-label="Estado">
-                        <span className={`sync-status-badge ${c.status === "synced" ? "synced" : c.status === "error" ? "error" : "pending"}`}>
-                          {c.status === "synced" ? "Sincronizado" : c.status === "error" ? "Error" : "Pendiente"}
-                        </span>
-                      </td>
                       <td data-label="" className="morb-hist__actioncell">
+                        <button type="button" className="morb-hist__hist" onClick={() => verHistorial(c.data.cedula)} title="Ver historial clínico del paciente">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M8 14h2l1-2 2 4 1-2h2"/></svg>
+                          <span className="morb-hist__edit-txt">Historial</span>
+                        </button>
                         <button type="button" className="morb-hist__edit" onClick={() => openEdit(c)} title="Editar consulta">
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                           <span className="morb-hist__edit-txt">Editar</span>

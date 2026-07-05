@@ -4662,6 +4662,18 @@ h2.dashboard-section-title {
 }
 .morb-head__icon svg { width: 25px; height: 25px; }
 .morb-head__titles { min-width: 0; flex: 1 1 200px; }
+/* Acciones del header: "Nueva consulta" + catálogos. Se van a la derecha y envuelven. */
+.morb-head__actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.morb-newbtn {
+  display: inline-flex; align-items: center; gap: 0.4rem; flex: none;
+  height: 40px; padding: 0 1.1rem; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--color-primary); color: #fff; font-weight: 800; font-size: 0.86rem;
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--color-primary) 70%, transparent);
+  transition: filter 0.15s ease, transform 0.12s ease;
+}
+.morb-newbtn:hover { filter: brightness(1.07); }
+.morb-newbtn:active { transform: scale(0.97); }
+.morb-newbtn svg { flex: none; }
 .morb-head h2 {
   font-family: var(--font-heading);
   font-size: clamp(1.15rem, 1rem + 1.1vw, 1.6rem);
@@ -5070,8 +5082,8 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
    y los botones (inline-flex) se separan con margin. En móvil, la regla de td de
    `.morb-history__scroll` lo vuelve flex igualmente. */
 .morb-hist__actioncell { white-space: nowrap; vertical-align: middle; }
-.morb-hist__actioncell .morb-hist__delete { margin-left: 0.35rem; }
-.morb-hist__edit, .morb-hist__delete {
+.morb-hist__actioncell button + button { margin-left: 0.35rem; }
+.morb-hist__hist, .morb-hist__edit, .morb-hist__delete {
   display: inline-flex; align-items: center; gap: 0.35rem;
   height: 32px; padding: 0 0.75rem; border-radius: 999px;
   border: 1px solid var(--border-color); background: var(--bg-secondary);
@@ -5079,9 +5091,17 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .morb-hist__edit:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
-.morb-hist__edit svg, .morb-hist__delete svg { flex: none; }
+.morb-hist__hist svg, .morb-hist__edit svg, .morb-hist__delete svg { flex: none; }
+/* "Ver historial": distinto (teal) para diferenciarlo de Editar (azul) y Eliminar (rojo). */
+.morb-hist__hist { color: #0d9488; border-color: color-mix(in srgb, #0d9488 32%, var(--border-color)); }
+.morb-hist__hist:hover { border-color: #0d9488; background: color-mix(in srgb, #0d9488 12%, transparent); }
 .morb-hist__delete { color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 32%, var(--border-color)); }
 .morb-hist__delete:hover { border-color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
+
+/* Cabecera del historial: título + contador (estilo censo). */
+.morb-hist__head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.morb-hist__titlewrap { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.morb-hist__count { font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
 
 /* Modal de confirmación (eliminar consulta) */
 .confirm-modal { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.8rem; padding: 1.6rem 1.4rem; }

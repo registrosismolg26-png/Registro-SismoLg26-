@@ -243,6 +243,7 @@ export default function Home() {
 
   // Cold-start navigation / real-time PWA notification (globales, no del config)
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
+  const [pendingHistorialCedula, setPendingHistorialCedula] = useState<string | null>(null);
   const [internalNotification, setInternalNotification] = useState<{ registroId: string; nombreApellido: string } | null>(null);
 
   // Toast Notification State
@@ -1226,6 +1227,7 @@ export default function Home() {
     predefinedMedicamentos, fetchPredefinedMedicamentos,
     consultas, localConsultas, loadingConsultas, refreshLocalConsultas, fetchConsultas,
     pendingSelectId, setPendingSelectId,
+    pendingHistorialCedula, setPendingHistorialCedula,
     customCuartos, setCustomCuartos, allCuartos, sortedCustomCuartos, dashboardRooms,
     roomCapacities, setRoomCapacities,
     viewRefugio, setViewRefugio, refugiosList, effectiveRefugio,

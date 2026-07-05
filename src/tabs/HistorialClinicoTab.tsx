@@ -9,7 +9,7 @@
 // Se arma 100% en el cliente desde las consultas (locales + remotas) del refugio,
 // cruzando con el censo (registros) cuando falta demografía. 100% pill/responsive.
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { patologiaNombre, medLabel, tipoLesionNombre } from "@/lib/helpers";
 import { ESTADO_LESION_LABELS } from "@/lib/constants";
@@ -51,8 +51,16 @@ interface PacienteEntry {
 }
 
 export default function HistorialClinicoTab() {
-  const { consultas, localConsultas, registros, patologias, tiposLesion, predefinedMedicamentos, effectiveRefugio } = useAppContext();
+  const { consultas, localConsultas, registros, patologias, tiposLesion, predefinedMedicamentos, effectiveRefugio, pendingHistorialCedula, setPendingHistorialCedula } = useAppContext();
   const [sel, setSel] = useState(""); // cédula (dígitos) del paciente elegido
+
+  // Navegación desde Morbilidad ("Ver historial"): abre directamente ese paciente.
+  useEffect(() => {
+    if (pendingHistorialCedula) {
+      setSel(onlyDigits(pendingHistorialCedula));
+      setPendingHistorialCedula(null);
+    }
+  }, [pendingHistorialCedula, setPendingHistorialCedula]);
 
   // Censo por cédula (para completar demografía y antecedentes del censo).
   const regByCedula = useMemo(() => {

@@ -57,6 +57,10 @@ export interface AppContextValue {
   pendingSelectId: string | null;
   setPendingSelectId: React.Dispatch<React.SetStateAction<string | null>>;
 
+  // Navegación Morbilidad → Historial Clínico: cédula del paciente a abrir al cambiar de tab.
+  pendingHistorialCedula: string | null;
+  setPendingHistorialCedula: React.Dispatch<React.SetStateAction<string | null>>;
+
   // Habitaciones
   customCuartos: string[];
   setCustomCuartos: React.Dispatch<React.SetStateAction<string[]>>;
