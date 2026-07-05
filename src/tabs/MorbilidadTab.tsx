@@ -843,7 +843,6 @@ export default function MorbilidadTab() {
               )}
             </div>
             {fechaHoraField(fechaConsulta, horaConsulta, setFechaConsulta, setHoraConsulta)}
-            {estadosRow(estadoFisico, embarazo, genero, toggleEstado, toggleEmbarazo)}
             <div className="morb-basic">
               <div className="morb-field f-cedula">
                 <label className="morb-field__label">Cédula</label>
@@ -870,6 +869,8 @@ export default function MorbilidadTab() {
                 <input className="morb-control" type="text" value={refugio} disabled />
               </div>
             </div>
+            {/* Estados del paciente — al final de Datos Básicos, tras el campamento */}
+            {estadosRow(estadoFisico, embarazo, genero, toggleEstado, toggleEmbarazo)}
           </div>
 
           {/* Antecedentes | Diagnóstico — 2 columnas simétricas */}
@@ -1030,7 +1031,6 @@ export default function MorbilidadTab() {
                   )}
                 </div>
                 {fechaHoraField(editForm.fechaConsulta, editForm.horaConsulta, (v) => setEditForm((f: any) => ({ ...f, fechaConsulta: v })), (v) => setEditForm((f: any) => ({ ...f, horaConsulta: v })))}
-                {estadosRow(editForm.estadoFisico, editForm.embarazo, editForm.genero, efToggleEstado, efToggleEmbarazo)}
                 <div className="morb-basic">
                   <div className="morb-field f-cedula">
                     <label className="morb-field__label">Cédula</label>
@@ -1057,6 +1057,7 @@ export default function MorbilidadTab() {
                     <input className="morb-control" type="text" value={editForm.refugio} disabled />
                   </div>
                 </div>
+                {estadosRow(editForm.estadoFisico, editForm.embarazo, editForm.genero, efToggleEstado, efToggleEmbarazo)}
               </div>
 
               {/* Antecedentes | Diagnóstico */}
