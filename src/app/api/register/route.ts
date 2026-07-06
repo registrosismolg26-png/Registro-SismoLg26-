@@ -162,11 +162,18 @@ export async function POST(req: Request) {
     if (existing && normalizedCedula !== existing.cedula) {
       const dup = await prisma.registro.findUnique({
         where: { cedula: normalizedCedula },
-        select: { id: true, nombreApellido: true, retirado: true },
+        select: { id: true, nombreApellido: true, retirado: true, refugio: true },
       });
       if (dup && dup.id !== existing.id && dup.retirado !== "SI") {
+        const mismoRefugio = dup.refugio === existing.refugio;
         return NextResponse.json(
-          { error: `La cédula ${normalizedCedula} ya pertenece a otro afectado registrado (${dup.nombreApellido}).`, code: "DUPLICATED" },
+          {
+            error: mismoRefugio
+              ? `La cédula ${normalizedCedula} ya pertenece a otro afectado registrado (${dup.nombreApellido}) en este campamento.`
+              : `La cédula ${normalizedCedula} ya pertenece a un afectado ACTIVO (${dup.nombreApellido}) en el campamento "${dup.refugio}".`,
+            code: "DUPLICATED",
+            refugio: dup.refugio,
+          },
           { status: 409 }
         );
       }
@@ -215,11 +222,18 @@ export async function POST(req: Request) {
     // claro para el operador; el @unique queda como backstop ante carreras.
     const dupExistente = await prisma.registro.findUnique({
       where: { cedula: normalizedCedula },
-      select: { id: true, nombreApellido: true, retirado: true },
+      select: { id: true, nombreApellido: true, retirado: true, refugio: true },
     });
     if (dupExistente && dupExistente.retirado !== "SI") {
+      const mismoRefugio = dupExistente.refugio === refugioForCreate;
       return NextResponse.json(
-        { error: `Ya existe un registro activo con la cédula ${normalizedCedula} (${dupExistente.nombreApellido}).`, code: "DUPLICATED" },
+        {
+          error: mismoRefugio
+            ? `Ya existe un registro activo con la cédula ${normalizedCedula} (${dupExistente.nombreApellido}) en este campamento.`
+            : `La cédula ${normalizedCedula} (${dupExistente.nombreApellido}) ya está registrada y ACTIVA en el campamento "${dupExistente.refugio}". Una persona solo puede estar activa en un campamento a la vez.`,
+          code: "DUPLICATED",
+          refugio: dupExistente.refugio,
+        },
         { status: 409 }
       );
     }
