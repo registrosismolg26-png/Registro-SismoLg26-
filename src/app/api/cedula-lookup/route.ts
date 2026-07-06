@@ -46,8 +46,8 @@ export async function GET(req: Request) {
     const data = json && json.error === false ? json.data : null;
     if (!data) return NextResponse.json({ found: false });
 
-    // Nombre como lo necesitamos: APELLIDOS + NOMBRES (solo las partes presentes).
-    const nombreApellido = [data.primer_apellido, data.segundo_apellido, data.primer_nombre, data.segundo_nombre]
+    // Nombre como lo necesitamos: NOMBRES + APELLIDOS (solo las partes presentes).
+    const nombreApellido = [data.primer_nombre, data.segundo_nombre, data.primer_apellido, data.segundo_apellido]
       .map((s: any) => (s == null ? "" : String(s).trim()))
       .filter(Boolean)
       .join(" ");
