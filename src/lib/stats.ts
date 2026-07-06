@@ -27,6 +27,7 @@ export interface AggregateStats {
   intermitentes: number;
   lesionados: number;
   conPatologia: number;
+  embarazadas: number;
   sinCuarto: number;
   byParroquia: { name: string; count: number }[];
   byGenero: { name: string; count: number }[];
@@ -55,6 +56,7 @@ const emptyStats = (totalRetirados = 0): AggregateStats => ({
   intermitentes: 0,
   lesionados: 0,
   conPatologia: 0,
+  embarazadas: 0,
   sinCuarto: 0,
   byParroquia: [],
   byGenero: [],
@@ -144,6 +146,14 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
 
   const n = (v: unknown) => Number(v ?? 0);
 
+  // Mujeres embarazadas (censo): conteo AISLADO y a prueba de fallos. La columna
+  // `Registro.embarazo` puede no estar migrada aún en producción; si falta, este
+  // count lanza y se degrada a 0 SIN romper el resto de las estadísticas.
+  let embarazadas = 0;
+  try {
+    embarazadas = await prisma.registro.count({ where: { embarazo: "SI", retirado: "NO", ...refugioFilter } });
+  } catch { embarazadas = 0; }
+
   return {
     total,
     totalRegistrados: total + totalRetirados,
@@ -164,6 +174,7 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     intermitentes: n(aggregates.intermitentes),
     lesionados: n(aggregates.lesionados),
     conPatologia: n(aggregates.con_patologia),
+    embarazadas,
     sinCuarto: n(aggregates.sin_cuarto),
     byParroquia: parroquiaGroup.map((g: any) => ({ name: g.parroquia, count: g._count._all })),
     byGenero: generoGroup.map((g: any) => ({ name: g.genero, count: g._count._all })),

@@ -31,6 +31,7 @@ const DASH_ICONS = {
   calendar: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
   alert: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
   heart: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>,
+  pregnant: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="4" r="2"/><path d="M12 7v6M12 9c3 0 4.5 2 4.5 4.5S15 18 12 18M12 13c-1.2 0-2 .8-2 2v6"/></svg>,
   homeoff: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><line x1="9" y1="21" x2="9" y2="12"/><line x1="15" y1="21" x2="15" y2="12"/></svg>,
   chart: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7" rx="1"/><rect x="12" y="6" width="3" height="11" rx="1"/><rect x="17" y="13" width="3" height="4" rx="1"/></svg>,
   cake: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21h16M4 21v-8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8M4 15c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1M12 8V5"/></svg>,
@@ -217,6 +218,7 @@ export default function DashboardTab() {
     const intermitentes = activeRecords.filter(r => (r.data as any).intermitente === "SI").length;
     const lesionados    = activeRecords.filter(r => (r.data as any).estadoFisico === "LESIONADO").length;
     const conPatologia  = activeRecords.filter(r => (r.data as any).patologia === "SI").length;
+    const embarazadas   = activeRecords.filter(r => (r.data as any).embarazo === "SI").length;
     const sinCuarto     = activeRecords.filter(r => !(r.data as any).cuarto).length;
 
     if (total === 0) {
@@ -244,6 +246,7 @@ export default function DashboardTab() {
         intermitentes: 0,
         lesionados: 0,
         conPatologia: 0,
+        embarazadas: 0,
         sinCuarto: 0
       };
     }
@@ -336,6 +339,7 @@ export default function DashboardTab() {
       intermitentes,
       lesionados,
       conPatologia,
+      embarazadas,
       sinCuarto
     };
   };
@@ -574,6 +578,7 @@ ${entesList}`;
                   { label: "Edad Promedio", value: S.promedioEdad || 0, suffix: "años", accent: "#0284c7", icon: DASH_ICONS.calendar },
                   { label: "Lesionados", value: S.lesionados || 0, sub: pc(S.lesionados || 0), accent: "#e11d48", icon: DASH_ICONS.alert },
                   { label: "Con Patología", value: S.conPatologia || 0, sub: pc(S.conPatologia || 0), accent: "#db2777", icon: DASH_ICONS.heart },
+                  { label: "Mujeres Embarazadas", value: S.embarazadas || 0, sub: pc(S.embarazadas || 0), accent: "#be185d", icon: DASH_ICONS.pregnant },
                   { label: "Sin Alojamiento", value: S.sinCuarto || 0, sub: pc(S.sinCuarto || 0), accent: "#64748b", icon: DASH_ICONS.homeoff },
                 ];
                 return (

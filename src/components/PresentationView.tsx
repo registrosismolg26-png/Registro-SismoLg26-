@@ -95,6 +95,12 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
   const conPat = S.conPatologia || 0;
   const sinPat = Math.max(0, (S.total || 0) - conPat);
   const conPatPct = (S.total || 0) > 0 ? Math.round((conPat / S.total) * 100) : 0;
+  // Lesionados / No lesionados (mismo tratamiento de proporción).
+  const lesion = S.lesionados || 0;
+  const noLesion = Math.max(0, (S.total || 0) - lesion);
+  const lesionPct = (S.total || 0) > 0 ? Math.round((lesion / S.total) * 100) : 0;
+  // Mujeres embarazadas (censo).
+  const embarazadas = S.embarazadas || 0;
 
   // Slides
   const slides: { id: string; title: string; icon: ReactNode; body: ReactNode }[] = [
@@ -103,10 +109,12 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
       icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="7" rx="1" /><rect x="12" y="6" width="3" height="11" rx="1" /><rect x="17" y="13" width="3" height="4" rx="1" /></svg>,
       body: (
         <div className="pres-cards">
-          <BigCard accent="#2563eb" label="Personas activas" value={S.total || 0} icon={ICON.users} />
-          <BigCard accent="#0d9488" label="Núcleos familiares" value={S.nucleosFamiliares || 0} icon={ICON.home} />
-          <BigCard accent="#7c3aed" label="Individuos solos" value={S.individuosSolos || 0} icon={ICON.user} />
-          <BigCard accent="#64748b" label="Retirados" value={S.totalRetirados || 0} icon={ICON.out} />
+          <BigCard accent="#2563eb" label="Personas registradas" value={S.totalRegistrados || 0} icon={ICON.users} />
+          <BigCard accent="#0d9488" label="Presentes" value={S.total || 0} icon={ICON.home} />
+          <BigCard accent="#7c3aed" label="Núcleos familiares" value={S.nucleosFamiliares || 0} icon={ICON.family} />
+          <BigCard accent="#64748b" label="Individuos solos" value={S.individuosSolos || 0} icon={ICON.user} />
+          <BigCard accent="#d97706" label="Intermitentes" value={S.intermitentes || 0} icon={ICON.clock} />
+          <BigCard accent="#dc2626" label="Retirados" value={S.totalRetirados || 0} icon={ICON.out} />
           <BigCard accent="#0284c7" label="Edad promedio" value={S.promedioEdad || 0} suffix="años" icon={ICON.cake} />
           <BigCard accent="#f59e0b" label="Ocupación cuartos" value={ocupacionPct} suffix="%" icon={ICON.bed} />
         </div>
@@ -141,8 +149,8 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
         <div className="pres-salud">
           <div className="pres-cards pres-cards--3">
             <BigCard accent="#e11d48" label="Con patología" value={conPat} suffix={`· ${conPatPct}%`} icon={ICON.heart} />
-            <BigCard accent="#dc2626" label="Lesionados" value={S.lesionados || 0} icon={ICON.alert} />
-            <BigCard accent="#d97706" label="Intermitentes" value={S.intermitentes || 0} icon={ICON.clock} />
+            <BigCard accent="#dc2626" label="Lesionados" value={lesion} icon={ICON.bandage} />
+            <BigCard accent="#db2777" label="Mujeres embarazadas" value={embarazadas} icon={ICON.pregnant} />
           </div>
           <div className="pres-demo">
             <Panel title="Con / sin patología">
@@ -155,7 +163,17 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
                 <span><i style={{ background: "#64748b" }} />Sin patología <b>{sinPat.toLocaleString("es-VE")}</b></span>
               </div>
             </Panel>
-            <Panel title="Patologías más frecuentes en el censo">
+            <Panel title="Lesionados / No lesionados">
+              <div className="pres-seg">
+                <span className="pres-seg__part" style={{ width: `${lesionPct}%`, background: "#dc2626" }}>{lesionPct >= 12 ? `${lesionPct}%` : ""}</span>
+                <span className="pres-seg__part" style={{ width: `${100 - lesionPct}%`, background: "#0d9488" }}>{(100 - lesionPct) >= 12 ? `${100 - lesionPct}%` : ""}</span>
+              </div>
+              <div className="pres-seg__legend">
+                <span><i style={{ background: "#dc2626" }} />Lesionados <b>{lesion.toLocaleString("es-VE")}</b></span>
+                <span><i style={{ background: "#0d9488" }} />No lesionados <b>{noLesion.toLocaleString("es-VE")}</b></span>
+              </div>
+            </Panel>
+            <Panel title="Patologías más frecuentes en el censo" wide>
               {topPat.length === 0 ? <p className="pres-empty">No hay patologías registradas en el censo.</p> : (
                 <div className="pres-rank">
                   {topPat.map((p: any, i: number) => (
@@ -181,7 +199,7 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
           <div className="pres-cards pres-cards--3">
             <BigCard accent="#0d9488" label="Cuartos" value={rooms.length} icon={ICON.grid} />
             <BigCard accent="#2563eb" label="Personas alojadas" value={ocupados} icon={ICON.users} />
-            <BigCard accent="#dc2626" label="Sin cuarto" value={S.sinCuarto || 0} icon={ICON.alert} />
+            <BigCard accent="#dc2626" label="Por asignar" value={S.sinCuarto || 0} icon={ICON.alert} />
           </div>
           {rooms.length > 0 && (
             <Panel title={`Ocupación por cuarto · ${ocupacionPct}% general`} wide>
@@ -360,10 +378,13 @@ const ICON = {
   users: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /></svg>,
   home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>,
   user: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
+  family: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /></svg>,
   out: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>,
   cake: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 21h16M4 21v-8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8M4 15c1.5 0 1.5 1 3 1s1.5-1 3-1M12 8V5" /></svg>,
   bed: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20M6 8v-2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>,
   heart: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z" /></svg>,
+  pregnant: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="4" r="2" /><path d="M12 7v6M12 9c3 0 4.5 2 4.5 4.5S15 18 12 18M12 13c-1.2 0-2 .8-2 2v6" /></svg>,
+  bandage: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="8" width="19" height="8" rx="4" transform="rotate(-45 12 12)" /><path d="M9.5 9.5l5 5" /></svg>,
   alert: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>,
   clock: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>,
   grid: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></svg>,
