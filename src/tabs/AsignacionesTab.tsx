@@ -772,11 +772,11 @@ export default function AsignacionesTab() {
 
               <div className="form-group">
                 <label>Registrados desde</label>
-                <DatePicker value={filterDesde} onChange={setFilterDesde} placeholder="Desde…" />
+                <DatePicker value={filterDesde} onChange={setFilterDesde} placeholder="Desde…" defaultToday />
               </div>
               <div className="form-group">
                 <label>Registrados hasta</label>
-                <DatePicker value={filterHasta} onChange={setFilterHasta} placeholder="Hasta…" />
+                <DatePicker value={filterHasta} onChange={setFilterHasta} placeholder="Hasta…" defaultToday />
               </div>
             </div>
           )}

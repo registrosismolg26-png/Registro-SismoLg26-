@@ -28,9 +28,10 @@ interface Props {
   minYear?: number;
   placeholder?: string;
   error?: boolean;
+  defaultToday?: boolean;        // sin valor: abre en el mes actual (filtros) en vez de ~20 años atrás (nacimiento)
 }
 
-export default function DatePicker({ value, onChange, disabled = false, minYear = 1915, placeholder = "Seleccionar fecha…", error = false }: Props) {
+export default function DatePicker({ value, onChange, disabled = false, minYear = 1915, placeholder = "Seleccionar fecha…", error = false, defaultToday = false }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"days" | "years">("days");
   const ref = useRef<HTMLDivElement>(null);
@@ -43,8 +44,8 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
   const maxYear = today.getFullYear();
   const sel = value ? { y: Number(value.slice(0, 4)), m: Number(value.slice(5, 7)) - 1, d: Number(value.slice(8, 10)) } : null;
 
-  const [viewY, setViewY] = useState(sel ? sel.y : maxYear - 20);
-  const [viewM, setViewM] = useState(sel ? sel.m : 0);
+  const [viewY, setViewY] = useState(sel ? sel.y : (defaultToday ? maxYear : maxYear - 20));
+  const [viewM, setViewM] = useState(sel ? sel.m : (defaultToday ? today.getMonth() : 0));
 
   useEffect(() => {
     if (isMobile) return; // en móvil el cierre lo maneja el overlay del MobileSheet

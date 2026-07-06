@@ -1064,11 +1064,11 @@ export default function MorbilidadTab() {
                 </div>
                 <div className="form-group">
                   <label>Consultas desde</label>
-                  <DatePicker value={fDesde} onChange={setFDesde} placeholder="Desde…" />
+                  <DatePicker value={fDesde} onChange={setFDesde} placeholder="Desde…" defaultToday />
                 </div>
                 <div className="form-group">
                   <label>Consultas hasta</label>
-                  <DatePicker value={fHasta} onChange={setFHasta} placeholder="Hasta…" />
+                  <DatePicker value={fHasta} onChange={setFHasta} placeholder="Hasta…" defaultToday />
                 </div>
               </div>
             )}
