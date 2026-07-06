@@ -1612,13 +1612,24 @@ export default function AsignacionesTab() {
                   <div className="form-group">
                     <label>Retirado / Egresado</label>
                     <StyledSelect value={editData.retirado || "NO"} ariaLabel="Retirado / Egresado"
-                      onChange={v => setEditData(prev => ({ ...prev, retirado: v }))}
+                      onChange={v => setEditData(prev => ({ ...prev, retirado: v, retiradoRazon: v === "SI" ? prev.retiradoRazon : "" }))}
                       options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]} />
                   </div>
                   {editData.retirado === "SI" && (
                     <div className="form-group detail-field--full">
                       <label>Razón de Retiro</label>
-                      <input type="text" placeholder="ej: Retornado a vivienda, alta médica, etc." value={editData.retiradoRazon || ""}
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontWeight: "normal", textTransform: "none", letterSpacing: 0, margin: "0 0 0.45rem" }}>
+                        <input
+                          type="checkbox"
+                          checked={editData.retiradoRazon === "HOGAR SOLIDARIO"}
+                          onChange={e => setEditData(prev => ({ ...prev, retiradoRazon: e.target.checked ? "HOGAR SOLIDARIO" : "" }))}
+                          style={{ width: "auto", height: "auto" }}
+                        />
+                        Hogar solidario
+                      </label>
+                      <input type="text" placeholder="ej: Retornado a vivienda, alta médica, etc."
+                        value={editData.retiradoRazon || ""}
+                        disabled={editData.retiradoRazon === "HOGAR SOLIDARIO"}
                         onChange={e => setEditData(prev => ({ ...prev, retiradoRazon: e.target.value }))} />
                     </div>
                   )}

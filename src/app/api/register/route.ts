@@ -192,6 +192,21 @@ export async function POST(req: Request) {
       }
     }
 
+    // Motivo/fecha de retiro coherentes: solo persisten si retirado = "SI"; si pasa a
+    // "NO" (o cualquier otro valor) se BORRAN. Si el body no trae `retirado`, no se tocan.
+    let retiradoRazonSave: string | null | undefined;
+    let retiradoFechaSave: Date | null | undefined;
+    if (body.retirado === "SI") {
+      retiradoRazonSave = (typeof body.retiradoRazon === "string" && body.retiradoRazon.trim()) ? body.retiradoRazon.trim() : null;
+      retiradoFechaSave = existing?.retiradoFecha ?? new Date();
+    } else if (body.retirado) {
+      retiradoRazonSave = null;
+      retiradoFechaSave = null;
+    } else {
+      retiradoRazonSave = body.retiradoRazon || undefined;
+      retiradoFechaSave = undefined;
+    }
+
     if (existing) {
       const updated = await withAuditUser(auth.email, (tx) => tx.registro.update({
         where: { id },
@@ -221,7 +236,8 @@ export async function POST(req: Request) {
           refugio: existing.refugio, // editar MANTIENE el refugio del afectado (no lo mueve)
           cuarto: body.cuarto || undefined,
           retirado: body.retirado || undefined,
-          retiradoRazon: body.retiradoRazon || undefined,
+          retiradoRazon: retiradoRazonSave,
+          retiradoFecha: retiradoFechaSave,
           intermitente: intermitenteVal,
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
           syncedAt: new Date(),
