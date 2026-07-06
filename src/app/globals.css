@@ -5927,7 +5927,7 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .pres-card__value em { font-size: 0.34em; font-style: normal; font-weight: 700; color: #93a4c8; margin-left: 0.3rem; }
 .pres-card__label { font-size: clamp(0.64rem, 0.95vw, 0.95rem); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9fb3d8; }
 
-.pres-demo, .pres-salud, .pres-aloja { display: grid; gap: clamp(0.7rem, 1.4vw, 1.2rem); height: 100%; }
+.pres-demo, .pres-salud, .pres-aloja, .pres-terr { display: grid; gap: clamp(0.7rem, 1.4vw, 1.2rem); height: 100%; }
 .pres-demo { grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; }
 .pres-demo .pres-panel--wide { grid-column: 1 / -1; }
 /* Columna de paneles apilados (Salud: "Con/sin patología" sobre "Lesionados/No
@@ -6027,7 +6027,7 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 
 @media (max-width: 760px) {
   /* Paneles a UNA columna y altura natural (no forzada a la pantalla). */
-  .pres-demo, .pres-salud, .pres-aloja { grid-template-columns: 1fr; grid-template-rows: none; height: auto; }
+  .pres-demo, .pres-salud, .pres-aloja, .pres-terr { grid-template-columns: 1fr; grid-template-rows: none; height: auto; }
   .pres-cards--3 { grid-template-columns: 1fr; }
   .pres-cards { grid-template-columns: 1fr 1fr; }
   .pres__header { justify-content: center; text-align: center; }

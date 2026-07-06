@@ -90,7 +90,7 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
   const masc = genero.find((g: any) => /mas/i.test(g.name))?.count ?? ((m.menores?.masculino || 0) + (m.adultos?.masculino || 0) + (m.mayores?.masculino || 0));
   // Patologías MÁS FRECUENTES (nombres reales del censo), no el conteo SÍ/NO.
   const topPat = (Array.isArray(S.topPatologias) ? S.topPatologias : []).slice(0, 6);
-  const topParr = (Array.isArray(S.byParroquia) ? S.byParroquia : []).slice(0, 6);
+  const topParr = [...(Array.isArray(S.byParroquia) ? S.byParroquia : [])].sort((a: any, b: any) => (b.count || 0) - (a.count || 0)).slice(0, 10);
   // Con / sin patología (proporción, para mostrarlo "de otra forma" que un ranking).
   const conPat = S.conPatologia || 0;
   const sinPat = Math.max(0, (S.total || 0) - conPat);
@@ -138,6 +138,28 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
           </Panel>
           <Panel title="Edad × género" wide>
             <MatrixT m={m} />
+          </Panel>
+        </div>
+      ),
+    },
+    {
+      id: "territorio", title: "Distribución Territorial",
+      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></svg>,
+      body: (
+        <div className="pres-terr">
+          <Panel title="Afectados por parroquia">
+            {topParr.length === 0 ? <p className="pres-empty">No hay datos de parroquia en el censo.</p> : (
+              <div className="pres-rank">
+                {topParr.map((p: any, i: number) => (
+                  <div key={i} className="pres-rank__row">
+                    <span className={`pres-rank__pos ${i < 3 ? "is-top" : ""}`}>{i + 1}</span>
+                    <span className="pres-rank__label">{p.name}</span>
+                    <span className="pres-rank__track"><span className="pres-rank__fill" style={{ width: `${pct(p.count, topParr[0]?.count || 1)}%` }} /></span>
+                    <span className="pres-rank__count"><Num value={p.count} /></span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Panel>
         </div>
       ),
