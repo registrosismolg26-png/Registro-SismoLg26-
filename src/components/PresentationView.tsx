@@ -90,7 +90,13 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
   const masc = genero.find((g: any) => /mas/i.test(g.name))?.count ?? ((m.menores?.masculino || 0) + (m.adultos?.masculino || 0) + (m.mayores?.masculino || 0));
   // Patologías MÁS FRECUENTES (nombres reales del censo), no el conteo SÍ/NO.
   const topPat = (Array.isArray(S.topPatologias) ? S.topPatologias : []).slice(0, 6);
-  const topParr = [...(Array.isArray(S.byParroquia) ? S.byParroquia : [])].sort((a: any, b: any) => (b.count || 0) - (a.count || 0)).slice(0, 10);
+  const parrSorted = [...(Array.isArray(S.byParroquia) ? S.byParroquia : [])].sort((a: any, b: any) => (b.count || 0) - (a.count || 0));
+  const topParr = parrSorted.slice(0, 10);
+  // Concentración territorial: cuánto del total se agrupa en las 3 parroquias top.
+  const parrTotal = parrSorted.reduce((s: number, x: any) => s + (x.count || 0), 0);
+  const top3Count = parrSorted.slice(0, 3).reduce((s: number, x: any) => s + (x.count || 0), 0);
+  const restoCount = Math.max(0, parrTotal - top3Count);
+  const top3Pct = parrTotal ? Math.round((top3Count / parrTotal) * 100) : 0;
   // Con / sin patología (proporción, para mostrarlo "de otra forma" que un ranking).
   const conPat = S.conPatologia || 0;
   const sinPat = Math.max(0, (S.total || 0) - conPat);
@@ -160,6 +166,27 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
                 ))}
               </div>
             )}
+          </Panel>
+          <Panel title="Concentración territorial">
+            {parrTotal === 0 ? <p className="pres-empty">Sin datos.</p> : (() => {
+              const R = 52, Circ = 2 * Math.PI * R;
+              const frac = top3Count / (parrTotal || 1);
+              const dash = frac * Circ;
+              return (
+                <div className="pres-donut">
+                  <svg viewBox="0 0 130 130" className="pres-donut__svg">
+                    <circle cx="65" cy="65" r={R} fill="none" stroke="var(--pres-track)" strokeWidth="16" />
+                    <circle cx="65" cy="65" r={R} fill="none" stroke="#2563eb" strokeWidth="16" strokeDasharray={`${dash} ${Circ - dash}`} transform="rotate(-90 65 65)" strokeLinecap="round" />
+                    <circle cx="65" cy="65" r={R} fill="none" stroke="#94a3b8" strokeWidth="16" strokeDasharray={`${Circ - dash} ${dash}`} transform={`rotate(${-90 + frac * 360} 65 65)`} strokeLinecap="round" />
+                    <text x="65" y="72" textAnchor="middle" className="pres-donut__num">{top3Pct}%</text>
+                  </svg>
+                  <div className="pres-donut__legend">
+                    <span><i style={{ background: "#2563eb" }} />Top 3 parroquias <b>{top3Count.toLocaleString("es-VE")}</b> <em>({top3Pct}%)</em></span>
+                    <span><i style={{ background: "#94a3b8" }} />Resto <b>{restoCount.toLocaleString("es-VE")}</b> <em>({100 - top3Pct}%)</em></span>
+                  </div>
+                </div>
+              );
+            })()}
           </Panel>
         </div>
       ),

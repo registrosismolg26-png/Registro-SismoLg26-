@@ -5929,6 +5929,7 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 
 .pres-demo, .pres-salud, .pres-aloja, .pres-terr { display: grid; gap: clamp(0.7rem, 1.4vw, 1.2rem); height: 100%; }
 .pres-demo { grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; }
+.pres-terr { grid-template-columns: 1.35fr 1fr; align-items: stretch; }
 .pres-demo .pres-panel--wide { grid-column: 1 / -1; }
 /* Columna de paneles apilados (Salud: "Con/sin patología" sobre "Lesionados/No
    lesionados"), para no crecer una fila extra y tapar la barra de navegación. */
