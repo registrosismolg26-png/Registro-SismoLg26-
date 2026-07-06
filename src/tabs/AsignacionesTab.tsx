@@ -17,6 +17,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
+import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
@@ -137,10 +138,22 @@ export default function AsignacionesTab() {
           fechaNacimiento: citizen.fechaNacimiento ? padronDateToDmy(citizen.fechaNacimiento) : prev.fechaNacimiento,
         }));
         showToast("Identidad verificada en padrón local.", "info");
-      } else if (manual) {
-        showToast("Cédula no encontrada en el censo ni en el padrón local.", "warning");
+        return;
       }
-    } catch { if (manual) showToast("Padrón local no disponible.", "warning"); }
+    } catch { /* padrón local no disponible; se intenta la API en línea */ }
+    // 3) API externa en línea (api.cedula.com.ve), como tercera fuente.
+    const ext = await fetchCedulaExterna(nac, cleanNum);
+    if (ext) {
+      setEditData(prev => ({
+        ...prev,
+        ...(ext.nombreApellido ? { nombreApellido: ext.nombreApellido } : {}),
+        ...(ext.genero ? { genero: ext.genero } : {}),
+        ...(ext.fechaNacimiento ? { fechaNacimiento: padronDateToDmy(ext.fechaNacimiento) } : {}),
+      }));
+      showToast("Identidad verificada en línea (api.cedula.com.ve).", "info");
+    } else if (manual) {
+      showToast("Cédula no encontrada en el censo, padrón ni en línea.", "warning");
+    }
   };
   const lookupEditCedulaPadron = (cleanNum: string) => {
     if (editCedulaLookupRef.current) clearTimeout(editCedulaLookupRef.current);

@@ -19,6 +19,7 @@
 
 import { useState, useRef, useReducer, useMemo, useEffect } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
+import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import type { Medicamento, FormData } from "@/types";
 import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
@@ -434,7 +435,22 @@ export default function CensoTab() {
           }));
           showToast("Identidad verificada en padrón local.", "info");
         } else {
-          setLookupStatus("not-found");
+          // 3) API externa en línea (api.cedula.com.ve), como tercera fuente.
+          const ext = await fetchCedulaExterna(formData.nacionalidad, cleanCedula);
+          if (ext) {
+            setLookupStatus("found");
+            const parts = (ext.fechaNacimiento || "").split("-"); // yyyy-mm-dd
+            const extFecha = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : "";
+            dispatch({ type: "SET_MANY", patch: {
+              ...(ext.nombreApellido ? { nombreApellido: ext.nombreApellido } : {}),
+              ...(ext.genero ? { genero: ext.genero } : {}),
+              ...(extFecha ? { fechaNacimiento: extFecha, edad: handleDateChange(ext.fechaNacimiento) } : {}),
+            } });
+            setErrors(prev => ({ ...prev, nombreApellido: "", genero: "", fechaNacimiento: "" }));
+            showToast("Identidad verificada en línea (api.cedula.com.ve).", "info");
+          } else {
+            setLookupStatus("not-found");
+          }
         }
       } catch (err) {
         setLookupStatus("not-found");

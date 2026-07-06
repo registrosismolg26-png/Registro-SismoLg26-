@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
+import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText } from "@/lib/helpers";
 import { exportMorbilidadExcel } from "@/lib/exportMorbilidadExcel";
 import { apiFetch } from "@/lib/apiFetch";
@@ -255,12 +256,23 @@ export default function MorbilidadTab() {
           setRefugio(effectiveRefugio || currentUser?.campamentoTransitorio || "");
           showToast("Paciente encontrado en el Padrón.", "info");
         } else {
-          setNombreApellido("");
-          setGenero("MASCULINO");
-          setFechaNacimiento("");
-          setEdad("");
+          // 3. API externa en línea (api.cedula.com.ve), como tercera fuente.
+          const ext = await fetchCedulaExterna("V", cleanCedula);
           setRefugio(effectiveRefugio || currentUser?.campamentoTransitorio || "");
-          showToast("No encontrado. Rellene los datos manualmente.", "warning");
+          if (ext) {
+            setNombreApellido(ext.nombreApellido || "");
+            setGenero(ext.genero || "MASCULINO");
+            const fnExt = ext.fechaNacimiento || "";  // yyyy-mm-dd
+            setFechaNacimiento(fnExt);
+            setEdad(fnExt ? computeEdad(fnExt) : "");
+            showToast("Paciente verificado en línea (api.cedula.com.ve).", "info");
+          } else {
+            setNombreApellido("");
+            setGenero("MASCULINO");
+            setFechaNacimiento("");
+            setEdad("");
+            showToast("No encontrado. Rellene los datos manualmente.", "warning");
+          }
         }
       } catch (err) {
         console.error(err);
