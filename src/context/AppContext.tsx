@@ -16,6 +16,7 @@ export interface AppContextValue {
 
   // Sesión
   currentUser: CurrentUser | null;
+  setCurrentUser: React.Dispatch<React.SetStateAction<CurrentUser | null>>;
   isPowerAdmin: boolean;
   handleLogout: () => void;
 

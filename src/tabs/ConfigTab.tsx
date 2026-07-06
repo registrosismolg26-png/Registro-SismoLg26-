@@ -29,6 +29,7 @@ import { canManageRooms, canRegister, isMaster } from "@/lib/permissions";
 export default function ConfigTab() {
   const {
     currentUser,
+    setCurrentUser,
     isOnline,
     showToast,
     triggerSync,
@@ -77,6 +78,53 @@ export default function ConfigTab() {
   const [roomToEditCap, setRoomToEditCap] = useState<string | null>(null);
   const [editCapValue, setEditCapValue] = useState("18");
   const [savingCap, setSavingCap] = useState(false);
+
+  // ── Mi Cuenta (autoservicio: el propio usuario edita SU nombre / contraseña) ──
+  const [miNombre, setMiNombre] = useState(currentUser?.nombre || "");
+  const [curPwd, setCurPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confPwd, setConfPwd] = useState("");
+  const [savingAccount, setSavingAccount] = useState(false);
+
+  const handleSaveAccount = async () => {
+    if (!currentUser) return;
+    const nombre = miNombre.replace(/\s+/g, " ").trim();
+    if (!nombre) { showToast("El nombre no puede quedar vacío.", "error"); return; }
+    const wantsPwd = !!(curPwd || newPwd || confPwd);
+    if (wantsPwd) {
+      if (!curPwd) { showToast("Ingresa tu contraseña actual para cambiarla.", "error"); return; }
+      if (newPwd.length < 6) { showToast("La nueva contraseña debe tener al menos 6 caracteres.", "error"); return; }
+      if (newPwd !== confPwd) { showToast("La nueva contraseña y su confirmación no coinciden.", "error"); return; }
+    }
+    const nombreChanged = nombre !== currentUser.nombre;
+    if (!nombreChanged && !wantsPwd) { showToast("No hay cambios que guardar.", "info"); return; }
+    if (!isOnline) { showToast("Necesitas conexión para actualizar tu cuenta.", "error"); return; }
+    setSavingAccount(true);
+    try {
+      const payload: any = {};
+      if (nombreChanged) payload.nombre = nombre;
+      if (wantsPwd) { payload.currentPassword = curPwd; payload.newPassword = newPwd; }
+      const res = await apiFetch("/api/auth/me", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && d.success) {
+        // Refleja el nuevo nombre en la sesión local (memoria + almacenamiento).
+        const updated = { ...currentUser, nombre: d.user.nombre };
+        setCurrentUser(updated);
+        if (typeof window !== "undefined") {
+          if (localStorage.getItem("sismo_operator")) localStorage.setItem("sismo_operator", JSON.stringify(updated));
+          if (sessionStorage.getItem("sismo_operator")) sessionStorage.setItem("sismo_operator", JSON.stringify(updated));
+        }
+        setCurPwd(""); setNewPwd(""); setConfPwd("");
+        showToast(wantsPwd ? "Cuenta y contraseña actualizadas." : "Cuenta actualizada.", "success");
+      } else {
+        showToast(d.error || "No se pudo actualizar la cuenta.", "error");
+      }
+    } catch {
+      showToast("Error de red al actualizar la cuenta.", "error");
+    } finally {
+      setSavingAccount(false);
+    }
+  };
 
   // ── Gestión de Refugios (solo MASTER) ──
   interface Refugio { id: string; nombre: string; ubicacion?: string | null; createdAt?: string }
@@ -558,6 +606,40 @@ export default function ConfigTab() {
               <button type="button" className="config-notif-recheck" onClick={recheckNotif}>Volver a comprobar</button>.
             </p>
           )}
+        </div>
+
+        {/* ── 1b. MI CUENTA (autoservicio: cada quien edita SUS datos; nunca el correo) ── */}
+        <div className="dashboard-section">
+          <h3 className="dashboard-section-title">Mi Cuenta</h3>
+          <p className="config-account-note">Edita tu nombre o tu contraseña. El <strong>correo no se puede cambiar</strong>. Solo afecta a tu propia sesión.</p>
+          <div className="pill-form config-account">
+            <div className="form-group">
+              <label>Nombre</label>
+              <input className="morb-control" type="text" value={miNombre} onChange={(e) => setMiNombre(e.target.value)} placeholder="Tu nombre" />
+            </div>
+            <div className="form-group">
+              <label>Correo (no editable)</label>
+              <input className="morb-control" type="text" value={currentUser.email} disabled title="El correo no se puede cambiar" />
+            </div>
+            <div className="config-account__divider"><span>Cambiar contraseña (opcional)</span></div>
+            <div className="form-group">
+              <label>Contraseña actual</label>
+              <input className="morb-control" type="password" value={curPwd} onChange={(e) => setCurPwd(e.target.value)} autoComplete="current-password" placeholder="••••••••" />
+            </div>
+            <div className="form-group">
+              <label>Nueva contraseña</label>
+              <input className="morb-control" type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} autoComplete="new-password" placeholder="Mín. 6 caracteres" />
+            </div>
+            <div className="form-group">
+              <label>Confirmar nueva contraseña</label>
+              <input className="morb-control" type="password" value={confPwd} onChange={(e) => setConfPwd(e.target.value)} autoComplete="new-password" placeholder="Repite la nueva" />
+            </div>
+            <div className="config-account__actions">
+              <button type="button" className="btn-submit" onClick={handleSaveAccount} disabled={savingAccount || !isOnline}>
+                {savingAccount ? <span className="spinner spinner-sm" /> : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* ── 2. PADRÓN ELECTORAL LOCAL (lo usa quien censa: MASTER/ADMIN/REGISTRADOR) ── */}

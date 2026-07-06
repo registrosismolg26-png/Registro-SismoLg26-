@@ -3780,6 +3780,16 @@ h2.dashboard-section-title {
   align-items: center;
   gap: 1rem;
 }
+/* Mi Cuenta (autoservicio): nombre + correo (no editable) + cambio de contraseña. */
+.config-account-note { font-size: 0.75rem; color: var(--text-muted); margin: 0.2rem 0 0.7rem; }
+.config-account { display: grid; grid-template-columns: 1fr; gap: 0.85rem; }
+@media (min-width: 560px) { .config-account { grid-template-columns: 1fr 1fr; } }
+.config-account .form-group { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+.config-account .form-group > label { font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.02em; }
+.config-account__divider { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0; color: var(--text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.config-account__divider::before, .config-account__divider::after { content: ""; flex: 1; height: 1px; background: var(--border-color); }
+.config-account__actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+.config-account__actions .btn-submit { min-width: 180px; margin: 0; }
 .config-role-badge {
   flex-shrink: 0;
   padding: 0.25rem 0.75rem;

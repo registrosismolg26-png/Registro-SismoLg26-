@@ -1217,7 +1217,7 @@ export default function Home() {
   // Authenticated Dashboard Layout
   const appCtx: AppContextValue = {
     isOnline, theme, toggleTheme,
-    currentUser, isPowerAdmin: !!isPowerAdmin, handleLogout,
+    currentUser, setCurrentUser, isPowerAdmin: !!isPowerAdmin, handleLogout,
     activeTab, setActiveTab, showToast,
     triggerSync, isSyncing, syncQueueProgress, pendingCount,
     registros, setRegistros, fetchRegistros, loadingRegistros,
