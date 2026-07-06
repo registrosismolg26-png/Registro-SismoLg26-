@@ -18,7 +18,7 @@ model Registro {
   comunidad            String
   direccionExacta      String
   nombreApellido       String
-  cedula               String    @unique
+  cedula               String    // única POR refugio (no global): ver @@unique abajo
   jefeFamilia          String    // "SI" / "NO"
   genero               String    // "MASCULINO" / "FEMENINO"
   fechaNacimiento      DateTime
@@ -45,6 +45,11 @@ model Registro {
   intermitente         String    @default("NO") // "SI" or "NO"
   motivoIntermitente   String?   // Required when intermitente = "SI"
   refugio              String
+
+  // Una persona puede tener UNA fila por campamento (retirada en el de origen,
+  // activa en el destino tras un traslado). La cédula ya NO es única global.
+  @@unique([cedula, refugio])
+  @@index([cedula])
 }
 
 model Padron {

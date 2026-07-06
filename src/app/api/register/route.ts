@@ -156,15 +156,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, id: existing.id, alreadyExists: true }, { status: 200 });
     }
 
-    // Guard (back) de duplicado al EDITAR: si la cédula cambió y ya pertenece a OTRO
-    // registro ACTIVO (no retirado), rechazar con mensaje claro. El índice @unique es
-    // el backstop final (P2002 → 409); esto da un error legible.
+    // Guard (back) de duplicado al EDITAR: si la cédula cambió, rechazar si ya existe
+    // OTRA fila con esa cédula EN ESTE MISMO campamento (choca con la unicidad
+    // (cedula, refugio)) o si está ACTIVA en cualquier otro (evitaría dos activos).
+    // El índice compuesto es el backstop final (P2002 → 409); esto da un error legible.
     if (existing && normalizedCedula !== existing.cedula) {
-      const dup = await prisma.registro.findUnique({
-        where: { cedula: normalizedCedula },
+      const dup = await prisma.registro.findFirst({
+        where: {
+          cedula: normalizedCedula,
+          id: { not: existing.id },
+          OR: [{ refugio: existing.refugio }, { retirado: { not: "SI" } }],
+        },
         select: { id: true, nombreApellido: true, retirado: true, refugio: true },
       });
-      if (dup && dup.id !== existing.id && dup.retirado !== "SI") {
+      if (dup) {
         const mismoRefugio = dup.refugio === existing.refugio;
         return NextResponse.json(
           {
@@ -217,66 +222,84 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, id: updated.id, updated: true }, { status: 200 });
     }
 
-    // Guard explícito de cédula duplicada (además del índice @unique): no crear un
-    // nuevo censo si ya existe uno ACTIVO (no retirado) con esa cédula. Mensaje
-    // claro para el operador; el @unique queda como backstop ante carreras.
-    const dupExistente = await prisma.registro.findUnique({
-      where: { cedula: normalizedCedula },
-      select: { id: true, nombreApellido: true, retirado: true, refugio: true },
+    // (1) ¿Ya hay una fila para esta cédula EN ESTE campamento? (única por cedula+refugio)
+    const sameRef = await prisma.registro.findUnique({
+      where: { cedula_refugio: { cedula: normalizedCedula, refugio: refugioForCreate } },
+      select: { id: true, nombreApellido: true, retirado: true },
     });
-    if (dupExistente && dupExistente.retirado !== "SI") {
-      const mismoRefugio = dupExistente.refugio === refugioForCreate;
+    if (sameRef) {
+      if (sameRef.retirado !== "SI") {
+        return NextResponse.json(
+          { error: `Ya existe un registro activo con la cédula ${normalizedCedula} (${sameRef.nombreApellido}) en este campamento.`, code: "DUPLICATED", refugio: refugioForCreate },
+          { status: 409 }
+        );
+      }
+      // Retirada en ESTE campamento → la persona regresó. Se reactiva desde Registros
+      // (editar el registro existente), no se crea una nueva fila.
       return NextResponse.json(
-        {
-          error: mismoRefugio
-            ? `Ya existe un registro activo con la cédula ${normalizedCedula} (${dupExistente.nombreApellido}) en este campamento.`
-            : `La cédula ${normalizedCedula} (${dupExistente.nombreApellido}) ya está registrada y ACTIVA en el campamento "${dupExistente.refugio}". Una persona solo puede estar activa en un campamento a la vez.`,
-          code: "DUPLICATED",
-          refugio: dupExistente.refugio,
-        },
+        { error: `Esta persona ya estuvo registrada en este campamento y figura como RETIRADA (${sameRef.nombreApellido}). Reactívala desde Registros en vez de crear una nueva.`, code: "RETIRED_HERE", id: sameRef.id, refugio: refugioForCreate },
         { status: 409 }
       );
     }
 
-    const newRegistro = await withAuditUser(auth.email, (tx) => tx.registro.create({
-      data: {
-        id: id || undefined,
-        parroquia,
-        sector,
-        comunidad,
-        direccionExacta,
-        nombreApellido: nombreApellido.toUpperCase().trim(),
-        cedula: normalizedCedula,
-        jefeFamilia,
-        genero,
-        fechaNacimiento: fechaObj,
-        edad: edadNum,
-        perteneceNucleo,
-        cedulaJefeFamilia: normalizedJefeCedula,
-        estadoFisico,
-        embarazo: embarazoClean ?? "NO",
-        patologia,
-        patologiaDescripcion: patologiaDescripcion || null,
-        patologiaIds: Array.isArray(patologiaIds) ? patologiaIds : [],
-        gpsLat: gpsLat ? Number(gpsLat) : null,
-        gpsLng: gpsLng ? Number(gpsLng) : null,
-        telefono: telefono ? String(telefono).trim() : null,
-        medicamentos: Array.isArray(medicamentos) ? medicamentos : [],
-        medicamentoIds: Array.isArray(medicamentoIds) ? medicamentoIds : [],
-        refugio: refugioForCreate,
-        cuarto: (body.cuarto && String(body.cuarto).trim()) || undefined,
-        intermitente: intermitenteVal,
-        motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
-        syncedAt: new Date(),
-      },
-    }));
+    // (2) Crear en ESTE campamento. Si la persona está ACTIVA en OTRO(S) campamento(s),
+    // se trata como un TRASLADO AUTOMÁTICO: en la MISMA transacción se retira allá
+    // (retirado=SI, razón "Trasladado al campamento <destino>") y se crea aquí. Así la
+    // persona cuenta como retirada en el origen y como nueva/activa en el destino, sin
+    // quedar activa en dos lugares a la vez.
+    const { nuevo, transferredFrom } = await withAuditUser(auth.email, async (tx) => {
+      const activasEnOtros = await tx.registro.findMany({
+        where: { cedula: normalizedCedula, refugio: { not: refugioForCreate }, retirado: { not: "SI" } },
+        select: { refugio: true },
+      });
+      const origenes = [...new Set(activasEnOtros.map((r) => r.refugio))];
+      if (origenes.length) {
+        await tx.registro.updateMany({
+          where: { cedula: normalizedCedula, refugio: { not: refugioForCreate }, retirado: { not: "SI" } },
+          data: { retirado: "SI", retiradoRazon: `Trasladado al campamento ${refugioForCreate}`, retiradoFecha: new Date() },
+        });
+      }
+      const nuevo = await tx.registro.create({
+        data: {
+          id: id || undefined,
+          parroquia,
+          sector,
+          comunidad,
+          direccionExacta,
+          nombreApellido: nombreApellido.toUpperCase().trim(),
+          cedula: normalizedCedula,
+          jefeFamilia,
+          genero,
+          fechaNacimiento: fechaObj,
+          edad: edadNum,
+          perteneceNucleo,
+          cedulaJefeFamilia: normalizedJefeCedula,
+          estadoFisico,
+          embarazo: embarazoClean ?? "NO",
+          patologia,
+          patologiaDescripcion: patologiaDescripcion || null,
+          patologiaIds: Array.isArray(patologiaIds) ? patologiaIds : [],
+          gpsLat: gpsLat ? Number(gpsLat) : null,
+          gpsLng: gpsLng ? Number(gpsLng) : null,
+          telefono: telefono ? String(telefono).trim() : null,
+          medicamentos: Array.isArray(medicamentos) ? medicamentos : [],
+          medicamentoIds: Array.isArray(medicamentoIds) ? medicamentoIds : [],
+          refugio: refugioForCreate,
+          cuarto: (body.cuarto && String(body.cuarto).trim()) || undefined,
+          intermitente: intermitenteVal,
+          motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
+          syncedAt: new Date(),
+        },
+      });
+      return { nuevo, transferredFrom: origenes };
+    });
 
     // Notify admins
-    await sendPushToAdmins(newRegistro).catch((err) => {
+    await sendPushToAdmins(nuevo).catch((err) => {
       console.error("Error triggering push notifications to admins:", err);
     });
 
-    return NextResponse.json({ success: true, id: newRegistro.id }, { status: 201 });
+    return NextResponse.json({ success: true, id: nuevo.id, transferredFrom }, { status: 201 });
   } catch (error: any) {
     console.error("Error en API /api/register:", error);
 
