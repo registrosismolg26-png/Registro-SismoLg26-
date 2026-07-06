@@ -11,6 +11,7 @@ import { useState } from "react";
 import { sha256 } from "@/lib/helpers";
 import type { CurrentUser, ActiveTab, ToastType } from "@/types";
 import { SwipeableToast } from "@/components/SwipeableToast";
+import PasswordInput from "@/components/PasswordInput";
 
 interface LoginFormProps {
   setCurrentUser: React.Dispatch<React.SetStateAction<CurrentUser | null>>;
@@ -25,7 +26,6 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toa
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loadingAuth, setLoadingAuth] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -135,108 +135,73 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toa
   };
 
   return (
-      <div className="container">
-        <div className="app-header app-header--centered" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <img src="/logo_gob.webp" alt="Logo Gobernación La Guaira" style={{ width: "90px", height: "90px", objectFit: "contain" }} />
-          <div className="title-area title-area--centered">
-            <h1>CAMPAMENTOS TRANSITORIOS</h1>
-            <p className="subtitle">Sistema de Gestión · La Guaira 2026</p>
-          </div>
-        </div>
+      <div className="login-page">
+        <div className="login-shell">
+          <form onSubmit={handleLogin} className="login-card pill-form">
+            <div className="login-brand">
+              <img src="/logo_gob.webp" alt="Logo Gobernación La Guaira" className="login-brand__logo" />
+              <div>
+                <span className="login-brand__org">Gobernación del Estado La Guaira</span>
+                <h1 className="login-brand__title">Campamentos Transitorios</h1>
+                <span className="login-brand__sub">Sistema de Gestión · 2026</span>
+              </div>
+            </div>
 
-        <div className="login-container">
-          <form onSubmit={handleLogin} className="login-card">
-            <div className="login-header">
-              <h2 className="login-title">Iniciar Sesión</h2>
+            <div className="login-head">
+              <h2 className="login-title">Iniciar sesión</h2>
               <p className="login-subtitle">Ingrese sus credenciales de operador para continuar.</p>
             </div>
 
-            {loginError && <div className="login-error">{loginError}</div>}
+            {loginError && (
+              <div className="login-error" role="alert">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>{loginError}</span>
+              </div>
+            )}
 
             <div className="form-group">
-              <label htmlFor="login-email">Correo Electrónico</label>
+              <label htmlFor="login-email">Correo electrónico</label>
               <input
                 type="email"
                 id="login-email"
                 placeholder="ej: operador@sismo.gob.ve"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
+                autoComplete="username"
                 required
               />
             </div>
 
             <div className="form-group">
               <label htmlFor="login-password">Contraseña</label>
-              <div className="password-input-container" style={{ position: "relative", width: "100%" }}>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="login-password"
-                  placeholder="Contraseña"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                  style={{ paddingRight: "2.5rem" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: "absolute",
-                    right: "0.75rem",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--text-muted, #888)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "0"
-                  }}
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPassword ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
+              <PasswordInput
+                value={loginPassword}
+                onChange={setLoginPassword}
+                placeholder="Contraseña"
+                autoComplete="current-password"
+                ariaLabel="Contraseña"
+              />
             </div>
 
-            <div className="form-group remember-me-container" style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1rem", marginBottom: "1rem" }}>
-              <input
-                type="checkbox"
-                id="remember-me"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ width: "auto", height: "auto", cursor: "pointer" }}
-              />
-              <label htmlFor="remember-me" style={{ margin: 0, cursor: "pointer", fontSize: "0.875rem", userSelect: "none" }}>
-                Recordarme en este dispositivo
-              </label>
-            </div>
+            <button
+              type="button"
+              className={`pill-check pill-check--wrap${rememberMe ? " is-on" : ""}`}
+              aria-pressed={rememberMe}
+              onClick={() => setRememberMe((v) => !v)}
+            >
+              <span className="pill-check__box" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              </span>
+              <span className="pill-check__label">Recordarme en este dispositivo</span>
+            </button>
 
             <button type="submit" className="btn-submit" disabled={loadingAuth}>
               {loadingAuth ? "Verificando..." : "Entrar al Sistema"}
             </button>
 
-            <div style={{ marginTop: "1.25rem", borderTop: "1px solid var(--border-color)", paddingTop: "1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, textAlign: "center" }}>
-                ¿Busca a un familiar afectado?
-              </p>
-              <a
-                href="/buscar"
-                className="btn-secondary"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", textDecoration: "none" }}
-              >
+            <div className="login-alt">
+              <p>¿Busca a un familiar afectado?</p>
+              <a href="/buscar" className="btn-secondary" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", textDecoration: "none" }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 Buscar Familiar Afectado
               </a>
