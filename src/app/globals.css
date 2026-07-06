@@ -3790,6 +3790,17 @@ h2.dashboard-section-title {
 .config-account__divider::before, .config-account__divider::after { content: ""; flex: 1; height: 1px; background: var(--border-color); }
 .config-account__actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
 .config-account__actions .btn-submit { min-width: 180px; margin: 0; }
+/* En modal (angosto) va a una sola columna. */
+.config-account--stack { grid-template-columns: 1fr !important; }
+/* Disparador "Editar mi cuenta" (pill discreto dentro del Perfil). */
+.config-account-trigger {
+  display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.75rem;
+  height: 34px; padding: 0 0.9rem; border-radius: 999px; cursor: pointer;
+  background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--color-primary);
+  font-size: 0.75rem; font-weight: 700; transition: border-color 0.15s ease, background 0.15s ease;
+}
+.config-account-trigger:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+.config-account-trigger svg { flex: none; }
 .config-role-badge {
   flex-shrink: 0;
   padding: 0.25rem 0.75rem;

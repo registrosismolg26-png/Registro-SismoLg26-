@@ -79,12 +79,16 @@ export default function ConfigTab() {
   const [editCapValue, setEditCapValue] = useState("18");
   const [savingCap, setSavingCap] = useState(false);
 
-  // ── Mi Cuenta (autoservicio: el propio usuario edita SU nombre / contraseña) ──
+  // ── Mi Cuenta (autoservicio, en MODAL: el propio usuario edita SU nombre / contraseña) ──
+  const [showAccount, setShowAccount] = useState(false);
   const [miNombre, setMiNombre] = useState(currentUser?.nombre || "");
   const [curPwd, setCurPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
   const [confPwd, setConfPwd] = useState("");
   const [savingAccount, setSavingAccount] = useState(false);
+
+  const openAccount = () => { setMiNombre(currentUser?.nombre || ""); setCurPwd(""); setNewPwd(""); setConfPwd(""); setShowAccount(true); };
+  const closeAccount = () => { setShowAccount(false); setCurPwd(""); setNewPwd(""); setConfPwd(""); };
 
   const handleSaveAccount = async () => {
     if (!currentUser) return;
@@ -115,6 +119,7 @@ export default function ConfigTab() {
           if (sessionStorage.getItem("sismo_operator")) sessionStorage.setItem("sismo_operator", JSON.stringify(updated));
         }
         setCurPwd(""); setNewPwd(""); setConfPwd("");
+        setShowAccount(false);
         showToast(wantsPwd ? "Cuenta y contraseña actualizadas." : "Cuenta actualizada.", "success");
       } else {
         showToast(d.error || "No se pudo actualizar la cuenta.", "error");
@@ -606,40 +611,11 @@ export default function ConfigTab() {
               <button type="button" className="config-notif-recheck" onClick={recheckNotif}>Volver a comprobar</button>.
             </p>
           )}
-        </div>
-
-        {/* ── 1b. MI CUENTA (autoservicio: cada quien edita SUS datos; nunca el correo) ── */}
-        <div className="dashboard-section">
-          <h3 className="dashboard-section-title">Mi Cuenta</h3>
-          <p className="config-account-note">Edita tu nombre o tu contraseña. El <strong>correo no se puede cambiar</strong>. Solo afecta a tu propia sesión.</p>
-          <div className="pill-form config-account">
-            <div className="form-group">
-              <label>Nombre</label>
-              <input className="morb-control" type="text" value={miNombre} onChange={(e) => setMiNombre(e.target.value)} placeholder="Tu nombre" />
-            </div>
-            <div className="form-group">
-              <label>Correo (no editable)</label>
-              <input className="morb-control" type="text" value={currentUser.email} disabled title="El correo no se puede cambiar" />
-            </div>
-            <div className="config-account__divider"><span>Cambiar contraseña (opcional)</span></div>
-            <div className="form-group">
-              <label>Contraseña actual</label>
-              <input className="morb-control" type="password" value={curPwd} onChange={(e) => setCurPwd(e.target.value)} autoComplete="current-password" placeholder="••••••••" />
-            </div>
-            <div className="form-group">
-              <label>Nueva contraseña</label>
-              <input className="morb-control" type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} autoComplete="new-password" placeholder="Mín. 6 caracteres" />
-            </div>
-            <div className="form-group">
-              <label>Confirmar nueva contraseña</label>
-              <input className="morb-control" type="password" value={confPwd} onChange={(e) => setConfPwd(e.target.value)} autoComplete="new-password" placeholder="Repite la nueva" />
-            </div>
-            <div className="config-account__actions">
-              <button type="button" className="btn-submit" onClick={handleSaveAccount} disabled={savingAccount || !isOnline}>
-                {savingAccount ? <span className="spinner spinner-sm" /> : "Guardar cambios"}
-              </button>
-            </div>
-          </div>
+          {/* "Mi Cuenta" en un MODAL (Config estaba saturado): editar nombre/contraseña. */}
+          <button type="button" className="config-account-trigger" onClick={openAccount}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Editar mi cuenta
+          </button>
         </div>
 
         {/* ── 2. PADRÓN ELECTORAL LOCAL (lo usa quien censa: MASTER/ADMIN/REGISTRADOR) ── */}
@@ -1377,6 +1353,50 @@ export default function ConfigTab() {
                 disabled={deletingRefugio}
               >
                 {deletingRefugio ? <><span className="spinner spinner-sm"></span>Eliminando</> : "Sí, Eliminar Campamento"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Mi Cuenta (autoservicio — editar SÓLO el propio nombre/contraseña; nunca el correo) */}
+      {showAccount && (
+        <div className="modal-overlay" onClick={closeAccount}>
+          <div className="modal-content modal-content--detail" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px", width: "92%" }}>
+            <div className="modal-header">
+              <span className="modal-title">Mi Cuenta</span>
+              <button className="modal-close" onClick={closeAccount}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <p className="config-account-note">Edita tu nombre o tu contraseña. El <strong>correo no se puede cambiar</strong>.</p>
+            <div className="pill-form config-account config-account--stack">
+              <div className="form-group">
+                <label>Nombre</label>
+                <input className="morb-control" type="text" value={miNombre} onChange={(e) => setMiNombre(e.target.value)} placeholder="Tu nombre" />
+              </div>
+              <div className="form-group">
+                <label>Correo (no editable)</label>
+                <input className="morb-control" type="text" value={currentUser.email} disabled title="El correo no se puede cambiar" />
+              </div>
+              <div className="config-account__divider"><span>Cambiar contraseña (opcional)</span></div>
+              <div className="form-group">
+                <label>Contraseña actual</label>
+                <input className="morb-control" type="password" value={curPwd} onChange={(e) => setCurPwd(e.target.value)} autoComplete="current-password" placeholder="••••••••" />
+              </div>
+              <div className="form-group">
+                <label>Nueva contraseña</label>
+                <input className="morb-control" type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} autoComplete="new-password" placeholder="Mín. 6 caracteres" />
+              </div>
+              <div className="form-group">
+                <label>Confirmar nueva contraseña</label>
+                <input className="morb-control" type="password" value={confPwd} onChange={(e) => setConfPwd(e.target.value)} autoComplete="new-password" placeholder="Repite la nueva" />
+              </div>
+            </div>
+            <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" onClick={closeAccount} disabled={savingAccount}>Cancelar</button>
+              <button type="button" className="btn-submit" style={{ flex: 1 }} onClick={handleSaveAccount} disabled={savingAccount || !isOnline}>
+                {savingAccount ? <><span className="spinner spinner-sm"></span>Guardando</> : "Guardar cambios"}
               </button>
             </div>
           </div>
