@@ -1298,16 +1298,17 @@ export default function AsignacionesTab() {
                   {canRegister(currentUser.role) && (
                     <>
                       <div className="form-group detail-field--full" style={{ marginBottom: "0.25rem" }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "700", cursor: "pointer" }}>
-                          <input
-                            type="checkbox"
-                            checked={editData.isChildDependent || false}
-                            onChange={(e) => {
-                              setEditData(prev => ({ ...prev, isChildDependent: e.target.checked }));
-                            }}
-                          />
-                          Menor de edad sin cédula (hijo/dependiente)
-                        </label>
+                        <button
+                          type="button"
+                          className={`pill-check pill-check--wrap${editData.isChildDependent ? " is-on" : ""}`}
+                          aria-pressed={!!editData.isChildDependent}
+                          onClick={() => setEditData(prev => ({ ...prev, isChildDependent: !prev.isChildDependent }))}
+                        >
+                          <span className="pill-check__box" aria-hidden>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                          </span>
+                          <span className="pill-check__label">Menor de edad sin cédula (hijo/dependiente)</span>
+                        </button>
                       </div>
 
                       <div className="form-group detail-field--full">

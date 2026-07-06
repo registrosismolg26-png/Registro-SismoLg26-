@@ -4857,6 +4857,9 @@ h2.dashboard-section-title {
 .pill-check__box svg { width: 12px; height: 12px; opacity: 0; transition: opacity 0.12s ease; }
 .pill-check.is-on .pill-check__box svg { opacity: 1; }
 .pill-check__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Variante para etiquetas largas: ancho completo, alto flexible, texto que envuelve. */
+.pill-check--wrap { width: 100%; height: auto; min-height: var(--ctl-h, 46px); padding-top: 0.45rem; padding-bottom: 0.45rem; justify-content: flex-start; text-align: left; }
+.pill-check--wrap .pill-check__label { white-space: normal; overflow: visible; }
 
 /* Input deshabilitado dentro de un form pill: se ve "bloqueado" con claridad. */
 .pill-form input:disabled, .censo-form input:disabled {

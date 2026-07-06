@@ -843,25 +843,28 @@ export default function CensoTab() {
               {step === 3 && (
                 <div className="form-section form-step-content" key="step-3">
                   <div className="form-group" style={{ marginBottom: "1rem" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem", fontWeight: "normal", textTransform: "none", letterSpacing: 0 }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.isChildDependent}
-                        onChange={(e) => {
-                          dispatch({ type: "SET", field: "isChildDependent", value: e.target.checked });
-                          // Al marcarlo hijo la cédula es la del representante → limpia el
-                          // estado del padrón (no se verifica ahí).
-                          if (e.target.checked) setLookupStatus("idle");
-                          if (e.target.checked && formData.cedulaJefeFamilia) {
-                            const numOnly = formData.cedulaJefeFamilia.replace(/^[VE]-/, "");
-                            dispatch({ type: "SET", field: "cedula", value: numOnly });
-                            markTouched("cedula");
-                          }
-                        }}
-                        style={{ width: "auto", height: "auto" }}
-                      />
-                      Menor de edad sin cédula (asociar a representante)
-                    </label>
+                    <button
+                      type="button"
+                      className={`pill-check pill-check--wrap${formData.isChildDependent ? " is-on" : ""}`}
+                      aria-pressed={formData.isChildDependent}
+                      onClick={() => {
+                        const checked = !formData.isChildDependent;
+                        dispatch({ type: "SET", field: "isChildDependent", value: checked });
+                        // Al marcarlo hijo la cédula es la del representante → limpia el
+                        // estado del padrón (no se verifica ahí).
+                        if (checked) setLookupStatus("idle");
+                        if (checked && formData.cedulaJefeFamilia) {
+                          const numOnly = formData.cedulaJefeFamilia.replace(/^[VE]-/, "");
+                          dispatch({ type: "SET", field: "cedula", value: numOnly });
+                          markTouched("cedula");
+                        }
+                      }}
+                    >
+                      <span className="pill-check__box" aria-hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      </span>
+                      <span className="pill-check__label">Menor de edad sin cédula (asociar a representante)</span>
+                    </button>
                   </div>
 
                   <div className="form-group">
