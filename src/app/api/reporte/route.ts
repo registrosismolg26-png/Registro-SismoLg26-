@@ -3,21 +3,24 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, isMaster, type AuthUser } from "@/lib/auth";
 
 // ── Matriz de visibilidad / revocación de links (decisión del dueño) ─────────
-// VER: Master ve todos; Admin ve todos MENOS los de un Master; el resto solo los suyos.
-// REVOCAR: cada quien revoca los suyos; Master/Admin además revocan los de usuarios
-// NO privilegiados (ni de otros admins ni de un master); Admin nunca ve/revoca los de Master.
-function canSeeLink(auth: AuthUser, creatorId: string, creatorRole?: string): boolean {
-  if (creatorId === auth.id) return true;
-  if (isMaster(auth)) return true;
-  if (auth.role === "ADMIN") return creatorRole !== "MASTER";
-  return false;
+// VER: Master ve TODOS; Admin ve solo los de SU refugio (y nunca los de un Master); el
+//      resto solo los suyos.
+// REVOCAR: cada quien los suyos; Master revoca TODOS; Admin revoca los de usuarios NO
+//          privilegiados de SU refugio (nunca de otro admin ni de un master).
+function canSeeLink(auth: AuthUser, creatorId: string, creatorRole: string | undefined, linkRefugio: string | null): boolean {
+  if (creatorId === auth.id) return true;                                     // los propios siempre
+  if (isMaster(auth)) return true;                                            // Master ve todos
+  if (auth.role === "ADMIN") return creatorRole !== "MASTER" && linkRefugio === auth.refugio; // Admin: solo su refugio, no de Master
+  return false;                                                               // el resto solo los suyos
 }
-function canRevokeLink(auth: AuthUser, creatorId: string, creatorRole?: string): boolean {
-  if (creatorId === auth.id) return true; // los propios siempre
-  const privileged = isMaster(auth) || auth.role === "ADMIN";
-  if (!privileged) return false;
-  const creatorPrivileged = creatorRole === "MASTER" || creatorRole === "ADMIN";
-  return !creatorPrivileged; // solo links de usuarios NO privilegiados
+function canRevokeLink(auth: AuthUser, creatorId: string, creatorRole: string | undefined, linkRefugio: string | null): boolean {
+  if (creatorId === auth.id) return true;                                     // los propios siempre
+  if (isMaster(auth)) return true;                                            // Master revoca TODOS
+  if (auth.role === "ADMIN") {                                                // Admin: usuarios NO privilegiados de su refugio
+    const creatorPrivileged = creatorRole === "MASTER" || creatorRole === "ADMIN";
+    return !creatorPrivileged && linkRefugio === auth.refugio;
+  }
+  return false;
 }
 
 // ── Gestión de links públicos de reporte (autenticado) ──────────────────────
@@ -80,14 +83,14 @@ export async function GET(req: Request) {
     const roleById = new Map(creators.map((u) => [u.id, u.role]));
 
     const reportes = rows
-      .filter((r) => canSeeLink(auth, r.creadoPor, roleById.get(r.creadoPor)))
+      .filter((r) => canSeeLink(auth, r.creadoPor, roleById.get(r.creadoPor), r.refugio))
       .map((r) => ({
         id: r.id, refugio: r.refugio, activo: r.activo, createdAt: r.createdAt,
         accesos: r._count.accesos,
         creadoPorNombre: r.creadoPorNombre || "—",
         creadoPorRole: roleById.get(r.creadoPor) || null,
         esMio: r.creadoPor === auth.id,
-        puedeRevocar: canRevokeLink(auth, r.creadoPor, roleById.get(r.creadoPor)),
+        puedeRevocar: canRevokeLink(auth, r.creadoPor, roleById.get(r.creadoPor), r.refugio),
       }));
 
     return NextResponse.json({ success: true, reportes });
@@ -112,7 +115,7 @@ export async function DELETE(req: Request) {
     const creatorRole = existing.creadoPor
       ? (await prisma.user.findUnique({ where: { id: existing.creadoPor }, select: { role: true } }))?.role
       : undefined;
-    if (!canRevokeLink(auth, existing.creadoPor, creatorRole ?? undefined)) {
+    if (!canRevokeLink(auth, existing.creadoPor, creatorRole ?? undefined, existing.refugio)) {
       return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
     }
 
