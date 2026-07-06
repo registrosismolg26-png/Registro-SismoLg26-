@@ -156,31 +156,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, id: existing.id, alreadyExists: true }, { status: 200 });
     }
 
-    // Guard (back) de duplicado al EDITAR: si la cédula cambió, rechazar si ya existe
-    // OTRA fila con esa cédula EN ESTE MISMO campamento (choca con la unicidad
-    // (cedula, refugio)) o si está ACTIVA en cualquier otro (evitaría dos activos).
-    // El índice compuesto es el backstop final (P2002 → 409); esto da un error legible.
-    if (existing && normalizedCedula !== existing.cedula) {
-      const dup = await prisma.registro.findFirst({
-        where: {
-          cedula: normalizedCedula,
-          id: { not: existing.id },
-          OR: [{ refugio: existing.refugio }, { retirado: { not: "SI" } }],
-        },
-        select: { id: true, nombreApellido: true, retirado: true, refugio: true },
-      });
-      if (dup) {
-        const mismoRefugio = dup.refugio === existing.refugio;
-        return NextResponse.json(
-          {
-            error: mismoRefugio
-              ? `La cédula ${normalizedCedula} ya pertenece a otro afectado registrado (${dup.nombreApellido}) en este campamento.`
-              : `La cédula ${normalizedCedula} ya pertenece a un afectado ACTIVO (${dup.nombreApellido}) en el campamento "${dup.refugio}".`,
-            code: "DUPLICATED",
-            refugio: dup.refugio,
-          },
-          { status: 409 }
-        );
+    // Integridad al EDITAR — mantener la regla "≤1 fila ACTIVA por cédula".
+    if (existing) {
+      const finalRetirado = (typeof body.retirado === "string" && VALID_SI_NO.includes(body.retirado))
+        ? body.retirado
+        : existing.retirado;
+      // (a) Si CAMBIA la cédula, no puede chocar con OTRA fila de esa cédula en el MISMO
+      //     campamento (unicidad (cedula, refugio); el índice es el backstop P2002).
+      if (normalizedCedula !== existing.cedula) {
+        const sameRef = await prisma.registro.findFirst({
+          where: { cedula: normalizedCedula, refugio: existing.refugio, id: { not: existing.id } },
+          select: { nombreApellido: true },
+        });
+        if (sameRef) {
+          return NextResponse.json(
+            { error: `La cédula ${normalizedCedula} ya pertenece a otro afectado registrado (${sameRef.nombreApellido}) en este campamento.`, code: "DUPLICATED" },
+            { status: 409 }
+          );
+        }
+      }
+      // (b) Si esta fila queda ACTIVA, NO puede haber otra fila ACTIVA con la misma cédula
+      //     en NINGÚN campamento. Cubre el caso de REACTIVAR (retirado→NO) a alguien que
+      //     está activo en otro campamento: se bloquea y se le indica dónde está.
+      if (finalRetirado !== "SI") {
+        const activo = await prisma.registro.findFirst({
+          where: { cedula: normalizedCedula, id: { not: existing.id }, retirado: { not: "SI" }, refugio: { not: existing.refugio } },
+          select: { nombreApellido: true, refugio: true },
+        });
+        if (activo) {
+          return NextResponse.json(
+            { error: `No se puede dejar este registro activo: ${activo.nombreApellido} (cédula ${normalizedCedula}) ya está ACTIVO en el campamento "${activo.refugio}". Retíralo allá primero.`, code: "ACTIVE_ELSEWHERE", refugio: activo.refugio },
+            { status: 409 }
+          );
+        }
       }
     }
 
