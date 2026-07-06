@@ -3805,6 +3805,26 @@ h2.dashboard-section-title {
 }
 .pwd-input__toggle:hover { color: var(--text-secondary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
 .pwd-input__toggle:disabled { cursor: not-allowed; opacity: 0.5; }
+
+/* Botón de sincronizar integrado dentro del input de cédula (edición de registrados). */
+.ced-sync-wrap { position: relative; min-width: 0; }
+.ced-sync-btn {
+  position: absolute; right: 0.35rem; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--color-primary); cursor: pointer; border-radius: 50%;
+  transition: color 0.14s ease, background 0.14s ease;
+}
+.ced-sync-btn:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+.ced-sync-btn:active { transform: translateY(-50%) rotate(60deg); }
+
+/* Responsive: en teléfono, ciertos botones de barra de herramientas colapsan su texto y
+   quedan solo con el ícono (para que no se desborden). El título (title=) conserva la pista. */
+@media (max-width: 560px) {
+  .btn-txt-collapsible { display: none; }
+}
+@media (max-width: 430px) {
+  .btn-txt-collapsible-sm { display: none; }
+}
 /* Disparador "Editar mi cuenta" (pill discreto dentro del Perfil). */
 .config-account-trigger {
   display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.75rem;

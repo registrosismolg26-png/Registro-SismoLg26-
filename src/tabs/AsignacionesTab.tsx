@@ -19,6 +19,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText } from "@/lib/helpers";
+import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
@@ -69,27 +70,60 @@ export default function AsignacionesTab() {
   // muestra su nombre si está en el sistema, o avisa si no está registrado.
   const [jefeEditLookup, setJefeEditLookup] = useState<{ found: boolean; nombre?: string } | null>(null);
 
-  // Consulta AUTOMÁTICA de la cédula del afectado en el padrón local (igual que en
-  // registro): al terminar de escribir (debounce), autocompleta nombre y género.
+  // Consulta AUTOMÁTICA de la cédula del afectado (igual que al registrar): al terminar de
+  // escribir (debounce) o al pulsar el botón de sincronizar dentro del input, autocompleta
+  // nombre, género y fecha de nacimiento desde el CENSO (otro registro) o el PADRÓN local.
   const editCedulaLookupRef = useRef<NodeJS.Timeout | null>(null);
+  const isoToDmy = (iso?: string): string => {
+    if (!iso) return "";
+    const d = new Date(iso.length === 10 ? iso + "T00:00:00" : iso);
+    if (isNaN(d.getTime())) return "";
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+  };
+  const padronDateToDmy = (fn?: string): string => {
+    if (!fn) return "";
+    const parts = fn.split("-"); // padrón: YYYY-MM-DD
+    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : fn;
+  };
+  const runEditCedulaLookup = async (cleanNum: string, manual = false) => {
+    if (cleanNum.length < 6) { if (manual) showToast("Ingresa una cédula válida.", "warning"); return; }
+    // 1) Censo: otro registro ACTIVO con esa cédula (excluye el que se está editando).
+    const censoMatch = registros.find(r =>
+      r.id !== selectedRegistro?.id && (r.cedula || "").replace(/\D/g, "") === cleanNum && r.retirado !== "SI");
+    if (censoMatch) {
+      setEditData(prev => ({
+        ...prev,
+        nombreApellido: censoMatch.nombreApellido || prev.nombreApellido,
+        genero: censoMatch.genero || prev.genero,
+        fechaNacimiento: censoMatch.fechaNacimiento ? isoToDmy(censoMatch.fechaNacimiento) : prev.fechaNacimiento,
+      }));
+      showToast("Datos tomados del censo.", "info");
+      return;
+    }
+    // 2) Padrón electoral local.
+    try {
+      const citizen = await buscarCedulaEnCliente(cleanNum);
+      if (citizen) {
+        setEditData(prev => ({
+          ...prev,
+          nombreApellido: citizen.nombreCompleto || prev.nombreApellido,
+          genero: (citizen.sexo === "F" || citizen.sexo === "FEMENINO") ? "FEMENINO"
+            : (citizen.sexo === "M" || citizen.sexo === "MASCULINO") ? "MASCULINO" : prev.genero,
+          fechaNacimiento: citizen.fechaNacimiento ? padronDateToDmy(citizen.fechaNacimiento) : prev.fechaNacimiento,
+        }));
+        showToast("Identidad verificada en padrón local.", "info");
+      } else if (manual) {
+        showToast("Cédula no encontrada en el censo ni en el padrón local.", "warning");
+      }
+    } catch { if (manual) showToast("Padrón local no disponible.", "warning"); }
+  };
   const lookupEditCedulaPadron = (cleanNum: string) => {
     if (editCedulaLookupRef.current) clearTimeout(editCedulaLookupRef.current);
     if (cleanNum.length < 7) return;
-    editCedulaLookupRef.current = setTimeout(async () => {
-      try {
-        const citizen = await buscarCedulaEnCliente(cleanNum);
-        if (citizen) {
-          setEditData(prev => ({
-            ...prev,
-            nombreApellido: citizen.nombreCompleto || prev.nombreApellido,
-            genero: (citizen.sexo === "F" || citizen.sexo === "FEMENINO") ? "FEMENINO"
-              : (citizen.sexo === "M" || citizen.sexo === "MASCULINO") ? "MASCULINO" : prev.genero,
-          }));
-          showToast("Identidad verificada en padrón local.", "info");
-        }
-      } catch { /* padrón no disponible: se ingresa manual */ }
-    }, 250);
+    editCedulaLookupRef.current = setTimeout(() => runEditCedulaLookup(cleanNum, false), 250);
   };
+  const handleSyncEditCedula = () => runEditCedulaLookup((editData.cedula || "").replace(/\D/g, ""), true);
 
   const lookupJefeEdit = (cleanVal: string) => {
     if (cleanVal.length >= 5) {
@@ -139,6 +173,10 @@ export default function AsignacionesTab() {
   const [filterEstadoFisico, setFilterEstadoFisico] = useState("");
   const [filterCuarto, setFilterCuarto] = useState("");
   const [filterRetirado, setFilterRetirado] = useState("NO");
+  const [filterDesde, setFilterDesde] = useState(""); // yyyy-mm-dd (fecha de registro)
+  const [filterHasta, setFilterHasta] = useState("");
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+  const ymdLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   // Navegación por notificación PWA: cuando pendingSelectId tiene match en
   // registros, abrir su detalle y limpiar el pendiente. (Home ya cambió el tab.)
@@ -205,9 +243,12 @@ export default function AsignacionesTab() {
     if (filterRetirado) {
       result = result.filter(r => (r.retirado || "NO") === filterRetirado);
     }
+    // Rango de fechas de REGISTRO (createdAt), inclusivo.
+    if (filterDesde) result = result.filter(r => r.createdAt && ymdLocal(new Date(r.createdAt)) >= filterDesde);
+    if (filterHasta) result = result.filter(r => r.createdAt && ymdLocal(new Date(r.createdAt)) <= filterHasta);
 
     return result;
-  }, [registros, registroSearch, filterGenero, filterEdad, filterParroquia, filterEstadoFisico, filterCuarto, filterRetirado]);
+  }, [registros, registroSearch, filterGenero, filterEdad, filterParroquia, filterEstadoFisico, filterCuarto, filterRetirado, filterDesde, filterHasta]);
 
   const roomCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -447,60 +488,28 @@ export default function AsignacionesTab() {
     }
   };
 
-  const handleExportExcel = () => {
-    const present = registros.filter(r => r.retirado !== "SI");
-    if (present.length === 0) {
-      showToast("No hay registros de personas presentes para exportar", "warning");
+  // Exporta a un XLSX con membrete/colores lo que se ve (registros FILTRADOS): si hay
+  // filtros/búsqueda aplicados, solo esos; si no, todos.
+  const handleExportExcel = async () => {
+    if (filteredRegistros.length === 0) {
+      showToast("No hay registros (con los filtros actuales) para exportar.", "warning");
       return;
     }
-
-    const headers = [
-      "Cédula", "Nombre y Apellido", "Género", "Fecha de Nacimiento", "Edad",
-      "Parroquia", "Sector", "Comunidad", "Dirección Exacta", "Teléfono",
-      "Cuarto/Habitación", "Estado Físico", "Jefe de Familia", "Cédula Jefe",
-      "Patología", "Descripción Patología", "Medicamentos", "Fecha de Registro"
-    ];
-
-    const rows = present.map(r => {
-      const meds = medItemsText(r.medicamentoIds, predefinedMedicamentos);
-      return [
-        r.cedula,
-        r.nombreApellido,
-        r.genero,
-        r.fechaNacimiento,
-        r.edad,
-        r.parroquia,
-        r.sector,
-        r.comunidad,
-        r.direccionExacta,
-        r.telefono || "",
-        r.cuarto || "Sin asignar",
-        r.estadoFisico,
-        r.jefeFamilia,
-        r.cedulaJefeFamilia || "",
-        r.patologia,
-        patologiaNombres(r.patologiaIds, patologias).join(", "),
-        meds,
-        r.createdAt ? new Date(r.createdAt).toLocaleString("es-VE") : ""
-      ];
-    });
-
-    const campamentoActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
-    const csvContent = [
-      `"CAMPAMENTO TRANSITORIO: ${String(campamentoActivo).replace(/"/g, '""')}"`,
-      "",
-      headers.join(";"),
-      ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(";")),
-    ].join("\n");
-    const blob = new Blob(["﻿" + csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `registro_censo_presentes_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("CSV para Excel descargado correctamente", "success");
+    setExportingXlsx(true);
+    try {
+      await exportRegistrosExcel({
+        registros: filteredRegistros,
+        patologias, predefinedMedicamentos,
+        refugio: effectiveRefugio || currentUser?.campamentoTransitorio || "",
+        generadoEn: new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      });
+      showToast("Excel descargado.", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("No se pudo generar el Excel.", "error");
+    } finally {
+      setExportingXlsx(false);
+    }
   };
 
   const handlePrintPDFList = () => {
@@ -644,17 +653,20 @@ export default function AsignacionesTab() {
                   type="button"
                   className="toolbar-btn"
                   onClick={handleExportExcel}
+                  disabled={exportingXlsx}
+                  title="Descargar Excel del listado filtrado"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                  Exportar Excel
+                  {exportingXlsx ? <span className="spinner spinner-sm" /> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>}
+                  <span className="btn-txt-collapsible">Excel</span>
                 </button>
                 <button
                   type="button"
                   className="toolbar-btn"
                   onClick={handlePrintPDFList}
+                  title="Imprimir PDF de presentes"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                  Imprimir PDF Presentes
+                  <span className="btn-txt-collapsible">Imprimir PDF</span>
                 </button>
               </div>
             )}
@@ -688,7 +700,7 @@ export default function AsignacionesTab() {
               {filtersOpen ? "Ocultar Filtros" : "Filtros Avanzados"}
             </button>
 
-            {(filterGenero || filterEdad || filterParroquia || filterEstadoFisico || filterCuarto || filterRetirado !== "NO") && (
+            {(filterGenero || filterEdad || filterParroquia || filterEstadoFisico || filterCuarto || filterRetirado !== "NO" || filterDesde || filterHasta) && (
               <button
                 type="button"
                 className="toolbar-btn toolbar-btn--danger"
@@ -699,6 +711,8 @@ export default function AsignacionesTab() {
                   setFilterEstadoFisico("");
                   setFilterCuarto("");
                   setFilterRetirado("NO");
+                  setFilterDesde("");
+                  setFilterHasta("");
                 }}
               >
                 Limpiar Filtros
@@ -754,6 +768,15 @@ export default function AsignacionesTab() {
                   value={filterRetirado} onChange={setFilterRetirado} ariaLabel="Estatus de Permanencia"
                   options={[{ value: "", label: "Todos (Presentes y Egresados)" }, { value: "NO", label: "Presentes actualmente" }, { value: "SI", label: "Egresados / Retirados" }]}
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Registrados desde</label>
+                <DatePicker value={filterDesde} onChange={setFilterDesde} placeholder="Desde…" />
+              </div>
+              <div className="form-group">
+                <label>Registrados hasta</label>
+                <DatePicker value={filterHasta} onChange={setFilterHasta} placeholder="Hasta…" />
               </div>
             </div>
           )}
@@ -1213,18 +1236,23 @@ export default function AsignacionesTab() {
                               ariaLabel="Nacionalidad"
                             />
                           </div>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="Solo números"
-                            value={editData.cedula || ""}
-                            onChange={e => {
-                              const clean = e.target.value.replace(/\D/g, "");
-                              setEditData(prev => ({ ...prev, cedula: clean }));
-                              lookupEditCedulaPadron(clean);
-                            }}
-                            style={{ flex: 1, minWidth: 0 }}
-                          />
+                          <div className="ced-sync-wrap" style={{ flex: 1, minWidth: 0 }}>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="Solo números"
+                              value={editData.cedula || ""}
+                              onChange={e => {
+                                const clean = e.target.value.replace(/\D/g, "");
+                                setEditData(prev => ({ ...prev, cedula: clean }));
+                                lookupEditCedulaPadron(clean);
+                              }}
+                              style={{ width: "100%", paddingRight: "2.4rem" }}
+                            />
+                            <button type="button" className="ced-sync-btn" onClick={handleSyncEditCedula} title="Buscar datos en censo/padrón" aria-label="Buscar datos de la cédula en censo/padrón">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
 

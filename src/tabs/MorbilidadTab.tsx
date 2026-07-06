@@ -116,6 +116,8 @@ export default function MorbilidadTab() {
   const [fTipo, setFTipo] = useState("");
   const [fDiag, setFDiag] = useState("");
   const [fEstado, setFEstado] = useState("");
+  const [fDesde, setFDesde] = useState(""); // yyyy-mm-dd (fecha de la consulta)
+  const [fHasta, setFHasta] = useState("");
 
   // Datos Básicos del Paciente
   const [cedula, setCedula] = useState("");
@@ -721,9 +723,13 @@ export default function MorbilidadTab() {
       return fDiag === "con" ? has : !has;
     });
     if (fEstado) list = list.filter((c) => (c.data?.estadoFisico || "") === fEstado);
+    // Rango de fechas de la CONSULTA (fechaConsulta || createdAt), inclusivo.
+    const ymd = (v: any) => { const d = new Date(v); return isNaN(d.getTime()) ? "" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+    if (fDesde) list = list.filter((c) => ymd(c.data?.fechaConsulta || c.createdAt) >= fDesde);
+    if (fHasta) list = list.filter((c) => { const s = ymd(c.data?.fechaConsulta || c.createdAt); return !!s && s <= fHasta; });
     return list;
-  }, [allConsultas, histSearch, fTipo, fDiag, fEstado]);
-  const histFiltersActive = !!(fTipo || fDiag || fEstado);
+  }, [allConsultas, histSearch, fTipo, fDiag, fEstado, fDesde, fHasta]);
+  const histFiltersActive = !!(fTipo || fDiag || fEstado || fDesde || fHasta);
 
   // Opciones para los buscadores (excluyendo lo ya elegido).
   const patologiaOptions = (excluir: string[]) =>
@@ -863,7 +869,7 @@ export default function MorbilidadTab() {
         <div className="morb-head__actions">
           <button type="button" className="morb-newbtn" onClick={openCreate}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Nueva consulta
+            <span className="btn-txt-collapsible-sm">Nueva consulta</span>
           </button>
           {/* Catálogos médicos: botones discretos + modales. Solo a quien puede editar catálogos. */}
           <CatalogosMedicos />
@@ -1018,7 +1024,7 @@ export default function MorbilidadTab() {
               {exporting ? <span className="spinner spinner-sm" /> : (
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
               )}
-              Descargar Excel
+              <span className="btn-txt-collapsible">Excel</span>
             </button>
           )}
         </div>
@@ -1039,7 +1045,7 @@ export default function MorbilidadTab() {
                 {histFiltersOpen ? "Ocultar Filtros" : "Filtros Avanzados"}
               </button>
               {histFiltersActive && (
-                <button type="button" className="toolbar-btn toolbar-btn--danger" onClick={() => { setFTipo(""); setFDiag(""); setFEstado(""); }}>Limpiar Filtros</button>
+                <button type="button" className="toolbar-btn toolbar-btn--danger" onClick={() => { setFTipo(""); setFDiag(""); setFEstado(""); setFDesde(""); setFHasta(""); }}>Limpiar Filtros</button>
               )}
             </div>
             {histFiltersOpen && (
@@ -1055,6 +1061,14 @@ export default function MorbilidadTab() {
                 <div className="form-group">
                   <label>Estado físico</label>
                   <StyledSelect value={fEstado} onChange={setFEstado} ariaLabel="Estado físico" options={[{ value: "", label: "Todos" }, { value: "ILESO", label: "Ileso" }, { value: "LESIONADO", label: "Lesionado" }]} />
+                </div>
+                <div className="form-group">
+                  <label>Consultas desde</label>
+                  <DatePicker value={fDesde} onChange={setFDesde} placeholder="Desde…" />
+                </div>
+                <div className="form-group">
+                  <label>Consultas hasta</label>
+                  <DatePicker value={fHasta} onChange={setFHasta} placeholder="Hasta…" />
                 </div>
               </div>
             )}

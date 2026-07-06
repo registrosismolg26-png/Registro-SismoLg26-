@@ -177,17 +177,17 @@ export default function CatalogosMedicos() {
     <>
       {/* Dos botones discretos */}
       <div className="cat-triggers">
-        <button type="button" className="cat-trigger" onClick={() => setPanel("pat")}>
+        <button type="button" className="cat-trigger" onClick={() => setPanel("pat")} title="Catálogo de patologías">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-          Patologías
+          <span className="btn-txt-collapsible">Patologías</span>
         </button>
-        <button type="button" className="cat-trigger" onClick={() => setPanel("med")}>
+        <button type="button" className="cat-trigger" onClick={() => setPanel("med")} title="Catálogo de medicamentos">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.5 20.5 3.5 13.5a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
-          Medicamentos
+          <span className="btn-txt-collapsible">Medicamentos</span>
         </button>
-        <button type="button" className="cat-trigger" onClick={() => setPanel("les")}>
+        <button type="button" className="cat-trigger" onClick={() => setPanel("les")} title="Catálogo de tipos de lesión">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 4.8a3 3 0 0 1 4.2 0l1.5 1.5m3 3 4.7 4.7a3 3 0 0 1-4.2 4.2L4.8 9a3 3 0 0 1 0-4.2Z"/><path d="m10.5 6.3 3.2 3.2"/></svg>
-          Lesiones
+          <span className="btn-txt-collapsible">Lesiones</span>
         </button>
       </div>
 
