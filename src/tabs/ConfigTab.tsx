@@ -25,6 +25,8 @@ import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { enablePush, pushSupported } from "@/lib/pushClient";
 import { canManageRooms, canRegister, isMaster } from "@/lib/permissions";
+import { useBodyScrollLock } from "@/components/useBodyScrollLock";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function ConfigTab() {
   const {
@@ -89,6 +91,7 @@ export default function ConfigTab() {
 
   const openAccount = () => { setMiNombre(currentUser?.nombre || ""); setCurPwd(""); setNewPwd(""); setConfPwd(""); setShowAccount(true); };
   const closeAccount = () => { setShowAccount(false); setCurPwd(""); setNewPwd(""); setConfPwd(""); };
+  useBodyScrollLock(showAccount); // bloquea el scroll de fondo mientras el modal esté abierto
 
   const handleSaveAccount = async () => {
     if (!currentUser) return;
@@ -1382,15 +1385,15 @@ export default function ConfigTab() {
               <div className="config-account__divider"><span>Cambiar contraseña (opcional)</span></div>
               <div className="form-group">
                 <label>Contraseña actual</label>
-                <input className="morb-control" type="password" value={curPwd} onChange={(e) => setCurPwd(e.target.value)} autoComplete="current-password" placeholder="••••••••" />
+                <PasswordInput value={curPwd} onChange={setCurPwd} autoComplete="current-password" placeholder="••••••••" ariaLabel="Contraseña actual" />
               </div>
               <div className="form-group">
                 <label>Nueva contraseña</label>
-                <input className="morb-control" type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} autoComplete="new-password" placeholder="Mín. 6 caracteres" />
+                <PasswordInput value={newPwd} onChange={setNewPwd} autoComplete="new-password" placeholder="Mín. 6 caracteres" ariaLabel="Nueva contraseña" />
               </div>
               <div className="form-group">
                 <label>Confirmar nueva contraseña</label>
-                <input className="morb-control" type="password" value={confPwd} onChange={(e) => setConfPwd(e.target.value)} autoComplete="new-password" placeholder="Repite la nueva" />
+                <PasswordInput value={confPwd} onChange={setConfPwd} autoComplete="new-password" placeholder="Repite la nueva" ariaLabel="Confirmar nueva contraseña" />
               </div>
             </div>
             <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>

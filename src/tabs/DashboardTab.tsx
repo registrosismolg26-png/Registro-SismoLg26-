@@ -14,6 +14,7 @@ import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import { DEFAULT_ENTES } from "@/lib/constants";
 import { apiFetch } from "@/lib/apiFetch";
 import StyledSelect from "@/components/StyledSelect";
+import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 
 // ── Íconos (stroke 24×24) para las tarjetas y paneles del panel de estadísticas.
 // Mismo lenguaje visual que Balance de Salud (badge a color + acento por tarjeta).
@@ -69,12 +70,16 @@ export default function DashboardTab() {
 
   // Estado de "Compartir reporte por link público"
   const isMasterUser = currentUser?.role === "MASTER";
+  const isPrivilegedUser = isMasterUser || currentUser?.role === "ADMIN"; // ve links de otros
   const [showShareModal, setShowShareModal] = useState(false);
+  useBodyScrollLock(showShareModal); // bloquea el scroll de fondo mientras el modal esté abierto
   const [shareRefugio, setShareRefugio] = useState(""); // Master: "" = todos
   const [shareLoading, setShareLoading] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
-  const [myShares, setMyShares] = useState<Array<{ id: string; refugio: string | null; activo: boolean; createdAt: string; _count: { accesos: number } }>>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null); // feedback de copiar por fila
+  type ShareRow = { id: string; refugio: string | null; activo: boolean; createdAt: string; accesos: number; creadoPorNombre: string; creadoPorRole: string | null; esMio: boolean; puedeRevocar: boolean };
+  const [myShares, setMyShares] = useState<ShareRow[]>([]);
 
   const cargarShares = async () => {
     try {
@@ -117,6 +122,17 @@ export default function DashboardTab() {
       await navigator.clipboard.writeText(shareLink);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      showToast("No se pudo copiar", "error");
+    }
+  };
+
+  // Re-copiar cualquier link de la lista (no solo el recién generado).
+  const copiarLink = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/reporte/${id}`);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 2000);
     } catch {
       showToast("No se pudo copiar", "error");
     }
@@ -1019,19 +1035,33 @@ ${entesList}`;
 
               {myShares.length > 0 && (
                 <div>
-                  <div className="form-label" style={{ marginBottom: "0.4rem" }}>Mis links</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", maxHeight: "180px", overflowY: "auto" }}>
-                    {myShares.map((s) => (
-                      <div key={s.id} className="share-row">
-                        <div style={{ minWidth: 0 }}>
-                          <div className="share-row__ref">{s.refugio || "Todos los campamentos"}</div>
-                          <div className="share-row__meta">{s._count.accesos} apertura{s._count.accesos === 1 ? "" : "s"}{!s.activo && " · revocado"}</div>
+                  <div className="form-label" style={{ marginBottom: "0.4rem" }}>{isPrivilegedUser ? "Links compartidos" : "Mis links"}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", maxHeight: "200px", overflowY: "auto" }}>
+                    {myShares.map((s) => {
+                      const roleLabel = s.creadoPorRole === "MASTER" ? "Master" : s.creadoPorRole === "ADMIN" ? "Admin" : (s.creadoPorRole || "");
+                      return (
+                        <div key={s.id} className="share-row">
+                          <div style={{ minWidth: 0 }}>
+                            <div className="share-row__ref">{s.refugio || "Todos los campamentos"}</div>
+                            <div className="share-row__meta">
+                              {s.accesos} apertura{s.accesos === 1 ? "" : "s"}
+                              {!s.esMio && <> · por <strong>{s.creadoPorNombre}</strong>{roleLabel ? ` (${roleLabel})` : ""}</>}
+                              {!s.activo && " · revocado"}
+                            </div>
+                          </div>
+                          {s.activo && (
+                            <div className="share-row__actions">
+                              <button type="button" className="share-row__copy" onClick={() => copiarLink(s.id)} title="Copiar link">
+                                {copiedId === s.id ? "¡Copiado!" : "Copiar"}
+                              </button>
+                              {s.puedeRevocar && (
+                                <button type="button" className="share-row__revoke" onClick={() => revocarShare(s.id)} title="Revocar link">Revocar</button>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {s.activo && (
-                          <button type="button" className="share-row__revoke" onClick={() => revocarShare(s.id)} title="Revocar link">Revocar</button>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
