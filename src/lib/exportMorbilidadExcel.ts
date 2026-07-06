@@ -33,6 +33,7 @@ interface ExportOpts {
   tiposLesion: TipoLesion[];
   refugio: string;
   generadoEn: string; // fecha-hora legible (se pasa desde el componente)
+  filtros?: string;   // descripción legible de los filtros activos (vacío = sin filtros)
 }
 
 // Definición de columnas: [encabezado, ancho]
@@ -56,12 +57,12 @@ const COLS: [string, number][] = [
 ];
 
 export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
-  const { consultas, patologias, predefinedMedicamentos, tiposLesion, refugio, generadoEn } = opts;
+  const { consultas, patologias, predefinedMedicamentos, tiposLesion, refugio, generadoEn, filtros } = opts;
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "Registro-SismoLg26";
   const ws = wb.addWorksheet("Consultas Médicas", {
-    views: [{ state: "frozen", ySplit: 5 }],
+    views: [{ state: "frozen", ySplit: 6 }],
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
@@ -71,11 +72,12 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
   // Anchos de columna
   ws.columns = COLS.map(([, w]) => ({ width: w }));
 
-  // ── Membrete (filas 1–3) ──────────────────────────────────────────────────
+  // ── Membrete (filas 1–4) ──────────────────────────────────────────────────
   ws.mergeCells(`C1:${lastColLetter}1`);
   ws.mergeCells(`C2:${lastColLetter}2`);
   ws.mergeCells(`C3:${lastColLetter}3`);
-  ws.mergeCells("A1:B3"); // hueco para el logo
+  ws.mergeCells(`C4:${lastColLetter}4`);
+  ws.mergeCells("A1:B4"); // hueco para el logo
   const t1 = ws.getCell("C1");
   t1.value = "GOBERNACIÓN DEL ESTADO LA GUAIRA";
   t1.font = { name: "Arial", size: 15, bold: true, color: { argb: BRAND } };
@@ -88,13 +90,23 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
   t3.value = `Campamento: ${refugio || "—"}   ·   Generado: ${generadoEn}   ·   Total de consultas: ${consultas.length}`;
   t3.font = { name: "Arial", size: 9, color: { argb: "6B7280" } };
   t3.alignment = { vertical: "middle", horizontal: "left" };
+  // Fila 4: estado del filtro — discreto pero visible (label en negrita azul + detalle).
+  const t4 = ws.getCell("C4");
+  const filtrosTxt = (filtros || "").trim();
+  t4.value = filtrosTxt
+    ? { richText: [
+        { text: "Filtros aplicados:  ", font: { name: "Arial", size: 9, bold: true, color: { argb: BRAND } } },
+        { text: filtrosTxt, font: { name: "Arial", size: 9, color: { argb: "374151" } } },
+      ] }
+    : { richText: [{ text: "Sin filtros — reporte completo", font: { name: "Arial", size: 9, italic: true, color: { argb: "9CA3AF" } } }] };
+  t4.alignment = { vertical: "middle", horizontal: "left" };
   // Banda de fondo del membrete + borde inferior azul
-  for (let r = 1; r <= 3; r++) {
-    ws.getRow(r).height = r === 1 ? 24 : 18;
+  for (let r = 1; r <= 4; r++) {
+    ws.getRow(r).height = r === 1 ? 24 : r === 4 ? 16 : 18;
     for (let c = 1; c <= nCols; c++) {
       const cell = ws.getRow(r).getCell(c);
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND_LIGHT } };
-      if (r === 3) cell.border = { bottom: { style: "medium", color: { argb: BRAND } } };
+      if (r === 4) cell.border = { bottom: { style: "medium", color: { argb: BRAND } } };
     }
   }
 
@@ -108,11 +120,11 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     }
   } catch { /* sin logo */ }
 
-  // Fila 4: espaciador delgado
-  ws.getRow(4).height = 6;
+  // Fila 5: espaciador delgado
+  ws.getRow(5).height = 6;
 
-  // ── Fila de encabezado (fila 5) ───────────────────────────────────────────
-  const headerRow = ws.getRow(5);
+  // ── Fila de encabezado (fila 6) ───────────────────────────────────────────
+  const headerRow = ws.getRow(6);
   COLS.forEach(([label], i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = label;
@@ -166,7 +178,7 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
   });
 
   // Autofiltro sobre el encabezado.
-  ws.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5, column: nCols } };
+  ws.autoFilter = { from: { row: 6, column: 1 }, to: { row: 6, column: nCols } };
 
   // ── Descarga ──────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();

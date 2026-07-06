@@ -497,11 +497,27 @@ export default function AsignacionesTab() {
     }
     setExportingXlsx(true);
     try {
+      // Resumen legible de los filtros activos (para el membrete del Excel).
+      const dmy = (s: string) => s.split("-").reverse().join("/");
+      const edadLbl: Record<string, string> = { menores: "Menores de 18", adultos: "Adultos (18–59)", mayores: "Adultos mayores (60+)" };
+      const filtrosParts: string[] = [];
+      if (registroSearch.trim()) filtrosParts.push(`Búsqueda "${registroSearch.trim()}"`);
+      if (filterGenero) filtrosParts.push(`Género: ${filterGenero === "FEMENINO" ? "Femenino" : "Masculino"}`);
+      if (filterEdad) filtrosParts.push(edadLbl[filterEdad] || filterEdad);
+      if (filterParroquia) filtrosParts.push(`Parroquia: ${filterParroquia}`);
+      if (filterEstadoFisico) filtrosParts.push(`Estado: ${filterEstadoFisico === "LESIONADO" ? "Lesionado" : "Ileso"}`);
+      if (filterCuarto) filtrosParts.push(`Habitación: ${filterCuarto === "sin_asignar" ? "Sin asignar" : formatRoomLabel(filterCuarto)}`);
+      // "NO" (solo presentes) es el valor por defecto; solo se menciona si cambió.
+      if (filterRetirado === "SI") filtrosParts.push("Estatus: Egresados / Retirados");
+      else if (filterRetirado === "") filtrosParts.push("Estatus: Todos (presentes y egresados)");
+      if (filterDesde) filtrosParts.push(`Desde ${dmy(filterDesde)}`);
+      if (filterHasta) filtrosParts.push(`Hasta ${dmy(filterHasta)}`);
       await exportRegistrosExcel({
         registros: filteredRegistros,
         patologias, predefinedMedicamentos,
         refugio: effectiveRefugio || currentUser?.campamentoTransitorio || "",
         generadoEn: new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        filtros: filtrosParts.join("   ·   "),
       });
       showToast("Excel descargado.", "success");
     } catch (e) {

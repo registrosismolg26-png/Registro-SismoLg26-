@@ -330,11 +330,21 @@ export default function MorbilidadTab() {
     if (filteredConsultas.length === 0) { showToast("No hay consultas para exportar.", "warning"); return; }
     setExporting(true);
     try {
+      // Resumen legible de los filtros activos (para el membrete del Excel).
+      const dmy = (s: string) => s.split("-").reverse().join("/");
+      const filtrosParts: string[] = [];
+      if (histSearch.trim()) filtrosParts.push(`Búsqueda "${histSearch.trim()}"`);
+      if (fTipo) filtrosParts.push(`Atención: ${TIPO_PACIENTE_LABELS[fTipo] || fTipo}`);
+      if (fDiag) filtrosParts.push(fDiag === "con" ? "Con diagnóstico" : "Sin diagnóstico");
+      if (fEstado) filtrosParts.push(`Estado: ${fEstado === "LESIONADO" ? "Lesionado" : "Ileso"}`);
+      if (fDesde) filtrosParts.push(`Desde ${dmy(fDesde)}`);
+      if (fHasta) filtrosParts.push(`Hasta ${dmy(fHasta)}`);
       await exportMorbilidadExcel({
         consultas: filteredConsultas,
         patologias, predefinedMedicamentos, tiposLesion,
         refugio: effectiveRefugio || currentUser?.campamentoTransitorio || "",
         generadoEn: new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        filtros: filtrosParts.join("   ·   "),
       });
       showToast("Excel descargado.", "success");
     } catch (e) {

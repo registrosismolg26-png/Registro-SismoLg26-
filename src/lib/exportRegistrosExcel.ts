@@ -24,6 +24,7 @@ interface ExportOpts {
   predefinedMedicamentos: MedicamentoPredefinido[];
   refugio: string;
   generadoEn: string;
+  filtros?: string;   // descripción legible de los filtros activos (vacío = sin filtros)
 }
 
 const COLS: [string, number][] = [
@@ -52,12 +53,12 @@ const COLS: [string, number][] = [
 ];
 
 export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
-  const { registros, patologias, predefinedMedicamentos, refugio, generadoEn } = opts;
+  const { registros, patologias, predefinedMedicamentos, refugio, generadoEn, filtros } = opts;
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "Registro-SismoLg26";
   const ws = wb.addWorksheet("Registro de Afectados", {
-    views: [{ state: "frozen", ySplit: 5 }],
+    views: [{ state: "frozen", ySplit: 6 }],
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
@@ -65,11 +66,12 @@ export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
   const lastColLetter = String.fromCharCode(64 + nCols);
   ws.columns = COLS.map(([, w]) => ({ width: w }));
 
-  // ── Membrete ──────────────────────────────────────────────────────────────
+  // ── Membrete (filas 1–4) ──────────────────────────────────────────────────
   ws.mergeCells(`C1:${lastColLetter}1`);
   ws.mergeCells(`C2:${lastColLetter}2`);
   ws.mergeCells(`C3:${lastColLetter}3`);
-  ws.mergeCells("A1:B3");
+  ws.mergeCells(`C4:${lastColLetter}4`);
+  ws.mergeCells("A1:B4");
   const t1 = ws.getCell("C1");
   t1.value = "GOBERNACIÓN DEL ESTADO LA GUAIRA";
   t1.font = { name: "Arial", size: 15, bold: true, color: { argb: BRAND } };
@@ -82,12 +84,22 @@ export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
   t3.value = `Campamento: ${refugio || "—"}   ·   Generado: ${generadoEn}   ·   Total de registros: ${registros.length}`;
   t3.font = { name: "Arial", size: 9, color: { argb: "6B7280" } };
   t3.alignment = { vertical: "middle", horizontal: "left" };
-  for (let r = 1; r <= 3; r++) {
-    ws.getRow(r).height = r === 1 ? 24 : 18;
+  // Fila 4: estado del filtro — discreto pero visible (label en negrita azul + detalle).
+  const t4 = ws.getCell("C4");
+  const filtrosTxt = (filtros || "").trim();
+  t4.value = filtrosTxt
+    ? { richText: [
+        { text: "Filtros aplicados:  ", font: { name: "Arial", size: 9, bold: true, color: { argb: BRAND } } },
+        { text: filtrosTxt, font: { name: "Arial", size: 9, color: { argb: "374151" } } },
+      ] }
+    : { richText: [{ text: "Sin filtros — reporte completo", font: { name: "Arial", size: 9, italic: true, color: { argb: "9CA3AF" } } }] };
+  t4.alignment = { vertical: "middle", horizontal: "left" };
+  for (let r = 1; r <= 4; r++) {
+    ws.getRow(r).height = r === 1 ? 24 : r === 4 ? 16 : 18;
     for (let c = 1; c <= nCols; c++) {
       const cell = ws.getRow(r).getCell(c);
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND_LIGHT } };
-      if (r === 3) cell.border = { bottom: { style: "medium", color: { argb: BRAND } } };
+      if (r === 4) cell.border = { bottom: { style: "medium", color: { argb: BRAND } } };
     }
   }
 
@@ -100,10 +112,10 @@ export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
     }
   } catch { /* sin logo */ }
 
-  ws.getRow(4).height = 6;
+  ws.getRow(5).height = 6;
 
   // ── Encabezado ────────────────────────────────────────────────────────────
-  const headerRow = ws.getRow(5);
+  const headerRow = ws.getRow(6);
   COLS.forEach(([label], i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = label;
@@ -164,7 +176,7 @@ export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
     if (retirado) row.getCell(21).font = { name: "Arial", size: 9, bold: true, color: { argb: "9CA3AF" } };
   });
 
-  ws.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5, column: nCols } };
+  ws.autoFilter = { from: { row: 6, column: 1 }, to: { row: 6, column: nCols } };
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
