@@ -169,6 +169,8 @@ export default function AsignacionesTab() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterGenero, setFilterGenero] = useState("");
   const [filterEdad, setFilterEdad] = useState("");
+  const [filterEdadMin, setFilterEdadMin] = useState(""); // edad exacta mínima (rango preciso)
+  const [filterEdadMax, setFilterEdadMax] = useState(""); // edad exacta máxima
   const [filterParroquia, setFilterParroquia] = useState("");
   const [filterEstadoFisico, setFilterEstadoFisico] = useState("");
   const [filterCuarto, setFilterCuarto] = useState("");
@@ -228,6 +230,11 @@ export default function AsignacionesTab() {
         return true;
       });
     }
+    // Rango de edad EXACTO (min/max), inclusivo. Complementa al grupo de edad.
+    const edadMin = filterEdadMin.trim() === "" ? null : parseInt(filterEdadMin, 10);
+    const edadMax = filterEdadMax.trim() === "" ? null : parseInt(filterEdadMax, 10);
+    if (edadMin !== null && !isNaN(edadMin)) result = result.filter(r => (r.edad ?? -1) >= edadMin);
+    if (edadMax !== null && !isNaN(edadMax)) result = result.filter(r => (r.edad ?? Infinity) <= edadMax);
     if (filterParroquia) {
       result = result.filter(r => r.parroquia === filterParroquia);
     }
@@ -248,7 +255,7 @@ export default function AsignacionesTab() {
     if (filterHasta) result = result.filter(r => r.createdAt && ymdLocal(new Date(r.createdAt)) <= filterHasta);
 
     return result;
-  }, [registros, registroSearch, filterGenero, filterEdad, filterParroquia, filterEstadoFisico, filterCuarto, filterRetirado, filterDesde, filterHasta]);
+  }, [registros, registroSearch, filterGenero, filterEdad, filterEdadMin, filterEdadMax, filterParroquia, filterEstadoFisico, filterCuarto, filterRetirado, filterDesde, filterHasta]);
 
   const roomCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -504,6 +511,9 @@ export default function AsignacionesTab() {
       if (registroSearch.trim()) filtrosParts.push(`Búsqueda "${registroSearch.trim()}"`);
       if (filterGenero) filtrosParts.push(`Género: ${filterGenero === "FEMENINO" ? "Femenino" : "Masculino"}`);
       if (filterEdad) filtrosParts.push(edadLbl[filterEdad] || filterEdad);
+      if (filterEdadMin && filterEdadMax) filtrosParts.push(`Edad ${filterEdadMin}–${filterEdadMax} años`);
+      else if (filterEdadMin) filtrosParts.push(`Edad ≥ ${filterEdadMin} años`);
+      else if (filterEdadMax) filtrosParts.push(`Edad ≤ ${filterEdadMax} años`);
       if (filterParroquia) filtrosParts.push(`Parroquia: ${filterParroquia}`);
       if (filterEstadoFisico) filtrosParts.push(`Estado: ${filterEstadoFisico === "LESIONADO" ? "Lesionado" : "Ileso"}`);
       if (filterCuarto) filtrosParts.push(`Habitación: ${filterCuarto === "sin_asignar" ? "Sin asignar" : formatRoomLabel(filterCuarto)}`);
@@ -716,13 +726,15 @@ export default function AsignacionesTab() {
               {filtersOpen ? "Ocultar Filtros" : "Filtros Avanzados"}
             </button>
 
-            {(filterGenero || filterEdad || filterParroquia || filterEstadoFisico || filterCuarto || filterRetirado !== "NO" || filterDesde || filterHasta) && (
+            {(filterGenero || filterEdad || filterEdadMin || filterEdadMax || filterParroquia || filterEstadoFisico || filterCuarto || filterRetirado !== "NO" || filterDesde || filterHasta) && (
               <button
                 type="button"
                 className="toolbar-btn toolbar-btn--danger"
                 onClick={() => {
                   setFilterGenero("");
                   setFilterEdad("");
+                  setFilterEdadMin("");
+                  setFilterEdadMax("");
                   setFilterParroquia("");
                   setFilterEstadoFisico("");
                   setFilterCuarto("");
@@ -751,6 +763,26 @@ export default function AsignacionesTab() {
                 <StyledSelect
                   value={filterEdad} onChange={setFilterEdad} ariaLabel="Grupo de Edad"
                   options={[{ value: "", label: "Todos" }, { value: "menores", label: "Menores de edad (<18)" }, { value: "adultos", label: "Adultos (18-59)" }, { value: "mayores", label: "Adultos mayores (60+)" }]}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Edad mínima</label>
+                <input
+                  type="number" min="0" max="120" inputMode="numeric" placeholder="Ej. 5"
+                  value={filterEdadMin}
+                  onChange={e => setFilterEdadMin(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                  aria-label="Edad mínima"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Edad máxima</label>
+                <input
+                  type="number" min="0" max="120" inputMode="numeric" placeholder="Ej. 12"
+                  value={filterEdadMax}
+                  onChange={e => setFilterEdadMax(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                  aria-label="Edad máxima"
                 />
               </div>
 
