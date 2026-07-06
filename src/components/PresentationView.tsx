@@ -153,6 +153,7 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
             <BigCard accent="#db2777" label="Mujeres embarazadas" value={embarazadas} icon={ICON.pregnant} />
           </div>
           <div className="pres-demo">
+            <div className="pres-col">
             <Panel title="Con / sin patología">
               <div className="pres-seg">
                 <span className="pres-seg__part" style={{ width: `${conPatPct}%`, background: "#e11d48" }}>{conPatPct >= 12 ? `${conPatPct}%` : ""}</span>
@@ -173,7 +174,8 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
                 <span><i style={{ background: "#0d9488" }} />No lesionados <b>{noLesion.toLocaleString("es-VE")}</b></span>
               </div>
             </Panel>
-            <Panel title="Patologías más frecuentes en el censo" wide>
+            </div>
+            <Panel title="Patologías más frecuentes en el censo">
               {topPat.length === 0 ? <p className="pres-empty">No hay patologías registradas en el censo.</p> : (
                 <div className="pres-rank">
                   {topPat.map((p: any, i: number) => (

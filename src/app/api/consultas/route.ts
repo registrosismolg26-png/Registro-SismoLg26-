@@ -128,6 +128,29 @@ export async function POST(req: Request) {
       consulta = await withAuditUser(auth.email, (tx) => tx.consultaMedica.create({ data: { ...baseData, refugio: refugioForCreate } }));
     }
 
+    // ── Propagación al censo (Registro) ───────────────────────────────────────
+    // La EVOLUCIÓN clínica mantiene el censo al día AUTOMÁTICAMENTE: si la consulta
+    // está vinculada a una persona del censo (registroId), se copian los estados
+    // EXPLÍCITOS de esta consulta al registro —estado físico siempre; embarazo solo
+    // en mujeres—. Nunca pisa con valores nulos. A prueba de fallos (no rompe la
+    // consulta si el registro no existe o si la columna aún no está migrada).
+    try {
+      const linkRegId = (consulta as any)?.registroId as string | null | undefined;
+      if (linkRegId && (estadoFisicoClean || embarazoClean)) {
+        const reg = await prisma.registro.findUnique({ where: { id: linkRegId } });
+        if (reg) {
+          const regData: Record<string, string> = {};
+          if (estadoFisicoClean && reg.estadoFisico !== estadoFisicoClean) regData.estadoFisico = estadoFisicoClean;
+          if (embarazoClean && String(reg.genero || "").toUpperCase() === "FEMENINO" && reg.embarazo !== embarazoClean) regData.embarazo = embarazoClean;
+          if (Object.keys(regData).length) {
+            await withAuditUser(auth.email, (tx) => tx.registro.update({ where: { id: reg.id }, data: regData }));
+          }
+        }
+      }
+    } catch (e) {
+      console.error("No se pudo propagar los estados de la consulta al censo:", e);
+    }
+
     return NextResponse.json({ success: true, consulta }, { status: 201 });
   } catch (error: any) {
     console.error("Error en POST /api/consultas:", error);

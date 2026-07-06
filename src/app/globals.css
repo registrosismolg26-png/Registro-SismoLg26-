@@ -5915,7 +5915,7 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .pres__slide-ico { display: inline-flex; width: clamp(36px, 3.2vw, 52px); height: clamp(36px, 3.2vw, 52px); border-radius: 15px; align-items: center; justify-content: center; background: #2563eb; color: #fff; box-shadow: 0 6px 16px -8px #2563eb; }
 .pres__slide-ico svg { width: 58%; height: 58%; }
 .pres__slide-head h2 { margin: 0; font-family: var(--font-heading); font-size: clamp(1.1rem, 2.3vw, 2rem); font-weight: 800; color: #fff; }
-.pres__slide-body { flex: 1; min-height: 0; }
+.pres__slide-body { flex: 1; min-height: 0; overflow: hidden; }
 
 .pres-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 15vw, 240px), 1fr)); gap: clamp(0.7rem, 1.4vw, 1.3rem); align-content: start; }
 .pres-cards--3 { grid-template-columns: repeat(3, 1fr); }
@@ -5930,6 +5930,10 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .pres-demo, .pres-salud, .pres-aloja { display: grid; gap: clamp(0.7rem, 1.4vw, 1.2rem); height: 100%; }
 .pres-demo { grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; }
 .pres-demo .pres-panel--wide { grid-column: 1 / -1; }
+/* Columna de paneles apilados (Salud: "Con/sin patología" sobre "Lesionados/No
+   lesionados"), para no crecer una fila extra y tapar la barra de navegación. */
+.pres-col { display: flex; flex-direction: column; gap: clamp(0.7rem, 1.4vw, 1.2rem); min-height: 0; }
+.pres-col > .pres-panel { flex: 1; }
 .pres-salud, .pres-aloja { grid-template-rows: auto 1fr; }
 .pres-panel { background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: clamp(0.9rem, 1.6vh, 1.4rem) clamp(1rem, 1.5vw, 1.5rem); display: flex; flex-direction: column; min-height: 0; }
 .pres-panel__title { margin: 0 0 0.75rem; font-size: clamp(0.72rem, 1vw, 1rem); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #9fb3d8; }
