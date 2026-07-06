@@ -86,11 +86,30 @@ export default function AsignacionesTab() {
     const parts = fn.split("-"); // padrón: YYYY-MM-DD
     return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : fn;
   };
+  // Descompone una cédula almacenada. Los hijos/dependientes se guardan como
+  // "<nac>-<dígitos del representante>-<correlativo>" (p. ej. "V-12345678-1").
+  const parseStoredCedula = (ced: string) => {
+    let nac = "V";
+    let rest = (ced || "").trim().toUpperCase();
+    if (/^[VE]-/.test(rest)) { nac = rest[0]; rest = rest.slice(2); }
+    else if (/^[VE]/.test(rest)) { nac = rest[0]; rest = rest.slice(1); }
+    const m = rest.match(/^(\d+)-(\d+)$/);
+    if (m) return { nac, digits: m[1], isChild: true, depNum: m[2] };
+    return { nac, digits: rest.replace(/\D/g, ""), isChild: false, depNum: "1" };
+  };
+
   const runEditCedulaLookup = async (cleanNum: string, manual = false) => {
     if (cleanNum.length < 6) { if (manual) showToast("Ingresa una cédula válida.", "warning"); return; }
-    // 1) Censo: otro registro ACTIVO con esa cédula (excluye el que se está editando).
+    const isChild = !!editData.isChildDependent;
+    const nac = editData.nacionalidad || "V";
+    // Cédula efectiva a comparar: CON el sufijo si es hijo/dependiente (así no se
+    // confunde con la del representante).
+    const effCedula = isChild ? `${nac}-${cleanNum}-${editData.dependentNumber || "1"}` : `${nac}-${cleanNum}`;
+    // 1) Censo: otro registro ACTIVO con esa MISMA cédula (con sufijo si es hijo),
+    //    excluyendo el que se está editando.
     const censoMatch = registros.find(r =>
-      r.id !== selectedRegistro?.id && (r.cedula || "").replace(/\D/g, "") === cleanNum && r.retirado !== "SI");
+      r.id !== selectedRegistro?.id && r.retirado !== "SI" &&
+      (r.cedula || "").toUpperCase().trim() === effCedula.toUpperCase());
     if (censoMatch) {
       setEditData(prev => ({
         ...prev,
@@ -101,7 +120,12 @@ export default function AsignacionesTab() {
       showToast("Datos tomados del censo.", "info");
       return;
     }
-    // 2) Padrón electoral local.
+    // 2) Padrón electoral local — SOLO si NO es hijo. Un hijo comparte la cédula del
+    //    representante, así que el padrón devolvería al padre; se omite a propósito.
+    if (isChild) {
+      if (manual) showToast("Es hijo/dependiente: no se consulta el padrón (comparte la cédula del representante).", "info");
+      return;
+    }
     try {
       const citizen = await buscarCedulaEnCliente(cleanNum);
       if (citizen) {
@@ -348,8 +372,14 @@ export default function AsignacionesTab() {
     setSavingEdit(true);
 
     const nac = editData.nacionalidad || (selectedRegistro.cedula.startsWith("E-") ? "E" : "V");
-    const cleanCedNum = editData.cedula ? String(editData.cedula).trim().replace(/\D/g, "") : selectedRegistro.cedula.replace(/\D/g, "");
-    const finalCedula = `${nac}-${cleanCedNum}`;
+    const cleanCedNum = (editData.cedula != null ? String(editData.cedula) : "").replace(/\D/g, "")
+      || parseStoredCedula(selectedRegistro.cedula).digits;
+    // Si es hijo/dependiente, la cédula final lleva el sufijo del correlativo (no es la
+    // del representante). Así el chequeo de duplicado compara CON sufijo y no lo cruza
+    // con el padre.
+    const finalCedula = editData.isChildDependent
+      ? `${nac}-${cleanCedNum}-${editData.dependentNumber || "1"}`
+      : `${nac}-${cleanCedNum}`;
 
     // Guard (front): no permitir editar a una cédula que YA pertenece a OTRO afectado
     // activo (no retirado). El backend lo valida también.
@@ -1191,21 +1221,12 @@ export default function AsignacionesTab() {
                               formattedBirthDate = `${day}/${month}/${year}`;
                             }
                           }
-                          let nac = "V";
-                          let num = selectedRegistro.cedula;
-                          if (selectedRegistro.cedula.startsWith("V-")) {
-                            nac = "V";
-                            num = selectedRegistro.cedula.slice(2);
-                          } else if (selectedRegistro.cedula.startsWith("E-")) {
-                            nac = "E";
-                            num = selectedRegistro.cedula.slice(2);
-                          } else if (selectedRegistro.cedula.startsWith("V")) {
-                            nac = "V";
-                            num = selectedRegistro.cedula.slice(1);
-                          } else if (selectedRegistro.cedula.startsWith("E")) {
-                            nac = "E";
-                            num = selectedRegistro.cedula.slice(1);
-                          }
+                          // Reconoce si el registro es un hijo/dependiente (cédula con
+                          // sufijo "-N"): separa nacionalidad, dígitos del representante y
+                          // el correlativo, para precargar el check y el selector.
+                          const parsedCed = parseStoredCedula(selectedRegistro.cedula);
+                          const nac = parsedCed.nac;
+                          const num = parsedCed.digits;
 
                           let jefeNum = selectedRegistro.cedulaJefeFamilia || "";
                           if (jefeNum.startsWith("V-") || jefeNum.startsWith("E-")) {
@@ -1217,6 +1238,8 @@ export default function AsignacionesTab() {
                           setEditData({
                             nacionalidad: nac,
                             cedula: num,
+                            isChildDependent: parsedCed.isChild,
+                            dependentNumber: parsedCed.depNum,
                             nombreApellido: selectedRegistro.nombreApellido,
                             parroquia: selectedRegistro.parroquia,
                             sector: selectedRegistro.sector,

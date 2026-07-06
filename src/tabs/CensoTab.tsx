@@ -334,7 +334,11 @@ export default function CensoTab() {
       dispatch({ type: "SET", field: "cedula", value: cleanCedula });
       markTouched("cedula");
       // El error (formato + duplicado) lo sincroniza el useEffect en vivo.
-      triggerLookup(cleanCedula);
+      // Si es hijo/dependiente, la cédula es la del REPRESENTANTE → NO se consulta el
+      // padrón (devolvería los datos del padre). El chequeo de duplicado local ya usa
+      // la cédula completa con el sufijo.
+      if (formData.isChildDependent) setLookupStatus("idle");
+      else triggerLookup(cleanCedula);
       return;
     }
 
@@ -829,6 +833,9 @@ export default function CensoTab() {
                         checked={formData.isChildDependent}
                         onChange={(e) => {
                           dispatch({ type: "SET", field: "isChildDependent", value: e.target.checked });
+                          // Al marcarlo hijo la cédula es la del representante → limpia el
+                          // estado del padrón (no se verifica ahí).
+                          if (e.target.checked) setLookupStatus("idle");
                           if (e.target.checked && formData.cedulaJefeFamilia) {
                             const numOnly = formData.cedulaJefeFamilia.replace(/^[VE]-/, "");
                             dispatch({ type: "SET", field: "cedula", value: numOnly });
