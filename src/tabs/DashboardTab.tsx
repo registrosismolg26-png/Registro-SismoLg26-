@@ -24,6 +24,7 @@ const DASH_ICONS = {
   family: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>,
   user: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   child: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 18a6 6 0 0 0-12 0"/><circle cx="8" cy="8" r="4"/><path d="M12 11h8M12 15h6"/></svg>,
+  baby: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="6" r="4"/><path d="M9.5 6h.01M14.5 6h.01M10 8.5c.9.7 3.1.7 4 0"/><path d="M5 21v-1.5a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5V21"/></svg>,
   elder: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M2 21h12"/><circle cx="8" cy="7" r="4"/></svg>,
   userx: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>,
   refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>,
@@ -225,10 +226,12 @@ export default function DashboardTab() {
         totalRetirados,
         nucleosFamiliares: 0,
         individuosSolos: 0,
+        lactantes: 0,
         menores: 0,
         adultos: 0,
         mayores: 0,
         matrix: {
+          lactantes: { femenino: 0, masculino: 0, otro: 0 },
           menores: { femenino: 0, masculino: 0, otro: 0 },
           adultos: { femenino: 0, masculino: 0, otro: 0 },
           mayores: { femenino: 0, masculino: 0, otro: 0 }
@@ -250,11 +253,13 @@ export default function DashboardTab() {
     const byEstadoFisicoMap: Record<string, number> = {};
     const byPatologiaMap: Record<string, number> = {};
     let sumAge = 0;
+    let lactantes = 0;
     let menores = 0;
     let adultos = 0;
     let mayores = 0;
 
     const matrix = {
+      lactantes: { femenino: 0, masculino: 0, otro: 0 },
       menores: { femenino: 0, masculino: 0, otro: 0 },
       adultos: { femenino: 0, masculino: 0, otro: 0 },
       mayores: { femenino: 0, masculino: 0, otro: 0 }
@@ -285,6 +290,13 @@ export default function DashboardTab() {
           if (isFem) matrix.menores.femenino++;
           else if (isMasc) matrix.menores.masculino++;
           else matrix.menores.otro++;
+          // Lactantes (0–3) = subconjunto de menores.
+          if (edadVal < 4) {
+            lactantes++;
+            if (isFem) matrix.lactantes.femenino++;
+            else if (isMasc) matrix.lactantes.masculino++;
+            else matrix.lactantes.otro++;
+          }
         } else if (edadVal < 60) {
           adultos++;
           if (isFem) matrix.adultos.femenino++;
@@ -311,6 +323,7 @@ export default function DashboardTab() {
       totalRetirados,
       nucleosFamiliares,
       individuosSolos,
+      lactantes,
       menores,
       adultos,
       mayores,
@@ -552,7 +565,8 @@ ${entesList}`;
                   { label: "Presentes en Campamento", value: S.total || 0, accent: "#0d9488", icon: DASH_ICONS.home },
                   { label: "Núcleos Familiares", value: S.nucleosFamiliares || 0, accent: "#7c3aed", icon: DASH_ICONS.family },
                   { label: "Individuos Solos", value: S.individuosSolos || 0, accent: "#64748b", icon: DASH_ICONS.user },
-                  { label: "Menores (<18)", value: S.menores || 0, sub: pc(S.menores || 0), accent: "#10b981", icon: DASH_ICONS.child },
+                  { label: "Lactantes (0–3)", value: S.lactantes || 0, sub: pc(S.lactantes || 0), accent: "#06b6d4", icon: DASH_ICONS.baby },
+                  { label: "Menores (4–17)", value: Math.max(0, (S.menores || 0) - (S.lactantes || 0)), sub: pc(Math.max(0, (S.menores || 0) - (S.lactantes || 0))), accent: "#10b981", icon: DASH_ICONS.child },
                   { label: "Adultos (18–59)", value: S.adultos || 0, sub: pc(S.adultos || 0), accent: "#f59e0b", icon: DASH_ICONS.user },
                   { label: "Mayores (60+)", value: S.mayores || 0, sub: pc(S.mayores || 0), accent: "#8b5cf6", icon: DASH_ICONS.elder },
                   { label: "Personas Retiradas", value: S.totalRetirados || 0, accent: "#dc2626", icon: DASH_ICONS.userx },
@@ -582,34 +596,37 @@ ${entesList}`;
                 {currentStats.total === 0 ? (
                   <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "0.5rem 0" }}>Sin datos</p>
                 ) : (
-                  <div className="segmented-bar-container">
+                  <div>
                     {(() => {
-                      const t = currentStats.total || 1;
-                      const pMen = (currentStats.menores || 0) / t * 100;
-                      const pAd  = (currentStats.adultos  || 0) / t * 100;
-                      const pMay = (currentStats.mayores  || 0) / t * 100;
+                      // Réplica del gráfico "Pacientes por edad" de Balance (.bal-seg + .bal-legend).
+                      const lac = currentStats.lactantes || 0;
+                      const men = Math.max(0, (currentStats.menores || 0) - lac);
                       const segs = [
-                        { pct: pMen, count: currentStats.menores || 0, color: "var(--chart-menores)" },
-                        { pct: pAd,  count: currentStats.adultos  || 0, color: "var(--chart-adultos)" },
-                        { pct: pMay, count: currentStats.mayores  || 0, color: "var(--chart-mayores)" }
+                        { label: "Lactantes (0–3)", count: lac, color: "#06b6d4" },
+                        { label: "Menores (4–17)", count: men, color: "#10b981" },
+                        { label: "Adultos (18–59)", count: currentStats.adultos || 0, color: "#f59e0b" },
+                        { label: "Mayores (≥60)", count: currentStats.mayores || 0, color: "#8b5cf6" },
                       ];
+                      const segTotal = segs.reduce((s, x) => s + x.count, 0) || 1;
                       return (
                         <>
-                          <div className="segmented-bar-track" style={{ position: "relative", height: "28px", borderRadius: "6px", overflow: "hidden", display: "flex" }}>
-                            {segs.map((s, i) => (
-                              <div key={i} style={{ width: `${s.pct}%`, backgroundColor: s.color, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", transition: "width 0.4s ease" }}>
-                                {s.pct >= 15 && (
-                                  <span style={{ fontSize: "0.625rem", fontWeight: "700", color: "rgba(255,255,255,0.92)", whiteSpace: "nowrap" }}>
-                                    {s.count} · {s.pct.toFixed(0)}%
-                                  </span>
-                                )}
-                              </div>
-                            ))}
+                          <div className="bal-seg">
+                            {segs.map((s, i) => {
+                              const p = (s.count / segTotal) * 100;
+                              return p > 0 ? (
+                                <span key={i} className="bal-seg__part" style={{ width: `${p}%`, background: s.color }} title={`${s.label}: ${s.count}`}>
+                                  {p >= 12 ? `${p.toFixed(0)}%` : ""}
+                                </span>
+                              ) : null;
+                            })}
                           </div>
-                          <div className="segmented-bar-legend">
-                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-menores)" }}></span> Menores · <strong>{currentStats.menores || 0}</strong> ({pMen.toFixed(1)}%)</span>
-                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-adultos)" }}></span> Adultos · <strong>{currentStats.adultos || 0}</strong> ({pAd.toFixed(1)}%)</span>
-                            <span className="legend-item"><span className="legend-dot" style={{ backgroundColor: "var(--chart-mayores)" }}></span> Mayores · <strong>{currentStats.mayores || 0}</strong> ({pMay.toFixed(1)}%)</span>
+                          <div className="bal-legend">
+                            {segs.map((s, i) => (
+                              <span key={i} className="bal-legend__item">
+                                <span className="bal-legend__dot" style={{ background: s.color }} />
+                                {s.label} <strong>{s.count}</strong>
+                              </span>
+                            ))}
                           </div>
                         </>
                       );
@@ -625,56 +642,43 @@ ${entesList}`;
                   <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "0.5rem 0" }}>Sin datos</p>
                 ) : (
                   (() => {
-                    const t = currentStats.total || 1;
+                    // Réplica del donut "Pacientes por género" de Balance (.bal-donut).
                     const f = currentStats.byGenero.find((g: any) => g.name === "FEMENINO")?.count || 0;
                     const m = currentStats.byGenero.find((g: any) => g.name === "MASCULINO")?.count || 0;
-                    const pFem  = f / t * 100;
-                    const pMasc = m / t * 100;
-
-                    // SVG donut: r=38, circumference ≈ 238.76
-                    const r = 38;
-                    const cx = 50;
-                    const cy = 50;
-                    const circ = 2 * Math.PI * r;
-                    const segments = [
-                      { count: f, pct: pFem,  color: "var(--chart-femenino)",  label: "Femenino"  },
-                      { count: m, pct: pMasc, color: "var(--chart-masculino)", label: "Masculino" },
+                    const o = Math.max(0, (currentStats.total || 0) - f - m);
+                    const segs = [
+                      { label: "Femenino", count: f, color: "#db2777" },
+                      { label: "Masculino", count: m, color: "#2563eb" },
+                      ...(o ? [{ label: "Otro / N.E.", count: o, color: "#94a3b8" }] : []),
                     ];
-                    let offset = 0;
-                    const arcs = segments.map(seg => {
-                      const dash  = (seg.pct / 100) * circ;
-                      const gap   = circ - dash;
-                      const rotate = (offset / 100) * 360 - 90;
-                      offset += seg.pct;
-                      return { ...seg, dash, gap, rotate };
+                    const genTotal = segs.reduce((s, x) => s + x.count, 0) || 1;
+                    const RADIUS = 46, C = 2 * Math.PI * RADIUS;
+                    let cum = 0;
+                    const arcs = segs.filter((s) => s.count > 0).map((s) => {
+                      const frac = s.count / genTotal;
+                      const dash = frac * C, rot = -90 + cum * 360;
+                      cum += frac;
+                      return { ...s, dash, rot };
                     });
 
                     return (
-                      <div className="donut-chart-wrapper">
-                        <svg viewBox="0 0 100 100" width="110" height="110" style={{ flexShrink: 0 }}>
-                          {arcs.map((arc, i) => (
-                            <circle
-                              key={i}
-                              cx={cx} cy={cy} r={r}
-                              fill="none"
-                              stroke={arc.color}
-                              strokeWidth="14"
-                              strokeDasharray={`${arc.dash} ${arc.gap}`}
-                              strokeDashoffset={0}
-                              transform={`rotate(${arc.rotate} ${cx} ${cy})`}
-                              style={{ transition: "stroke-dasharray 0.4s ease" }}
-                            />
+                      <div className="bal-donut">
+                        <svg viewBox="0 0 120 120" className="bal-donut__svg" role="img" aria-label="Distribución por género">
+                          <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="var(--border-color)" strokeWidth="14" opacity="0.5" />
+                          {arcs.map((a, i) => (
+                            <circle key={i} cx="60" cy="60" r={RADIUS} fill="none" stroke={a.color} strokeWidth="14"
+                              strokeDasharray={`${a.dash} ${C - a.dash}`} transform={`rotate(${a.rot} 60 60)`} strokeLinecap="round" />
                           ))}
-                          <text x="50" y="46" textAnchor="middle" fontSize="9" fontWeight="700" fill="currentColor" style={{ fill: "var(--text-primary)" }}>{currentStats.total}</text>
-                          <text x="50" y="57" textAnchor="middle" fontSize="6.5" fill="currentColor" style={{ fill: "var(--text-muted)" }}>Total</text>
+                          <text x="60" y="56" textAnchor="middle" className="bal-donut__num">{currentStats.total || 0}</text>
+                          <text x="60" y="72" textAnchor="middle" className="bal-donut__cap">personas</text>
                         </svg>
-                        <div className="donut-legend">
-                          {arcs.map((arc, i) => (
-                            <div key={i} className="donut-legend-item">
-                              <span className="donut-legend-dot" style={{ backgroundColor: arc.color }}></span>
-                              <span>{arc.label}</span>
-                              <span className="donut-legend-pct">{arc.count} <span style={{ fontWeight: "normal", color: "var(--text-muted)" }}>({arc.pct.toFixed(1)}%)</span></span>
-                            </div>
+                        <div className="bal-legend bal-legend--col">
+                          {segs.map((s, i) => (
+                            <span key={i} className="bal-legend__item">
+                              <span className="bal-legend__dot" style={{ background: s.color }} />
+                              {s.label} <strong>{s.count}</strong>
+                              <span className="bal-legend__pct">{((s.count / genTotal) * 100).toFixed(0)}%</span>
+                            </span>
                           ))}
                         </div>
                       </div>
@@ -688,24 +692,28 @@ ${entesList}`;
                 <div className="dash-sec-head" style={{ ["--accent" as any]: "#7c3aed" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.grid}</span><h3 className="dashboard-section-title">Matriz de Frecuencias Demográficas</h3></div>
                 {(() => {
                   const mx = currentStats.matrix || {
+                    lactantes: { femenino: 0, masculino: 0, otro: 0 },
                     menores: { femenino: 0, masculino: 0, otro: 0 },
                     adultos: { femenino: 0, masculino: 0, otro: 0 },
                     mayores: { femenino: 0, masculino: 0, otro: 0 }
                   };
-                  const tMen = mx.menores.femenino + mx.menores.masculino + mx.menores.otro;
-                  const tAd  = mx.adultos.femenino  + mx.adultos.masculino  + mx.adultos.otro;
-                  const tMay = mx.mayores.femenino  + mx.mayores.masculino  + mx.mayores.otro;
-                  const tFem  = mx.menores.femenino  + mx.adultos.femenino  + mx.mayores.femenino;
-                  const tMasc = mx.menores.masculino + mx.adultos.masculino + mx.mayores.masculino;
-                  const tOtr  = mx.menores.otro      + mx.adultos.otro      + mx.mayores.otro;
+                  const lac = mx.lactantes || { femenino: 0, masculino: 0, otro: 0 };
+                  // "Menores" en la matriz es <18 (incluye lactantes); el desglose muestra 4–17 aparte.
+                  const men4 = {
+                    femenino: Math.max(0, mx.menores.femenino - lac.femenino),
+                    masculino: Math.max(0, mx.menores.masculino - lac.masculino),
+                    otro: Math.max(0, mx.menores.otro - lac.otro),
+                  };
+                  const sum = (m: { femenino: number; masculino: number; otro: number }) => m.femenino + m.masculino + m.otro;
+                  const tLac = sum(lac), tMen4 = sum(men4), tAd = sum(mx.adultos), tMay = sum(mx.mayores);
+                  const tFem  = lac.femenino  + men4.femenino  + mx.adultos.femenino  + mx.mayores.femenino;
+                  const tMasc = lac.masculino + men4.masculino + mx.adultos.masculino + mx.mayores.masculino;
 
                   // heatmap intensity per column (relative to column max)
-                  const maxFem  = Math.max(mx.menores.femenino,  mx.adultos.femenino,  mx.mayores.femenino)  || 1;
-                  const maxMasc = Math.max(mx.menores.masculino, mx.adultos.masculino, mx.mayores.masculino) || 1;
-                  const maxOtr  = Math.max(mx.menores.otro,      mx.adultos.otro,      mx.mayores.otro)      || 1;
+                  const maxFem  = Math.max(lac.femenino,  men4.femenino,  mx.adultos.femenino,  mx.mayores.femenino)  || 1;
+                  const maxMasc = Math.max(lac.masculino, men4.masculino, mx.adultos.masculino, mx.mayores.masculino) || 1;
                   const hFem  = (v: number) => ({ background: `rgba(219, 39, 119, ${(v / maxFem)  * 0.18})` });
                   const hMasc = (v: number) => ({ background: `rgba(37, 99, 235,   ${(v / maxMasc) * 0.18})` });
-                  const hOtr  = (v: number) => ({ background: `rgba(100, 116, 139, ${(v / maxOtr)  * 0.18})` });
 
                   return (
                     <div className="bal-matrix-wrap">
@@ -720,10 +728,16 @@ ${entesList}`;
                         </thead>
                         <tbody>
                           <tr>
-                            <td><strong>Menores (&lt;18)</strong></td>
-                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(mx.menores.femenino)}>{mx.menores.femenino}</td>
-                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(mx.menores.masculino)}>{mx.menores.masculino}</td>
-                            <td className="bal-cell--tot" data-label="Total"><strong>{tMen}</strong></td>
+                            <td><strong>Lactantes (0–3)</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(lac.femenino)}>{lac.femenino}</td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(lac.masculino)}>{lac.masculino}</td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{tLac}</strong></td>
+                          </tr>
+                          <tr>
+                            <td><strong>Menores (4–17)</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(men4.femenino)}>{men4.femenino}</td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(men4.masculino)}>{men4.masculino}</td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{tMen4}</strong></td>
                           </tr>
                           <tr>
                             <td><strong>Adultos (18-59)</strong></td>

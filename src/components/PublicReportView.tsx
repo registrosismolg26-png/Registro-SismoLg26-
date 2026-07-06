@@ -24,7 +24,8 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
     { label: "Personas presentes", value: S.total || 0, accent: "#2563eb", icon: IC.users },
     { label: "Núcleos familiares", value: S.nucleosFamiliares || 0, accent: "#0d9488", icon: IC.home },
     { label: "Individuos solos", value: S.individuosSolos || 0, accent: "#7c3aed", icon: IC.user },
-    { label: "Menores (<18)", value: S.menores || 0, sub: pc(S.menores || 0), accent: "#10b981", icon: IC.child },
+    { label: "Lactantes (0–3)", value: S.lactantes || 0, sub: pc(S.lactantes || 0), accent: "#06b6d4", icon: IC.baby },
+    { label: "Menores (4–17)", value: Math.max(0, (S.menores || 0) - (S.lactantes || 0)), sub: pc(Math.max(0, (S.menores || 0) - (S.lactantes || 0))), accent: "#10b981", icon: IC.child },
     { label: "Adultos (18–59)", value: S.adultos || 0, sub: pc(S.adultos || 0), accent: "#f59e0b", icon: IC.user },
     { label: "Mayores (≥60)", value: S.mayores || 0, sub: pc(S.mayores || 0), accent: "#8b5cf6", icon: IC.elder },
     { label: "Edad promedio", value: S.promedioEdad || 0, suffix: "años", accent: "#0284c7", icon: IC.cal },
@@ -50,14 +51,23 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
     return { ...s, dash, rot };
   });
 
+  const menores4 = Math.max(0, (S.menores || 0) - (S.lactantes || 0));
   const ageSegs = [
-    { label: "Menores", count: S.menores || 0, color: "#10b981" },
+    { label: "Lactantes (0–3)", count: S.lactantes || 0, color: "#06b6d4" },
+    { label: "Menores (4–17)", count: menores4, color: "#10b981" },
     { label: "Adultos", count: S.adultos || 0, color: "#f59e0b" },
     { label: "Mayores", count: S.mayores || 0, color: "#8b5cf6" },
   ];
   const ageTotal = ageSegs.reduce((s, x) => s + x.count, 0) || 1;
 
-  const mx = S.matrix || { menores: {}, adultos: {}, mayores: {} };
+  const mx = S.matrix || { lactantes: {}, menores: {}, adultos: {}, mayores: {} };
+  const lac = mx.lactantes || {};
+  // "menores" en la matriz es <18 (incluye lactantes); se muestra 4–17 aparte.
+  const men4 = {
+    femenino: Math.max(0, (mx.menores?.femenino || 0) - (lac.femenino || 0)),
+    masculino: Math.max(0, (mx.menores?.masculino || 0) - (lac.masculino || 0)),
+    otro: Math.max(0, (mx.menores?.otro || 0) - (lac.otro || 0)),
+  };
   const tFem = (mx.menores?.femenino || 0) + (mx.adultos?.femenino || 0) + (mx.mayores?.femenino || 0);
   const tMasc = (mx.menores?.masculino || 0) + (mx.adultos?.masculino || 0) + (mx.mayores?.masculino || 0);
   const matRow = (label: string, row: any) => (
@@ -138,7 +148,8 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
           <table className="bal-matrix">
             <thead><tr><th>Grupo de edad</th><th>Femenino</th><th>Masculino</th><th>Total</th></tr></thead>
             <tbody>
-              {matRow("Menores (<18)", mx.menores)}
+              {matRow("Lactantes (0–3)", lac)}
+              {matRow("Menores (4–17)", men4)}
               {matRow("Adultos (18–59)", mx.adultos)}
               {matRow("Mayores (≥60)", mx.mayores)}
               <tr className="bal-matrix__total">
@@ -183,6 +194,7 @@ const IC = {
   home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   user: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   child: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 18a6 6 0 0 0-12 0"/><circle cx="8" cy="8" r="4"/><path d="M12 11h8M12 15h6"/></svg>,
+  baby: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="6" r="4"/><path d="M9.5 6h.01M14.5 6h.01M10 8.5c.9.7 3.1.7 4 0"/><path d="M5 21v-1.5a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5V21"/></svg>,
   elder: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M2 21h12"/><circle cx="8" cy="7" r="4"/></svg>,
   userx: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>,
   cal: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,

@@ -69,7 +69,7 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
   }, []);
 
   const S = stats || {};
-  const m = S.matrix || { menores: {}, adultos: {}, mayores: {} };
+  const m = S.matrix || { lactantes: {}, menores: {}, adultos: {}, mayores: {} };
 
   // Ocupación de cuartos con semáforo.
   const rooms = useMemo(() => {
@@ -122,7 +122,8 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
           </Panel>
           <Panel title="Por edad">
             <div className="pres-bars">
-              <BarRow label="Menores (<18)" value={S.menores || 0} total={S.total || 1} color="#10b981" />
+              <BarRow label="Lactantes (0–3)" value={S.lactantes || 0} total={S.total || 1} color="#06b6d4" />
+              <BarRow label="Menores (4–17)" value={Math.max(0, (S.menores || 0) - (S.lactantes || 0))} total={S.total || 1} color="#10b981" />
               <BarRow label="Adultos (18–59)" value={S.adultos || 0} total={S.total || 1} color="#f59e0b" />
               <BarRow label="Mayores (≥60)" value={S.mayores || 0} total={S.total || 1} color="#8b5cf6" />
             </div>
@@ -333,13 +334,20 @@ function MatrixT({ m }: { m: any }) {
       <tr><td>{label}</td><td className="f">{f}</td><td className="m">{ma}</td><td className="t">{f + ma}</td></tr>
     );
   };
+  const lac = m.lactantes || {};
+  // "Menores" (m.menores) es <18 e incluye lactantes; se muestra el tramo 4–17 aparte.
+  const men4 = {
+    femenino: Math.max(0, (m.menores?.femenino || 0) - (lac.femenino || 0)),
+    masculino: Math.max(0, (m.menores?.masculino || 0) - (lac.masculino || 0)),
+  };
   const tf = (m.menores?.femenino || 0) + (m.adultos?.femenino || 0) + (m.mayores?.femenino || 0);
   const tm = (m.menores?.masculino || 0) + (m.adultos?.masculino || 0) + (m.mayores?.masculino || 0);
   return (
     <table className="pres-matrix">
       <thead><tr><th>Grupo</th><th>Fem</th><th>Masc</th><th>Total</th></tr></thead>
       <tbody>
-        {row("Menores", m.menores)}
+        {row("Lactantes", lac)}
+        {row("Menores", men4)}
         {row("Adultos", m.adultos)}
         {row("Mayores", m.mayores)}
         <tr className="tot"><td>Total</td><td className="f">{tf}</td><td className="m">{tm}</td><td className="t">{tf + tm}</td></tr>
