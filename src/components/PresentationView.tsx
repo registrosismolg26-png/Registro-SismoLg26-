@@ -121,6 +121,7 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
           <BigCard accent="#64748b" label="Individuos solos" value={S.individuosSolos || 0} icon={ICON.user} />
           <BigCard accent="#d97706" label="Intermitentes" value={S.intermitentes || 0} icon={ICON.clock} />
           <BigCard accent="#dc2626" label="Retirados" value={S.totalRetirados || 0} icon={ICON.out} />
+          <BigCard accent="#16a34a" label="Hogar solidario" value={S.hogarSolidario || 0} icon={ICON.heart} />
           <BigCard accent="#0284c7" label="Edad promedio" value={S.promedioEdad || 0} suffix="años" icon={ICON.cake} />
           <BigCard accent="#f59e0b" label="Ocupación cuartos" value={ocupacionPct} suffix="%" icon={ICON.bed} />
         </div>

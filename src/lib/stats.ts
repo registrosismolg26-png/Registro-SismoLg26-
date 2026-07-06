@@ -11,6 +11,7 @@ export interface AggregateStats {
   total: number;
   totalRegistrados: number;
   totalRetirados: number;
+  hogarSolidario: number; // retirados cuya razón es "HOGAR SOLIDARIO" (subconjunto de retirados)
   nucleosFamiliares: number;
   individuosSolos: number;
   lactantes: number;   // 0–3 años (subconjunto de `menores`, que sigue siendo <18)
@@ -40,6 +41,7 @@ const emptyStats = (totalRetirados = 0): AggregateStats => ({
   total: 0,
   totalRegistrados: totalRetirados,
   totalRetirados,
+  hogarSolidario: 0,
   nucleosFamiliares: 0,
   individuosSolos: 0,
   lactantes: 0,
@@ -90,6 +92,7 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
       COUNT(*) FILTER (WHERE edad >= 60 AND genero = 'MASCULINO' AND retirado = 'NO') AS may_masc,
       COUNT(*) FILTER (WHERE edad >= 60 AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS may_otro,
       COUNT(*) FILTER (WHERE retirado = 'SI')                                         AS total_retirados,
+      COUNT(*) FILTER (WHERE retirado = 'SI' AND UPPER(TRIM("retiradoRazon")) = 'HOGAR SOLIDARIO') AS hogar_solidario,
       COUNT(*) FILTER (WHERE intermitente = 'SI' AND retirado = 'NO')                  AS intermitentes,
       COUNT(*) FILTER (WHERE "estadoFisico" = 'LESIONADO' AND retirado = 'NO')         AS lesionados,
       COUNT(*) FILTER (WHERE patologia = 'SI' AND retirado = 'NO')                     AS con_patologia,
@@ -122,7 +125,7 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     else individuosSolos++;
   });
 
-  if (total === 0) return { ...emptyStats(totalRetirados), nucleosFamiliares: 0, individuosSolos: 0 };
+  if (total === 0) return { ...emptyStats(totalRetirados), hogarSolidario: Number(aggregates?.hogar_solidario ?? 0), nucleosFamiliares: 0, individuosSolos: 0 };
 
   const activeFilter = { retirado: "NO", ...refugioFilter };
   const [parroquiaGroup, generoGroup, estadoFisicoGroup, patologiaGroup] = await Promise.all([
@@ -158,6 +161,7 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     total,
     totalRegistrados: total + totalRetirados,
     totalRetirados,
+    hogarSolidario: n(aggregates.hogar_solidario),
     nucleosFamiliares,
     individuosSolos,
     lactantes: n(aggregates.lactantes),

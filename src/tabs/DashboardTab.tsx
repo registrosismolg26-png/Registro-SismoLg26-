@@ -189,6 +189,7 @@ export default function DashboardTab() {
 
     const total = activeRecords.length;
     const totalRetirados = retiredRecords.length;
+    const hogarSolidario = retiredRecords.filter(r => String((r.data as any).retiradoRazon || "").trim().toUpperCase() === "HOGAR SOLIDARIO").length;
     const totalRegistrados = total + totalRetirados;
 
     // Calculate families
@@ -226,6 +227,7 @@ export default function DashboardTab() {
         total: 0,
         totalRegistrados,
         totalRetirados,
+        hogarSolidario,
         nucleosFamiliares: 0,
         individuosSolos: 0,
         lactantes: 0,
@@ -324,6 +326,7 @@ export default function DashboardTab() {
       total,
       totalRegistrados,
       totalRetirados,
+      hogarSolidario,
       nucleosFamiliares,
       individuosSolos,
       lactantes,
@@ -574,6 +577,7 @@ ${entesList}`;
                   { label: "Adultos (18–59)", value: S.adultos || 0, sub: pc(S.adultos || 0), accent: "#f59e0b", icon: DASH_ICONS.user },
                   { label: "Mayores (60+)", value: S.mayores || 0, sub: pc(S.mayores || 0), accent: "#8b5cf6", icon: DASH_ICONS.elder },
                   { label: "Personas Retiradas", value: S.totalRetirados || 0, accent: "#dc2626", icon: DASH_ICONS.userx },
+                  { label: "Retirados a Hogar Solidario", value: S.hogarSolidario || 0, accent: "#16a34a", icon: DASH_ICONS.home },
                   { label: "Intermitentes Activos", value: S.intermitentes || 0, sub: pc(S.intermitentes || 0), accent: "#d97706", icon: DASH_ICONS.refresh },
                   { label: "Edad Promedio", value: S.promedioEdad || 0, suffix: "años", accent: "#0284c7", icon: DASH_ICONS.calendar },
                   { label: "Lesionados", value: S.lesionados || 0, sub: pc(S.lesionados || 0), accent: "#e11d48", icon: DASH_ICONS.alert },

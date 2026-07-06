@@ -34,6 +34,7 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
     { label: "Adultos (18–59)", value: S.adultos || 0, sub: pc(S.adultos || 0), accent: "#f59e0b", icon: IC.user },
     { label: "Mayores (≥60)", value: S.mayores || 0, sub: pc(S.mayores || 0), accent: "#8b5cf6", icon: IC.elder },
     { label: "Retirados", value: S.totalRetirados || 0, accent: "#dc2626", icon: IC.userx },
+    { label: "Retirados a hogar solidario", value: S.hogarSolidario || 0, accent: "#16a34a", icon: IC.home },
     { label: "Intermitentes", value: S.intermitentes || 0, sub: pc(S.intermitentes || 0), accent: "#d97706", icon: IC.refresh },
     { label: "Edad promedio", value: S.promedioEdad || 0, suffix: "años", accent: "#0284c7", icon: IC.cal },
     { label: "Lesionados", value: S.lesionados || 0, sub: pc(S.lesionados || 0), accent: "#e11d48", icon: IC.alert },
