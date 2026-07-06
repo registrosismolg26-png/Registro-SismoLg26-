@@ -1618,15 +1618,18 @@ export default function AsignacionesTab() {
                   {editData.retirado === "SI" && (
                     <div className="form-group detail-field--full">
                       <label>Razón de Retiro</label>
-                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontWeight: "normal", textTransform: "none", letterSpacing: 0, margin: "0 0 0.45rem" }}>
-                        <input
-                          type="checkbox"
-                          checked={editData.retiradoRazon === "HOGAR SOLIDARIO"}
-                          onChange={e => setEditData(prev => ({ ...prev, retiradoRazon: e.target.checked ? "HOGAR SOLIDARIO" : "" }))}
-                          style={{ width: "auto", height: "auto" }}
-                        />
-                        Hogar solidario
-                      </label>
+                      <button
+                        type="button"
+                        className={`pill-check${editData.retiradoRazon === "HOGAR SOLIDARIO" ? " is-on" : ""}`}
+                        aria-pressed={editData.retiradoRazon === "HOGAR SOLIDARIO"}
+                        onClick={() => setEditData(prev => ({ ...prev, retiradoRazon: prev.retiradoRazon === "HOGAR SOLIDARIO" ? "" : "HOGAR SOLIDARIO" }))}
+                        style={{ marginBottom: "0.5rem" }}
+                      >
+                        <span className="pill-check__box" aria-hidden>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        </span>
+                        <span className="pill-check__label">Hogar solidario</span>
+                      </button>
                       <input type="text" placeholder="ej: Retornado a vivienda, alta médica, etc."
                         value={editData.retiradoRazon || ""}
                         disabled={editData.retiradoRazon === "HOGAR SOLIDARIO"}
