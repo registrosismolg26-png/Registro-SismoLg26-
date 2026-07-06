@@ -3,24 +3,27 @@ import { getAuthUser } from "@/lib/auth";
 
 // ── Proxy a la API externa de cédulas (api.cedula.com.ve) ───────────────────
 // Tercera fuente de identidad (además del censo y el padrón local). Se hace del
-// lado del SERVIDOR para: (1) no exponer el token en el navegador, (2) evitar
-// CORS. Credenciales SIEMPRE desde `.env` (nunca hardcodeadas):
-//   CEDULA_API_APP_ID, CEDULA_API_TOKEN
-// Requiere usuario autenticado (evita abuso del servicio de pago). Devuelve una
-// forma NORMALIZADA a lo que usamos; ignora cne/estado/municipio/parroquia/rif.
+// lado del SERVIDOR para: (1) mantener una sola integración, (2) evitar CORS.
+// Requiere usuario autenticado. Devuelve una forma NORMALIZADA a lo que usamos;
+// ignora cne/estado/municipio/parroquia/rif.
+//
+// NOTA (excepción a la regla anti-hardcode de AGENTS, con PERMISO EXPLÍCITO del
+// dueño): las credenciales están hardcodeadas a propósito porque api.cedula.com.ve
+// es un servicio LIBRE (límite ~2000/h) y su difusión no preocupa. Se deja override
+// por env por si algún día se rota. NO "corregir" esto quitando los defaults.
 
 const API_BASE = "https://api.cedula.com.ve/api/v1";
+const DEFAULT_APP_ID = "9306";
+const DEFAULT_TOKEN = "089a0ac861dadfe75a4c7ce0af5f94b0";
 
 export async function GET(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const appId = process.env.CEDULA_API_APP_ID;
-    const token = process.env.CEDULA_API_TOKEN;
-    if (!appId || !token) {
-      return NextResponse.json({ found: false, error: "Servicio de cédula no configurado" }, { status: 503 });
-    }
+    // Defaults hardcodeados (API libre, autorizado por el dueño); override por env.
+    const appId = process.env.CEDULA_API_APP_ID || DEFAULT_APP_ID;
+    const token = process.env.CEDULA_API_TOKEN || DEFAULT_TOKEN;
 
     const params = new URL(req.url).searchParams;
     const nacionalidad = (params.get("nacionalidad") || "V").toUpperCase() === "E" ? "E" : "V";
