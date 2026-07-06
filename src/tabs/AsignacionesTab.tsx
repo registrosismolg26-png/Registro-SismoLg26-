@@ -18,6 +18,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
+import Reveal from "@/components/Reveal";
 import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
@@ -1340,8 +1341,8 @@ export default function AsignacionesTab() {
                         </div>
                       </div>
 
-                      {editData.isChildDependent && (
-                        <div className="form-group detail-field--full">
+                      <Reveal open={!!editData.isChildDependent} className="detail-field--full">
+                        <div className="form-group">
                           <label>Número correlativo de hijo/dependiente</label>
                           <StyledSelect
                             value={editData.dependentNumber || "1"}
@@ -1356,7 +1357,7 @@ export default function AsignacionesTab() {
                             ]}
                           />
                         </div>
-                      )}
+                      </Reveal>
                     </>
                   )}
                   <div className="form-group detail-field--full">
@@ -1609,41 +1610,46 @@ export default function AsignacionesTab() {
                     />
                   </div>
                   <div className="detail-section-title">Estatus</div>
-                  <div className="form-group">
-                    <label>Retirado / Egresado</label>
-                    <StyledSelect value={editData.retirado || "NO"} ariaLabel="Retirado / Egresado"
-                      onChange={v => setEditData(prev => ({ ...prev, retirado: v, retiradoRazon: v === "SI" ? prev.retiradoRazon : "" }))}
-                      options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]} />
-                  </div>
-                  {editData.retirado === "SI" && (
-                    <div className="form-group detail-field--full">
-                      <label>Razón de Retiro</label>
-                      <button
-                        type="button"
-                        className={`pill-check${editData.retiradoRazon === "HOGAR SOLIDARIO" ? " is-on" : ""}`}
-                        aria-pressed={editData.retiradoRazon === "HOGAR SOLIDARIO"}
-                        onClick={() => setEditData(prev => ({ ...prev, retiradoRazon: prev.retiradoRazon === "HOGAR SOLIDARIO" ? "" : "HOGAR SOLIDARIO" }))}
-                        style={{ marginBottom: "0.5rem" }}
-                      >
-                        <span className="pill-check__box" aria-hidden>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                        </span>
-                        <span className="pill-check__label">Hogar solidario</span>
-                      </button>
-                      <input type="text" placeholder="ej: Retornado a vivienda, alta médica, etc."
-                        value={editData.retiradoRazon || ""}
-                        disabled={editData.retiradoRazon === "HOGAR SOLIDARIO"}
-                        onChange={e => setEditData(prev => ({ ...prev, retiradoRazon: e.target.value }))} />
+                  <div className="detail-field--full">
+                    <div className="reg-retiro__row">
+                      <div className="reg-retiro__field">
+                        <label>Retirado / Egresado</label>
+                        <StyledSelect value={editData.retirado || "NO"} ariaLabel="Retirado / Egresado"
+                          onChange={v => setEditData(prev => ({ ...prev, retirado: v, retiradoRazon: v === "SI" ? prev.retiradoRazon : "" }))}
+                          options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]} />
+                      </div>
+                      <Reveal open={editData.retirado === "SI"} inline>
+                        <button
+                          type="button"
+                          className={`pill-check${editData.retiradoRazon === "HOGAR SOLIDARIO" ? " is-on" : ""}`}
+                          aria-pressed={editData.retiradoRazon === "HOGAR SOLIDARIO"}
+                          onClick={() => setEditData(prev => ({ ...prev, retiradoRazon: prev.retiradoRazon === "HOGAR SOLIDARIO" ? "" : "HOGAR SOLIDARIO" }))}
+                        >
+                          <span className="pill-check__box" aria-hidden>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                          </span>
+                          <span className="pill-check__label">Hogar solidario</span>
+                        </button>
+                      </Reveal>
                     </div>
-                  )}
+                    <Reveal open={editData.retirado === "SI"}>
+                      <div className="form-group" style={{ marginTop: "0.6rem" }}>
+                        <label>Razón de Retiro</label>
+                        <input type="text" placeholder="ej: Retornado a vivienda, alta médica, etc."
+                          value={editData.retiradoRazon || ""}
+                          disabled={editData.retiradoRazon === "HOGAR SOLIDARIO"}
+                          onChange={e => setEditData(prev => ({ ...prev, retiradoRazon: e.target.value }))} />
+                      </div>
+                    </Reveal>
+                  </div>
                   <div className="form-group">
                     <label>Residente Intermitente</label>
                     <StyledSelect value={editData.intermitente || "NO"} ariaLabel="Residente Intermitente"
                       onChange={v => setEditData(prev => ({ ...prev, intermitente: v, motivoIntermitente: v === "NO" ? "" : prev.motivoIntermitente }))}
                       options={[{ value: "NO", label: "No" }, { value: "SI", label: "Sí" }]} />
                   </div>
-                  {editData.intermitente === "SI" && (
-                    <div className="form-group detail-field--full">
+                  <Reveal open={editData.intermitente === "SI"} className="detail-field--full">
+                    <div className="form-group">
                       <label>
                         Motivo del Intermitente <span style={{ color: "var(--color-danger, #e53e3e)" }}>*</span>
                       </label>
@@ -1655,12 +1661,12 @@ export default function AsignacionesTab() {
                         style={{ borderColor: editData.intermitente === "SI" && !editData.motivoIntermitente?.trim() ? "var(--color-danger, #e53e3e)" : undefined }}
                       />
                       {editData.intermitente === "SI" && !editData.motivoIntermitente?.trim() && (
-                        <span style={{ fontSize: "0.78rem", color: "var(--color-danger, #e53e3e)", marginTop: "2px" }}>
+                        <span style={{ fontSize: "0.78rem", color: "var(--color-danger, #e53e3e)", marginTop: "2px", display: "block" }}>
                           El motivo es obligatorio para residentes intermitentes
                         </span>
                       )}
                     </div>
-                  )}
+                  </Reveal>
                 </div>
                 <div className="modal-edit-actions">
                   <button type="button" className="btn-secondary"
