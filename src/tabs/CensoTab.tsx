@@ -78,6 +78,9 @@ export default function CensoTab() {
   // Asignación de habitación en el censo (OPCIONAL). Reusa la ocupación por
   // cuarto (como en Asignaciones) para el semáforo del select.
   const [asignCuartoCenso, setAsignCuartoCenso] = useState("");
+  // Check del paso final: la persona se retira a Hogar Solidario → marca
+  // retirado=SI + razón "HOGAR SOLIDARIO". Un retirado no ocupa habitación.
+  const [hogarSolidario, setHogarSolidario] = useState(false);
   const roomCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     registros.filter((r: any) => r.retirado !== "SI" && r.cuarto).forEach((r: any) => {
@@ -616,9 +619,11 @@ export default function CensoTab() {
           gpsLng: coords.lng !== null ? coords.lng : undefined,
           telefono: finalTelefono !== null ? finalTelefono : undefined,
           medicamentoIds: medicamentos.filter(m => m.id),
-          cuarto: asignCuartoCenso || undefined,
+          cuarto: hogarSolidario ? undefined : (asignCuartoCenso || undefined),
           intermitente: formData.intermitente || "NO",
           motivoIntermitente: formData.intermitente === "SI" ? formData.motivoIntermitente.trim() : undefined,
+          retirado: hogarSolidario ? "SI" : "NO",
+          retiradoRazon: hogarSolidario ? "HOGAR SOLIDARIO" : undefined,
           refugio: effectiveRefugio
         }
       };
@@ -634,6 +639,7 @@ export default function CensoTab() {
       setLookupStatus("idle");
       setJefeLookup(null);
       setAsignCuartoCenso("");
+      setHogarSolidario(false);
       setStep(1);
 
       await refreshLocalRecords();
@@ -1258,9 +1264,29 @@ export default function CensoTab() {
                 </div>
               )}
 
-              {/* PASO 4 (cont.): Asignación de habitación — OPCIONAL */}
+              {/* PASO 4 (cont.): Hogar Solidario + asignación de habitación — OPCIONAL */}
               {step === 4 && (
                 <div className="form-section form-step-content">
+                  {/* Se retira a Hogar Solidario: marca retirado=SI + razón "HOGAR
+                      SOLIDARIO". Como se retira, no ocupa habitación → limpia el cuarto. */}
+                  <div className="form-group" style={{ marginBottom: "1rem" }}>
+                    <button
+                      type="button"
+                      className={`pill-check pill-check--wrap${hogarSolidario ? " is-on" : ""}`}
+                      aria-pressed={hogarSolidario}
+                      onClick={() => {
+                        const checked = !hogarSolidario;
+                        setHogarSolidario(checked);
+                        if (checked) setAsignCuartoCenso(""); // un retirado no ocupa habitación
+                      }}
+                    >
+                      <span className="pill-check__box" aria-hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      </span>
+                      <span className="pill-check__label">Se retira a Hogar Solidario</span>
+                    </button>
+                  </div>
+
                   <div className="form-group">
                     <label>
                       Habitación / Salón <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
@@ -1274,9 +1300,12 @@ export default function CensoTab() {
                       clearLabel="— Sin habitación asignada —"
                       emptyText="Sin habitaciones configuradas"
                       ariaLabel="Habitación / Salón"
+                      disabled={hogarSolidario}
                     />
                     <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                      Si lo dejas vacío, la persona queda registrada sin habitación asignada.
+                      {hogarSolidario
+                        ? "Se retira a Hogar Solidario: no se le asigna habitación."
+                        : "Si lo dejas vacío, la persona queda registrada sin habitación asignada."}
                     </p>
                   </div>
                 </div>

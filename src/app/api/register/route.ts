@@ -310,6 +310,11 @@ export async function POST(req: Request) {
           medicamentoIds: Array.isArray(medicamentoIds) ? medicamentoIds : [],
           refugio: refugioForCreate,
           cuarto: (body.cuarto && String(body.cuarto).trim()) || undefined,
+          // Un registro nuevo puede nacer ya retirado (p. ej. "Se retira a Hogar
+          // Solidario" desde el censo). Reusa la misma normalización que el update.
+          retirado: body.retirado || undefined,
+          retiradoRazon: retiradoRazonSave,
+          retiradoFecha: retiradoFechaSave,
           intermitente: intermitenteVal,
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
           syncedAt: new Date(),
