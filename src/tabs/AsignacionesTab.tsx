@@ -20,7 +20,7 @@ import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import Reveal from "@/components/Reveal";
 import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
-import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText } from "@/lib/helpers";
+import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText, findRepresentante } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
@@ -1084,6 +1084,28 @@ export default function AsignacionesTab() {
                     </div>
                   )}
 
+                  {/* Representante (informativo, NO se persiste): si el registro es un
+                      hijo/dependiente (cédula con sufijo), se muestra a quién representa. */}
+                  {parseStoredCedula(selectedRegistro.cedula).isChild && (
+                    <div className="detail-field detail-field--full">
+                      <span className="detail-label">Representante</span>
+                      {(() => {
+                        const rep = findRepresentante(parseStoredCedula(selectedRegistro.cedula).digits, registros, selectedRegistro.id);
+                        return rep ? (
+                          <span className="detail-hint detail-hint--ok">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            {rep}
+                          </span>
+                        ) : (
+                          <span className="detail-hint detail-hint--warn">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            Representante no registrado en el censo
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   {/* Ubicación */}
                   <div className="detail-section-title">Ubicación</div>
                   <div className="detail-field detail-field--full">
@@ -1341,6 +1363,26 @@ export default function AsignacionesTab() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Informativo (NO se persiste): representante de un hijo/dependiente. */}
+                      {editData.isChildDependent && (editData.cedula || "").replace(/\D/g, "").length >= 6 && (() => {
+                        const rep = findRepresentante(editData.cedula, registros, selectedRegistro?.id);
+                        return (
+                          <div className="form-group detail-field--full" style={{ marginTop: "-0.25rem" }}>
+                            {rep ? (
+                              <span className="detail-hint detail-hint--ok">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                Representante: {rep}
+                              </span>
+                            ) : (
+                              <span className="detail-hint detail-hint--warn">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                Representante no está registrado en el censo
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <Reveal open={!!editData.isChildDependent} className="detail-field--full">
                         <div className="form-group">

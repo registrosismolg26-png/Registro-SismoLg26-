@@ -9,6 +9,29 @@ export function normalizeText(s: string | null | undefined): string {
   return (s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
+// ── Representante de un hijo/dependiente (INFORMATIVO, NO se persiste) ───────
+// Un hijo/dependiente se guarda con la cédula del representante + un correlativo:
+// "<nac>-<dígitos>-<n>" (ej. "V-12345678-1"). Dada la cédula BASE (los dígitos del
+// representante) devuelve el nombre del representante buscándolo en el censo. Es
+// solo para mostrar al registrar / editar / ver el detalle; nunca se almacena.
+export function findRepresentante(
+  cedulaBase: string | null | undefined,
+  registros: Array<{ id?: string; cedula?: string | null; nombreApellido?: string | null }>,
+  excludeId?: string,
+): string | null {
+  const digits = String(cedulaBase ?? "").replace(/\D/g, "");
+  if (digits.length < 6) return null;
+  // Una cédula de dependiente tiene sufijo "-n"; el representante NUNCA es otro
+  // dependiente, así que se descartan esos registros.
+  const esDependiente = (c: string) => /^\s*[VE]?-?\d+-\d+\s*$/i.test(String(c ?? "").trim());
+  const rep = registros.find((r) => {
+    if (excludeId && r.id === excludeId) return false;
+    const c = r.cedula ?? "";
+    return !esDependiente(c) && c.replace(/\D/g, "") === digits;
+  });
+  return rep?.nombreApellido || null;
+}
+
 // ── Interpolación ID → nombre (modelo por-ID) ───────────────────────────────
 // Los registros/consultas guardan SOLO ids del catálogo; el nombre se resuelve
 // aquí para mostrar/exportar. Si el id no existe (ítem borrado del catálogo),
