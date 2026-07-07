@@ -67,8 +67,6 @@ export default function DashboardTab() {
   // Tipo de reporte y campos libres del reporte detallado (persisten en
   // localStorage para no reescribirlos cada vez).
   const [reportType, setReportType] = useState<"resumen" | "detallado">("resumen");
-  const [repEstado, setRepEstado] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("rep_estado") || "" : ""));
-  const [repMunicipio, setRepMunicipio] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("rep_municipio") || "" : ""));
   const [repOrganismo, setRepOrganismo] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("rep_organismo") || "" : ""));
 
   // Estado de "Compartir reporte por link público"
@@ -482,8 +480,10 @@ Plazas Disponibles : ${plazas}`;
     };
     const may = cat("mayores"), ad = cat("adultos"), lac = cat("lactantes"), nolac = cat("noLactantes"), ado = cat("adolescentes");
 
-    const estado = repEstado.trim() || "—";
-    const municipio = repMunicipio.trim() || "—";
+    // Estado y municipio son FIJOS del sistema (Gobernación del Estado La Guaira,
+    // municipio Vargas) — valores institucionales, hardcode autorizado por el dueño.
+    const estado = "La Guaira";
+    const municipio = "Vargas";
     const organismo = repOrganismo.trim() || "—";
 
     return `Nombre del campamento: *${refugioActivo}*
@@ -540,9 +540,7 @@ Hora: *${hhStr}:${minStr}* ${ampm}
   const handleShareReport = () => {
     const text = reportType === "detallado" ? generateDetalladoText() : generateReportText();
     if (reportType === "detallado" && typeof window !== "undefined") {
-      // Recuerda los campos libres para el próximo reporte.
-      localStorage.setItem("rep_estado", repEstado.trim());
-      localStorage.setItem("rep_municipio", repMunicipio.trim());
+      // Recuerda el organismo para el próximo reporte (estado/municipio son fijos).
       localStorage.setItem("rep_organismo", repOrganismo.trim());
     }
     navigator.clipboard.writeText(text).then(() => {
@@ -1026,21 +1024,12 @@ Hora: *${hhStr}:${minStr}* ${ampm}
                 </div>
               </div>
 
-              {/* Campos libres (solo reporte detallado) */}
+              {/* Campo libre (solo reporte detallado): el organismo responsable.
+                  Estado (La Guaira) y Municipio (Vargas) son fijos del sistema. */}
               {reportType === "detallado" && (
-                <div className="report-fields">
-                  <div className="form-group">
-                    <label>Estado</label>
-                    <input className="morb-control" type="text" value={repEstado} onChange={e => setRepEstado(e.target.value)} placeholder="La Guaira" />
-                  </div>
-                  <div className="form-group">
-                    <label>Municipio</label>
-                    <input className="morb-control" type="text" value={repMunicipio} onChange={e => setRepMunicipio(e.target.value)} placeholder="Vargas" />
-                  </div>
-                  <div className="form-group report-fields__full">
-                    <label>Organismo responsable</label>
-                    <input className="morb-control" type="text" value={repOrganismo} onChange={e => setRepOrganismo(e.target.value)} placeholder="Ej: Banco Central de Venezuela" />
-                  </div>
+                <div className="form-group">
+                  <label>Organismo responsable</label>
+                  <input className="morb-control" type="text" value={repOrganismo} onChange={e => setRepOrganismo(e.target.value)} placeholder="Ej: Banco Central de Venezuela" />
                 </div>
               )}
 
