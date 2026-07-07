@@ -48,9 +48,15 @@ export default function BalanceTab() {
   const { consultas, localConsultas, registros, patologias, effectiveRefugio } = useAppContext();
 
   const B = useMemo(() => {
-    const localIds = new Set(localConsultas.map((c: any) => c.id));
+    // Las remotas ya vienen scoped por el backend; las locales (IndexedDB) se
+    // filtran por el refugio de vista para que Master, al cambiar de refugio, vea
+    // el balance de ESE campamento (consolidado, sin refugio de vista → todas).
+    const scopedLocal = effectiveRefugio
+      ? localConsultas.filter((c: any) => (c.data?.refugio || "") === effectiveRefugio)
+      : localConsultas;
+    const localIds = new Set(scopedLocal.map((c: any) => c.id));
     const all: any[] = [
-      ...localConsultas.map((c: any) => ({ ...c.data, createdAt: c.createdAt })),
+      ...scopedLocal.map((c: any) => ({ ...c.data, createdAt: c.createdAt })),
       ...consultas.filter((c: any) => !localIds.has(c.id)),
     ];
     all.sort((a, b) => new Date(b.fechaConsulta || b.createdAt || 0).getTime() - new Date(a.fechaConsulta || a.createdAt || 0).getTime());
@@ -132,7 +138,7 @@ export default function BalanceTab() {
       embarazadas: embarazadasCount,
       gen, matrix, ageTot, topPatologias, tipoCount,
     };
-  }, [consultas, localConsultas, registros, patologias]);
+  }, [consultas, localConsultas, registros, patologias, effectiveRefugio]);
 
   const pct = (n: number, total: number) => (total > 0 ? (n / total) * 100 : 0);
 
