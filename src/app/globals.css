@@ -3176,6 +3176,32 @@ h2.dashboard-section-title {
   color: #fff;
 }
 
+/* Chip de salón: camas (texto, solo lectura) + botón de editar salón. */
+.room-chip-beds {
+  display: inline-flex; align-items: center; gap: 0.15rem;
+  padding: 0.05rem 0.4rem; font-size: 0.68rem; font-weight: 700; line-height: 1.4;
+  color: var(--color-primary); background: var(--bg-primary);
+  border: 1px solid var(--color-primary); border-radius: 999px;
+}
+.room-chip-edit {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border: none; border-radius: 50%;
+  background: none; color: var(--color-primary); cursor: pointer;
+  transition: background 0.12s;
+}
+.room-chip-edit:hover { background: var(--color-primary-light); }
+
+/* Aviso en el modal de editar salón: renombrar reasigna los registros. */
+.config-room-rename-note {
+  display: flex; gap: 0.5rem; align-items: flex-start;
+  font-size: 0.78rem; line-height: 1.45;
+  color: var(--color-warning);
+  background: var(--color-warning-light);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 12px; padding: 0.65rem 0.8rem;
+}
+.config-room-rename-note strong { color: var(--color-warning); }
+
 /* Selector de tipo de contenedor (Edificio / Piso / Otro) */
 .room-type-toggle {
   display: flex;

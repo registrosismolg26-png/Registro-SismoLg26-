@@ -77,10 +77,11 @@ export default function ConfigTab() {
   const [newCapacidad, setNewCapacidad] = useState("18");
   const [roomToConfirmAdd, setRoomToConfirmAdd] = useState<{ key: string; capacidad: number } | null>(null);
   const [roomToConfirmDelete, setRoomToConfirmDelete] = useState<string | null>(null);
-  // Editar capacidad de camas de un salón existente
-  const [roomToEditCap, setRoomToEditCap] = useState<string | null>(null);
-  const [editCapValue, setEditCapValue] = useState("18");
-  const [savingCap, setSavingCap] = useState(false);
+  // Editar un salón existente (nombre + capacidad) en un modal.
+  const [roomToEdit, setRoomToEdit] = useState<string | null>(null); // nombre/clave actual
+  const [editRoomName, setEditRoomName] = useState("");
+  const [editRoomCap, setEditRoomCap] = useState("18");
+  const [savingRoom, setSavingRoom] = useState(false);
 
   // ── Mi Cuenta (autoservicio, en MODAL: el propio usuario edita SU nombre / contraseña) ──
   const [showAccount, setShowAccount] = useState(false);
@@ -366,44 +367,71 @@ export default function ConfigTab() {
     }
   };
 
-  // Abre el modal de edición de capacidad con el valor actual del salón.
-  const openEditCap = (key: string) => {
-    setRoomToEditCap(key);
-    setEditCapValue(String(roomCaps[key] ?? 18));
+  // Abre el modal de edición del salón con su nombre y capacidad actuales.
+  const openEditRoom = (key: string) => {
+    setRoomToEdit(key);
+    setEditRoomName(key);
+    setEditRoomCap(String(roomCaps[key] ?? 18));
   };
 
-  const saveEditCap = async () => {
-    if (!roomToEditCap) return;
-    const key = roomToEditCap;
-    const cap = parseInt(editCapValue, 10);
+  // Guarda nombre + capacidad del salón. El backend, en UNA transacción atómica,
+  // renombra el salón y reasigna todos los registros de este refugio que estaban
+  // en él al nombre nuevo.
+  const saveEditRoom = async () => {
+    if (!roomToEdit) return;
+    const oldName = roomToEdit;
+    const nextName = editRoomName.trim().toUpperCase();
+    const cap = parseInt(editRoomCap, 10);
+    if (!nextName) {
+      showToast("El nombre del salón no puede quedar vacío.", "error");
+      return;
+    }
     if (!Number.isFinite(cap) || cap < 1 || cap > 999) {
       showToast("Capacidad inválida (entre 1 y 999).", "error");
       return;
     }
-    if (!navigator.onLine) {
-      showToast("Sin conexión. Editar la capacidad requiere señal.", "warning");
+    // Colisión local: otro salón del refugio ya usa ese nombre.
+    if (nextName !== oldName && rooms.includes(nextName)) {
+      showToast("Ya existe un salón con ese nombre en este campamento.", "error");
       return;
     }
-    setSavingCap(true);
+    if (!navigator.onLine) {
+      showToast("Sin conexión. Editar un salón requiere señal.", "warning");
+      return;
+    }
+    setSavingRoom(true);
     try {
       const res = await apiFetch("/api/cuartos", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: key, capacidad: cap, refugio: salonRefugioActivo })
+        body: JSON.stringify({ name: oldName, newName: nextName, capacidad: cap, refugio: salonRefugioActivo })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        applyCapsChange(prev => ({ ...prev, [key]: cap }));
-        showToast("Capacidad actualizada.", "success");
-        setRoomToEditCap(null);
+        // Refleja el cambio local: renombra en la lista y mueve la capacidad.
+        applyRoomsChange(prev => prev.map(k => (k === oldName ? nextName : k)));
+        applyCapsChange(prev => {
+          const next = { ...prev };
+          delete next[oldName];
+          next[nextName] = cap;
+          return next;
+        });
+        const movidos = typeof data.registrosMovidos === "number" ? data.registrosMovidos : 0;
+        showToast(
+          nextName !== oldName && movidos > 0
+            ? `Salón actualizado. ${movidos} registro${movidos !== 1 ? "s" : ""} reasignado${movidos !== 1 ? "s" : ""} al nuevo nombre.`
+            : "Salón actualizado.",
+          "success"
+        );
+        setRoomToEdit(null);
       } else {
-        const data = await res.json().catch(() => ({}));
-        showToast(data.error || "No se pudo actualizar la capacidad.", "error");
+        showToast(data.error || "No se pudo actualizar el salón.", "error");
       }
     } catch (err) {
-      console.error("Error updating room capacity:", err);
-      showToast("Error de conexión al actualizar la capacidad.", "error");
+      console.error("Error updating room:", err);
+      showToast("Error de conexión al actualizar el salón.", "error");
     } finally {
-      setSavingCap(false);
+      setSavingRoom(false);
     }
   };
 
@@ -977,8 +1005,9 @@ export default function ConfigTab() {
                           return (
                             <span key={c} className="room-chip room-chip--custom">
                               Salón {salonNum}
-                              <button type="button" className="room-chip-cap" onClick={() => openEditCap(c)} title="Editar capacidad de camas">
-                                🛏 {roomCaps[c] ?? 18}
+                              <span className="room-chip-beds" title="Camas disponibles">🛏 {roomCaps[c] ?? 18}</span>
+                              <button type="button" className="room-chip-edit" onClick={() => openEditRoom(c)} title="Editar salón">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                               </button>
                               <button type="button" className="room-chip-remove" onClick={() => removeCustomCuarto(c)} title="Eliminar Habitación">×</button>
                             </span>
@@ -1260,41 +1289,59 @@ export default function ConfigTab() {
         </div>
       )}
 
-      {/* Modal: Editar Capacidad de Camas */}
-      {roomToEditCap && (
-        <div className="modal-overlay" onClick={() => setRoomToEditCap(null)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+      {/* Modal: Editar Salón (nombre + capacidad). Renombrar reasigna sus registros. */}
+      {roomToEdit && (
+        <div className="modal-overlay" onClick={() => setRoomToEdit(null)}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "440px" }}>
             <div className="modal-header">
-              <span className="modal-title">Capacidad de Camas</span>
-              <button className="modal-close" onClick={() => setRoomToEditCap(null)}>
+              <span className="modal-title">Editar Salón</span>
+              <button className="modal-close" onClick={() => setRoomToEdit(null)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
-            <div className="pill-form" style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: "1.5" }}>
-              <p>Número de camas disponibles en <strong>{formatRoomLabel(roomToEditCap)}</strong>:</p>
-              <input
-                className="morb-control"
-                type="number"
-                min={1}
-                max={999}
-                value={editCapValue}
-                onChange={e => setEditCapValue(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && saveEditCap()}
-                autoFocus
-                style={{ margin: "0.75rem 0", width: "100%" }}
-              />
-              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                Se usa en el select de asignación y en la estadística por habitación.
-              </p>
+            <div className="pill-form" style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+              <div className="form-group">
+                <label>Nombre del salón</label>
+                <input
+                  className="morb-control"
+                  type="text"
+                  value={editRoomName}
+                  onChange={e => setEditRoomName(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && saveEditRoom()}
+                  autoFocus
+                  placeholder="EDIFICIO 3 SALON 33"
+                />
+              </div>
+              <div className="form-group">
+                <label>Camas disponibles</label>
+                <input
+                  className="morb-control"
+                  type="number"
+                  min={1}
+                  max={999}
+                  value={editRoomCap}
+                  onChange={e => setEditRoomCap(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && saveEditRoom()}
+                />
+                <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", margin: "0.3rem 0 0" }}>
+                  Se usa en el select de asignación y en la estadística por habitación.
+                </p>
+              </div>
+              {editRoomName.trim().toUpperCase() !== roomToEdit && !!editRoomName.trim() && (
+                <div className="config-room-rename-note">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: "1px" }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <span>Al cambiar el nombre, <strong>todos los registros</strong> de este campamento asignados a este salón se moverán al nuevo nombre. Es una acción atómica.</span>
+                </div>
+              )}
             </div>
 
             <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
-              <button type="button" className="btn-secondary" onClick={() => setRoomToEditCap(null)}>
+              <button type="button" className="btn-secondary" onClick={() => setRoomToEdit(null)} disabled={savingRoom}>
                 Cancelar
               </button>
-              <button type="button" className="btn-submit" style={{ flex: 1 }} onClick={saveEditCap} disabled={savingCap}>
-                {savingCap ? "Guardando..." : "Guardar"}
+              <button type="button" className="btn-submit" style={{ flex: 1 }} onClick={saveEditRoom} disabled={savingRoom || !editRoomName.trim()}>
+                {savingRoom ? <><span className="spinner spinner-sm"></span>Guardando</> : "Guardar Cambios"}
               </button>
             </div>
           </div>

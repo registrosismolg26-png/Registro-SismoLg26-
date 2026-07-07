@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canManageRooms, isMaster, type AuthUser } from "@/lib/auth";
+import { withAuditUser } from "@/lib/audit";
 
 // Refugio objetivo: Master puede indicar uno (?refugio= / body.refugio); el resto usa el suyo.
 function targetRefugio(auth: AuthUser, requested?: string | null): string {
@@ -109,7 +110,11 @@ export async function DELETE(request: Request) {
   }
 }
 
-// Editar la capacidad de camas de un salón (MASTER/ADMIN, scoped por refugio).
+// Editar un salón (MASTER/ADMIN, scoped por refugio): nombre y/o capacidad.
+// Si cambia el NOMBRE, todos los `Registro` de ese refugio asignados al salón se
+// reasignan al nombre nuevo. El renombrado del salón + la reasignación de sus
+// registros ocurren en UNA transacción atómica (withAuditUser): o se aplica todo
+// o nada, y la auditoría queda a nombre del operador.
 export async function PATCH(request: Request) {
   try {
     const auth = await getAuthUser(request);
@@ -118,7 +123,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { name } = body;
+    const { name, newName } = body;
     if (!name || typeof name !== "string") {
       return NextResponse.json({ error: "Invalid name" }, { status: 400 });
     }
@@ -129,21 +134,49 @@ export async function PATCH(request: Request) {
     }
 
     const refugio = targetRefugio(auth, body.refugio);
-    const normalizedName = name.trim().toUpperCase();
+    const oldName = name.trim().toUpperCase();
+    // newName es opcional: si no viene o queda vacío, se conserva el nombre actual.
+    const nextName = (typeof newName === "string" && newName.trim()) ? newName.trim().toUpperCase() : oldName;
+    if (!nextName) {
+      return NextResponse.json({ error: "El nombre del salón no puede quedar vacío." }, { status: 400 });
+    }
 
     const existing = await prisma.customRoom.findUnique({
-      where: { name_refugio: { name: normalizedName, refugio } }
+      where: { name_refugio: { name: oldName, refugio } }
     });
     if (!existing) {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
-    const room = await prisma.customRoom.update({
-      where: { name_refugio: { name: normalizedName, refugio } },
-      data: { capacidad }
+    // Si cambia el nombre, no debe colisionar con otro salón del mismo refugio.
+    if (nextName !== oldName) {
+      const collision = await prisma.customRoom.findUnique({
+        where: { name_refugio: { name: nextName, refugio } }
+      });
+      if (collision) {
+        return NextResponse.json({ error: "Ya existe un salón con ese nombre en este campamento." }, { status: 409 });
+      }
+    }
+
+    // Transacción atómica: renombra el salón y reasigna sus registros (si cambió el
+    // nombre). Todo dentro de withAuditUser para que el trigger registre al operador.
+    const result = await withAuditUser(auth.email, async (tx) => {
+      const room = await tx.customRoom.update({
+        where: { name_refugio: { name: oldName, refugio } },
+        data: { name: nextName, capacidad },
+      });
+      let registrosMovidos = 0;
+      if (nextName !== oldName) {
+        const upd = await tx.registro.updateMany({
+          where: { refugio, cuarto: oldName },
+          data: { cuarto: nextName },
+        });
+        registrosMovidos = upd.count;
+      }
+      return { room, registrosMovidos };
     });
 
-    return NextResponse.json(room);
+    return NextResponse.json({ ...result.room, registrosMovidos: result.registrosMovidos });
   } catch (error: any) {
     console.error("Error in PATCH /api/cuartos:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
