@@ -11,7 +11,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import PresentationView from "@/components/PresentationView";
 import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
-import { DEFAULT_ENTES } from "@/lib/constants";
 import { apiFetch } from "@/lib/apiFetch";
 import StyledSelect from "@/components/StyledSelect";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
@@ -65,10 +64,6 @@ export default function DashboardTab() {
 
   // Estado del generador de reporte para WhatsApp
   const [showReportModal, setShowReportModal] = useState(false);
-  const [personalTrabajo, setPersonalTrabajo] = useState(84);
-  const [incluirDistribucion, setIncluirDistribucion] = useState(true);
-  const [entes, setEntes] = useState<string[]>(DEFAULT_ENTES);
-  const [newEnte, setNewEnte] = useState("");
 
   // Estado de "Compartir reporte por link público"
   const isMasterUser = currentUser?.role === "MASTER";
@@ -368,71 +363,61 @@ export default function DashboardTab() {
   // Helper to generate the WhatsApp report text
   const generateReportText = () => {
     const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const dateTimeStr = `${day}/${month} || Hora: ${hours}:${minutes}hrs`;
+    const cap1 = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+    const weekday = cap1(now.toLocaleDateString("es-VE", { weekday: "long" }));
+    const monthName = cap1(now.toLocaleDateString("es-VE", { month: "long" }));
+    const dd = String(now.getDate()).padStart(2, "0");
+    const yyyy = now.getFullYear();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const fechaStr = `${weekday} ${dd} de ${monthName} ${yyyy} || ${hh}:${mm}hrs`;
 
     const t = currentStats.total || 0;
-    const may = currentStats.mayores || 0;
-    const mayM = currentStats.matrix?.mayores?.masculino || 0;
-    const mayF = currentStats.matrix?.mayores?.femenino || 0;
+    const familias = currentStats.nucleosFamiliares || 0;
 
     const ad = currentStats.adultos || 0;
     const adM = currentStats.matrix?.adultos?.masculino || 0;
     const adF = currentStats.matrix?.adultos?.femenino || 0;
 
-    const men = currentStats.menores || 0;
-    const menF = currentStats.matrix?.menores?.femenino || 0;
-    const menM = currentStats.matrix?.menores?.masculino || 0;
+    const lactantes = currentStats.lactantes || 0;
+    const menores = currentStats.menores || 0;                 // < 18 (incluye lactantes)
+    const menoresRango = Math.max(0, menores - lactantes);     // 4–17
+    const may = currentStats.mayores || 0;
 
-    const familias = currentStats.nucleosFamiliares || 0;
-    const solos = currentStats.individuosSolos || 0;
-    const retirados = currentStats.totalRetirados || 0;
+    // Capacidad instalada = suma de capacidades de los salones ACTIVOS del refugio,
+    // con el mismo criterio del panel "Distribución por Habitación" (cap ?? 18; los
+    // salones inactivos no cuentan). Las plazas disponibles nunca son negativas.
+    const capacidad = dashboardRooms
+      .filter((room) => allCuartos.includes(room))
+      .reduce((s, room) => s + (roomCapacities[room] ?? 18), 0);
+    const plazas = Math.max(0, capacidad - t);
 
-    const parroquiasSorted = [...(currentStats.byParroquia || [])].sort((a, b) => b.count - a.count);
-    const parroquiasList = parroquiasSorted.map(p => {
-      const pct = t > 0 ? Math.round(p.count / t * 100) : 0;
-      const countStr = String(p.count).padStart(2, '0');
-      return pct > 0 ? `- ${p.name}: ${countStr} (${pct}%)` : `- ${p.name}: ${countStr}`;
-    }).join("\n");
-
-    const entesList = entes.map(e => `- ${e}`).join("\n");
+    const pct = (n: number) => (t > 0 ? ((n / t) * 100).toFixed(1) : "0.0");
 
     // El reporte es del refugio ACTIVO: Master usa el del selector del header
-    // (effectiveRefugio); el resto, su propio refugio. La ubicación sale de la BD.
+    // (effectiveRefugio); el resto, su propio refugio.
     const refugioActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
-    const ubicacion = refugiosList.find(r => r.nombre === refugioActivo)?.ubicacion || "";
 
-    return `*Campamento Transitorio ${refugioActivo}.*
+    return `*CAMPAMENTO TRANSITORIO ${refugioActivo.toUpperCase()}*
+Reporte: ${fechaStr}
 
-Fecha y Hora: ${dateTimeStr}${ubicacion ? `\nUbicación: ${ubicacion}` : ""}
+Personas en el Campamento: ${t}
+Capacidad instalada: ${capacidad}
 
-Total general: ${t} personas
-Núcleos Familiares: ${familias}
-Personas solas: ${solos}
+*Familias:* ${familias}
 
-Adultos Mayores: ${may}
-${String(mayM).padStart(2, '0')} masculinos
-${String(mayF).padStart(2, '0')} femeninos
+*Adultos:* ${ad} ADULTOS (18–59) · ${pct(ad)}%
+- Femenino ${adF}
+- Masculino ${adM}
 
-Adultos: ${ad}
-${String(adM).padStart(2, '0')} masculino
-${String(adF).padStart(2, '0')} femenino
+*Niños, niñas y adolescente:*
+- LACTANTES (0–3) ${lactantes} · ${pct(lactantes)}%
+- MENORES (4–17) ${menoresRango} · ${pct(menoresRango)}%
 
-Niños: ${men}
-${String(menF).padStart(2, '0')} niñas
-${String(menM).padStart(2, '0')} niños
-${incluirDistribucion ? `
-Distribución territorial:
-${parroquiasList}
-` : ""}
-Personas retiradas en refugios solidarios: ${String(retirados).padStart(2, '0')}
+*Adultos y Adultas Mayores:*
+- ${may} MAYORES (60+) · ${pct(may)}%
 
-Personal de trabajo: ${personalTrabajo} personas.
-Entes Presentes:
-${entesList}`;
+Plazas Disponibles : ${plazas}`;
   };
 
   const handleShareReport = () => {
@@ -444,18 +429,6 @@ ${entesList}`;
     }).catch(() => {
       showToast("No se pudo copiar el texto automáticamente. Cópielo manualmente.", "error");
     });
-  };
-
-  const handleAddEnte = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newEnte.trim()) {
-      setEntes(prev => [...prev, newEnte.trim()]);
-      setNewEnte("");
-    }
-  };
-
-  const handleRemoveEnte = (index: number) => {
-    setEntes(prev => prev.filter((_, i) => i !== index));
   };
 
   const campamentoActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
@@ -921,63 +894,6 @@ ${entesList}`;
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1rem", maxHeight: "65vh", overflowY: "auto", paddingRight: "5px" }}>
-              <div className="form-group">
-                <label htmlFor="rep-personal">Personal de Trabajo</label>
-                <input
-                  type="number"
-                  id="rep-personal"
-                  value={personalTrabajo}
-                  onChange={e => setPersonalTrabajo(parseInt(e.target.value, 10) || 0)}
-                  min="0"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Entes Presentes</label>
-                <form onSubmit={handleAddEnte} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem", width: "100%" }}>
-                  <input
-                    type="text"
-                    placeholder="Agregar nuevo ente..."
-                    value={newEnte}
-                    onChange={e => setNewEnte(e.target.value)}
-                    style={{ flex: 1, minWidth: "120px" }}
-                  />
-                  <button type="submit" className="btn-submit" style={{ width: "auto", margin: 0, padding: "0 1rem" }}>Agregar</button>
-                </form>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", maxHeight: "150px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "6px", padding: "0.5rem" }}>
-                  {entes.map((ente, index) => (
-                    <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", padding: "2px 0" }}>
-                      <span style={{ wordBreak: "break-all", paddingRight: "5px" }}>• {ente}</span>
-                      <button type="button" onClick={() => handleRemoveEnte(index)} style={{ background: "none", border: "none", color: "var(--color-danger)", cursor: "pointer", fontWeight: "bold", padding: "0 5px" }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 0.75rem", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--input-bg)" }}>
-                <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500 }}>Incluir Distribución Territorial</span>
-                <button
-                  type="button"
-                  onClick={() => setIncluirDistribucion(v => !v)}
-                  style={{
-                    position: "relative", display: "inline-flex", alignItems: "center",
-                    width: "42px", height: "24px", borderRadius: "999px", border: "none",
-                    cursor: "pointer", padding: 0, flexShrink: 0,
-                    background: incluirDistribucion ? "var(--color-primary)" : "var(--border-color)",
-                    transition: "background 0.2s"
-                  }}
-                  aria-pressed={incluirDistribucion}
-                >
-                  <span style={{
-                    position: "absolute", top: "3px",
-                    left: incluirDistribucion ? "21px" : "3px",
-                    width: "18px", height: "18px", borderRadius: "50%",
-                    background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.25)",
-                    transition: "left 0.2s"
-                  }} />
-                </button>
-              </div>
-
               <div className="form-group">
                 <label>Vista Previa del Mensaje</label>
                 <pre style={{
