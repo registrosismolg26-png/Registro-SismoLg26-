@@ -65,3 +65,36 @@ export function useModalOverlayScrollLock() {
     };
   }, []);
 }
+
+// ── Regla GENERAL de modales (cierre por click-afuera) ───────────────────────
+// Un click que EMPIEZA dentro del contenido del modal (p. ej. seleccionar texto
+// para copiar) y TERMINA sobre el overlay NO debe cerrar el modal. El evento
+// `click` se dispara en el ancestro común de mousedown y mouseup —el overlay—
+// aunque el gesto haya arrancado dentro; por eso el `stopPropagation` del
+// contenido no basta. Aquí se recuerda dónde EMPEZÓ el gesto (mousedown) y, si
+// arrancó dentro de `.modal-content`, se cancela el click de cierre en fase de
+// CAPTURA (antes de que React dispare el onClick del overlay). Solo cierra cuando
+// el gesto empieza Y termina en el overlay. Se monta una vez (page.tsx).
+export function useModalOutsideClickGuard() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let downInsideContent = false;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Element | null;
+      downInsideContent = !!(t && typeof t.closest === "function" && t.closest(".modal-content"));
+    };
+    const onClickCapture = (e: MouseEvent) => {
+      const t = e.target as Element | null;
+      // El click "de cierre" ocurre cuando el target ES el overlay (no un hijo).
+      if (t && t.classList && t.classList.contains("modal-overlay") && downInsideContent) {
+        e.stopPropagation(); // React no verá el onClick del overlay → no cierra
+      }
+    };
+    document.addEventListener("mousedown", onDown, true);
+    document.addEventListener("click", onClickCapture, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown, true);
+      document.removeEventListener("click", onClickCapture, true);
+    };
+  }, []);
+}
