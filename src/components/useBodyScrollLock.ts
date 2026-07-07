@@ -39,3 +39,29 @@ export function useBodyScrollLock(active: boolean) {
     return releaseLock;
   }, [active]);
 }
+
+// ── Regla GENERAL de modales ────────────────────────────────────────────────
+// Mientras exista CUALQUIER `.modal-overlay` en el DOM, bloquea el scroll del
+// fondo (con compensación de scrollbar, sin salto). Se monta UNA sola vez a
+// nivel de app (page.tsx). Así todo modal —presente o futuro— que use
+// `.modal-overlay` bloquea el fondo automáticamente, sin llamar al hook en cada
+// componente. Comparte el mismo contador global que `useBodyScrollLock`, así que
+// convive sin problema con los modales/hojas que ya lo usan.
+export function useModalOverlayScrollLock() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let locked = false;
+    const sync = () => {
+      const hasModal = document.querySelector(".modal-overlay") !== null;
+      if (hasModal && !locked) { applyLock(); locked = true; }
+      else if (!hasModal && locked) { releaseLock(); locked = false; }
+    };
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true });
+    sync(); // estado inicial (por si ya hay un modal montado)
+    return () => {
+      observer.disconnect();
+      if (locked) { releaseLock(); locked = false; }
+    };
+  }, []);
+}

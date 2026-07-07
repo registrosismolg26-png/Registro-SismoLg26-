@@ -36,8 +36,13 @@ import MorbilidadTab from "@/tabs/MorbilidadTab";
 import BalanceTab from "@/tabs/BalanceTab";
 import HistorialClinicoTab from "@/tabs/HistorialClinicoTab";
 import { SwipeableToast } from "@/components/SwipeableToast";
+import { useModalOverlayScrollLock } from "@/components/useBodyScrollLock";
 
 export default function Home() {
+  // Regla GENERAL de modales: mientras haya cualquier `.modal-overlay` en el DOM,
+  // el scroll del fondo queda bloqueado (con compensación de scrollbar).
+  useModalOverlayScrollLock();
+
   // Connection state
   const [isOnline, setIsOnline] = useState<boolean>(true);
   
