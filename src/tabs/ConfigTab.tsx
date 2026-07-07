@@ -17,7 +17,7 @@
 // customCuartos, setCustomCuartos, allCuartos, sortedCustomCuartos, votersCount,
 // syncStatus, syncProgress, syncTotal, downloadFullPadron, deletePadronLocal.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import QRCode from "qrcode";
 import { getPending, saveLocal, resetAttempts, resetAllLocalToPending, resetAllConsultasToPending, type LocalRegistro } from "@/lib/db";
 import { formatRoomLabel } from "@/lib/helpers";
@@ -27,6 +27,7 @@ import { enablePush, pushSupported } from "@/lib/pushClient";
 import { canManageRooms, canRegister, isMaster } from "@/lib/permissions";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import PasswordInput from "@/components/PasswordInput";
+import StyledSelect from "@/components/StyledSelect";
 
 export default function ConfigTab() {
   const {
@@ -563,16 +564,45 @@ export default function ConfigTab() {
     }
   };
 
+  // ── Acordeón: qué secciones están desplegadas (permite varias abiertas a la
+  //    vez). "perfil" abierto por defecto; el resto plegado para una vista corta.
+  const [openAcc, setOpenAcc] = useState<Set<string>>(new Set(["perfil"]));
+  const toggleAcc = (key: string) =>
+    setOpenAcc(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  // Cabecera clicable de cada panel (devuelve JSX, NO un componente, para no
+  // remontar el contenido ni perder el foco de los inputs en cada render).
+  const accHead = (id: string, icon: ReactNode, title: string, sub: string, badge?: ReactNode) => (
+    <button type="button" className="config-acc__head" aria-expanded={openAcc.has(id)} onClick={() => toggleAcc(id)}>
+      <span className="config-acc__icon">{icon}</span>
+      <span className="config-acc__titles">
+        <span className="config-acc__title">{title}</span>
+        <span className="config-acc__sub">{sub}</span>
+      </span>
+      {badge}
+      <span className="config-acc__chev" aria-hidden>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </span>
+    </button>
+  );
+
   // Guarda de tipos: este tab solo se monta autenticado (activeTab === "config").
   if (!currentUser) return null;
 
   return (
     <>
       <div className="tab-view tab-enter">
+        <div className="config-accordion">
 
         {/* ── 1. PERFIL DE OPERADOR ── */}
-        <div className="dashboard-section">
-          <h3 className="dashboard-section-title">Perfil de Operador</h3>
+        <section className="config-acc config-acc--perfil" data-open={openAcc.has("perfil")}>
+          {accHead("perfil", (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          ), "Perfil de Operador", "Tu cuenta, rol y notificaciones")}
+          <div className="config-acc__panel"><div className="config-acc__inner"><div className="config-acc__body">
           <div className="config-profile-row">
             <div className="modal-avatar" style={{ width: "48px", height: "48px", fontSize: "1rem", flexShrink: 0 }}>
               {currentUser.nombre.trim().split(/\s+/).slice(0, 2).map((w: string) => w[0] || "").join("").toUpperCase()}
@@ -619,19 +649,27 @@ export default function ConfigTab() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Editar mi cuenta
           </button>
-        </div>
+          </div></div></div>
+        </section>
 
         {/* ── 2. PADRÓN ELECTORAL LOCAL (lo usa quien censa: MASTER/ADMIN/REGISTRADOR) ── */}
         {canRegister(currentUser.role) && (
-        <div className="dashboard-section">
-          <div className="config-section-header">
-            <h3 className="dashboard-section-title">Padrón Electoral Local</h3>
-            {votersCount > 0 && syncStatus === "idle" && (
+        <section className="config-acc config-acc--padron" data-open={openAcc.has("padron")}>
+          {accHead("padron", (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          ), "Padrón Electoral Local", "Base offline para autocompletar cédulas",
+            votersCount > 0
+              ? <span className="config-acc__badge">{votersCount.toLocaleString()}</span>
+              : <span className="config-acc__badge config-acc__badge--muted">No instalado</span>
+          )}
+          <div className="config-acc__panel"><div className="config-acc__inner"><div className="config-acc__body">
+          {votersCount > 0 && syncStatus === "idle" && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "-0.35rem" }}>
               <button type="button" onClick={deletePadronLocal} className="btn-link-danger" style={{ fontSize: "0.72rem" }}>
                 Borrar local
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {votersCount > 0 ? (
             <div className="padron-installed">
@@ -681,7 +719,8 @@ export default function ConfigTab() {
               Error al descargar el padrón. Verifique conexión.
             </div>
           )}
-        </div>
+          </div></div></div>
+        </section>
         )}
 
         {/* ── 3. COLA DE SINCRONIZACIÓN ── */}
@@ -743,50 +782,48 @@ export default function ConfigTab() {
           };
 
           return (
-            <div className="dashboard-section">
-              <div className="config-section-header">
-                <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                  <h3 className="dashboard-section-title">Cola de Sincronización</h3>
-                  {isSyncing && syncQueueProgress ? (
-                    <span className="asign-count" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                      <span className="spinner spinner-sm"></span>{syncQueueProgress.done}/{syncQueueProgress.total}
-                    </span>
-                  ) : pendingCount > 0 ? (
-                    <span className="asign-count">{pendingCount} pend.</span>
-                  ) : null}
-                </div>
-                <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
-                  {pendingCount > 0 && (
-                    <>
-                      <button type="button" className="dash-icon-btn" data-tip="Exportar JSON" onClick={handleExportJSON}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
-                      </button>
-                      <button type="button" className="dash-icon-btn" data-tip="Generar QR" onClick={handleGenerateQRs}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="17" y="17" width="3" height="3"/></svg>
-                      </button>
-                      <div className="dash-action-sep"></div>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{ width: "auto", margin: 0, padding: "0 0.875rem", height: "36px", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.3rem" }}
-                    onClick={handleResyncAll}
-                    disabled={resyncing || isSyncing || !isOnline}
-                    data-tip="Reenvía TODOS los cambios locales de este dispositivo (recupera ediciones que no se sincronizaron)"
-                  >
-                    {resyncing ? <><span className="spinner spinner-sm"></span>Reenviando</> : "Reenviar cambios"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{ width: "auto", margin: 0, padding: "0 0.875rem", height: "36px", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.3rem" }}
-                    onClick={triggerSync}
-                    disabled={isSyncing || !isOnline}
-                  >
-                    {isSyncing ? <><span className="spinner spinner-sm"></span>Sincronizando</> : "Sincronizar cola"}
-                  </button>
-                </div>
+            <section className="config-acc config-acc--sync" data-open={openAcc.has("sync")}>
+              {accHead("sync", (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              ), "Cola de Sincronización", "Registros de este dispositivo por enviar",
+                isSyncing && syncQueueProgress
+                  ? <span className="config-acc__badge"><span className="spinner spinner-sm"></span>{syncQueueProgress.done}/{syncQueueProgress.total}</span>
+                  : pendingCount > 0
+                    ? <span className="config-acc__badge">{pendingCount} pend.</span>
+                    : <span className="config-acc__badge config-acc__badge--muted">Al día</span>
+              )}
+              <div className="config-acc__panel"><div className="config-acc__inner"><div className="config-acc__body">
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", justifyContent: "flex-end" }}>
+                {pendingCount > 0 && (
+                  <>
+                    <button type="button" className="dash-icon-btn" data-tip="Exportar JSON" onClick={handleExportJSON}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+                    </button>
+                    <button type="button" className="dash-icon-btn" data-tip="Generar QR" onClick={handleGenerateQRs}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="17" y="17" width="3" height="3"/></svg>
+                    </button>
+                    <div className="dash-action-sep"></div>
+                  </>
+                )}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ width: "auto", margin: 0, padding: "0 1rem", height: "40px", borderRadius: "999px", fontSize: "0.78rem", display: "flex", alignItems: "center", gap: "0.35rem" }}
+                  onClick={handleResyncAll}
+                  disabled={resyncing || isSyncing || !isOnline}
+                  data-tip="Reenvía TODOS los cambios locales de este dispositivo (recupera ediciones que no se sincronizaron)"
+                >
+                  {resyncing ? <><span className="spinner spinner-sm"></span>Reenviando</> : "Reenviar cambios"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ width: "auto", margin: 0, padding: "0 1rem", height: "40px", borderRadius: "999px", fontSize: "0.78rem", display: "flex", alignItems: "center", gap: "0.35rem" }}
+                  onClick={triggerSync}
+                  disabled={isSyncing || !isOnline}
+                >
+                  {isSyncing ? <><span className="spinner spinner-sm"></span>Sincronizando</> : "Sincronizar cola"}
+                </button>
               </div>
 
               {isSyncing && syncQueueProgress && (
@@ -844,18 +881,24 @@ export default function ConfigTab() {
                   )}
                 </div>
               )}
-            </div>
+              </div></div></div>
+            </section>
           );
         })()}
 
         {/* ── 4. GESTIÓN DE HABITACIONES (MASTER o ADMIN) ── */}
         {canManageRooms(currentUser.role) && (
-          <div className="dashboard-section">
-            <h3 className="dashboard-section-title">Gestión de Edificios y Salones</h3>
-            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem 0" }}>
+          <section className="config-acc config-acc--salones" data-open={openAcc.has("salones")}>
+            {accHead("salones", (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/></svg>
+            ), "Edificios y Salones", masterMode ? `Salones y camas · ${salonRefugioActivo || "campamento activo"}` : "Salones y camas de tu campamento",
+              rooms.length > 0 ? <span className="config-acc__badge">{rooms.length}</span> : undefined
+            )}
+            <div className="config-acc__panel"><div className="config-acc__inner"><div className="config-acc__body">
+            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0" }}>
               Agregue salones {masterMode ? <>al campamento <strong>{salonRefugioActivo || "activo"}</strong> (cámbialo desde el selector del encabezado)</> : "a su campamento"}. Elija el tipo de contenedor y defina las camas disponibles de cada salón.
             </p>
-            <div className="room-add-form">
+            <div className="room-add-form pill-form">
               {/* Tipo de contenedor: Edificio / Piso / Otro */}
               <div className="room-type-toggle">
                 {(["EDIFICIO", "PISO", "OTRO"] as const).map(t => (
@@ -947,7 +990,8 @@ export default function ConfigTab() {
                 })()
               )}
             </div>
-          </div>
+            </div></div></div>
+          </section>
         )}
 
         {/* Catálogos Médicos: la gestión de patologías y medicamentos se movió a la
@@ -956,24 +1000,26 @@ export default function ConfigTab() {
 
         {/* ── 5. GESTIÓN DE REFUGIOS (solo MASTER) ── */}
         {isMaster(currentUser.role) && (
-          <div className="dashboard-section">
-            <div className="config-section-header">
-              <h3 className="dashboard-section-title">Gestión de Campamentos</h3>
-              {refugios.length > 0 && <span className="asign-count">{refugios.length}</span>}
-            </div>
-            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem 0" }}>
+          <section className="config-acc config-acc--campamentos" data-open={openAcc.has("campamentos")}>
+            {accHead("campamentos", (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            ), "Gestión de Campamentos", "Crear, renombrar y eliminar campamentos",
+              refugios.length > 0 ? <span className="config-acc__badge">{refugios.length}</span> : undefined
+            )}
+            <div className="config-acc__panel"><div className="config-acc__inner"><div className="config-acc__body">
+            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0" }}>
               Administre los campamentos del sistema. Renombrar propaga el cambio a los operadores y registros asociados.
             </p>
 
             {!isOnline && (
-              <div className="users-offline-notice" style={{ marginBottom: "1rem" }}>
+              <div className="users-offline-notice" style={{ marginBottom: "0" }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
                 Sin conexión — no es posible listar o gestionar campamentos.
               </div>
             )}
 
             {/* Crear refugio */}
-            <div className="room-add-form">
+            <div className="room-add-form pill-form">
               <div className="room-add-inputs">
                 <div className="room-add-field">
                   <label className="room-add-label">Nuevo campamento</label>
@@ -1041,8 +1087,10 @@ export default function ConfigTab() {
                 </div>
               )}
             </div>
-          </div>
+            </div></div></div>
+          </section>
         )}
+        </div>
       </div>
 
       {/* QR Codes Modal */}
@@ -1081,33 +1129,34 @@ export default function ConfigTab() {
               Modifique los datos principales del registro local para intentar la sincronización nuevamente.
             </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div className="pill-form" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div className="form-group">
                 <label>Nombre y Apellido</label>
                 <input
+                  className="morb-control"
                   type="text"
                   value={localEditNombre}
                   onChange={(e) => setLocalEditNombre(e.target.value)}
-                  style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
                 />
               </div>
 
               <div className="form-group">
                 <label>Cédula de Identidad</label>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <select
-                    value={localEditNacionalidad}
-                    onChange={(e) => setLocalEditNacionalidad(e.target.value)}
-                    style={{ width: "80px", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
-                  >
-                    <option value="V">V</option>
-                    <option value="E">E</option>
-                  </select>
+                  <div style={{ width: "92px", flexShrink: 0 }}>
+                    <StyledSelect
+                      value={localEditNacionalidad}
+                      onChange={setLocalEditNacionalidad}
+                      options={[{ value: "V", label: "V" }, { value: "E", label: "E" }]}
+                      ariaLabel="Nacionalidad"
+                    />
+                  </div>
                   <input
+                    className="morb-control"
                     type="text"
                     value={localEditCedula}
                     onChange={(e) => setLocalEditCedula(e.target.value)}
-                    style={{ flex: 1, height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
+                    style={{ flex: 1 }}
                   />
                 </div>
               </div>
@@ -1222,10 +1271,10 @@ export default function ConfigTab() {
               </button>
             </div>
 
-            <div style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: "1.5" }}>
+            <div className="pill-form" style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: "1.5" }}>
               <p>Número de camas disponibles en <strong>{formatRoomLabel(roomToEditCap)}</strong>:</p>
               <input
-                className="room-add-input"
+                className="morb-control"
                 type="number"
                 min={1}
                 max={999}
@@ -1267,32 +1316,34 @@ export default function ConfigTab() {
               El nuevo nombre se propagará automáticamente a todos los operadores y registros asociados a este campamento.
             </p>
 
-            <div className="form-group">
-              <label htmlFor="refugio-rename-input">Nombre del campamento</label>
-              <input
-                type="text"
-                id="refugio-rename-input"
-                value={refugioRenameValue}
-                onChange={e => setRefugioRenameValue(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleRenameRefugioConfirmed()}
-                style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
-              />
-            </div>
+            <div className="pill-form" style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+              <div className="form-group">
+                <label htmlFor="refugio-rename-input">Nombre del campamento</label>
+                <input
+                  className="morb-control"
+                  type="text"
+                  id="refugio-rename-input"
+                  value={refugioRenameValue}
+                  onChange={e => setRefugioRenameValue(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleRenameRefugioConfirmed()}
+                />
+              </div>
 
-            <div className="form-group" style={{ marginTop: "0.75rem" }}>
-              <label htmlFor="refugio-ubicacion-input">Ubicación (link de Google Maps)</label>
-              <input
-                type="text"
-                id="refugio-ubicacion-input"
-                placeholder="https://maps.app.goo.gl/..."
-                value={refugioUbicacionValue}
-                onChange={e => setRefugioUbicacionValue(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleRenameRefugioConfirmed()}
-                style={{ width: "100%", height: "38px", borderRadius: "6px", border: "1px solid var(--border-color)", padding: "0 0.5rem" }}
-              />
-              <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", margin: "0.3rem 0 0" }}>
-                Se usa en el reporte de WhatsApp de este campamento.
-              </p>
+              <div className="form-group">
+                <label htmlFor="refugio-ubicacion-input">Ubicación (link de Google Maps)</label>
+                <input
+                  className="morb-control"
+                  type="text"
+                  id="refugio-ubicacion-input"
+                  placeholder="https://maps.app.goo.gl/..."
+                  value={refugioUbicacionValue}
+                  onChange={e => setRefugioUbicacionValue(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleRenameRefugioConfirmed()}
+                />
+                <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", margin: "0.3rem 0 0" }}>
+                  Se usa en el reporte de WhatsApp de este campamento.
+                </p>
+              </div>
             </div>
 
             <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
