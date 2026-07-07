@@ -64,6 +64,12 @@ export default function DashboardTab() {
 
   // Estado del generador de reporte para WhatsApp
   const [showReportModal, setShowReportModal] = useState(false);
+  // Tipo de reporte y campos libres del reporte detallado (persisten en
+  // localStorage para no reescribirlos cada vez).
+  const [reportType, setReportType] = useState<"resumen" | "detallado">("resumen");
+  const [repEstado, setRepEstado] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("rep_estado") || "" : ""));
+  const [repMunicipio, setRepMunicipio] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("rep_municipio") || "" : ""));
+  const [repOrganismo, setRepOrganismo] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("rep_organismo") || "" : ""));
 
   // Estado de "Compartir reporte por link público"
   const isMasterUser = currentUser?.role === "MASTER";
@@ -226,11 +232,15 @@ export default function DashboardTab() {
         nucleosFamiliares: 0,
         individuosSolos: 0,
         lactantes: 0,
+        noLactantes: 0,
+        adolescentes: 0,
         menores: 0,
         adultos: 0,
         mayores: 0,
         matrix: {
           lactantes: { femenino: 0, masculino: 0, otro: 0 },
+          noLactantes: { femenino: 0, masculino: 0, otro: 0 },
+          adolescentes: { femenino: 0, masculino: 0, otro: 0 },
           menores: { femenino: 0, masculino: 0, otro: 0 },
           adultos: { femenino: 0, masculino: 0, otro: 0 },
           mayores: { femenino: 0, masculino: 0, otro: 0 }
@@ -254,12 +264,16 @@ export default function DashboardTab() {
     const byPatologiaMap: Record<string, number> = {};
     let sumAge = 0;
     let lactantes = 0;
+    let noLactantes = 0;
+    let adolescentes = 0;
     let menores = 0;
     let adultos = 0;
     let mayores = 0;
 
     const matrix = {
       lactantes: { femenino: 0, masculino: 0, otro: 0 },
+      noLactantes: { femenino: 0, masculino: 0, otro: 0 },
+      adolescentes: { femenino: 0, masculino: 0, otro: 0 },
       menores: { femenino: 0, masculino: 0, otro: 0 },
       adultos: { femenino: 0, masculino: 0, otro: 0 },
       mayores: { femenino: 0, masculino: 0, otro: 0 }
@@ -290,12 +304,22 @@ export default function DashboardTab() {
           if (isFem) matrix.menores.femenino++;
           else if (isMasc) matrix.menores.masculino++;
           else matrix.menores.otro++;
-          // Lactantes (0–3) = subconjunto de menores.
+          // Subgrupos de menores, SIN huecos: lactantes 0–3, no lactantes 4–12, adolescentes 13–17.
           if (edadVal < 4) {
             lactantes++;
             if (isFem) matrix.lactantes.femenino++;
             else if (isMasc) matrix.lactantes.masculino++;
             else matrix.lactantes.otro++;
+          } else if (edadVal < 13) {
+            noLactantes++;
+            if (isFem) matrix.noLactantes.femenino++;
+            else if (isMasc) matrix.noLactantes.masculino++;
+            else matrix.noLactantes.otro++;
+          } else {
+            adolescentes++;
+            if (isFem) matrix.adolescentes.femenino++;
+            else if (isMasc) matrix.adolescentes.masculino++;
+            else matrix.adolescentes.otro++;
           }
         } else if (edadVal < 60) {
           adultos++;
@@ -325,6 +349,8 @@ export default function DashboardTab() {
       nucleosFamiliares,
       individuosSolos,
       lactantes,
+      noLactantes,
+      adolescentes,
       menores,
       adultos,
       mayores,
@@ -420,8 +446,93 @@ Capacidad instalada: ${capacidad}
 Plazas Disponibles : ${plazas}`;
   };
 
+  // ── Reporte DETALLADO (formato oficial): encabezado con campos libres +
+  //    indicadores de capacidad/ocupación + demografía por categorías de edad,
+  //    SIN huecos ni solapes: lactantes 0–3, no lactantes 4–12, adolescentes
+  //    13–17, adultos 18–59, adultos mayores 60+; cada una por género. ──
+  const generateDetalladoText = () => {
+    const s: any = currentStats;
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, "0");
+    const mesStr = String(now.getMonth() + 1).padStart(2, "0");
+    const yyyy = now.getFullYear();
+    let h12 = now.getHours();
+    const ampm = h12 >= 12 ? "PM" : "AM";
+    h12 = h12 % 12; if (h12 === 0) h12 = 12;
+    const hhStr = String(h12).padStart(2, "0");
+    const minStr = String(now.getMinutes()).padStart(2, "0");
+
+    const refugioActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
+    const t = s.total || 0;
+    const familias = s.nucleosFamiliares || 0;
+    const capacidad = dashboardRooms
+      .filter((room: string) => allCuartos.includes(room))
+      .reduce((acc: number, room: string) => acc + (roomCapacities[room] ?? 18), 0);
+    const disponibilidad = Math.max(0, capacidad - t);
+
+    // Subtotal por género de cada categoría de la matriz demográfica.
+    const cat = (k: string) => {
+      const row = (s.matrix && s.matrix[k]) || { femenino: 0, masculino: 0, otro: 0 };
+      const fem = row.femenino || 0, masc = row.masculino || 0, otro = row.otro || 0;
+      return { masc, fem, sub: fem + masc + otro };
+    };
+    const may = cat("mayores"), ad = cat("adultos"), lac = cat("lactantes"), nolac = cat("noLactantes"), ado = cat("adolescentes");
+
+    const estado = repEstado.trim() || "—";
+    const municipio = repMunicipio.trim() || "—";
+    const organismo = repOrganismo.trim() || "—";
+
+    return `Nombre del campamento: *${refugioActivo}*
+Estado: *${estado}*
+Municipio: *${municipio}*
+Organismo responsable: *${organismo}*
+Fecha: *${dd}/${mesStr}/${yyyy}*
+Hora: *${hhStr}:${minStr}* ${ampm}
+
+*1. INDICADORES DE CAPACIDAD Y OCUPACIÓN*
+· Capacidad Máxima: ${capacidad}
+· Capacidad Instalada (Actual): ${familias} familias
+· Total Ocupado: ${t}
+· Disponibilidad Real: ${disponibilidad}
+
+*2. DISTRIBUCIÓN DE POBLACIÓN PROTEGIDA (DEMOGRAFÍA)*
+
+*2.1. ADULTOS MAYORES (60+)*
+· Masculinos: ${may.masc}
+· Femeninos: ${may.fem}
+· *Subtotal: ${may.sub}*
+
+*2.2. ADULTOS (18–59)*
+· Masculinos: ${ad.masc}
+· Femeninos: ${ad.fem}
+· *Subtotal: ${ad.sub}*
+
+*2.3. NIÑOS / NIÑAS LACTANTES (0–3)*
+· Niños: ${lac.masc}
+· Niñas: ${lac.fem}
+· *Subtotal: ${lac.sub}*
+
+*2.4. NIÑOS / NIÑAS NO LACTANTES (4–12)*
+· Niños: ${nolac.masc}
+· Niñas: ${nolac.fem}
+· *Subtotal: ${nolac.sub}*
+
+*2.5. ADOLESCENTES (13–17)*
+· Masculinos: ${ado.masc}
+· Femeninos: ${ado.fem}
+· *Subtotal: ${ado.sub}*
+
+*TOTAL GENERAL: ${t} personas*`;
+  };
+
   const handleShareReport = () => {
-    const text = generateReportText();
+    const text = reportType === "detallado" ? generateDetalladoText() : generateReportText();
+    if (reportType === "detallado" && typeof window !== "undefined") {
+      // Recuerda los campos libres para el próximo reporte.
+      localStorage.setItem("rep_estado", repEstado.trim());
+      localStorage.setItem("rep_municipio", repMunicipio.trim());
+      localStorage.setItem("rep_organismo", repOrganismo.trim());
+    }
     navigator.clipboard.writeText(text).then(() => {
       showToast("Reporte copiado al portapapeles.", "success");
       const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
@@ -884,44 +995,53 @@ Plazas Disponibles : ${plazas}`;
           )}
         </div>
 
-      {/* WhatsApp Report Generator Modal */}
+      {/* WhatsApp Report Generator Modal — elige tipo (resumen / detallado) */}
       {showReportModal && (
         <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "600px", width: "95%" }}>
+          <div className="modal-content modal-content--detail pill-form" onClick={e => e.stopPropagation()} style={{ maxWidth: "600px", width: "95%" }}>
             <div className="modal-header">
-              <span className="modal-title" style={{ fontSize: "0.95rem", lineHeight: "1.2" }}>Generador de Reporte para WhatsApp</span>
+              <span className="modal-title" style={{ fontSize: "0.95rem", lineHeight: "1.2" }}>Reporte para WhatsApp</span>
               <button className="modal-close" onClick={() => setShowReportModal(false)}>✕</button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1rem", maxHeight: "65vh", overflowY: "auto", paddingRight: "5px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem", maxHeight: "68vh", overflowY: "auto", overflowX: "hidden", paddingRight: "4px" }}>
+              {/* Tipo de reporte */}
               <div className="form-group">
-                <label>Vista Previa del Mensaje</label>
-                <pre style={{
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  fontFamily: "var(--font-system)",
-                  fontSize: "0.8rem",
-                  backgroundColor: "var(--input-bg)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "6px",
-                  padding: "0.75rem",
-                  color: "var(--text-primary)",
-                  maxHeight: "180px",
-                  overflowY: "auto",
-                  overflowX: "hidden"
-                }}>
-                  {generateReportText()}
-                </pre>
+                <label>Tipo de reporte</label>
+                <div className="report-type-toggle">
+                  <button type="button" className={`report-type-btn ${reportType === "resumen" ? "report-type-btn--active" : ""}`} onClick={() => setReportType("resumen")}>Resumen</button>
+                  <button type="button" className={`report-type-btn ${reportType === "detallado" ? "report-type-btn--active" : ""}`} onClick={() => setReportType("detallado")}>Detallado</button>
+                </div>
+              </div>
+
+              {/* Campos libres (solo reporte detallado) */}
+              {reportType === "detallado" && (
+                <div className="report-fields">
+                  <div className="form-group">
+                    <label>Estado</label>
+                    <input className="morb-control" type="text" value={repEstado} onChange={e => setRepEstado(e.target.value)} placeholder="La Guaira" />
+                  </div>
+                  <div className="form-group">
+                    <label>Municipio</label>
+                    <input className="morb-control" type="text" value={repMunicipio} onChange={e => setRepMunicipio(e.target.value)} placeholder="Vargas" />
+                  </div>
+                  <div className="form-group report-fields__full">
+                    <label>Organismo responsable</label>
+                    <input className="morb-control" type="text" value={repOrganismo} onChange={e => setRepOrganismo(e.target.value)} placeholder="Ej: Banco Central de Venezuela" />
+                  </div>
+                </div>
+              )}
+
+              {/* Vista previa */}
+              <div className="form-group">
+                <label>Vista previa del mensaje</label>
+                <pre className="report-preview">{reportType === "detallado" ? generateDetalladoText() : generateReportText()}</pre>
               </div>
             </div>
 
-            <div className="modal-actions" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem" }}>
-              <button type="button" className="btn-secondary" style={{ flex: "1 1 100px", margin: 0 }} onClick={() => setShowReportModal(false)}>
-                Cancelar
-              </button>
-              <button type="button" className="btn-submit" style={{ flex: "2 1 180px", margin: 0, whiteSpace: "normal", height: "auto", minHeight: "var(--element-height)", padding: "6px 12px", lineHeight: "1.2" }} onClick={handleShareReport}>
-                Copiar y Abrir WhatsApp
-              </button>
+            <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowReportModal(false)}>Cancelar</button>
+              <button type="button" className="btn-submit" style={{ flex: 1 }} onClick={handleShareReport}>Copiar y Abrir WhatsApp</button>
             </div>
           </div>
         </div>

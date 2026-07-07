@@ -14,13 +14,17 @@ export interface AggregateStats {
   hogarSolidario: number; // retirados cuya razón es "HOGAR SOLIDARIO" (subconjunto de retirados)
   nucleosFamiliares: number;
   individuosSolos: number;
-  lactantes: number;   // 0–3 años (subconjunto de `menores`, que sigue siendo <18)
+  lactantes: number;    // 0–3 años (subconjunto de `menores`, que sigue siendo <18)
+  noLactantes: number;  // 4–12 años (subconjunto de `menores`)
+  adolescentes: number; // 13–17 años (subconjunto de `menores`)
   menores: number;
   adultos: number;
   mayores: number;
   promedioEdad: number;
   matrix: {
     lactantes: { femenino: number; masculino: number; otro: number };
+    noLactantes: { femenino: number; masculino: number; otro: number };
+    adolescentes: { femenino: number; masculino: number; otro: number };
     menores: { femenino: number; masculino: number; otro: number };
     adultos: { femenino: number; masculino: number; otro: number };
     mayores: { femenino: number; masculino: number; otro: number };
@@ -45,12 +49,16 @@ const emptyStats = (totalRetirados = 0): AggregateStats => ({
   nucleosFamiliares: 0,
   individuosSolos: 0,
   lactantes: 0,
+  noLactantes: 0,
+  adolescentes: 0,
   menores: 0,
   adultos: 0,
   mayores: 0,
   promedioEdad: 0,
   matrix: {
     lactantes: { femenino: 0, masculino: 0, otro: 0 },
+    noLactantes: { femenino: 0, masculino: 0, otro: 0 },
+    adolescentes: { femenino: 0, masculino: 0, otro: 0 },
     menores: { femenino: 0, masculino: 0, otro: 0 },
     adultos: { femenino: 0, masculino: 0, otro: 0 },
     mayores: { femenino: 0, masculino: 0, otro: 0 },
@@ -76,12 +84,20 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
       COUNT(*) FILTER (WHERE retirado = 'NO')                                         AS total,
       ROUND(AVG(edad) FILTER (WHERE retirado = 'NO'))                                 AS promedio_edad,
       COUNT(*) FILTER (WHERE edad < 4 AND retirado = 'NO')                            AS lactantes,
+      COUNT(*) FILTER (WHERE edad >= 4 AND edad < 13 AND retirado = 'NO')             AS no_lactantes,
+      COUNT(*) FILTER (WHERE edad >= 13 AND edad < 18 AND retirado = 'NO')            AS adolescentes,
       COUNT(*) FILTER (WHERE edad < 18 AND retirado = 'NO')                           AS menores,
       COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60 AND retirado = 'NO')            AS adultos,
       COUNT(*) FILTER (WHERE edad >= 60 AND retirado = 'NO')                          AS mayores,
       COUNT(*) FILTER (WHERE edad < 4   AND genero = 'FEMENINO' AND retirado = 'NO')  AS lac_fem,
       COUNT(*) FILTER (WHERE edad < 4   AND genero = 'MASCULINO' AND retirado = 'NO') AS lac_masc,
       COUNT(*) FILTER (WHERE edad < 4   AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS lac_otro,
+      COUNT(*) FILTER (WHERE edad >= 4 AND edad < 13 AND genero = 'FEMENINO' AND retirado = 'NO')  AS nolac_fem,
+      COUNT(*) FILTER (WHERE edad >= 4 AND edad < 13 AND genero = 'MASCULINO' AND retirado = 'NO') AS nolac_masc,
+      COUNT(*) FILTER (WHERE edad >= 4 AND edad < 13 AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS nolac_otro,
+      COUNT(*) FILTER (WHERE edad >= 13 AND edad < 18 AND genero = 'FEMENINO' AND retirado = 'NO')  AS adol_fem,
+      COUNT(*) FILTER (WHERE edad >= 13 AND edad < 18 AND genero = 'MASCULINO' AND retirado = 'NO') AS adol_masc,
+      COUNT(*) FILTER (WHERE edad >= 13 AND edad < 18 AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS adol_otro,
       COUNT(*) FILTER (WHERE edad < 18  AND genero = 'FEMENINO' AND retirado = 'NO')  AS men_fem,
       COUNT(*) FILTER (WHERE edad < 18  AND genero = 'MASCULINO' AND retirado = 'NO') AS men_masc,
       COUNT(*) FILTER (WHERE edad < 18  AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS men_otro,
@@ -165,12 +181,16 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     nucleosFamiliares,
     individuosSolos,
     lactantes: n(aggregates.lactantes),
+    noLactantes: n(aggregates.no_lactantes),
+    adolescentes: n(aggregates.adolescentes),
     menores: n(aggregates.menores),
     adultos: n(aggregates.adultos),
     mayores: n(aggregates.mayores),
     promedioEdad: n(aggregates.promedio_edad),
     matrix: {
       lactantes: { femenino: n(aggregates.lac_fem), masculino: n(aggregates.lac_masc), otro: n(aggregates.lac_otro) },
+      noLactantes: { femenino: n(aggregates.nolac_fem), masculino: n(aggregates.nolac_masc), otro: n(aggregates.nolac_otro) },
+      adolescentes: { femenino: n(aggregates.adol_fem), masculino: n(aggregates.adol_masc), otro: n(aggregates.adol_otro) },
       menores: { femenino: n(aggregates.men_fem), masculino: n(aggregates.men_masc), otro: n(aggregates.men_otro) },
       adultos: { femenino: n(aggregates.ad_fem), masculino: n(aggregates.ad_masc), otro: n(aggregates.ad_otro) },
       mayores: { femenino: n(aggregates.may_fem), masculino: n(aggregates.may_masc), otro: n(aggregates.may_otro) },

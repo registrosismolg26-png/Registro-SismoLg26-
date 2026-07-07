@@ -3202,6 +3202,29 @@ h2.dashboard-section-title {
 }
 .config-room-rename-note strong { color: var(--color-warning); }
 
+/* ── Modal de reporte WhatsApp: selector de tipo (pill) + campos + vista previa ── */
+.report-type-toggle { display: flex; gap: 0.4rem; }
+.report-type-btn {
+  flex: 1; height: var(--ctl-h, 48px); border-radius: 999px;
+  border: 1px solid var(--border-color); background: var(--bg-primary);
+  color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.report-type-btn:hover { border-color: var(--color-primary); }
+.report-type-btn--active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+
+.report-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+.report-fields__full { grid-column: 1 / -1; }
+@media (max-width: 480px) { .report-fields { grid-template-columns: 1fr; } }
+
+.report-preview {
+  white-space: pre-wrap; word-break: break-word;
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.78rem; line-height: 1.5;
+  background: var(--bg-primary); border: 1px solid var(--border-color);
+  border-radius: 14px; padding: 0.85rem 1rem; color: var(--text-primary);
+  max-height: 220px; overflow-y: auto; overflow-x: hidden; margin: 0;
+}
+
 /* Selector de tipo de contenedor (Edificio / Piso / Otro) */
 .room-type-toggle {
   display: flex;
