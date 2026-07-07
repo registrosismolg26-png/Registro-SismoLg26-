@@ -12,6 +12,7 @@ import { useAppContext } from "@/context/AppContext";
 import PresentationView from "@/components/PresentationView";
 import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import { apiFetch } from "@/lib/apiFetch";
+import { logActivity } from "@/lib/activityLog";
 import StyledSelect from "@/components/StyledSelect";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 
@@ -615,7 +616,7 @@ Hora: *${hhStr}:${minStr}* ${ampm}
                 type="button"
                 className="dash-icon-btn"
                 data-tip="Imprimir / PDF"
-                onClick={() => window.print()}
+                onClick={() => { logActivity({ accion: "PRINT", recurso: "Panel de Estadísticas", formato: "PDF", refugio: campamentoActivo || undefined }); window.print(); }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               </button>

@@ -22,6 +22,7 @@ import Reveal from "@/components/Reveal";
 import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText, findRepresentante } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
+import { logActivity } from "@/lib/activityLog";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
@@ -574,6 +575,7 @@ export default function AsignacionesTab() {
         filtros: filtrosParts.join("   ·   "),
       });
       showToast("Excel descargado.", "success");
+      logActivity({ accion: "EXPORT", recurso: "Registrados", formato: "Excel", refugio: effectiveRefugio || currentUser?.campamentoTransitorio || undefined, filtros: filtrosParts.join("   ·   ") || undefined, total: filteredRegistros.length });
     } catch (e) {
       console.error(e);
       showToast("No se pudo generar el Excel.", "error");
@@ -588,6 +590,7 @@ export default function AsignacionesTab() {
       showToast("No hay registros de personas presentes para imprimir", "warning");
       return;
     }
+    logActivity({ accion: "PRINT", recurso: "Registrados (presentes)", formato: "PDF", refugio: effectiveRefugio || currentUser?.campamentoTransitorio || undefined, total: present.length });
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {

@@ -6,6 +6,7 @@ import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLoca
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText } from "@/lib/helpers";
 import { exportMorbilidadExcel } from "@/lib/exportMorbilidadExcel";
+import { logActivity } from "@/lib/activityLog";
 import { apiFetch } from "@/lib/apiFetch";
 import { canDeleteConsulta } from "@/lib/permissions";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -359,6 +360,7 @@ export default function MorbilidadTab() {
         filtros: filtrosParts.join("   ·   "),
       });
       showToast("Excel descargado.", "success");
+      logActivity({ accion: "EXPORT", recurso: "Morbilidad", formato: "Excel", refugio: effectiveRefugio || currentUser?.campamentoTransitorio || undefined, filtros: filtrosParts.join("   ·   ") || undefined, total: filteredConsultas.length });
     } catch (e) {
       console.error(e);
       showToast("No se pudo generar el Excel.", "error");
