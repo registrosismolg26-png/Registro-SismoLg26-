@@ -496,7 +496,6 @@ Hora: *${hhStr}:${minStr}* ${ampm}
 
 *1. INDICADORES DE CAPACIDAD Y OCUPACIÓN*
 · Capacidad Máxima: ${capacidad}
-· Capacidad Instalada (Actual): ${familias} familias
 · Total Ocupado: ${t}
 · Disponibilidad Real: ${disponibilidad}
 
