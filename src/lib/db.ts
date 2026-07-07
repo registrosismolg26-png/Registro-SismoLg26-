@@ -75,10 +75,11 @@ export interface PadrónCiudadano {
 }
 
 const DB_NAME = 'registro-sismo-db';
-const DB_VERSION = 4; // Version 4 to add consultas (morbilidad) store
+const DB_VERSION = 5; // v5: cola offline de logs de actividad (imprimir/exportar)
 const STORE_NAME = 'registros';
 const PADRON_STORE = 'padron';
 const CONSULTAS_STORE = 'consultas';
+const LOGS_STORE = 'activity_logs';
 
 function getDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -108,6 +109,11 @@ function getDB(): Promise<IDBDatabase> {
       // Offline medical consultations store
       if (!db.objectStoreNames.contains(CONSULTAS_STORE)) {
         db.createObjectStore(CONSULTAS_STORE, { keyPath: 'id' });
+      }
+
+      // Cola offline de logs de actividad (imprimir PDF / descargar Excel)
+      if (!db.objectStoreNames.contains(LOGS_STORE)) {
+        db.createObjectStore(LOGS_STORE, { keyPath: 'id' });
       }
     };
   });
@@ -468,6 +474,108 @@ export async function getPendingConsultas(): Promise<LocalConsulta[]> {
     };
 
     request.onerror = () => reject(request.error);
+  });
+}
+
+// ══ Cola offline de LOGS de actividad (imprimir / exportar) ══════════════════
+// INDEPENDIENTE de la cola de registros. Mismo patrón: 'pending' → reintenta con
+// backoff exponencial; al confirmar la DB se BORRA (ya vive en AuditLog); un
+// error PERMANENTE (400/401/403) queda como 'error' con su razón y NO se reintenta.
+export interface LocalActivityLog {
+  id: string;
+  payload: {
+    accion: 'PRINT' | 'EXPORT';
+    recurso: string;
+    formato?: string;
+    refugio?: string;
+    filtros?: string;
+    total?: number;
+  };
+  status: 'pending' | 'error';
+  attempts: number;
+  nextAttemptAt?: number;
+  permanentError?: string;
+  createdAt: string;
+}
+
+export async function saveLog(payload: LocalActivityLog['payload']): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const store = db.transaction(LOGS_STORE, 'readwrite').objectStore(LOGS_STORE);
+    const rec: LocalActivityLog = {
+      id: crypto.randomUUID(),
+      payload,
+      status: 'pending',
+      attempts: 0,
+      nextAttemptAt: undefined,
+      permanentError: undefined,
+      createdAt: new Date().toISOString(),
+    };
+    const put = store.put(rec);
+    put.onsuccess = () => resolve();
+    put.onerror = () => reject(put.error);
+  });
+}
+
+export async function getPendingLogs(): Promise<LocalActivityLog[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(LOGS_STORE, 'readonly').objectStore(LOGS_STORE).getAll();
+    request.onsuccess = () => {
+      const now = Date.now();
+      const all = request.result as LocalActivityLog[];
+      resolve(all.filter(l => l.status === 'pending' && (!l.nextAttemptAt || l.nextAttemptAt <= now)));
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Confirmado por la DB → se BORRA de la cola (el log ya está en AuditLog).
+export async function markLogSynced(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const del = db.transaction(LOGS_STORE, 'readwrite').objectStore(LOGS_STORE).delete(id);
+    del.onsuccess = () => resolve();
+    del.onerror = () => reject(del.error);
+  });
+}
+
+// Error TEMPORAL (red / timeout / 5xx) → backoff exponencial (15s·2^n, tope 5min).
+export async function incrementLogAttempt(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const store = db.transaction(LOGS_STORE, 'readwrite').objectStore(LOGS_STORE);
+    const get = store.get(id);
+    get.onsuccess = () => {
+      const rec = get.result as LocalActivityLog | undefined;
+      if (!rec) { resolve(); return; }
+      rec.attempts += 1;
+      rec.nextAttemptAt = Date.now() + Math.min(15000 * Math.pow(2, rec.attempts - 1), 300000);
+      const put = store.put(rec);
+      put.onsuccess = () => resolve();
+      put.onerror = () => reject(put.error);
+    };
+    get.onerror = () => reject(get.error);
+  });
+}
+
+// Error PERMANENTE (400/401/403) → 'error' con razón; sale de los reintentos.
+export async function markLogPermanentError(id: string, reason: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const store = db.transaction(LOGS_STORE, 'readwrite').objectStore(LOGS_STORE);
+    const get = store.get(id);
+    get.onsuccess = () => {
+      const rec = get.result as LocalActivityLog | undefined;
+      if (!rec) { resolve(); return; }
+      rec.status = 'error';
+      rec.permanentError = reason;
+      rec.nextAttemptAt = undefined;
+      const put = store.put(rec);
+      put.onsuccess = () => resolve();
+      put.onerror = () => reject(put.error);
+    };
+    get.onerror = () => reject(get.error);
   });
 }
 

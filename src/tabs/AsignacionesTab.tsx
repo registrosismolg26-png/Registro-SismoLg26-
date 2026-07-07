@@ -22,6 +22,7 @@ import Reveal from "@/components/Reveal";
 import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
 import { formatRoomLabel, roomFillLevel, patologiaNombre, patologiaNombres, medLabel, medItemsText, normalizeText, findRepresentante } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
+import { exportFamiliasExcel } from "@/lib/exportFamiliasExcel";
 import { logActivity } from "@/lib/activityLog";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
@@ -217,6 +218,7 @@ export default function AsignacionesTab() {
   const [filterDesde, setFilterDesde] = useState(""); // yyyy-mm-dd (fecha de registro)
   const [filterHasta, setFilterHasta] = useState("");
   const [exportingXlsx, setExportingXlsx] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const ymdLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   // Navegación por notificación PWA: cuando pendingSelectId tiene match en
@@ -576,9 +578,80 @@ export default function AsignacionesTab() {
       });
       showToast("Excel descargado.", "success");
       logActivity({ accion: "EXPORT", recurso: "Registrados", formato: "Excel", refugio: effectiveRefugio || currentUser?.campamentoTransitorio || undefined, filtros: filtrosParts.join("   ·   ") || undefined, total: filteredRegistros.length });
+      setShowExportModal(false);
     } catch (e) {
       console.error(e);
       showToast("No se pudo generar el Excel.", "error");
+    } finally {
+      setExportingXlsx(false);
+    }
+  };
+
+  // Agrupa los registros PRESENTES por núcleo familiar (IGNORA los filtros de la
+  // UI). Cada grupo se ordena con el jefe primero. Devuelve familias (2+ personas)
+  // e individuos solos (grupos de 1).
+  const buildFamilyGroups = () => {
+    const presentes = registros.filter((r: any) => r.retirado !== "SI");
+    const familyId = (r: any) => (r.jefeFamilia === "SI" ? r.cedula : (r.cedulaJefeFamilia || r.cedula));
+    const groups = new Map<string, any[]>();
+    presentes.forEach((r: any) => {
+      const k = familyId(r) || r.id;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(r);
+    });
+    const ordered = [...groups.values()].map(g =>
+      g.slice().sort((a: any, b: any) => {
+        const aj = a.jefeFamilia === "SI" ? 0 : 1;
+        const bj = b.jefeFamilia === "SI" ? 0 : 1;
+        if (aj !== bj) return aj - bj;
+        return String(a.nombreApellido || "").localeCompare(String(b.nombreApellido || ""));
+      })
+    );
+    return {
+      familias: ordered.filter(g => g.length >= 2),
+      individuos: ordered.filter(g => g.length === 1).flat(),
+    };
+  };
+
+  const generadoEnStr = () => new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const refugioActual = () => effectiveRefugio || currentUser?.campamentoTransitorio || "";
+
+  // Excel de FAMILIAS (jefe + integrantes agrupados y coloreados). Sin filtros.
+  const handleExportFamilias = async () => {
+    const { familias } = buildFamilyGroups();
+    if (familias.length === 0) { showToast("No hay núcleos familiares (2+ integrantes) para exportar.", "info"); return; }
+    setExportingXlsx(true);
+    try {
+      const totalPersonas = familias.reduce((s, g) => s + g.length, 0);
+      await exportFamiliasExcel({ familias, refugio: refugioActual(), generadoEn: generadoEnStr(), totalPersonas });
+      showToast("Excel de familias descargado.", "success");
+      logActivity({ accion: "EXPORT", recurso: "Núcleos Familiares", formato: "Excel", refugio: refugioActual() || undefined, filtros: "Sin filtros — familias presentes", total: totalPersonas });
+      setShowExportModal(false);
+    } catch (e) {
+      console.error(e);
+      showToast("No se pudo generar el Excel de familias.", "error");
+    } finally {
+      setExportingXlsx(false);
+    }
+  };
+
+  // Excel de INDIVIDUOS SOLOS (sin núcleo). Sin filtros. Reusa el formato general.
+  const handleExportIndividuos = async () => {
+    const { individuos } = buildFamilyGroups();
+    if (individuos.length === 0) { showToast("No hay individuos solos para exportar.", "info"); return; }
+    setExportingXlsx(true);
+    try {
+      await exportRegistrosExcel({
+        registros: individuos, patologias, predefinedMedicamentos,
+        refugio: refugioActual(), generadoEn: generadoEnStr(),
+        filtros: "Individuos solos (sin núcleo familiar) — presentes",
+      });
+      showToast("Excel de individuos solos descargado.", "success");
+      logActivity({ accion: "EXPORT", recurso: "Individuos Solos", formato: "Excel", refugio: refugioActual() || undefined, filtros: "Sin filtros — individuos solos presentes", total: individuos.length });
+      setShowExportModal(false);
+    } catch (e) {
+      console.error(e);
+      showToast("No se pudo generar el Excel de individuos.", "error");
     } finally {
       setExportingXlsx(false);
     }
@@ -725,9 +798,9 @@ export default function AsignacionesTab() {
                 <button
                   type="button"
                   className="toolbar-btn"
-                  onClick={handleExportExcel}
+                  onClick={() => setShowExportModal(true)}
                   disabled={exportingXlsx}
-                  title="Descargar Excel del listado filtrado"
+                  title="Descargar Excel"
                 >
                   {exportingXlsx ? <span className="spinner spinner-sm" /> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>}
                   <span className="btn-txt-collapsible">Excel</span>
@@ -1771,6 +1844,53 @@ export default function AsignacionesTab() {
             >
               {savingCuarto ? "Guardando..." : assignRoomFor.cuarto ? "Reasignar Cuarto" : "Confirmar Asignación"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: elegir qué Excel descargar (General / Familias / Individuos solos) */}
+      {showExportModal && (
+        <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
+          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+            <div className="modal-header">
+              <span className="modal-title">Descargar Excel</span>
+              <button className="modal-close" onClick={() => setShowExportModal(false)}>✕</button>
+            </div>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "0 0 1rem" }}>Elige qué exportar:</p>
+            <div className="export-options">
+              <button type="button" className="export-option" onClick={handleExportExcel} disabled={exportingXlsx}>
+                <span className="export-option__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </span>
+                <span className="export-option__text">
+                  <strong>Excel General</strong>
+                  <small>El listado con los <b>filtros aplicados</b> ahora ({filteredRegistros.length}).</small>
+                </span>
+              </button>
+              <button type="button" className="export-option" onClick={handleExportFamilias} disabled={exportingXlsx}>
+                <span className="export-option__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </span>
+                <span className="export-option__text">
+                  <strong>Excel de Familias</strong>
+                  <small>Cada jefe de familia con su núcleo, agrupado y coloreado. <b>Sin filtros.</b></small>
+                </span>
+              </button>
+              <button type="button" className="export-option" onClick={handleExportIndividuos} disabled={exportingXlsx}>
+                <span className="export-option__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                <span className="export-option__text">
+                  <strong>Excel de Individuos Solos</strong>
+                  <small>Personas sin núcleo familiar. <b>Sin filtros.</b></small>
+                </span>
+              </button>
+            </div>
+            {exportingXlsx && (
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0.85rem 0 0", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <span className="spinner spinner-sm" /> Generando Excel…
+              </p>
+            )}
           </div>
         </div>
       )}

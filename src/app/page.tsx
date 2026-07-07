@@ -19,6 +19,7 @@ import {
   markConsultaPermanentError
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
+import { syncActivityLogs } from "@/lib/activityLog";
 import { enablePush, pushSupported, pushPermission } from "@/lib/pushClient";
 import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad, isMedico } from "@/lib/permissions";
 import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido, TipoLesion } from "@/types";
@@ -314,6 +315,7 @@ export default function Home() {
         onlineDebounceRef.current = setTimeout(() => {
           showToast("Conexión restablecida. Sincronizando...", "success");
           triggerSync();
+          void syncActivityLogs(); // cola de logs (independiente)
           if (currentUser && canViewDashboard(currentUser.role)) {
             fetchStats();
           }
@@ -342,10 +344,12 @@ export default function Home() {
       // se reenvía "todo una y otra vez", solo lo que falta. El re-envío de cambios
       // atascados queda como acción MANUAL en Config ("Reenviar cambios").
       triggerSync();
+      void syncActivityLogs(); // procesa la cola de logs pendientes al montar
 
       const interval = setInterval(() => {
         if (navigator.onLine) {
           triggerSync();
+          void syncActivityLogs();
         }
       }, 15000);
 
