@@ -463,8 +463,12 @@ Plazas Disponibles : ${plazas}`;
     const minStr = String(now.getMinutes()).padStart(2, "0");
 
     const refugioActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
+    const ubicacion = (refugiosList.find((r: any) => r.nombre === refugioActivo)?.ubicacion || "").trim();
     const t = s.total || 0;
     const familias = s.nucleosFamiliares || 0;
+    const lesionados = s.lesionados || 0;
+    const conPatologia = s.conPatologia || 0;
+    const embarazadas = s.embarazadas || 0;
     const capacidad = dashboardRooms
       .filter((room: string) => allCuartos.includes(room))
       .reduce((acc: number, room: string) => acc + (roomCapacities[room] ?? 18), 0);
@@ -483,6 +487,7 @@ Plazas Disponibles : ${plazas}`;
     const organismo = repOrganismo.trim() || "—";
 
     return `Nombre del campamento: *${refugioActivo}*
+Ubicación: ${ubicacion || "—"}
 Estado: *${estado}*
 Municipio: *${municipio}*
 Organismo responsable: *${organismo}*
@@ -522,7 +527,15 @@ Hora: *${hhStr}:${minStr}* ${ampm}
 · Femeninos: ${ado.fem}
 · *Subtotal: ${ado.sub}*
 
-*TOTAL GENERAL: ${t} personas*`;
+*TOTAL GENERAL: ${t} personas*
+
+*3. NÚCLEOS FAMILIARES:*
+· Total Familias: ${familias}
+
+*4. NOVEDAD:*
+· LESIONADOS: ${lesionados}
+· PATOLOGÍAS CRÓNICAS: ${conPatologia}
+· EMBARAZADAS: ${embarazadas}`;
   };
 
   const handleShareReport = () => {
