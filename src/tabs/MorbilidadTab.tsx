@@ -691,8 +691,15 @@ export default function MorbilidadTab() {
 
   // Combinar consultas remotas y pendientes locales para historial
   const allConsultas = useMemo(() => {
-    const combined = [...localConsultas];
-    const localIds = new Set(localConsultas.map((c) => c.id));
+    // Las consultas REMOTAS ya vienen filtradas por el refugio de vista (backend);
+    // las LOCALES (IndexedDB de este dispositivo) hay que filtrarlas también, para
+    // que Master, al cambiar de refugio en el selector, no vea consultas de otros
+    // campamentos. Master en consolidado (sin refugio de vista) → ve todas.
+    const scopedLocal = effectiveRefugio
+      ? localConsultas.filter((c) => (c.data?.refugio || "") === effectiveRefugio)
+      : localConsultas;
+    const combined = [...scopedLocal];
+    const localIds = new Set(scopedLocal.map((c) => c.id));
     consultas.forEach((c) => {
       if (!localIds.has(c.id)) {
         combined.push({
@@ -727,7 +734,7 @@ export default function MorbilidadTab() {
     // Orden por la fecha-hora clínica (la elegida a mano); si no la hay, por createdAt.
     const when = (c: any) => new Date(c.data?.fechaConsulta || c.createdAt).getTime();
     return combined.sort((a, b) => when(b) - when(a));
-  }, [localConsultas, consultas]);
+  }, [localConsultas, consultas, effectiveRefugio]);
 
   // Historial filtrado (buscador + filtros avanzados). Insensible a acentos/mayúsculas.
   const filteredConsultas = useMemo(() => {

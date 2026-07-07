@@ -71,9 +71,15 @@ export default function HistorialClinicoTab() {
 
   // Pacientes = agrupación de TODAS las consultas (locales + remotas) por cédula.
   const pacientes = useMemo<PacienteEntry[]>(() => {
-    const localIds = new Set(localConsultas.map((c: any) => c.id));
+    // Las remotas ya vienen scoped por el backend; las locales (IndexedDB) se
+    // filtran por el refugio de vista para que Master, al cambiar de refugio, no
+    // vea pacientes/consultas de otros campamentos (consolidado → todas).
+    const scopedLocal = effectiveRefugio
+      ? localConsultas.filter((c: any) => (c.data?.refugio || "") === effectiveRefugio)
+      : localConsultas;
+    const localIds = new Set(scopedLocal.map((c: any) => c.id));
     const all: any[] = [
-      ...localConsultas.map((c: any) => ({ ...c.data, createdAt: c.createdAt })),
+      ...scopedLocal.map((c: any) => ({ ...c.data, createdAt: c.createdAt })),
       ...consultas.filter((c: any) => !localIds.has(c.id)),
     ];
     const byCed = new Map<string, PacienteEntry>();
@@ -101,7 +107,7 @@ export default function HistorialClinicoTab() {
       p.ultima = latest.fechaConsulta || latest.createdAt || p.ultima;
       return p;
     }).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-  }, [consultas, localConsultas, regByCedula]);
+  }, [consultas, localConsultas, regByCedula, effectiveRefugio]);
 
   const opciones = useMemo(
     () => pacientes.map((p) => ({ value: p.cedulaDigits, label: `${p.nombre} — C.I. ${p.cedula} · ${p.consultas.length} atención${p.consultas.length === 1 ? "" : "es"}` })),
