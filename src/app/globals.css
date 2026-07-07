@@ -4003,6 +4003,30 @@ h2.dashboard-section-title {
   .config-acc .room-add-inputs .btn-submit { flex: 1 1 100%; width: 100%; }
 }
 
+/* ── Contenido de los paneles: 100% pill + responsive ──
+   Botones sueltos, badges, barras y cards internas de un panel de Config toman el
+   lenguaje pill del sistema. Scoped a .config-acc para no afectar otros tabs. */
+.config-acc .btn-submit,
+.config-acc .btn-submit--sm,
+.config-acc .config-notif-btn,
+.config-acc .sync-retry-btn { border-radius: 999px; }
+.config-acc .padron-progress-track { border-radius: 999px; }
+.config-acc .sync-badge,
+.config-acc .sync-type-tag,
+.config-acc .asign-count { border-radius: 999px; }
+/* Cards / bloques multilínea → radio redondeado coherente (no pill completo) */
+.config-acc .sync-log-item,
+.config-acc .room-group,
+.config-acc .users-offline-notice { border-radius: 14px; }
+.config-acc .reg-empty-state { border-radius: 16px; }
+
+/* Responsive: acciones de la cola → botones principales a ancho completo en móvil
+   (los de icono —exportar/QR— siguen compactos). */
+@media (max-width: 560px) {
+  .config-acc .config-sync-actions { justify-content: stretch; }
+  .config-acc .config-sync-actions > button:not(.dash-icon-btn) { flex: 1 1 100%; width: 100%; }
+}
+
 /* Sync sub-group labels */
 .sync-subgroup-label {
   display: flex;

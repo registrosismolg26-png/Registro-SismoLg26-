@@ -793,7 +793,7 @@ export default function ConfigTab() {
                     : <span className="config-acc__badge config-acc__badge--muted">Al día</span>
               )}
               <div className="config-acc__panel"><div className="config-acc__inner"><div className="config-acc__body">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", justifyContent: "flex-end" }}>
+              <div className="config-sync-actions" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", justifyContent: "flex-end" }}>
                 {pendingCount > 0 && (
                   <>
                     <button type="button" className="dash-icon-btn" data-tip="Exportar JSON" onClick={handleExportJSON}>
