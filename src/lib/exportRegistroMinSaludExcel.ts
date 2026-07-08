@@ -31,14 +31,21 @@ function nacionalidad(cedula: string): string {
   return "";
 }
 
-// "HH:MM" (24h) de una fecha-hora; vacío si no hay/está mal.
+// Hora en formato 12h con AM/PM (evita ambigüedad mañana/tarde); vacío si no hay/está mal.
 function horaDe(iso?: string | Date | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+  const min = String(d.getMinutes()).padStart(2, "0");
+  let h = d.getHours();
+  const ampm = h < 12 ? "AM" : "PM";
+  h = h % 12; if (h === 0) h = 12;
+  return `${h}:${min} ${ampm}`;
 }
+
+// Tamaño de letra de los DATOS. La plantilla los trae a 10pt (muy grande para las
+// filas/columnas estrechas); 8pt entra mejor conservando la fuente de la plantilla.
+const DATA_FONT_SIZE = 8;
 
 export interface MinSaludConsulta {
   data: any;          // objeto tipo ConsultaMedica (cedula, nombreApellido, registroId, …)
@@ -80,6 +87,15 @@ function fillSheet(ws: any, page: MinSaludConsulta[], opts: MinSaludOpts) {
   if (mm) ws.getCell("U7").value = mm;
   if (yyyy) ws.getCell("V7").value = yyyy;
 
+  // Escribe un valor en una celda de datos REDUCIENDO el tamaño de letra a DATA_FONT_SIZE
+  // (conserva familia/color/negrita de la plantilla). El ajuste de texto (wrapText) ya
+  // viene activo en la plantilla.
+  const setData = (addr: string, value: any) => {
+    const cell = ws.getCell(addr);
+    cell.value = value;
+    cell.font = { ...(cell.font || {}), size: DATA_FONT_SIZE };
+  };
+
   // ── Filas de pacientes (10..34) ──────────────────────────────────────────────
   page.forEach((c, i) => {
     const d = c.data || {};
@@ -98,22 +114,36 @@ function fillSheet(ws: any, page: MinSaludConsulta[], opts: MinSaludOpts) {
 
     const tratamiento = up(medItemsText(d.diagnosticoMedicamentoIds as Medicamento[], predefinedMedicamentos));
     const direccion = reg ? up([reg.direccionExacta, reg.parroquia].filter(Boolean).join(", ")) : "";
+    const nombre = up(d.nombreApellido);
 
-    ws.getCell(`B${r}`).value = horaDe(d.fechaConsulta || c.createdAt);
-    ws.getCell(`C${r}`).value = up(d.nombreApellido);
-    ws.getCell(`D${r}`).value = up(d.cedula);           // D:E combinadas → ancla D
-    if (d.edad != null && d.edad !== "") ws.getCell(`F${r}`).value = Number(d.edad);
-    ws.getCell(`G${r}`).value = sexo;
+    setData(`B${r}`, horaDe(d.fechaConsulta || c.createdAt));
+    setData(`C${r}`, nombre);
+    setData(`D${r}`, up(d.cedula));                     // D:E combinadas → ancla D
+    if (d.edad != null && d.edad !== "") setData(`F${r}`, Number(d.edad));
+    setData(`G${r}`, sexo);
     // INDÍGENA: no se registra en el sistema → se marca NO por defecto (columna I).
-    ws.getCell(`I${r}`).value = "X";
-    ws.getCell(`J${r}`).value = nacionalidad(d.cedula);
-    ws.getCell(`K${r}`).value = direccion;              // K:L combinadas → ancla K
+    setData(`I${r}`, "X");
+    setData(`J${r}`, nacionalidad(d.cedula));
+    setData(`K${r}`, direccion);                        // K:L combinadas → ancla K
     // CONSULTA: P (primera) o S (sucesiva); X (nuevo hallazgo) no lo sabemos → en blanco.
-    ws.getCell(`${c.esPrimera ? "M" : "N"}${r}`).value = "X";
-    ws.getCell(`P${r}`).value = diagFull;
+    setData(`${c.esPrimera ? "M" : "N"}${r}`, "X");
+    setData(`P${r}`, diagFull);
     // DIAGNÓSTICO S/C: no se distingue → se marca CONFIRMADO por defecto (columna R).
-    ws.getCell(`R${r}`).value = "X";
-    ws.getCell(`S${r}`).value = tratamiento;            // S:V combinadas → ancla S
+    setData(`R${r}`, "X");
+    setData(`S${r}`, tratamiento);                      // S:V combinadas → ancla S
+
+    // Evita que el DIAGNÓSTICO (o tratamiento/dirección/nombre) se CORTE: como el texto
+    // se ajusta (wrap) pero la fila de la plantilla es baja, se agranda la altura según
+    // el campo más largo, para que se vea completo en varias líneas. (cpl = chars/línea
+    // estimados por columna, conservador → altura de sobra, nunca trunca.)
+    const linesFor = (t: string, cpl: number) => Math.max(1, Math.ceil((t || "").length / cpl));
+    const lines = Math.max(
+      linesFor(nombre, 20),
+      linesFor(direccion, 24),
+      linesFor(diagFull, 26),
+      linesFor(tratamiento, 34),
+    );
+    ws.getRow(r).height = Math.min(140, Math.max(11.45, lines * 10.5));
   });
 }
 
