@@ -16,7 +16,7 @@ if (publicKey && privateKey) {
   }
 }
 
-export async function sendPushToAdmins(registro: { id: string; nombreApellido: string; cedula: string }) {
+export async function sendPushToAdmins(registro: { id: string; nombreApellido: string; cedula: string; refugio: string }) {
   try {
     if (!publicKey || !privateKey) {
       console.warn("VAPID keys not configured. Skipping push notification.");
@@ -25,11 +25,20 @@ export async function sendPushToAdmins(registro: { id: string; nombreApellido: s
 
     // Find all stored push subscriptions
     const subscriptions = await prisma.pushSubscription.findMany();
-    
+
+    const refugio = registro.refugio || "Sin campamento";
+
     const payload = JSON.stringify({
       title: "Nuevo Afectado Registrado",
-      body: `${registro.nombreApellido} (C.I. ${registro.cedula}) ha sido registrado en el censo.`,
-      url: `/?registroId=${registro.id}` // Navigate to this record on click
+      // El campamento va al FINAL del cuerpo para que el Master sepa dónde se registró
+      // al afectado sin abrir la app.
+      body: `${registro.nombreApellido} (C.I. ${registro.cedula}) ha sido registrado en el censo. Campamento: ${refugio}`,
+      url: `/?registroId=${registro.id}`, // Navigate to this record on click
+      refugio,
+      // tag ÚNICO por registro (prefijado por campamento) para que las notificaciones se
+      // APILEN en vez de reemplazarse: cada afectado nuevo es una notificación distinta,
+      // agrupada por su campamento. Ver comentario en sw.js (handler `push`).
+      tag: `nuevo-registro-${refugio}-${registro.id}`,
     });
 
     const promises = subscriptions.map(sub => {

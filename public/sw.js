@@ -123,9 +123,14 @@ self.addEventListener("push", (event) => {
     };
   }
 
-  const title    = data.title || "Nuevo Afectado Registrado";
-  const body     = data.body  || "Se ha registrado un afectado en el censo.";
-  const notifUrl = data.url   || "/";
+  const title     = data.title  || "Nuevo Afectado Registrado";
+  const body      = data.body   || "Se ha registrado un afectado en el censo.";
+  const notifUrl  = data.url    || "/";
+  const refugio   = data.refugio || null;
+  // tag ÚNICO por registro (lo genera el servidor, prefijado por campamento). Al ser
+  // único, las notificaciones se APILAN en lugar de reemplazarse. Fallback: si por lo
+  // que sea no llega, usar la URL (lleva el registroId) para no colapsar todas en una.
+  const notifTag  = data.tag || `nuevo-registro-${notifUrl}`;
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
@@ -141,6 +146,7 @@ self.addEventListener("push", (event) => {
           type: "NEW_REGISTRO_NOTIFICATION",
           registroId,
           nombreApellido,
+          refugio,
           url: notifUrl
         });
         return;
@@ -152,8 +158,10 @@ self.addEventListener("push", (event) => {
         icon: "/logo_gob_push.png",
         badge: "/favicon.ico",
         vibrate: [200, 100, 200],
-        tag: "nuevo-registro",  // Reemplaza notificaciones anteriores del mismo tipo
-        renotify: true,
+        // tag ÚNICO por registro → las notificaciones se APILAN (no se reemplazan entre sí),
+        // agrupadas por campamento. renotify:false porque cada tag es nuevo (no hay reemplazo).
+        tag: notifTag,
+        renotify: false,
         data: { url: notifUrl }
       };
 
