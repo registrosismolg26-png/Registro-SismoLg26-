@@ -23,12 +23,12 @@ const FIRST_DATA_ROW = 10; // fila 10 = paciente #1 en la plantilla
 // TODO se estandariza a MAYÚSCULAS (requisito del dueño para este reporte oficial).
 const up = (s: any) => String(s ?? "").trim().toUpperCase();
 
-// Nacionalidad por el prefijo de la cédula: V→V, E→E (no distinguimos B/C).
+// Nacionalidad por la cédula: "E-…" → E (extranjero); el resto (sin prefijo o "V-…")
+// → V (venezolano por defecto — las cédulas nacionales suelen venir sin prefijo).
 function nacionalidad(cedula: string): string {
   const c = up(cedula);
-  if (c.startsWith("V")) return "V";
   if (c.startsWith("E")) return "E";
-  return "";
+  return /\d/.test(c) ? "V" : "";
 }
 
 // Hora en formato 12h con AM/PM (evita ambigüedad mañana/tarde); vacío si no hay/está mal.
@@ -87,6 +87,17 @@ function fillSheet(ws: any, page: MinSaludConsulta[], opts: MinSaludOpts) {
   if (mm) ws.getCell("U7").value = mm;
   if (yyyy) ws.getCell("V7").value = yyyy;
 
+  // La plantilla trae estas columnas MUY angostas (pensadas para escribir a mano):
+  // tanto que Excel OCULTA la hora y muestra "#" en la edad (el número no cabe). Se
+  // ensanchan lo justo para que el dato SE VEA, sin alterar el resto del formato.
+  // OJO: A (FILA) y B (HORA) comparten UN rango de ancho en la plantilla y ExcelJS solo
+  // lo respeta si AMBAS reciben el MISMO ancho (fijar solo B lo descarta al guardar);
+  // por eso FILA queda un poco más ancha — es el precio de que la HORA se vea.
+  ws.getColumn(1).width = 7;   // FILA (comparte rango con HORA)
+  ws.getColumn(2).width = 7;   // HORA ("2:45 PM")
+  ws.getColumn(6).width = 5;   // EDAD (antes mostraba "#")
+  ws.getColumn(10).width = 4;  // NACIONALIDAD (V / E)
+
   // Escribe un valor en una celda de datos REDUCIENDO el tamaño de letra a DATA_FONT_SIZE
   // (conserva familia/color/negrita de la plantilla). El ajuste de texto (wrapText) ya
   // viene activo en la plantilla.
@@ -119,7 +130,8 @@ function fillSheet(ws: any, page: MinSaludConsulta[], opts: MinSaludOpts) {
     setData(`B${r}`, horaDe(d.fechaConsulta || c.createdAt));
     setData(`C${r}`, nombre);
     setData(`D${r}`, up(d.cedula));                     // D:E combinadas → ancla D
-    if (d.edad != null && d.edad !== "") setData(`F${r}`, Number(d.edad));
+    // Edad como TEXTO (no número): un número en columna angosta se ve como "#".
+    if (d.edad != null && d.edad !== "") setData(`F${r}`, String(d.edad));
     setData(`G${r}`, sexo);
     // INDÍGENA: no se registra en el sistema → se marca NO por defecto (columna I).
     setData(`I${r}`, "X");
