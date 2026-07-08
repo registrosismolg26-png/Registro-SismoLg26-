@@ -6,6 +6,7 @@ import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLoca
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText } from "@/lib/helpers";
 import { exportMorbilidadExcel } from "@/lib/exportMorbilidadExcel";
+import { exportRegistroMinSaludExcel } from "@/lib/exportRegistroMinSaludExcel";
 import { logActivity } from "@/lib/activityLog";
 import { apiFetch } from "@/lib/apiFetch";
 import { canDeleteConsulta } from "@/lib/permissions";
@@ -337,8 +338,11 @@ export default function MorbilidadTab() {
     seedEstados("ILESO", "NO");
   };
 
-  // Descargar Excel (XLSX con membrete) del historial filtrado.
+  // Descargar Excel: modal con 2 formatos (General con membrete / Registro Min Salud SIS-02).
   const [exporting, setExporting] = useState(false);
+  const [showExcelModal, setShowExcelModal] = useState(false);
+  const [exportingMinSalud, setExportingMinSalud] = useState(false);
+  const [minSaludDia, setMinSaludDia] = useState(""); // yyyy-mm-dd del reporte diario oficial
   const handleExportExcel = async () => {
     if (filteredConsultas.length === 0) { showToast("No hay consultas para exportar.", "warning"); return; }
     setExporting(true);
@@ -361,11 +365,70 @@ export default function MorbilidadTab() {
       });
       showToast("Excel descargado.", "success");
       logActivity({ accion: "EXPORT", recurso: "Morbilidad", formato: "Excel", refugio: effectiveRefugio || currentUser?.campamentoTransitorio || undefined, filtros: filtrosParts.join("   ·   ") || undefined, total: filteredConsultas.length });
+      setShowExcelModal(false);
     } catch (e) {
       console.error(e);
       showToast("No se pudo generar el Excel.", "error");
     } finally {
       setExporting(false);
+    }
+  };
+
+  // Descargar el formulario oficial del MPPS (SIS-02 EPI-10/13), POR DÍA elegido.
+  // Toma las consultas del campamento en vista de ese día; deriva P/S (primera/sucesiva
+  // consulta de cada cédula) y rellena la plantilla oficial. Si el día supera 25
+  // consultas, el generador descarga varias partes.
+  const handleExportMinSalud = async () => {
+    const dia = minSaludDia;
+    if (!dia) { showToast("Elige el día del reporte.", "warning"); return; }
+    // yyyy-mm-dd LOCAL de una fecha (para casar el día elegido con la fecha-hora clínica).
+    const ymdOf = (iso: any) => {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return "";
+      const p = (n: number) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    };
+    const when = (c: any) => new Date(c.data?.fechaConsulta || c.createdAt).getTime();
+    const dayConsultas = allConsultas
+      .filter((c) => ymdOf(c.data?.fechaConsulta || c.createdAt) === dia)
+      .slice()
+      .sort((a, b) => when(a) - when(b)); // cronológico ascendente (fila 1 = primera del día)
+    if (dayConsultas.length === 0) { showToast("No hay consultas ese día en este campamento.", "info"); return; }
+    // Primera consulta (cronológica) de cada cédula entre TODAS las del campamento → P; resto → S.
+    const primeraIdPorCedula = new Map<string, string>();
+    [...allConsultas].sort((a, b) => when(a) - when(b)).forEach((c) => {
+      const ced = String(c.data?.cedula || "").trim().toUpperCase();
+      if (ced && !primeraIdPorCedula.has(ced)) primeraIdPorCedula.set(ced, c.id);
+    });
+    const refugioActual = effectiveRefugio || currentUser?.campamentoTransitorio || "";
+    const items = dayConsultas.map((c) => ({
+      data: c.data,
+      createdAt: c.createdAt,
+      esPrimera: primeraIdPorCedula.get(String(c.data?.cedula || "").trim().toUpperCase()) === c.id,
+    }));
+    setExportingMinSalud(true);
+    try {
+      await exportRegistroMinSaludExcel({
+        consultas: items,
+        registros,
+        patologias,
+        predefinedMedicamentos,
+        dia,
+        refugio: refugioActual,
+        medico: currentUser?.nombre || "",       // por defecto: el médico que descarga
+        establecimiento: refugioActual,           // por defecto: el campamento
+        asic: "",                                 // se llena a mano (no lo tenemos en sistema)
+        parroquia: "",                            // se llena a mano
+        tipoConsulta: "",                         // se llena a mano
+      });
+      showToast(`Formulario SIS-02 del ${dia.split("-").reverse().join("/")} descargado.`, "success");
+      logActivity({ accion: "EXPORT", recurso: "Morbilidad (SIS-02 EPI-10/13)", formato: "Excel", refugio: refugioActual || undefined, filtros: `Día ${dia.split("-").reverse().join("/")}`, total: dayConsultas.length });
+      setShowExcelModal(false);
+    } catch (e) {
+      console.error(e);
+      showToast("No se pudo generar el formulario oficial.", "error");
+    } finally {
+      setExportingMinSalud(false);
     }
   };
 
@@ -1051,8 +1114,12 @@ export default function MorbilidadTab() {
             <span className="morb-hist__count">{filteredConsultas.length} de {allConsultas.length}</span>
           </div>
           {allConsultas.length > 0 && (
-            <button type="button" className="toolbar-btn" onClick={handleExportExcel} disabled={exporting} title="Descargar el historial (filtrado) en Excel">
-              {exporting ? <span className="spinner spinner-sm" /> : (
+            <button type="button" className="toolbar-btn" onClick={() => {
+              const d = new Date(); const p = (n: number) => String(n).padStart(2, "0");
+              setMinSaludDia(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`); // día por defecto: hoy
+              setShowExcelModal(true);
+            }} disabled={exporting || exportingMinSalud} title="Descargar en Excel (General o formulario oficial SIS-02)">
+              {(exporting || exportingMinSalud) ? <span className="spinner spinner-sm" /> : (
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
               )}
               <span className="btn-txt-collapsible">Excel</span>
@@ -1309,6 +1376,49 @@ export default function MorbilidadTab() {
               <button type="button" className="btn-danger" style={{ margin: 0 }} onClick={confirmDelete} disabled={deleting}>
                 {deleting ? <span className="spinner spinner-sm" /> : "Eliminar"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: elegir qué Excel descargar (General con membrete / formulario oficial SIS-02 por día) */}
+      {showExcelModal && (
+        <div className="modal-overlay" onClick={() => { if (!exporting && !exportingMinSalud) setShowExcelModal(false); }}>
+          <div className="modal-content modal-content--detail" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px" }}>
+            <div className="modal-header">
+              <span className="modal-title">Descargar Excel</span>
+              <button className="modal-close" onClick={() => setShowExcelModal(false)}>✕</button>
+            </div>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "0 0 1rem" }}>Elige qué exportar:</p>
+            <div className="export-options">
+              <button type="button" className="export-option" onClick={handleExportExcel} disabled={exporting || exportingMinSalud}>
+                <span className="export-option__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </span>
+                <span className="export-option__text">
+                  <strong>Excel General</strong>
+                  <small>El historial con los <b>filtros aplicados</b> ahora ({filteredConsultas.length}).</small>
+                </span>
+              </button>
+
+              <div className="export-option export-option--form">
+                <span className="export-option__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="9" y2="9"/></svg>
+                </span>
+                <span className="export-option__text" style={{ width: "100%" }}>
+                  <strong>Registro Min Salud (SIS-02 · EPI-10/13)</strong>
+                  <small>Formulario oficial del MPPS, <b>por día</b>: las consultas del campamento en el día elegido (si superan 25, se descargan por partes).</small>
+                  <div className="pill-form" style={{ marginTop: "0.6rem", display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+                    <div className="form-group">
+                      <label>Día del reporte</label>
+                      <DatePicker value={minSaludDia} onChange={setMinSaludDia} placeholder="Elegir día…" defaultToday />
+                    </div>
+                    <button type="button" className="btn-submit" onClick={handleExportMinSalud} disabled={exportingMinSalud || exporting}>
+                      {exportingMinSalud ? <span className="spinner spinner-sm" /> : "Descargar formulario del día"}
+                    </button>
+                  </div>
+                </span>
+              </div>
             </div>
           </div>
         </div>

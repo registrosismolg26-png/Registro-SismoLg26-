@@ -3244,6 +3244,10 @@ h2.dashboard-section-title {
 .export-option__text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
 .export-option__text strong { font-size: 0.9rem; font-weight: 700; }
 .export-option__text small { font-size: 0.75rem; color: var(--text-muted); line-height: 1.35; }
+/* Variante con controles dentro (p. ej. selector de día): NO es un botón, así que
+   se alinea arriba y no reacciona al hover como las opciones clicables. */
+.export-option--form { align-items: flex-start; cursor: default; }
+.export-option--form:hover { border-color: var(--border-color); background: var(--bg-primary); }
 
 /* Selector de tipo de contenedor (Edificio / Piso / Otro) */
 .room-type-toggle {
