@@ -173,6 +173,48 @@ async function downloadWorkbook(wb: any, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// Duplica la ÚNICA hoja de la plantilla en `n` hojas IDÉNTICAS dentro del MISMO libro,
+// a nivel del .xlsx (zip): copia sheet + su drawing (logos) + rels, y las registra en
+// workbook.xml / rels / [Content_Types]. Cada hoja conserva membrete, logos (media
+// compartida), combinaciones y leyendas. Luego ExcelJS carga ese libro y rellena cada
+// hoja. (Se hace así porque ExcelJS no clona hojas con estilos/combinaciones de forma
+// fiable, y cargar la plantilla varias veces reemplazaría el libro entero.)
+async function buildMultiSheetTemplate(templateBuf: ArrayBuffer, n: number): Promise<ArrayBuffer> {
+  const JSZip = (await import("jszip")).default;
+  const zip = await JSZip.loadAsync(templateBuf);
+  const read = (p: string) => zip.file(p)!.async("string");
+  const sheet1 = await read("xl/worksheets/sheet1.xml");
+  const sheet1Rels = await read("xl/worksheets/_rels/sheet1.xml.rels");
+  const drawing1 = await read("xl/drawings/drawing1.xml");
+  const drawing1Rels = await read("xl/drawings/_rels/drawing1.xml.rels");
+  let ct = await read("[Content_Types].xml");
+  let wbXml = await read("xl/workbook.xml");
+  let wbRels = await read("xl/_rels/workbook.xml.rels");
+
+  const ctOverrides: string[] = [];
+  const wbRelsAdd: string[] = [];
+  const sheetTags: string[] = [`<sheet name="Pág. 1" sheetId="1" r:id="rId1" />`];
+  for (let k = 2; k <= n; k++) {
+    zip.file(`xl/worksheets/sheet${k}.xml`, sheet1);
+    // Cada hoja apunta a su PROPIO drawing (una hoja no puede compartir el drawing de otra).
+    zip.file(`xl/worksheets/_rels/sheet${k}.xml.rels`, sheet1Rels.replace("drawing1.xml", `drawing${k}.xml`));
+    zip.file(`xl/drawings/drawing${k}.xml`, drawing1);
+    zip.file(`xl/drawings/_rels/drawing${k}.xml.rels`, drawing1Rels); // los logos (media) SÍ se comparten
+    ctOverrides.push(`<Override PartName="/xl/worksheets/sheet${k}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml" />`);
+    ctOverrides.push(`<Override PartName="/xl/drawings/drawing${k}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml" />`);
+    const rid = `rId${4 + (k - 1)}`; // rId1..rId4 ya usados (worksheet/theme/styles/sharedStrings)
+    wbRelsAdd.push(`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${k}.xml" />`);
+    sheetTags.push(`<sheet name="Pág. ${k}" sheetId="${k}" r:id="${rid}" />`);
+  }
+  ct = ct.replace("</Types>", ctOverrides.join("") + "</Types>");
+  wbRels = wbRels.replace("</Relationships>", wbRelsAdd.join("") + "</Relationships>");
+  wbXml = wbXml.replace(/<sheets>.*?<\/sheets>/, `<sheets>${sheetTags.join("")}</sheets>`);
+  zip.file("[Content_Types].xml", ct);
+  zip.file("xl/workbook.xml", wbXml);
+  zip.file("xl/_rels/workbook.xml.rels", wbRels);
+  return zip.generateAsync({ type: "arraybuffer" });
+}
+
 export async function exportRegistroMinSaludExcel(opts: MinSaludOpts): Promise<void> {
   const ExcelJS = (await import("exceljs")).default;
 
@@ -181,24 +223,24 @@ export async function exportRegistroMinSaludExcel(opts: MinSaludOpts): Promise<v
   if (!res.ok) throw new Error(`No se pudo cargar la plantilla (${res.status})`);
   const templateBuf = await res.arrayBuffer();
 
-  // Partir en páginas de 25 (una descarga por parte si hay más de 25 ese día).
+  // Partir en páginas de 25 (el formulario oficial es de 25 filas). Cada página es una
+  // HOJA del MISMO archivo (no varios archivos).
   const pages: MinSaludConsulta[][] = [];
   for (let i = 0; i < opts.consultas.length; i += ROWS_PER_PAGE) {
     pages.push(opts.consultas.slice(i, i + ROWS_PER_PAGE));
   }
-  if (pages.length === 0) pages.push([]); // día sin consultas → formulario en blanco
+  if (pages.length === 0) pages.push([]); // día sin consultas → un formulario en blanco
+
+  const wb = new ExcelJS.Workbook();
+  if (pages.length === 1) {
+    await wb.xlsx.load(templateBuf);                               // una sola hoja: plantilla tal cual
+  } else {
+    await wb.xlsx.load(await buildMultiSheetTemplate(templateBuf, pages.length)); // varias hojas
+  }
+
+  // Rellenar cada hoja con su página (el orden de wb.worksheets = Pág. 1, 2, 3…).
+  wb.worksheets.forEach((ws, p) => fillSheet(ws, pages[p] || [], opts));
 
   const safeRef = (opts.refugio || "campamento").replace(/[^\p{L}\p{N}]+/gu, "_").slice(0, 40);
-  const total = pages.length;
-
-  for (let p = 0; p < total; p++) {
-    // Copia FRESCA de la plantilla por página (cargar el buffer no lo consume).
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(templateBuf);
-    fillSheet(wb.worksheets[0], pages[p], opts);
-    const parte = total > 1 ? `_parte-${p + 1}-de-${total}` : "";
-    await downloadWorkbook(wb, `SIS-02_${safeRef}_${opts.dia}${parte}.xlsx`);
-    // Pequeña pausa entre descargas múltiples para que el navegador no las bloquee.
-    if (p < total - 1) await new Promise((r) => setTimeout(r, 350));
-  }
+  await downloadWorkbook(wb, `SIS-02_${safeRef}_${opts.dia}.xlsx`);
 }

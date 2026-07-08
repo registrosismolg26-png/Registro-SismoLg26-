@@ -1407,7 +1407,7 @@ export default function MorbilidadTab() {
                 </span>
                 <span className="export-option__text" style={{ width: "100%" }}>
                   <strong>Registro Min Salud (SIS-02 · EPI-10/13)</strong>
-                  <small>Formulario oficial del MPPS, <b>por día</b>: las consultas del campamento en el día elegido (si superan 25, se descargan por partes).</small>
+                  <small>Formulario oficial del MPPS, <b>por día</b>: las consultas del campamento en el día elegido (si superan 25, van en <b>varias hojas</b> del mismo archivo).</small>
                   <div className="pill-form" style={{ marginTop: "0.6rem", display: "flex", flexDirection: "column", gap: "0.55rem" }}>
                     <div className="form-group">
                       <label>Día del reporte</label>
