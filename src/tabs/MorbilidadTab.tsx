@@ -415,11 +415,11 @@ export default function MorbilidadTab() {
         predefinedMedicamentos,
         dia,
         refugio: refugioActual,
-        medico: currentUser?.nombre || "",       // por defecto: el médico que descarga
-        establecimiento: refugioActual,           // por defecto: el campamento
-        asic: "",                                 // se llena a mano (no lo tenemos en sistema)
-        parroquia: "",                            // se llena a mano
-        tipoConsulta: "",                         // se llena a mano
+        medico: "",                               // VACÍO (se llena a mano)
+        establecimiento: refugioActual ? `Campamento Transitorio ${refugioActual}` : "",
+        asic: "",                                 // VACÍO (se llena a mano)
+        parroquia: "",                            // VACÍO (se llena a mano)
+        tipoConsulta: "",                         // VACÍO (se llena a mano)
       });
       showToast(`Formulario SIS-02 del ${dia.split("-").reverse().join("/")} descargado.`, "success");
       logActivity({ accion: "EXPORT", recurso: "Morbilidad (SIS-02 EPI-10/13)", formato: "Excel", refugio: refugioActual || undefined, filtros: `Día ${dia.split("-").reverse().join("/")}`, total: dayConsultas.length });
