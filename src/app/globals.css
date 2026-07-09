@@ -2033,17 +2033,21 @@ html[data-theme="dark"] .spinner {
 /* ── Identidad ── */
 .sb-identity {
   position: relative; flex-shrink: 0;
-  display: flex; align-items: center; gap: 0.75rem;
-  padding: 1.15rem 1rem 1rem;
+  display: flex; align-items: center; gap: 0.7rem;
+  /* padding derecho amplio para que el texto NO pase por debajo del botón de colapsar */
+  padding: 1.1rem 2.3rem 1rem 1rem;
   background: radial-gradient(130% 150% at 0% 0%, var(--color-primary-light) 0%, transparent 60%);
   border-bottom: 1px solid var(--border-color);
 }
-.sb-seal { width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.sb-seal { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 html[data-theme="dark"] .sb-seal { filter: brightness(1.08) drop-shadow(0 0 6px rgba(59, 130, 246, 0.2)); }
 .sb-title-group { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.sb-org { font-size: 0.5rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sb-appname { font-family: var(--font-heading); font-size: 0.95rem; font-weight: 800; letter-spacing: -0.01em; color: var(--color-primary); text-transform: uppercase; line-height: 1.05; }
-.sb-tagline { font-size: 0.6rem; font-weight: 500; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Gris azulado (destaca del fondo, distinto del azul del título) — un poco más chico
+   para que no se corte. */
+.sb-org { font-size: 0.44rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em; color: #3f5170; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-theme="dark"] .sb-org { color: #9db0d0; }
+.sb-appname { font-family: var(--font-heading); font-size: 0.9rem; font-weight: 800; letter-spacing: -0.01em; color: var(--color-primary); text-transform: uppercase; line-height: 1.06; }
+.sb-tagline { font-size: 0.55rem; font-weight: 500; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-collapse {
   position: absolute; top: 10px; right: 10px; z-index: 4;
   width: 26px; height: 26px; border-radius: 50%;
@@ -2101,7 +2105,9 @@ html[data-theme="dark"] .sb-seal { filter: brightness(1.08) drop-shadow(0 0 6px 
 .sb-actions { display: flex; align-items: center; gap: 0.5rem; }
 .sb-icon-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s, border-color 0.15s; }
 .sb-icon-btn:hover { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
-.sb-logout { width: auto; flex: 1; gap: 0.5rem; border-radius: 999px; padding: 0 0.9rem; }
+/* "Salir" con un toque rojo YA en reposo (sin depender del hover) para que no se
+   confunda con otros botones neutros del sidebar. El hover intensifica. */
+.sb-logout { width: auto; flex: 1; gap: 0.5rem; border-radius: 999px; padding: 0 0.9rem; color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 34%, var(--border-color)); }
 .sb-logout:hover { border-color: var(--color-danger); background: var(--color-danger-light); color: var(--color-danger); }
 .sb-logout__txt { font-size: 0.82rem; font-weight: 700; }
 .sb-icon-btn.is-active { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
