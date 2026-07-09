@@ -14,7 +14,8 @@ export async function GET(req: Request) {
       orderBy: { nombre: "asc" },
       select: { id: true, nombre: true },
     });
-    return NextResponse.json({ success: true, tiposLesion });
+    // Catálogo global → cache en navegador 120s (ver nota en patologias/route.ts).
+    return NextResponse.json({ success: true, tiposLesion }, { headers: { "Cache-Control": "private, max-age=120" } });
   } catch (error: any) {
     console.error("Error en GET /api/tipos-lesion:", error);
     return NextResponse.json({ error: "Error al listar tipos de lesión" }, { status: 500 });

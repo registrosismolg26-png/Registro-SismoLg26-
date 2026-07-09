@@ -86,7 +86,7 @@ export default function CatalogosMedicos() {
         ? await apiFetch("/api/patologias", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editPatId, nombre }) })
         : await apiFetch("/api/patologias", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre }) });
       if (res.ok) {
-        setPatValue(""); setEditPatId(null); fetchPatologias();
+        setPatValue(""); setEditPatId(null); fetchPatologias(true);
         showToast(editPatId ? "Patología actualizada." : "Patología agregada.", "success");
       } else {
         const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo guardar.", "error");
@@ -99,7 +99,7 @@ export default function CatalogosMedicos() {
     setConfirmDel(null);
     try {
       const res = await apiFetch(`/api/patologias?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      if (res.ok) { if (editPatId === id) { setEditPatId(null); setPatValue(""); } fetchPatologias(); showToast("Patología eliminada.", "success"); }
+      if (res.ok) { if (editPatId === id) { setEditPatId(null); setPatValue(""); } fetchPatologias(true); showToast("Patología eliminada.", "success"); }
       else { const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo eliminar.", "error"); }
     } catch { showToast("Error de red al eliminar.", "error"); }
   };
@@ -117,7 +117,7 @@ export default function CatalogosMedicos() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        setMedForm({ ...EMPTY_MED }); setEditMedId(null); fetchPredefinedMedicamentos();
+        setMedForm({ ...EMPTY_MED }); setEditMedId(null); fetchPredefinedMedicamentos(true);
         showToast(editMedId ? "Medicamento actualizado." : "Medicamento agregado.", "success");
       } else {
         const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo guardar.", "error");
@@ -130,7 +130,7 @@ export default function CatalogosMedicos() {
     setConfirmDel(null);
     try {
       const res = await apiFetch(`/api/medicamentos?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      if (res.ok) { if (editMedId === id) { setEditMedId(null); setMedForm({ ...EMPTY_MED }); } fetchPredefinedMedicamentos(); showToast("Medicamento eliminado.", "success"); }
+      if (res.ok) { if (editMedId === id) { setEditMedId(null); setMedForm({ ...EMPTY_MED }); } fetchPredefinedMedicamentos(true); showToast("Medicamento eliminado.", "success"); }
       else { const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo eliminar.", "error"); }
     } catch { showToast("Error de red al eliminar.", "error"); }
   };
@@ -151,7 +151,7 @@ export default function CatalogosMedicos() {
         ? await apiFetch("/api/tipos-lesion", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editLesId, nombre }) })
         : await apiFetch("/api/tipos-lesion", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre }) });
       if (res.ok) {
-        setLesValue(""); setEditLesId(null); fetchTiposLesion();
+        setLesValue(""); setEditLesId(null); fetchTiposLesion(true);
         showToast(editLesId ? "Tipo de lesión actualizado." : "Tipo de lesión agregado.", "success");
       } else {
         const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo guardar.", "error");
@@ -164,7 +164,7 @@ export default function CatalogosMedicos() {
     setConfirmDel(null);
     try {
       const res = await apiFetch(`/api/tipos-lesion?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      if (res.ok) { if (editLesId === id) { setEditLesId(null); setLesValue(""); } fetchTiposLesion(); showToast("Tipo de lesión eliminado.", "success"); }
+      if (res.ok) { if (editLesId === id) { setEditLesId(null); setLesValue(""); } fetchTiposLesion(true); showToast("Tipo de lesión eliminado.", "success"); }
       else { const d = await res.json().catch(() => ({})); showToast(d.error || "No se pudo eliminar.", "error"); }
     } catch { showToast("Error de red al eliminar.", "error"); }
   };

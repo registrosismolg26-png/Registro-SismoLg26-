@@ -50,6 +50,9 @@ model Registro {
   // activa en el destino tras un traslado). La cédula ya NO es única global.
   @@unique([cedula, refugio])
   @@index([cedula])
+  // Lecturas scoped por refugio ordenadas por fecha (GET /api/registros, ETag):
+  // evita seq-scan al filtrar por refugio y ordenar/agrupar por createdAt.
+  @@index([refugio, createdAt])
 }
 
 model Padron {
@@ -146,6 +149,9 @@ model ConsultaMedica {
   notasDoctor               String?
   createdAt                 DateTime @default(now())
   userId                    String
+
+  // Lecturas scoped por refugio ordenadas por fecha (GET /api/consultas, ETag).
+  @@index([refugio, createdAt])
 }
 
 // Reporte público compartido por link. El `id` es el token de la URL

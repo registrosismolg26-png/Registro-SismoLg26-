@@ -23,7 +23,8 @@ export async function GET(req: Request) {
       }
     });
 
-    return NextResponse.json({ success: true, medicamentos: list });
+    // Catálogo global → cache en navegador 120s (ver nota en patologias/route.ts).
+    return NextResponse.json({ success: true, medicamentos: list }, { headers: { "Cache-Control": "private, max-age=120" } });
   } catch (error: any) {
     console.error("Error en GET /api/medicamentos:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });

@@ -203,11 +203,13 @@ export default function ConfigTab() {
   };
 
   // ── Refugios: carga y mutaciones (solo MASTER, todo vía apiFetch) ──
-  const fetchRefugios = async () => {
+  // force=true → salta el cache HTTP (cache:"reload"): tras crear/renombrar/borrar un
+  // campamento, para no leer la lista vieja del navegador (max-age=120).
+  const fetchRefugios = async (force = false) => {
     if (!currentUser || !isMaster(currentUser.role) || !navigator.onLine) return;
     setLoadingRefugios(true);
     try {
-      const res = await apiFetch("/api/refugios");
+      const res = await apiFetch("/api/refugios", force ? { cache: "reload" } : {});
       const data = await res.json();
       if (res.ok && data.success) {
         setRefugios(data.refugios || []);
@@ -249,7 +251,7 @@ export default function ConfigTab() {
       }
       showToast("Campamento creado con éxito.", "success");
       setNewRefugio("");
-      await fetchRefugios();
+      await fetchRefugios(true);
     } catch (err) {
       console.error("Error al crear refugio:", err);
       showToast("Error de conexión al crear el campamento.", "error");
@@ -282,7 +284,7 @@ export default function ConfigTab() {
       setRefugioToRename(null);
       setRefugioRenameValue("");
       setRefugioUbicacionValue("");
-      await fetchRefugios();
+      await fetchRefugios(true);
     } catch (err) {
       console.error("Error al editar refugio:", err);
       showToast("Error de conexión al editar el campamento.", "error");
@@ -310,7 +312,7 @@ export default function ConfigTab() {
       }
       showToast("Campamento eliminado con éxito.", "success");
       setRefugioToDelete(null);
-      await fetchRefugios();
+      await fetchRefugios(true);
     } catch (err) {
       console.error("Error al eliminar refugio:", err);
       showToast("Error de conexión al eliminar el campamento.", "error");

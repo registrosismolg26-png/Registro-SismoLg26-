@@ -697,7 +697,9 @@ export default function Home() {
     setLocalConsultas(list);
   };
 
-  const fetchPatologias = async () => {
+  // force=true → salta el cache HTTP (cache:"reload"): se usa tras crear/editar/borrar
+  // un ítem del catálogo, para no leer la versión vieja del navegador (max-age=120).
+  const fetchPatologias = async (force = false) => {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("sismo_cached_patologias_v2");
       if (cached) {
@@ -710,7 +712,7 @@ export default function Home() {
     }
     if (!navigator.onLine) return;
     try {
-      const res = await apiFetch("/api/patologias");
+      const res = await apiFetch("/api/patologias", force ? { cache: "reload" } : {});
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.patologias) {
@@ -723,7 +725,7 @@ export default function Home() {
     }
   };
 
-  const fetchTiposLesion = async () => {
+  const fetchTiposLesion = async (force = false) => {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("sismo_cached_tipos_lesion_v1");
       if (cached) {
@@ -732,7 +734,7 @@ export default function Home() {
     }
     if (!navigator.onLine) return;
     try {
-      const res = await apiFetch("/api/tipos-lesion");
+      const res = await apiFetch("/api/tipos-lesion", force ? { cache: "reload" } : {});
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.tiposLesion) {
@@ -745,7 +747,7 @@ export default function Home() {
     }
   };
 
-  const fetchPredefinedMedicamentos = async () => {
+  const fetchPredefinedMedicamentos = async (force = false) => {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("sismo_cached_predefined_medicamentos");
       if (cached) {
@@ -758,7 +760,7 @@ export default function Home() {
     }
     if (!navigator.onLine) return;
     try {
-      const res = await apiFetch("/api/medicamentos");
+      const res = await apiFetch("/api/medicamentos", force ? { cache: "reload" } : {});
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.medicamentos) {

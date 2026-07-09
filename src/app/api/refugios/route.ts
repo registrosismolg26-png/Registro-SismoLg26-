@@ -14,7 +14,9 @@ export async function GET(req: Request) {
       orderBy: { nombre: "asc" },
     });
 
-    return NextResponse.json({ success: true, refugios });
+    // Lista global de campamentos → cache en navegador 120s (ver nota en
+    // patologias/route.ts). ConfigTab refetchea con cache:"reload" tras crear/renombrar/borrar.
+    return NextResponse.json({ success: true, refugios }, { headers: { "Cache-Control": "private, max-age=120" } });
   } catch (error: any) {
     console.error("Error en GET /api/refugios:", error);
     return NextResponse.json({ error: "Error al listar campamentos" }, { status: 500 });

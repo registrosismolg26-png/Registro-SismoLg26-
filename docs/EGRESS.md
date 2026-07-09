@@ -4,8 +4,8 @@
 > y plan de reducción, con lo ya aplicado y lo pendiente. Pensado para retomarlo en el
 > futuro sin rehacer el análisis. Complementa [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 >
-> **Última actualización:** 2026-07 · **Estado:** P3 y P4 aplicadas + paginación 10/20/50/100;
-> P2/P6 + índices pendientes.
+> **Última actualización:** 2026-07 · **Estado:** P3, P4, P7 (paginación) y P8 (Cache-Control
+> catálogos + índices) aplicadas; queda P2/P6.
 
 ---
 
@@ -157,10 +157,38 @@ recalcula el sello por ámbito, así que un ETag ajeno nunca produce un 304 inco
 **Pendiente del dueño:** correr [`prisma/etag_triggers.sql`](../prisma/etag_triggers.sql) en
 Supabase (idempotente) para activar el 304 de **consultas**. El de **registros** ya funciona.
 
-> **Nota sobre catálogos + CDN:** la idea original de P4 incluía `Cache-Control: s-maxage` en
-> catálogos (`patologias`, `medicamentos`, `tipos-lesion`, `refugios`) para servirlos desde el
-> CDN de Vercel. Eso quedó **fuera de este cambio** (los catálogos ya tienen caché en
-> localStorage del lado cliente); se puede retomar como mejora aparte.
+### ✅ P8 — `Cache-Control` en catálogos + índices por refugio  *(APLICADA)*
+
+**Archivos:** [`patologias`](../src/app/api/patologias/route.ts),
+[`medicamentos`](../src/app/api/medicamentos/route.ts),
+[`tipos-lesion`](../src/app/api/tipos-lesion/route.ts),
+[`refugios`](../src/app/api/refugios/route.ts) (header), [`page.tsx`](../src/app/page.tsx) +
+[`CatalogosMedicos.tsx`](../src/components/CatalogosMedicos.tsx) +
+[`ConfigTab.tsx`](../src/tabs/ConfigTab.tsx) (refetch forzado),
+[`schema.prisma`](../prisma/schema.prisma) + [`prisma/indexes.sql`](../prisma/indexes.sql) (índices).
+
+**Cache-Control en catálogos:** los 4 GET de catálogo son **globales** (misma data para todos,
+sin scope por refugio) y no-PII → se marcan `Cache-Control: private, max-age=120`. Las
+re-peticiones del **mismo navegador** dentro de 120 s se sirven sin pegar a la BD (reloads,
+re-login, remontar UsuariosTab/ConfigTab que re-piden `refugios`, etc.).
+
+- **`private` a propósito (no `s-maxage`/CDN):** un CDN **compartido** cachearía un endpoint
+  auth-gated y lo serviría a otros usuarios / sin auth. `private` = solo el navegador del propio
+  usuario → cero fuga cross-user y la auth sigue intacta.
+- **Correctitud tras editar el catálogo:** como `CatalogosMedicos`/`ConfigTab` **re-hacen el GET**
+  tras crear/editar/borrar, ese refetch usa `cache: "reload"` (los fetchers aceptan `force`) para
+  saltarse el cache y ver el cambio al instante. Los fetches normales (login/montaje) sí usan el
+  cache.
+- **Nota:** se descartó el CDN (`s-maxage`) justamente por el auth-gating; el cache de navegador
+  da el ahorro sin ese riesgo.
+
+**Índices** `Registro(refugio, createdAt)` y `ConsultaMedica(refugio, createdAt)`: añadidos como
+`@@index` en el schema + SQL idempotente [`prisma/indexes.sql`](../prisma/indexes.sql) (nombres
+iguales a los de Prisma). Evitan seq-scan al filtrar por refugio + ordenar por `createdAt` (los
+`findMany` de las listas y el `COUNT`/`MAX` del ETag).
+
+**Pendiente del dueño:** correr [`prisma/indexes.sql`](../prisma/indexes.sql) en Supabase
+(idempotente). El resto (cache) ya funciona en el deploy.
 
 ### ⏳ P2 — Columnas ligeras: lista vs. detalle  *(pendiente)*
 
@@ -206,10 +234,9 @@ Supabase (idempotente) para activar el 304 de **consultas**. El de **registros**
   **fuera del modelo Prisma** a propósito, para no romper las lecturas si la migración aún no se
   corrió (Prisma solo selecciona columnas que conoce). Si algún día se hace el delta (P1), se
   reutiliza esta misma marca.
-- **Índices** `Registro(refugio, createdAt)` y `ConsultaMedica(refugio, createdAt)` — hoy solo
-  existe `@@index([cedula])` + `@@unique([cedula, refugio])` en
-  [`prisma/schema.prisma`](../prisma/schema.prisma). Mejoran rendimiento y evitan seq-scans en
-  las consultas scoped por refugio. *(pendiente)*
+- **Índices** `Registro(refugio, createdAt)` y `ConsultaMedica(refugio, createdAt)` — ✅
+  **aplicado (P8)**: `@@index` en el schema + [`prisma/indexes.sql`](../prisma/indexes.sql).
+  Antes solo existía `@@index([cedula])` + `@@unique([cedula, refugio])`.
 
 ### ❌ P1 — Sincronización incremental (delta)  *(descartada por ahora)*
 
@@ -230,10 +257,10 @@ Supabase (idempotente) para activar el 304 de **consultas**. El de **registros**
 
 ## 3. Orden recomendado
 
-1. ✅ **Hecho:** P3 (stats SQL) → P4 (ETag/304) → P7 (paginación).
+1. ✅ **Hecho:** P3 (stats SQL) → P4 (ETag/304) → P7 (paginación) → P8 (Cache-Control catálogos +
+   índices).
 2. **Fase 1 restante (bajo/medio riesgo, sin tocar operatividad offline):** P2 (columnas
-   ligeras) → P6 (menos refetch; con P4 las repetidas ya son 304) → índices + `Cache-Control`
-   en catálogos.
+   ligeras) → P6 (menos refetch; con P4 las repetidas ya son 304).
 3. **Fase 2 (si el censo crece mucho):** reconsiderar P1 (delta), reutilizando la marca de
    última modificación de P4.
 
@@ -261,3 +288,4 @@ las filas. *(El asistente tiene la plantilla del script si se necesita regenerar
 |-------|--------|--------|
 | 2026-07 | `9b8653f` | **P3** aplicada: `stats.ts` 100% SQL (núcleos/individuos por `GROUP BY`, top-patologías por `jsonb_array_elements_text`) + intervalo TV 5s→30s. Sin migración de BD. |
 | 2026-07 | *(este)* | **P4** (ETag/304) + **P7** (paginación 10/20/50/100). ETag `(count, max(syncedAt/updatedAt))` en `/api/registros` y `/api/consultas`, 304 sin cuerpo; cliente reenvía `If-None-Match` por ámbito (en memoria). `syncedAt` bumpeado en las 4 rutas del censo que faltaban + triggers `BEFORE UPDATE` de respaldo. Consultas requiere correr `prisma/etag_triggers.sql` (añade `updatedAt` + trigger); registros ya funciona. Paginación cliente en Registrados e Historial (preserva offline). |
+| 2026-07 | *(este)* | **P8** — `Cache-Control: private, max-age=120` en los 4 catálogos globales (patologias/medicamentos/tipos-lesion/refugios) + refetch forzado (`cache:"reload"`) tras editar catálogo (CatalogosMedicos/ConfigTab) para no leer versión vieja. Índices `@@index([refugio, createdAt])` en Registro y ConsultaMedica (`prisma/indexes.sql`, correr en Supabase). |

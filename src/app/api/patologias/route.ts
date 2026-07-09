@@ -15,7 +15,11 @@ export async function GET(req: Request) {
       select: { id: true, nombre: true },
     });
 
-    return NextResponse.json({ success: true, patologias });
+    // Catálogo global (mismo para todos) → cache en el NAVEGADOR (private, no CDN
+    // compartido: no expone el catálogo sin auth ni lo comparte entre usuarios). Las
+    // re-peticiones (login/tab) dentro de 120s se sirven sin pegar a la BD. Tras
+    // crear/editar/borrar, el cliente refetchea con cache:"reload" para ver el cambio.
+    return NextResponse.json({ success: true, patologias }, { headers: { "Cache-Control": "private, max-age=120" } });
   } catch (error: any) {
     console.error("Error en GET /api/patologias:", error);
     return NextResponse.json({ error: "Error al listar patologías" }, { status: 500 });
