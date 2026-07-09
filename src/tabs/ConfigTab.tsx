@@ -26,6 +26,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { enablePush, pushSupported } from "@/lib/pushClient";
 import { canManageRooms, canRegister, isMaster } from "@/lib/permissions";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
+import { useAnimatedModal } from "@/components/useAnimatedModal";
 import PasswordInput from "@/components/PasswordInput";
 import StyledSelect from "@/components/StyledSelect";
 
@@ -92,7 +93,17 @@ export default function ConfigTab() {
   const [savingAccount, setSavingAccount] = useState(false);
 
   const openAccount = () => { setMiNombre(currentUser?.nombre || ""); setCurPwd(""); setNewPwd(""); setConfPwd(""); setShowAccount(true); };
-  const closeAccount = () => { setShowAccount(false); setCurPwd(""); setNewPwd(""); setConfPwd(""); };
+  // No reseteamos las contraseñas aquí para que no "salten" durante la animación de
+  // cierre; openAccount ya las limpia al abrir.
+  const closeAccount = () => { setShowAccount(false); };
+  // Cierre con animación del modal de renombrar campamento: conserva nombre/ubicación
+  // durante la salida y limpia al terminar.
+  const [refugioRenameClosing, setRefugioRenameClosing] = useState(false);
+  const closeRefugioRename = () => {
+    if (refugioRenameClosing) return;
+    setRefugioRenameClosing(true);
+    setTimeout(() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); setRefugioRenameClosing(false); }, 220);
+  };
   useBodyScrollLock(showAccount); // bloquea el scroll de fondo mientras el modal esté abierto
 
   const handleSaveAccount = async () => {
@@ -617,6 +628,16 @@ export default function ConfigTab() {
     </button>
   );
 
+  // Animación de salida suave de los modales (montados durante el cierre; los de
+  // confirmación conservan su objeto vía `.data`).
+  const mQr = useAnimatedModal(showQrModal);
+  const mLocalEdit = useAnimatedModal(showLocalEditModal && selectedLocalRecord);
+  const mRoomAdd = useAnimatedModal(roomToConfirmAdd);
+  const mRoomDel = useAnimatedModal(roomToConfirmDelete);
+  const mRoomEdit = useAnimatedModal(roomToEdit);
+  const mRefugioDel = useAnimatedModal(refugioToDelete);
+  const mAccount = useAnimatedModal(showAccount);
+
   // Guarda de tipos: este tab solo se monta autenticado (activeTab === "config").
   if (!currentUser) return null;
 
@@ -1123,9 +1144,9 @@ export default function ConfigTab() {
       </div>
 
       {/* QR Codes Modal */}
-      {showQrModal && (
-        <div className="modal-overlay" onClick={() => setShowQrModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      {mQr.mounted && (
+        <div className={`modal-overlay${mQr.closing ? " modal-overlay--closing" : ""}`} onClick={() => setShowQrModal(false)}>
+          <div className={`modal-content${mQr.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">CÓDIGOS QR DE EMERGENCIA</span>
               <button className="modal-close" onClick={() => setShowQrModal(false)}>✕</button>
@@ -1147,9 +1168,9 @@ export default function ConfigTab() {
       )}
 
       {/* Local Queue Edit Modal for corrections (duplicate Cédula errors) */}
-      {showLocalEditModal && selectedLocalRecord && (
-        <div className="modal-overlay" onClick={() => { setShowLocalEditModal(false); setSelectedLocalRecord(null); }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px", width: "90%" }}>
+      {mLocalEdit.mounted && (
+        <div className={`modal-overlay${mLocalEdit.closing ? " modal-overlay--closing" : ""}`} onClick={() => { setShowLocalEditModal(false); setSelectedLocalRecord(null); }}>
+          <div className={`modal-content${mLocalEdit.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px", width: "90%" }}>
             <div className="modal-header">
               <span className="modal-title">CORREGIR CÉDULA / NOMBRE</span>
               <button className="modal-close" onClick={() => { setShowLocalEditModal(false); setSelectedLocalRecord(null); }}>✕</button>
@@ -1204,9 +1225,9 @@ export default function ConfigTab() {
       )}
 
       {/* Modal: Confirmar Agregar Habitación */}
-      {roomToConfirmAdd && (
-        <div className="modal-overlay" onClick={() => setRoomToConfirmAdd(null)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+      {mRoomAdd.mounted && (
+        <div className={`modal-overlay${mRoomAdd.closing ? " modal-overlay--closing" : ""}`} onClick={() => setRoomToConfirmAdd(null)}>
+          <div className={`modal-content modal-content--detail${mRoomAdd.closing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
             <div className="modal-header">
               <span className="modal-title">Confirmar Nueva Habitación</span>
               <button className="modal-close" onClick={() => setRoomToConfirmAdd(null)}>
@@ -1227,7 +1248,7 @@ export default function ConfigTab() {
                 color: "var(--color-primary)",
                 fontWeight: "700"
               }}>
-                {formatRoomLabel(roomToConfirmAdd.key)}
+                {formatRoomLabel(mRoomAdd.data?.key || "")}
               </div>
               <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
                 Esta habitación estará disponible inmediatamente para todos los registradores.
@@ -1247,9 +1268,9 @@ export default function ConfigTab() {
       )}
 
       {/* Modal: Confirmar Eliminar Habitación */}
-      {roomToConfirmDelete && (
-        <div className="modal-overlay" onClick={() => setRoomToConfirmDelete(null)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+      {mRoomDel.mounted && (
+        <div className={`modal-overlay${mRoomDel.closing ? " modal-overlay--closing" : ""}`} onClick={() => setRoomToConfirmDelete(null)}>
+          <div className={`modal-content modal-content--detail${mRoomDel.closing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
             <div className="modal-header">
               <span className="modal-title" style={{ color: "#ef4444" }}>⚠️ Confirmar Eliminación</span>
               <button className="modal-close" onClick={() => setRoomToConfirmDelete(null)}>
@@ -1270,7 +1291,7 @@ export default function ConfigTab() {
                 color: "#ef4444",
                 fontWeight: "700"
               }}>
-                {formatRoomLabel(roomToConfirmDelete)}
+                {formatRoomLabel(mRoomDel.data || "")}
               </div>
               <p style={{ fontSize: "0.75rem", color: "#ef4444", fontWeight: "600" }}>
                 ¡Advertencia: Esta acción removerá el salón del listado y no podrá deshacerse!
@@ -1290,9 +1311,9 @@ export default function ConfigTab() {
       )}
 
       {/* Modal: Editar Salón (nombre + capacidad). Renombrar reasigna sus registros. */}
-      {roomToEdit && (
-        <div className="modal-overlay" onClick={() => setRoomToEdit(null)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "440px" }}>
+      {mRoomEdit.mounted && (
+        <div className={`modal-overlay${mRoomEdit.closing ? " modal-overlay--closing" : ""}`} onClick={() => setRoomToEdit(null)}>
+          <div className={`modal-content modal-content--detail${mRoomEdit.closing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "440px" }}>
             <div className="modal-header">
               <span className="modal-title">Editar Salón</span>
               <button className="modal-close" onClick={() => setRoomToEdit(null)}>
@@ -1328,7 +1349,7 @@ export default function ConfigTab() {
                   Se usa en el select de asignación y en la estadística por habitación.
                 </p>
               </div>
-              {editRoomName.trim().toUpperCase() !== roomToEdit && !!editRoomName.trim() && (
+              {editRoomName.trim().toUpperCase() !== mRoomEdit.data && !!editRoomName.trim() && (
                 <div className="config-room-rename-note">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: "1px" }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                   <span>Al cambiar el nombre, <strong>todos los registros</strong> de este campamento asignados a este salón se moverán al nuevo nombre. Es una acción atómica.</span>
@@ -1350,11 +1371,11 @@ export default function ConfigTab() {
 
       {/* Modal: Renombrar Refugio */}
       {refugioToRename && (
-        <div className="modal-overlay" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); }}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "450px", width: "90%" }}>
+        <div className={`modal-overlay${refugioRenameClosing ? " modal-overlay--closing" : ""}`} onClick={closeRefugioRename}>
+          <div className={`modal-content modal-content--detail${refugioRenameClosing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "450px", width: "90%" }}>
             <div className="modal-header">
               <span className="modal-title">Editar Campamento</span>
-              <button className="modal-close" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); }}>
+              <button className="modal-close" onClick={closeRefugioRename}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -1394,7 +1415,7 @@ export default function ConfigTab() {
             </div>
 
             <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
-              <button type="button" className="btn-secondary" onClick={() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); }}>
+              <button type="button" className="btn-secondary" onClick={closeRefugioRename}>
                 Cancelar
               </button>
               <button
@@ -1412,9 +1433,9 @@ export default function ConfigTab() {
       )}
 
       {/* Modal: Confirmar Eliminar Refugio */}
-      {refugioToDelete && (
-        <div className="modal-overlay" onClick={() => setRefugioToDelete(null)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+      {mRefugioDel.mounted && (
+        <div className={`modal-overlay${mRefugioDel.closing ? " modal-overlay--closing" : ""}`} onClick={() => setRefugioToDelete(null)}>
+          <div className={`modal-content modal-content--detail${mRefugioDel.closing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
             <div className="modal-header">
               <span className="modal-title" style={{ color: "#ef4444" }}>⚠️ Confirmar Eliminación</span>
               <button className="modal-close" onClick={() => setRefugioToDelete(null)}>
@@ -1435,7 +1456,7 @@ export default function ConfigTab() {
                 color: "#ef4444",
                 fontWeight: "700"
               }}>
-                {refugioToDelete.nombre}
+                {mRefugioDel.data?.nombre}
               </div>
               <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
                 Si el campamento tiene operadores o registros asociados, el sistema no permitirá eliminarlo.
@@ -1461,9 +1482,9 @@ export default function ConfigTab() {
       )}
 
       {/* Modal: Mi Cuenta (autoservicio — editar SÓLO el propio nombre/contraseña; nunca el correo) */}
-      {showAccount && (
-        <div className="modal-overlay" onClick={closeAccount}>
-          <div className="modal-content modal-content--detail" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px", width: "92%" }}>
+      {mAccount.mounted && (
+        <div className={`modal-overlay${mAccount.closing ? " modal-overlay--closing" : ""}`} onClick={closeAccount}>
+          <div className={`modal-content modal-content--detail${mAccount.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px", width: "92%" }}>
             <div className="modal-header">
               <span className="modal-title">Mi Cuenta</span>
               <button className="modal-close" onClick={closeAccount}>

@@ -8,6 +8,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { canManageUsers, isMaster, canManageTargetUser, hasRefugio, assignableRoles, ROLE_LABELS } from "@/lib/permissions";
+import { useAnimatedModal } from "@/components/useAnimatedModal";
 
 export default function UsuariosTab() {
   const { currentUser, isOnline, showToast } = useAppContext();
@@ -274,6 +275,9 @@ export default function UsuariosTab() {
       setDeletingUser(false);
     }
   };
+
+  // Animación de salida del modal de confirmar eliminación (conserva el usuario vía .data).
+  const mDelUser = useAnimatedModal(userToDelete);
 
   return (
     <>
@@ -762,9 +766,9 @@ export default function UsuariosTab() {
       )}
 
       {/* Modal: Confirmar Eliminar Operador */}
-      {userToDelete && (
-        <div className="modal-overlay" onClick={() => { if (!deletingUser) setUserToDelete(null); }}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+      {mDelUser.mounted && (
+        <div className={`modal-overlay${mDelUser.closing ? " modal-overlay--closing" : ""}`} onClick={() => { if (!deletingUser) setUserToDelete(null); }}>
+          <div className={`modal-content modal-content--detail${mDelUser.closing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "400px" }}>
             <div className="modal-header">
               <span className="modal-title" style={{ color: "var(--color-danger)" }}>⚠️ Confirmar Eliminación</span>
               <button className="modal-close" onClick={() => setUserToDelete(null)} disabled={deletingUser}>
@@ -785,7 +789,7 @@ export default function UsuariosTab() {
                 color: "var(--color-danger)",
                 fontWeight: "700"
               }}>
-                {userToDelete.nombre}
+                {mDelUser.data?.nombre}
               </div>
               <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
                 Esta acción no se puede deshacer.

@@ -15,6 +15,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { logActivity } from "@/lib/activityLog";
 import StyledSelect from "@/components/StyledSelect";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
+import { useAnimatedModal } from "@/components/useAnimatedModal";
 
 // ── Íconos (stroke 24×24) para las tarjetas y paneles del panel de estadísticas.
 // Mismo lenguaje visual que Balance de Salud (badge a color + acento por tarjeta).
@@ -555,6 +556,10 @@ Hora: *${hhStr}:${minStr}* ${ampm}
 
   const campamentoActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
 
+  // Animación de salida suave de los modales (se mantienen montados durante el cierre).
+  const mReport = useAnimatedModal(showReportModal);
+  const mShare = useAnimatedModal(showShareModal);
+
   return (
     <>
         {/* Nota: NO se agrega la clase `presentation-mode` en pantalla completa.
@@ -1007,9 +1012,9 @@ Hora: *${hhStr}:${minStr}* ${ampm}
         </div>
 
       {/* WhatsApp Report Generator Modal — elige tipo (resumen / detallado) */}
-      {showReportModal && (
-        <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
-          <div className="modal-content modal-content--detail pill-form" onClick={e => e.stopPropagation()} style={{ maxWidth: "600px", width: "95%" }}>
+      {mReport.mounted && (
+        <div className={`modal-overlay${mReport.closing ? " modal-overlay--closing" : ""}`} onClick={() => setShowReportModal(false)}>
+          <div className={`modal-content modal-content--detail pill-form${mReport.closing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "600px", width: "95%" }}>
             <div className="modal-header">
               <span className="modal-title" style={{ fontSize: "0.95rem", lineHeight: "1.2" }}>Reporte para WhatsApp</span>
               <button className="modal-close" onClick={() => setShowReportModal(false)}>✕</button>
@@ -1050,9 +1055,9 @@ Hora: *${hhStr}:${minStr}* ${ampm}
       )}
 
       {/* Compartir reporte por link público */}
-      {showShareModal && (
-        <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
-          <div className="modal-content pill-form" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "540px", width: "95%" }}>
+      {mShare.mounted && (
+        <div className={`modal-overlay${mShare.closing ? " modal-overlay--closing" : ""}`} onClick={() => setShowShareModal(false)}>
+          <div className={`modal-content pill-form${mShare.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "540px", width: "95%" }}>
             <div className="modal-header">
               <span className="modal-title">Compartir reporte por link</span>
               <button type="button" className="modal-close" onClick={() => setShowShareModal(false)}>&times;</button>

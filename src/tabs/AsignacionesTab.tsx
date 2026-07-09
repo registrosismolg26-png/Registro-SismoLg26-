@@ -29,6 +29,7 @@ import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
+import { useAnimatedModal } from "@/components/useAnimatedModal";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -61,7 +62,14 @@ export default function AsignacionesTab() {
   // Modal DEDICADO de asignar habitación (independiente del de ver/editar).
   const [assignRoomFor, setAssignRoomFor] = useState<any | null>(null);
   const openAssignRoom = (reg: any) => { setAssignRoomFor(reg); setAsignCuarto(reg.cuarto || ""); };
-  const closeAssignRoom = () => { setAssignRoomFor(null); setAsignCuarto(""); };
+  // Cierre con animación de salida: conserva el registro y el cuarto elegido durante la
+  // animación (no saltan) y limpia al terminar.
+  const [assignRoomClosing, setAssignRoomClosing] = useState(false);
+  const closeAssignRoom = () => {
+    if (assignRoomClosing) return;
+    setAssignRoomClosing(true);
+    setTimeout(() => { setAssignRoomFor(null); setAsignCuarto(""); setAssignRoomClosing(false); }, 220);
+  };
 
   // Con un modal abierto (detalle/edición o asignar habitación), el fondo NO hace scroll.
   useBodyScrollLock(!!selectedRegistro || !!assignRoomFor);
@@ -775,6 +783,8 @@ export default function AsignacionesTab() {
     `);
     printWindow.document.close();
   };
+
+  const mExport = useAnimatedModal(showExportModal); // animación de salida del modal de Excel
 
   // Guarda de tipos: este tab solo se monta autenticado (activeTab === "asignaciones").
   if (!currentUser) return null;
@@ -1806,8 +1816,8 @@ export default function AsignacionesTab() {
 
       {/* ── MODAL DEDICADO: asignar habitación (desde el botón de la tabla) ── */}
       {assignRoomFor && (
-        <div className="modal-overlay" onClick={closeAssignRoom}>
-          <div className="modal-content pill-form" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        <div className={`modal-overlay${assignRoomClosing ? " modal-overlay--closing" : ""}`} onClick={closeAssignRoom}>
+          <div className={`modal-content pill-form${assignRoomClosing ? " modal-content--closing" : ""}`} style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", minWidth: 0 }}>
                 <span className="modal-title" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
@@ -1849,9 +1859,9 @@ export default function AsignacionesTab() {
       )}
 
       {/* Modal: elegir qué Excel descargar (General / Familias / Individuos solos) */}
-      {showExportModal && (
-        <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
-          <div className="modal-content modal-content--detail" onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+      {mExport.mounted && (
+        <div className={`modal-overlay${mExport.closing ? " modal-overlay--closing" : ""}`} onClick={() => setShowExportModal(false)}>
+          <div className={`modal-content modal-content--detail${mExport.closing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
             <div className="modal-header">
               <span className="modal-title">Descargar Excel</span>
               <button className="modal-close" onClick={() => setShowExportModal(false)}>✕</button>

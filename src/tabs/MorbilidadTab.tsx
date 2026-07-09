@@ -16,6 +16,7 @@ import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
 import CatalogosMedicos from "@/components/CatalogosMedicos";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
+import { useAnimatedModal } from "@/components/useAnimatedModal";
 import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS, ZONAS_CUERPO, ESTADO_LESION_OPTS, ESTADO_LESION_LABELS } from "@/lib/constants";
 import type { Medicamento, Lesion, Patologia } from "@/types";
 
@@ -434,7 +435,9 @@ export default function MorbilidadTab() {
 
   // Modal "Nueva consulta": abrir (arranca en el buscador de cédula) / cerrar.
   const openCreate = () => { handleReset(); setShowCreate(true); };
-  const closeCreate = () => { setShowCreate(false); handleReset(); };
+  // No reseteamos aquí para que el formulario NO "salte" (se vacíe) durante la animación
+  // de cierre; el reset ya ocurre al ABRIR (openCreate → handleReset).
+  const closeCreate = () => { setShowCreate(false); };
   // "Ver historial": salta a la pestaña Historial Clínico y abre a ese paciente.
   const verHistorial = (cedula: string) => { setPendingHistorialCedula(String(cedula || "")); setActiveTab("historial"); };
 
@@ -637,7 +640,14 @@ export default function MorbilidadTab() {
       notas: c.data.notasDoctor || "",
     });
   };
-  const closeEdit = () => setEditForm(null);
+  // Cierre del modal de EDICIÓN con animación de salida: mantenemos `editForm` (el
+  // contenido) durante la animación y lo limpiamos al terminar, para que no salte.
+  const [editClosing, setEditClosing] = useState(false);
+  const closeEdit = () => {
+    if (editClosing) return;
+    setEditClosing(true);
+    setTimeout(() => { setEditForm(null); setEditClosing(false); }, 220);
+  };
 
   const efPatAdd = (key: "antPat" | "diagPat", id: string) => { if (id) setEditForm((f: any) => f && !f[key].includes(id) ? { ...f, [key]: [...f[key], id] } : f); };
   const efPatRemove = (key: "antPat" | "diagPat", id: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].filter((x: string) => x !== id) } : f);
@@ -948,6 +958,12 @@ export default function MorbilidadTab() {
     </div>
   );
 
+  // Animación de salida suave: crear / eliminar / Excel (el contenido no depende del
+  // estado que se limpia al cerrar, o se conserva vía `.data`).
+  const mCreate = useAnimatedModal(showCreate);
+  const mDelete = useAnimatedModal(deleteTarget);
+  const mExcel = useAnimatedModal(showExcelModal);
+
   return (
     <div className="tab-view morb">
       {/* 1. Header (estilo hero, coherente con Balance) */}
@@ -971,9 +987,9 @@ export default function MorbilidadTab() {
       </div>
 
       {/* 2. Modal "Nueva consulta": buscar cédula → formulario de carga */}
-      {showCreate && (
-        <div className="modal-overlay" onClick={closeCreate}>
-          <div className="modal-content modal-content--morb" onClick={(e) => e.stopPropagation()}>
+      {mCreate.mounted && (
+        <div className={`modal-overlay${mCreate.closing ? " modal-overlay--closing" : ""}`} onClick={closeCreate}>
+          <div className={`modal-content modal-content--morb${mCreate.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Nueva consulta médica</span>
               <button className="modal-close" onClick={closeCreate} aria-label="Cerrar">
@@ -1251,8 +1267,8 @@ export default function MorbilidadTab() {
           Básicos + Antecedentes | Diagnóstico en 2 columnas). Ancho en PC, pill,
           100% responsive. La edad se DERIVA de la fecha de nacimiento (no manual). */}
       {editForm && (
-        <div className="modal-overlay" onClick={closeEdit}>
-          <div className="modal-content modal-content--morb" onClick={(e) => e.stopPropagation()}>
+        <div className={`modal-overlay${editClosing ? " modal-overlay--closing" : ""}`} onClick={closeEdit}>
+          <div className={`modal-content modal-content--morb${editClosing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Editar consulta</span>
               <button className="modal-close" onClick={closeEdit} aria-label="Cerrar">
@@ -1358,16 +1374,16 @@ export default function MorbilidadTab() {
       )}
 
       {/* Modal: CONFIRMAR eliminación de consulta (solo AdminMedico + Master) */}
-      {deleteTarget && (
-        <div className="modal-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
-          <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "420px", width: "92%" }}>
+      {mDelete.mounted && (
+        <div className={`modal-overlay${mDelete.closing ? " modal-overlay--closing" : ""}`} onClick={() => !deleting && setDeleteTarget(null)}>
+          <div className={`modal-content confirm-modal${mDelete.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "420px", width: "92%" }}>
             <div className="confirm-modal__icon confirm-modal__icon--danger">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </div>
             <h3 className="confirm-modal__title">Eliminar consulta</h3>
             <p className="confirm-modal__text">
-              ¿Seguro que deseas eliminar la consulta de <strong>{deleteTarget.data?.nombreApellido || "este paciente"}</strong>
-              {deleteTarget.data?.cedula ? <> (C.I. {deleteTarget.data.cedula})</> : null}? Esta acción no se puede deshacer.
+              ¿Seguro que deseas eliminar la consulta de <strong>{mDelete.data?.data?.nombreApellido || "este paciente"}</strong>
+              {mDelete.data?.data?.cedula ? <> (C.I. {mDelete.data.data.cedula})</> : null}? Esta acción no se puede deshacer.
             </p>
             <div className="confirm-modal__actions">
               <button type="button" className="btn-secondary" style={{ margin: 0 }} onClick={() => setDeleteTarget(null)} disabled={deleting}>
@@ -1382,9 +1398,9 @@ export default function MorbilidadTab() {
       )}
 
       {/* Modal: elegir qué Excel descargar (General con membrete / formulario oficial SIS-02 por día) */}
-      {showExcelModal && (
-        <div className="modal-overlay" onClick={() => { if (!exporting && !exportingMinSalud) setShowExcelModal(false); }}>
-          <div className="modal-content modal-content--detail" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px" }}>
+      {mExcel.mounted && (
+        <div className={`modal-overlay${mExcel.closing ? " modal-overlay--closing" : ""}`} onClick={() => { if (!exporting && !exportingMinSalud) setShowExcelModal(false); }}>
+          <div className={`modal-content modal-content--detail${mExcel.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px" }}>
             <div className="modal-header">
               <span className="modal-title">Descargar Excel</span>
               <button className="modal-close" onClick={() => setShowExcelModal(false)}>✕</button>
