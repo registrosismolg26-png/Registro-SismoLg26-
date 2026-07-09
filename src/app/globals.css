@@ -3822,9 +3822,13 @@ h2.dashboard-section-title {
   background-color: var(--color-primary-light);
 }
 
-/* Scrollable wrapper so table doesn't overflow narrow screens */
+/* Contenedor de la tabla. Usa `overflow-x: clip` (NO `auto`): recorta cualquier desborde
+   horizontal respetando el border-radius, pero —a diferencia de `auto`— NO fuerza a
+   `overflow-y` a `auto`, así que la tabla NO tiene scroll VERTICAL interno; el scroll es
+   el de la página. En ≥1024px las columnas caben (clip no recorta nada); en <1024px la
+   tabla se vuelve tarjetas apiladas (sin desborde horizontal). */
 .registro-table-wrapper {
-  overflow-x: auto;
+  overflow-x: clip;
   border-radius: 18px;
   box-shadow: 0 4px 20px -4px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
 }
@@ -5573,7 +5577,9 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 @media (max-width: 520px) { .morb-actions { flex-direction: column-reverse; } .morb-btn { width: 100%; } }
 
 /* ── Historial ── */
-.morb-history__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 16px; }
+/* `clip` (no `auto`): evita el scroll VERTICAL interno espurio (auto en X fuerza auto en
+   Y). En ≥1024 las columnas caben; en <1024 se vuelve tarjetas (override a `visible` abajo). */
+.morb-history__scroll { overflow-x: clip; -webkit-overflow-scrolling: touch; border-radius: 16px; }
 .morb-hist__notas { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Botón "Editar" del historial de consultas (pill, icono + texto).
