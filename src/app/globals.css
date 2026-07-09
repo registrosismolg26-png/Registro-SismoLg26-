@@ -61,9 +61,16 @@
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-color) transparent;
+/* En Chrome/Chromium el scrollbar personalizado de arriba (::-webkit-scrollbar, SIN
+   flechas) manda; PERO fijar `scrollbar-width` hace que Chrome use el scrollbar NATIVO
+   (con flechas arriba/abajo en Windows) e ignore ese custom. Por eso `scrollbar-width`
+   se limita a navegadores SIN ::-webkit-scrollbar (Firefox), cuyos scrollbars ya son
+   finos y sin flechas. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+  }
 }
 
 :root {
@@ -2038,6 +2045,7 @@ html[data-theme="dark"] .spinner {
   padding: 1.1rem 2.3rem 1rem 1rem;
   background: radial-gradient(130% 150% at 0% 0%, var(--color-primary-light) 0%, transparent 60%);
   border-bottom: 1px solid var(--border-color);
+  transition: gap 0.28s cubic-bezier(0.4, 0, 0.2, 1), padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sb-seal { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 html[data-theme="dark"] .sb-seal { filter: brightness(1.08) drop-shadow(0 0 6px rgba(59, 130, 246, 0.2)); }
@@ -2060,21 +2068,28 @@ html[data-theme="dark"] .sb-org { color: #9db0d0; }
 .app-sidebar.is-collapsed .sb-collapse svg { transform: rotate(180deg); } /* chevron → derecha (expandir) */
 
 /* ── Navegación (scroll) ── */
-.sb-nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.85rem 0.7rem; }
+.sb-nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.85rem 0.7rem; }
 .sb-nav-btn {
   display: flex; align-items: center; gap: 0.8rem; width: 100%; height: var(--ctl-h, 46px); flex-shrink: 0;
   padding: 0 0.85rem; background: transparent; border: none; border-radius: 999px;
   color: var(--text-secondary); font-family: inherit; font-size: 0.85rem; font-weight: 700;
-  cursor: pointer; text-align: left; white-space: nowrap; transition: background 0.15s, color 0.15s;
+  cursor: pointer; text-align: left; white-space: nowrap;
+  transition: background 0.15s, color 0.15s, gap 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1), padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sb-nav-btn:hover:not(.active) { background: var(--color-primary-light); color: var(--color-primary); }
 .sb-nav-btn.active { background: var(--color-primary); color: #fff; box-shadow: 0 4px 14px rgba(30, 58, 138, 0.28); }
 .sb-nav-ico { flex-shrink: 0; display: inline-flex; }
 .sb-nav-ico svg { width: 18px; height: 18px; display: block; }
+/* Los rótulos NO desaparecen de golpe al colapsar: se encogen (max-width→0) y se
+   desvanecen (opacity→0). Un solo valor de max-width sirve para todos (todos < 200px). */
+.sb-nav-label, .sb-title-group, .sb-user__meta, .sb-logout__txt {
+  max-width: 200px; overflow: hidden;
+  transition: max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.16s ease;
+}
 
 /* ── Operación ── */
 .sb-ops { flex-shrink: 0; display: flex; flex-direction: column; gap: 0.55rem; padding: 0.8rem 0.7rem 0.9rem; border-top: 1px solid var(--border-color); background: var(--bg-primary); }
-.sb-conn { display: flex; align-items: center; gap: 0.5rem; padding: 0 0.75rem; height: 34px; border-radius: 999px; background: var(--bg-secondary); border: 1px solid var(--border-color); font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); }
+.sb-conn { display: flex; align-items: center; gap: 0.5rem; padding: 0 0.75rem; height: 34px; max-height: 40px; overflow: hidden; border-radius: 999px; background: var(--bg-secondary); border: 1px solid var(--border-color); font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.16s ease, padding 0.28s, border-width 0.28s, margin 0.28s; }
 .sb-conn__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .sb-conn.is-online .sb-conn__dot { background: var(--color-success); box-shadow: 0 0 0 3px var(--color-success-light); }
 .sb-conn.is-offline .sb-conn__dot { background: var(--color-danger); box-shadow: 0 0 0 3px var(--color-danger-light); }
@@ -2083,7 +2098,7 @@ html[data-theme="dark"] .sb-org { color: #9db0d0; }
 .sb-refugio { display: flex; align-items: center; gap: 0.45rem; color: var(--text-secondary); }
 .sb-refugio > svg { flex-shrink: 0; }
 .sb-refugio > div { min-width: 0; flex: 1; }
-.sb-user { display: flex; align-items: center; gap: 0.6rem; padding: 0.15rem; }
+.sb-user { display: flex; align-items: center; gap: 0.6rem; padding: 0.15rem; transition: gap 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
 .sb-avatar { position: relative; width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #fff; background: var(--color-muted-accent); }
 /* Punto de estado de conexión sobre el avatar — solo visible en colapsado (sustituye
    al chip de conexión, que ahí se oculta para ganar espacio). */
@@ -2107,7 +2122,8 @@ html[data-theme="dark"] .sb-org { color: #9db0d0; }
 .sb-icon-btn:hover { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
 /* "Salir" con un toque rojo YA en reposo (sin depender del hover) para que no se
    confunda con otros botones neutros del sidebar. El hover intensifica. */
-.sb-logout { width: auto; flex: 1; gap: 0.5rem; border-radius: 999px; padding: 0 0.9rem; color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 34%, var(--border-color)); }
+.sb-logout { width: auto; flex: 1; gap: 0.5rem; border-radius: 999px; padding: 0 0.9rem; color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 34%, var(--border-color)); transition: background 0.15s, color 0.15s, border-color 0.15s, width 0.28s cubic-bezier(0.4, 0, 0.2, 1), gap 0.28s, padding 0.28s; }
+.sb-logout__txt { white-space: nowrap; }
 .sb-logout:hover { border-color: var(--color-danger); background: var(--color-danger-light); color: var(--color-danger); }
 .sb-logout__txt { font-size: 0.82rem; font-weight: 700; }
 .sb-icon-btn.is-active { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
@@ -2118,26 +2134,29 @@ html[data-theme="dark"] .sb-org { color: #9db0d0; }
 .sb-refugio-pop__label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
 
 /* ── Estado COLAPSADO: solo iconos ── */
+/* Colapsado: los rótulos se ENCOGEN y se desvanecen (no `display:none` de golpe); los
+   `gap` van a 0 para que el icono quede centrado. La conexión colapsa su alto (pasa a
+   ser el punto sobre el avatar). */
 .app-sidebar.is-collapsed .sb-title-group,
 .app-sidebar.is-collapsed .sb-nav-label,
 .app-sidebar.is-collapsed .sb-user__meta,
-.app-sidebar.is-collapsed .sb-logout__txt,
-.app-sidebar.is-collapsed .sb-conn { display: none; } /* conexión → punto sobre el avatar (más espacio) */
-.app-sidebar.is-collapsed .sb-identity { justify-content: center; padding: 1.9rem 0.5rem 0.8rem; }
+.app-sidebar.is-collapsed .sb-logout__txt { max-width: 0; opacity: 0; }
+.app-sidebar.is-collapsed .sb-conn { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; border-width: 0; margin-bottom: -0.4rem; }
+.app-sidebar.is-collapsed .sb-identity { justify-content: center; gap: 0; padding: 1.9rem 0.5rem 0.8rem; }
 .app-sidebar.is-collapsed .sb-seal { width: 40px; height: 40px; }
 .app-sidebar.is-collapsed .sb-collapse { right: 50%; transform: translateX(50%); }
 .app-sidebar.is-collapsed .sb-nav { padding: 0.7rem 0.6rem; align-items: center; }
-.app-sidebar.is-collapsed .sb-nav-btn { justify-content: center; padding: 0; width: 44px; }
+.app-sidebar.is-collapsed .sb-nav-btn { justify-content: center; gap: 0; padding: 0; width: 44px; }
 .app-sidebar.is-collapsed .sb-ops { align-items: center; gap: 0.4rem; padding: 0.7rem 0.5rem 0.75rem; }
 .app-sidebar.is-collapsed .sb-refugio-mini { display: flex; justify-content: center; width: 100%; }
-.app-sidebar.is-collapsed .sb-user { justify-content: center; }
+.app-sidebar.is-collapsed .sb-user { justify-content: center; gap: 0; }
 .app-sidebar.is-collapsed .sb-avatar-status { display: block; }
 .app-sidebar.is-collapsed .sb-icon-btn { width: 38px; height: 38px; }
 .app-sidebar.is-collapsed .sb-actions { flex-direction: column; width: 100%; gap: 0.4rem; }
-.app-sidebar.is-collapsed .sb-logout { width: 38px; flex: none; padding: 0; border-radius: 50%; }
+.app-sidebar.is-collapsed .sb-logout { width: 38px; flex: none; gap: 0; padding: 0; border-radius: 50%; }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-sidebar, .sb-collapse svg { transition: none; }
+  .app-sidebar, .app-sidebar * { transition: none !important; }
 }
 
 /* Activación en ESCRITORIO: se muestra el sidebar, se ocultan header/nav clásicos y
@@ -5396,7 +5415,7 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .morb-dp__day.is-selected { background: var(--color-primary); color: #fff; font-weight: 700; }
 .morb-dp__day:disabled { opacity: 0.28; cursor: default; }
 .morb-dp__day--empty { visibility: hidden; }
-.morb-dp__years { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; max-height: 220px; overflow-y: auto; scrollbar-width: thin; }
+.morb-dp__years { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; max-height: 220px; overflow-y: auto; }
 .morb-dp__year {
   border: none; background: transparent; border-radius: 8px; cursor: pointer;
   padding: 0.5rem 0; font-size: 0.82rem; color: var(--text-primary); transition: background 0.12s ease, color 0.12s ease;
@@ -5438,7 +5457,6 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
   transform-origin: top center;
   animation: comboMenuIn 0.16s cubic-bezier(0.2, 0.8, 0.3, 1) both;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
 }
 .combo-menu__item {
   display: flex;
@@ -6028,7 +6046,7 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
   box-sizing: border-box;
 }
 .combo-panel__search input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-ring); }
-.combo-panel__list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0.35rem; scrollbar-width: thin; }
+.combo-panel__list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0.35rem; }
 
 /* Reset de <button> usado como fila del panel (para que el :hover del tema gane) */
 .combo-row-btn {
