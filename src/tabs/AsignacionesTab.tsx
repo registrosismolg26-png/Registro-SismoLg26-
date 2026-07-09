@@ -30,6 +30,7 @@ import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
+import Pagination from "@/components/Pagination";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -305,6 +306,20 @@ export default function AsignacionesTab() {
 
     return result;
   }, [registros, registroSearch, filterGenero, filterEdad, filterEdadMin, filterEdadMax, filterParroquia, filterEstadoFisico, filterCuarto, filterRetirado, filterDesde, filterHasta]);
+
+  // ── Paginación (del lado CLIENTE): pagina la lista ya filtrada, sin pedir páginas al
+  // servidor → búsqueda/filtros/paginación siguen 100% offline sobre todo el censo. ──
+  const [regPage, setRegPage] = useState(1);
+  const [regPageSize, setRegPageSize] = useState(20);
+  // Volver a la página 1 al cambiar búsqueda/filtros o el tamaño de página.
+  useEffect(() => { setRegPage(1); }, [registroSearch, filterGenero, filterEdad, filterEdadMin, filterEdadMax, filterParroquia, filterEstadoFisico, filterCuarto, filterRetirado, filterDesde, filterHasta, regPageSize]);
+  // Si la lista se encoge (p. ej. tras un sync) y la página actual queda fuera, ajustar.
+  useEffect(() => {
+    const tp = Math.max(1, Math.ceil(filteredRegistros.length / regPageSize));
+    if (regPage > tp) setRegPage(tp);
+  }, [filteredRegistros.length, regPageSize, regPage]);
+  const regOffset = (regPage - 1) * regPageSize;
+  const pagedRegistros = useMemo(() => filteredRegistros.slice(regOffset, regOffset + regPageSize), [filteredRegistros, regOffset, regPageSize]);
 
   const roomCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -1015,9 +1030,9 @@ export default function AsignacionesTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRegistros.map((reg, i) => (
+                  {pagedRegistros.map((reg, i) => (
                     <tr key={reg.id} className="reg-row-enter" style={{ animationDelay: `${Math.min(i, 10) * 25}ms` }}>
-                      <td className="col-num">{i + 1}</td>
+                      <td className="col-num">{regOffset + i + 1}</td>
                       <td className="col-nombre" data-label="Nombre">{reg.nombreApellido}</td>
                       <td className="col-cedula" data-label="Cédula">{reg.cedula}</td>
                       <td className="col-parroquia" data-label="Parroquia">{reg.parroquia}</td>
@@ -1078,6 +1093,16 @@ export default function AsignacionesTab() {
                 </tbody>
               </table>
             </div>
+          )}
+          {filteredRegistros.length > 0 && (
+            <Pagination
+              total={filteredRegistros.length}
+              page={regPage}
+              pageSize={regPageSize}
+              onPageChange={setRegPage}
+              onPageSizeChange={setRegPageSize}
+              itemLabel="registros"
+            />
           )}
         </div>
       </div>

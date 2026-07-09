@@ -17,6 +17,7 @@ import TimePicker from "@/components/TimePicker";
 import CatalogosMedicos from "@/components/CatalogosMedicos";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
+import Pagination from "@/components/Pagination";
 import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS, ZONAS_CUERPO, ESTADO_LESION_OPTS, ESTADO_LESION_LABELS } from "@/lib/constants";
 import type { Medicamento, Lesion, Patologia } from "@/types";
 
@@ -833,6 +834,19 @@ export default function MorbilidadTab() {
     if (fHasta) list = list.filter((c) => { const s = ymd(c.data?.fechaConsulta || c.createdAt); return !!s && s <= fHasta; });
     return list;
   }, [allConsultas, histSearch, fTipo, fDiag, fEstado, fDesde, fHasta]);
+
+  // Paginación (cliente) del historial de consultas — misma idea que en Registrados.
+  const [consPage, setConsPage] = useState(1);
+  const [consPageSize, setConsPageSize] = useState(20);
+  useEffect(() => { setConsPage(1); }, [histSearch, fTipo, fDiag, fEstado, fDesde, fHasta, consPageSize]);
+  useEffect(() => {
+    const tp = Math.max(1, Math.ceil(filteredConsultas.length / consPageSize));
+    if (consPage > tp) setConsPage(tp);
+  }, [filteredConsultas.length, consPageSize, consPage]);
+  const pagedConsultas = useMemo(() => {
+    const off = (consPage - 1) * consPageSize;
+    return filteredConsultas.slice(off, off + consPageSize);
+  }, [filteredConsultas, consPage, consPageSize]);
   const histFiltersActive = !!(fTipo || fDiag || fEstado || fDesde || fHasta);
 
   // Opciones para los buscadores (excluyendo lo ya elegido).
@@ -1202,7 +1216,7 @@ export default function MorbilidadTab() {
                 </tr>
               </thead>
               <tbody>
-                {filteredConsultas.map((c) => {
+                {pagedConsultas.map((c) => {
                   const dateStr = new Date(c.data.fechaConsulta || c.createdAt).toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
                   const diagPatIds: string[] = Array.isArray(c.data.diagnosticoPatologiaIds) ? c.data.diagnosticoPatologiaIds : [];
                   const diagMeds: Medicamento[] = Array.isArray(c.data.diagnosticoMedicamentoIds) ? c.data.diagnosticoMedicamentoIds : [];
@@ -1260,6 +1274,16 @@ export default function MorbilidadTab() {
               </tbody>
             </table>
           </div>
+        )}
+        {filteredConsultas.length > 0 && (
+          <Pagination
+            total={filteredConsultas.length}
+            page={consPage}
+            pageSize={consPageSize}
+            onPageChange={setConsPage}
+            onPageSizeChange={setConsPageSize}
+            itemLabel="consultas"
+          />
         )}
       </div>
 

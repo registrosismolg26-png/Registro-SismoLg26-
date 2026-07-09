@@ -3833,6 +3833,24 @@ h2.dashboard-section-title {
   box-shadow: 0 4px 20px -4px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
 }
 
+/* Paginación (componente Pagination): del lado cliente, pill, altura --ctl-h. */
+.pager { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem 1rem; margin-top: 1rem; }
+.pager__info { font-size: 0.8rem; color: var(--text-secondary); }
+.pager__info b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.pager__controls { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.pager__size { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; }
+.pager__size-select { display: inline-block; width: 88px; }
+.pager__nav { display: flex; align-items: center; gap: 0.4rem; }
+.pager__btn {
+  width: var(--ctl-h, 44px); height: var(--ctl-h, 44px); flex-shrink: 0; border-radius: 999px;
+  border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.pager__btn:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
+.pager__btn:disabled { opacity: 0.4; cursor: default; }
+.pager__page { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); min-width: 92px; text-align: center; font-variant-numeric: tabular-nums; }
+
 /* The table itself */
 .registro-table {
   width: 100%;
