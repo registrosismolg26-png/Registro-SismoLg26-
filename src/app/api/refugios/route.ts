@@ -105,7 +105,8 @@ export async function PUT(req: Request) {
       }),
       prisma.registro.updateMany({
         where: { refugio: oldName },
-        data: { refugio: nombre },
+        // syncedAt: refresca la marca de "última modificación" (validador ETag del censo).
+        data: { refugio: nombre, syncedAt: new Date() },
       }),
       prisma.customRoom.updateMany({
         where: { refugio: oldName },

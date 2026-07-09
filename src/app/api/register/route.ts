@@ -280,7 +280,9 @@ export async function POST(req: Request) {
       if (origenes.length) {
         await tx.registro.updateMany({
           where: { cedula: normalizedCedula, refugio: { not: refugioForCreate }, retirado: { not: "SI" } },
-          data: { retirado: "SI", retiradoRazon: `Trasladado al campamento ${refugioForCreate}`, retiradoFecha: new Date() },
+          // syncedAt: marca de "última modificación" para el validador ETag del censo
+          // (así el refugio de ORIGEN detecta el retiro por traslado y no sirve un 304 obsoleto).
+          data: { retirado: "SI", retiradoRazon: `Trasladado al campamento ${refugioForCreate}`, retiradoFecha: new Date(), syncedAt: new Date() },
         });
       }
       const nuevo = await tx.registro.create({

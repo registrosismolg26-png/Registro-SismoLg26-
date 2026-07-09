@@ -169,7 +169,8 @@ export async function PATCH(request: Request) {
       if (nextName !== oldName) {
         const upd = await tx.registro.updateMany({
           where: { refugio, cuarto: oldName },
-          data: { cuarto: nextName },
+          // syncedAt: marca de "última modificación" para el validador ETag del censo.
+          data: { cuarto: nextName, syncedAt: new Date() },
         });
         registrosMovidos = upd.count;
       }

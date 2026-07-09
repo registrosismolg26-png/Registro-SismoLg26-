@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, refugioScopeFor, canManageMorbilidad, canDeleteConsulta, isMaster, canActOnRefugio, hasRefugio } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
+import { consultasETag } from "@/lib/etag";
 
 export async function GET(req: Request) {
   try {
@@ -11,12 +12,23 @@ export async function GET(req: Request) {
     }
 
     const requested = new URL(req.url).searchParams.get("refugio");
+    const scope = refugioScopeFor(auth, requested);
+
+    // Sello barato (count + max(updatedAt)): 304 si nada cambió (ahorro de egress).
+    // Si `updatedAt` aún no está migrada en Supabase, consultasETag → null → 200 normal.
+    const etag = await consultasETag(scope);
+    if (etag && req.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": "no-store" } });
+    }
+
     const consultas = await prisma.consultaMedica.findMany({
-      where: refugioScopeFor(auth, requested),
+      where: scope,
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ success: true, consultas });
+    const headers: Record<string, string> = { "Cache-Control": "no-store" };
+    if (etag) headers.ETag = etag;
+    return NextResponse.json({ success: true, consultas }, { headers });
   } catch (error: any) {
     console.error("Error en GET /api/consultas:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
@@ -143,7 +155,13 @@ export async function POST(req: Request) {
           if (estadoFisicoClean && reg.estadoFisico !== estadoFisicoClean) regData.estadoFisico = estadoFisicoClean;
           if (embarazoClean && String(reg.genero || "").toUpperCase() === "FEMENINO" && reg.embarazo !== embarazoClean) regData.embarazo = embarazoClean;
           if (Object.keys(regData).length) {
-            await withAuditUser(auth.email, (tx) => tx.registro.update({ where: { id: reg.id }, data: regData }));
+            // syncedAt: la evolución clínica también "toca" el censo → refresca la marca
+            // de última modificación para que el validador ETag del censo no sirva un 304 obsoleto.
+            // undefined en un campo = Prisma no lo cambia (solo se envía el que realmente cambió).
+            await withAuditUser(auth.email, (tx) => tx.registro.update({
+              where: { id: reg.id },
+              data: { estadoFisico: regData.estadoFisico, embarazo: regData.embarazo, syncedAt: new Date() },
+            }));
           }
         }
       }

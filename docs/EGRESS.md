@@ -4,7 +4,8 @@
 > y plan de reducción, con lo ya aplicado y lo pendiente. Pensado para retomarlo en el
 > futuro sin rehacer el análisis. Complementa [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 >
-> **Última actualización:** 2026-07 · **Estado:** P3 aplicada; P4/P2/P6 + índices pendientes.
+> **Última actualización:** 2026-07 · **Estado:** P3 y P4 aplicadas + paginación 10/20/50/100;
+> P2/P6 + índices pendientes.
 
 ---
 
@@ -19,7 +20,9 @@
   1. **Modo Presentación/TV** refrescando stats cada 5s trayendo filas → podía ser cientos
      de MB/hora. **→ resuelto por P3.**
   2. **Re-descarga COMPLETA** de `/api/registros` y `/api/consultas` en cada login / cambio
-     de tab / cambio de campamento. **→ pendiente (P4 + P2 + P6).**
+     de tab / cambio de campamento. **→ resuelto por P4** (ETag/304: si nada cambió, la
+     re-visita a un tab/campamento baja de ~1,2 MB a **0 bytes de filas**). Queda P2 (columnas
+     ligeras) como recorte adicional del primer fetch.
 - **El padrón** (237k, ~18-19 MB) es el transfer más grande pero **una vez por dispositivo**
   (reanudable/incremental) y ya regional → no es prioridad.
 
@@ -113,18 +116,51 @@ bloqueado). Cómo validarlo tú mismo: ver §4.
 
 ---
 
-### ⏳ P4 — Caché HTTP condicional (ETag/304) + `Cache-Control` en catálogos  *(pendiente — recomendada la #1)*
+### ✅ P4 — Caché HTTP condicional (ETag/304) en las listas  *(APLICADA)*
 
-- **Qué:** en las listas (`/api/registros`, `/api/consultas`) calcular un ETag barato
-  (`count + max(updatedAt)`); si el cliente manda `If-None-Match` y no cambió nada → **304 sin
-  cuerpo** (0 egress). En catálogos (`patologias`, `medicamentos`, `tipos-lesion`, `refugios`)
-  agregar `Cache-Control: s-maxage=...` → servidos desde el CDN de Vercel, sin pegar a la BD
-  en repeticiones.
-- **Impacto:** elimina los refetch redundantes de ~1,2 MB (volver a un tab, revisitar un
-  campamento) → pasan a 0 bytes. **Es la de mejor relación esfuerzo/ahorro** para el problema
-  recurrente #1/#2.
-- **Esfuerzo:** bajo-medio · **Riesgo:** bajo. El ETag de listas necesita una columna
-  `updatedAt` (ver *Habilitadores*); los catálogos se pueden cachear ya.
+**Archivos:** [`src/lib/etag.ts`](../src/lib/etag.ts) (helper),
+[`registros/route.ts`](../src/app/api/registros/route.ts),
+[`consultas/route.ts`](../src/app/api/consultas/route.ts),
+[`page.tsx`](../src/app/page.tsx) (cliente) · **Migración BD:**
+[`prisma/etag_triggers.sql`](../prisma/etag_triggers.sql) (solo necesaria para consultas).
+
+**Qué se hizo (cómo):**
+
+1. **Sello barato por ámbito** = `(COUNT(*), MAX(fecha_de_modificación))` calculado con un
+   `COUNT` + `MAX` (un par de escalares, **no trae filas**):
+   - Registro → `MAX("syncedAt")` vía `prisma.registro.aggregate` (la columna ya existía).
+   - ConsultaMedica → `MAX("updatedAt")` vía **SQL crudo** (la columna no está en el modelo
+     Prisma) envuelto en try/catch: si aún no se corrió la migración, devuelve `null` → la
+     ruta responde **200 normal** (sin romperse).
+2. **304 en el backend:** cada `GET` compara el sello con el header `If-None-Match`; si coincide
+   responde **304 sin cuerpo** (`Cache-Control: no-store`). Si no, devuelve las filas con el
+   header `ETag`.
+3. **Cliente:** `fetchRegistros`/`fetchConsultas` guardan el último ETag **por ámbito** en un
+   `useRef` (en memoria) y lo reenvían en `If-None-Match`; ante un 304 conservan el cache/estado
+   ya cargado. El caso frecuente que ataca: **cambiar de pestaña** re-dispara el fetch de la
+   lista completa (`page.tsx` tab asignaciones/morbilidad) — con el ETag, si nada cambió, es un
+   304 de ~0 bytes.
+4. **Correctitud del sello (clave):** `syncedAt`/`updatedAt` se refrescan en **cada** mutación.
+   - En código: se agregó `syncedAt: new Date()` a las rutas del censo que no lo hacían
+     (traslado en `register`, renombrar refugio en `refugios`, renombrar salón en `cuartos`,
+     evolución clínica en `consultas`) → el ETag del censo funciona **sin depender del SQL**.
+   - En BD (respaldo sólido y futuro-a-prueba): triggers `BEFORE UPDATE` en
+     `prisma/etag_triggers.sql` que bumpean `syncedAt`/`updatedAt` en cualquier ruta, presente
+     o futura. Para **consultas** el trigger + la columna `updatedAt` son **obligatorios** para
+     que se active la optimización (antes de correrlos, consultas responde 200 normal).
+
+**Impacto:** las re-visitas a un tab/campamento sin cambios pasan de ~1,2 MB a **0 bytes de
+filas**. **Offline intacto:** el cache local (localStorage/IndexedDB) sigue igual; un 304 solo
+significa "conserva lo que ya tienes". El ETag es **en memoria** (no localStorage) y el servidor
+recalcula el sello por ámbito, así que un ETag ajeno nunca produce un 304 incorrecto.
+
+**Pendiente del dueño:** correr [`prisma/etag_triggers.sql`](../prisma/etag_triggers.sql) en
+Supabase (idempotente) para activar el 304 de **consultas**. El de **registros** ya funciona.
+
+> **Nota sobre catálogos + CDN:** la idea original de P4 incluía `Cache-Control: s-maxage` en
+> catálogos (`patologias`, `medicamentos`, `tipos-lesion`, `refugios`) para servirlos desde el
+> CDN de Vercel. Eso quedó **fuera de este cambio** (los catálogos ya tienen caché en
+> localStorage del lado cliente); se puede retomar como mejora aparte.
 
 ### ⏳ P2 — Columnas ligeras: lista vs. detalle  *(pendiente)*
 
@@ -148,15 +184,32 @@ bloqueado). Cómo validarlo tú mismo: ver §4.
   (577), cambio de campamento (1186), tras sync de consultas (948).
 - **Impacto:** menos llamadas; con P4 las repetidas ya serían 304. · **Esfuerzo:** bajo.
 
-### ⏳ Habilitadores  *(pendiente)*
+### ✅ P7 — Paginación de listas (10/20/50/100) del lado cliente  *(APLICADA)*
 
-- **Columna `updatedAt @updatedAt`** en `Registro` y `ConsultaMedica` (habilita el ETag de P4
-  y, si algún día se hace, el delta). Requiere SQL idempotente en Supabase
-  (ver [`ARCHITECTURE.md`](./ARCHITECTURE.md) / [[project_db_migrations]]).
+**Archivos:** [`src/components/Pagination.tsx`](../src/components/Pagination.tsx) (nuevo),
+`globals.css` (bloque `.pager`), [`AsignacionesTab.tsx`](../src/tabs/AsignacionesTab.tsx)
+(Registrados), [`MorbilidadTab.tsx`](../src/tabs/MorbilidadTab.tsx) (Historial).
+
+- **Qué:** las tablas de Registrados e Historial ahora paginan la lista **ya cargada y
+  filtrada** (no piden "páginas" al servidor). Selector 10/20/50/100 (todo pill) + navegación
+  anterior/siguiente. Al cambiar filtros/búsqueda se vuelve a la página 1.
+- **Por qué del lado cliente (no servidor):** mantener búsqueda + filtros + paginación 100%
+  **offline** sobre todo el censo. Paginar en el servidor rompería el offline (solo tendrías la
+  página vista). El egress lo ataca P4 (304); la paginación es **UX + render** (menos filas en
+  el DOM), no una palanca de egress por sí sola.
+
+### ⏳ Habilitadores
+
+- **Columna de "última modificación"** — ✅ **resuelto por P4** pero **sin `@updatedAt` de
+  Prisma**: `Registro` ya tenía `syncedAt`; a `ConsultaMedica` se le agregó `updatedAt` a
+  **nivel BD** (columna + trigger en [`prisma/etag_triggers.sql`](../prisma/etag_triggers.sql)),
+  **fuera del modelo Prisma** a propósito, para no romper las lecturas si la migración aún no se
+  corrió (Prisma solo selecciona columnas que conoce). Si algún día se hace el delta (P1), se
+  reutiliza esta misma marca.
 - **Índices** `Registro(refugio, createdAt)` y `ConsultaMedica(refugio, createdAt)` — hoy solo
   existe `@@index([cedula])` + `@@unique([cedula, refugio])` en
   [`prisma/schema.prisma`](../prisma/schema.prisma). Mejoran rendimiento y evitan seq-scans en
-  las consultas scoped por refugio.
+  las consultas scoped por refugio. *(pendiente)*
 
 ### ❌ P1 — Sincronización incremental (delta)  *(descartada por ahora)*
 
@@ -177,10 +230,12 @@ bloqueado). Cómo validarlo tú mismo: ver §4.
 
 ## 3. Orden recomendado
 
-1. **Fase 1 (bajo/medio riesgo, sin tocar operatividad offline):** P4 (ETag + `Cache-Control`
-   catálogos) → P2 (columnas ligeras) → P6 (menos refetch) → índices + `updatedAt`.
-   Empezar por **P4** (mejor esfuerzo/ahorro).
-2. **Fase 2 (si el censo crece mucho):** reconsiderar P1 (delta).
+1. ✅ **Hecho:** P3 (stats SQL) → P4 (ETag/304) → P7 (paginación).
+2. **Fase 1 restante (bajo/medio riesgo, sin tocar operatividad offline):** P2 (columnas
+   ligeras) → P6 (menos refetch; con P4 las repetidas ya son 304) → índices + `Cache-Control`
+   en catálogos.
+3. **Fase 2 (si el censo crece mucho):** reconsiderar P1 (delta), reutilizando la marca de
+   última modificación de P4.
 
 ---
 
@@ -205,3 +260,4 @@ las filas. *(El asistente tiene la plantilla del script si se necesita regenerar
 | Fecha | Commit | Cambio |
 |-------|--------|--------|
 | 2026-07 | `9b8653f` | **P3** aplicada: `stats.ts` 100% SQL (núcleos/individuos por `GROUP BY`, top-patologías por `jsonb_array_elements_text`) + intervalo TV 5s→30s. Sin migración de BD. |
+| 2026-07 | *(este)* | **P4** (ETag/304) + **P7** (paginación 10/20/50/100). ETag `(count, max(syncedAt/updatedAt))` en `/api/registros` y `/api/consultas`, 304 sin cuerpo; cliente reenvía `If-None-Match` por ámbito (en memoria). `syncedAt` bumpeado en las 4 rutas del censo que faltaban + triggers `BEFORE UPDATE` de respaldo. Consultas requiere correr `prisma/etag_triggers.sql` (añade `updatedAt` + trigger); registros ya funciona. Paginación cliente en Registrados e Historial (preserva offline). |

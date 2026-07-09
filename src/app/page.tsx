@@ -269,6 +269,15 @@ export default function Home() {
   // Stats cache guard: avoid redundant fetches if last one was < 30s ago
   const lastStatsFetchRef = useRef<number>(0);
 
+  // ETag por ámbito (refugio) para censo/consultas: al re-pedir la lista (p. ej. al
+  // cambiar de pestaña) reenviamos el último ETag en If-None-Match; si nada cambió el
+  // servidor responde 304 y NO re-descargamos toda la lista (ahorro de egress). En
+  // memoria (no localStorage): el servidor recalcula el sello por ámbito, así que un
+  // ETag ajeno nunca produce un 304 incorrecto. No afecta el offline (el cache local
+  // sigue igual; el 304 simplemente conserva lo ya mostrado).
+  const registrosEtagRef = useRef<Record<string, string>>({});
+  const consultasEtagRef = useRef<Record<string, string>>({});
+
   // Online event debounce: wait 1s for stable connection before syncing (avoids 2G flicker double-sync)
   const onlineDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -776,9 +785,15 @@ export default function Home() {
     if (!navigator.onLine) return;
     setLoadingConsultas(true);
     try {
+      const scopeKey = effectiveRefugioRef.current || "__all__";
       const q = effectiveRefugioRef.current ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}` : "";
-      const res = await apiFetch(`/api/consultas${q}`);
+      const prevEtag = consultasEtagRef.current[scopeKey];
+      const res = await apiFetch(`/api/consultas${q}`, prevEtag ? { headers: { "If-None-Match": prevEtag } } : {});
+      // 304 = nada cambió en el servidor → conservamos lo ya cargado (cache/estado actual).
+      if (res.status === 304) return;
       if (res.ok) {
+        const etag = res.headers.get("ETag");
+        if (etag) consultasEtagRef.current[scopeKey] = etag;
         const data = await res.json();
         if (data.success && data.consultas) {
           setConsultas(data.consultas);
@@ -1152,12 +1167,18 @@ export default function Home() {
 
     setLoadingRegistros(true);
     try {
+      const scopeKey = effectiveRefugioRef.current || "__all__";
       const q = effectiveRefugioRef.current ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}` : "";
-      const res = await apiFetch(`/api/registros${q}`);
+      const prevEtag = registrosEtagRef.current[scopeKey];
+      const res = await apiFetch(`/api/registros${q}`, prevEtag ? { headers: { "If-None-Match": prevEtag } } : {});
+      // 304 = sin cambios en el servidor → conservamos el cache/estado ya cargado.
+      if (res.status === 304) return;
       if (!res.ok) {
         const body = await res.json().catch(() => ({} as any));
         throw new Error(`HTTP ${res.status} — ${body?.details || body?.error || "sin detalle"}`);
       }
+      const etag = res.headers.get("ETag");
+      if (etag) registrosEtagRef.current[scopeKey] = etag;
       const data = await res.json();
       const newRegs = data.registros ?? [];
       setRegistros(newRegs);
