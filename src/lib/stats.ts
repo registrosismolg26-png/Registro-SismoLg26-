@@ -120,26 +120,34 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
   const total = Number(aggregates?.total ?? 0);
   const totalRetirados = Number(aggregates?.total_retirados ?? 0);
 
-  // Núcleos familiares (misma lógica que /api/stats).
-  const presentRegistros = await prisma.registro.findMany({
-    where: { retirado: "NO", ...refugioFilter },
-    select: { cedula: true, jefeFamilia: true, cedulaJefeFamilia: true, patologiaIds: true },
-  });
-  const familyGroups: Record<string, number> = {};
-  const patCount = new Map<string, number>(); // patologías del censo por ID-nativo
-  presentRegistros.forEach((r: any) => {
-    const familyId = r.jefeFamilia === "SI" ? r.cedula : r.cedulaJefeFamilia || r.cedula;
-    familyGroups[familyId] = (familyGroups[familyId] || 0) + 1;
-    (Array.isArray(r.patologiaIds) ? r.patologiaIds : []).forEach((id: any) => {
-      if (typeof id === "string" && id) patCount.set(id, (patCount.get(id) || 0) + 1);
-    });
-  });
-  let nucleosFamiliares = 0;
-  let individuosSolos = 0;
-  Object.values(familyGroups).forEach((size) => {
-    if (size >= 2) nucleosFamiliares++;
-    else individuosSolos++;
-  });
+  // Filtro "activos" (retirado='NO' + refugio) para las consultas SQL de familias y
+  // patologías. ANTES se traían TODAS las filas activas al servidor para contarlas en
+  // JS; ahora se cuenta EN SQL (egress constante de unos KB, no proporcional al censo).
+  const activeSql = scopeRefugio
+    ? Prisma.sql`WHERE retirado = 'NO' AND refugio = ${scopeRefugio}`
+    : Prisma.sql`WHERE retirado = 'NO'`;
+
+  // Núcleos familiares e individuos solos, EN SQL — misma lógica que el JS anterior:
+  //   familyId = jefe → su cédula; integrante → cédula del jefe (o la propia si no tiene).
+  //   grupo de 2+ = núcleo familiar; grupo de 1 = individuo solo.
+  // NULLIF("cedulaJefeFamilia", '') replica el `cedulaJefeFamilia || cedula` de JS
+  // (trata la cadena vacía como ausente).
+  const [fam] = await prisma.$queryRaw<any[]>`
+    SELECT
+      COUNT(*) FILTER (WHERE cnt >= 2)::int AS nucleos,
+      COUNT(*) FILTER (WHERE cnt =  1)::int AS individuos
+    FROM (
+      SELECT
+        CASE WHEN "jefeFamilia" = 'SI' THEN cedula
+             ELSE COALESCE(NULLIF("cedulaJefeFamilia", ''), cedula) END AS family_id,
+        COUNT(*) AS cnt
+      FROM "Registro"
+      ${activeSql}
+      GROUP BY 1
+    ) g
+  `;
+  const nucleosFamiliares = Number(fam?.nucleos ?? 0);
+  const individuosSolos = Number(fam?.individuos ?? 0);
 
   if (total === 0) return { ...emptyStats(totalRetirados), hogarSolidario: Number(aggregates?.hogar_solidario ?? 0), nucleosFamiliares: 0, individuosSolos: 0 };
 
@@ -151,16 +159,33 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     prisma.registro.groupBy({ where: activeFilter, by: ["patologia"], _count: { _all: true } }),
   ]);
 
-  // Nombres de las patologías más frecuentes del censo (top 8 por ID-nativo).
-  const topIds = [...patCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  // Top-8 patologías del censo (por ID-nativo dentro del JSON `patologiaIds`), EN SQL:
+  // se "desanidan" los ids del array jsonb y se cuentan. `jsonb_typeof = 'array'` replica
+  // el `Array.isArray(...) ? ... : []` de JS (si el valor no es array → se ignora); y
+  // `elem <> ''` replica el `typeof id === 'string' && id` (ignora ids vacíos).
+  const patRows = await prisma.$queryRaw<any[]>`
+    SELECT elem AS pat_id, COUNT(*)::int AS cnt
+    FROM "Registro" r
+    CROSS JOIN LATERAL jsonb_array_elements_text(
+      CASE WHEN jsonb_typeof(r."patologiaIds"::jsonb) = 'array'
+           THEN r."patologiaIds"::jsonb ELSE '[]'::jsonb END
+    ) AS t(elem)
+    ${scopeRefugio
+      ? Prisma.sql`WHERE r.retirado = 'NO' AND r.refugio = ${scopeRefugio} AND elem <> ''`
+      : Prisma.sql`WHERE r.retirado = 'NO' AND elem <> ''`}
+    GROUP BY elem
+    ORDER BY cnt DESC, elem ASC
+    LIMIT 8
+  `;
   let topPatologias: { name: string; count: number }[] = [];
-  if (topIds.length) {
+  if (patRows.length) {
+    const ids = patRows.map((p) => String(p.pat_id));
     const pats = await prisma.patologia.findMany({
-      where: { id: { in: topIds.map(([id]) => id) } },
+      where: { id: { in: ids } },
       select: { id: true, nombre: true },
     });
     const nameById = new Map(pats.map((p) => [p.id, p.nombre]));
-    topPatologias = topIds.map(([id, count]) => ({ name: nameById.get(id) || "Patología", count }));
+    topPatologias = patRows.map((p) => ({ name: nameById.get(String(p.pat_id)) || "Patología", count: Number(p.cnt) }));
   }
 
   const n = (v: unknown) => Number(v ?? 0);

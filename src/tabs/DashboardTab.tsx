@@ -170,7 +170,9 @@ export default function DashboardTab() {
     };
   }, []);
 
-  // Automatically refresh stats every 5 seconds when in fullscreen presentation mode
+  // Refresco automático de stats en modo presentación (pantalla completa). Cada 30s:
+  // suficiente para una TV de sala en vivo, y ahora que /api/stats es 100% agregado en
+  // SQL (unos KB constantes), este intervalo casi no consume egress.
   useEffect(() => {
     if (isFullscreen && isOnline) {
       const interval = setInterval(() => {
@@ -178,7 +180,7 @@ export default function DashboardTab() {
         Promise.resolve(fetchStats(true, true)).finally(() => {
           setIsUpdatingPresentation(false);
         });
-      }, 5000);
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, [isFullscreen, isOnline]);
