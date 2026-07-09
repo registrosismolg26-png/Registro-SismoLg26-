@@ -3834,7 +3834,15 @@ h2.dashboard-section-title {
 }
 
 /* Paginación (componente Pagination): del lado cliente, pill, altura --ctl-h. */
-.pager { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem 1rem; margin-top: 1rem; }
+.pager {
+  /* El StyledSelect del tamaño de página es un .morb-control: toma su alto de
+     var(--morb-h) y su radio de var(--morb-ctl-radius), variables que SOLO existen
+     dentro de .morb/.censo-form/.pill-form. Como el pager vive fuera de esos scopes,
+     las declaramos aquí para que el select quede full pill (44px) igual que los
+     botones de navegación. */
+  --ctl-h: 44px; --morb-h: 44px; --morb-h-sm: 44px; --morb-ctl-radius: 999px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem 1rem; margin-top: 1rem;
+}
 .pager__info { font-size: 0.8rem; color: var(--text-secondary); }
 .pager__info b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .pager__controls { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
