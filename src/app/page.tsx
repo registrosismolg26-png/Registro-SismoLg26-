@@ -25,6 +25,7 @@ import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbi
 import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido, TipoLesion } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
+import AppSidebar from "@/components/AppSidebar";
 import LoginForm from "@/components/LoginForm";
 import UpdateBanner from "@/components/UpdateBanner";
 import { AppContext, type AppContextValue } from "@/context/AppContext";
@@ -1252,8 +1253,10 @@ export default function Home() {
   return (
     <AppContext.Provider value={appCtx}>
     <div className="container">
-      {/* Cabecera institucional + navegación (dentro del Provider) */}
+      {/* Cabecera institucional + navegación (dentro del Provider).
+          En escritorio (≥1024px) el CSS oculta AppHeader y muestra el sidebar flotante. */}
       <AppHeader />
+      <AppSidebar />
 
       {/* TAB 1: FORM VIEW (CENSO) — no visible para médicos ni Visualizador */}
       {activeTab === "censo" && canRegister(currentUser.role) && <CensoTab />}
