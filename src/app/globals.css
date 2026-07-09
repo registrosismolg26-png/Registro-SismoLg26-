@@ -2080,7 +2080,12 @@ html[data-theme="dark"] .sb-seal { filter: brightness(1.08) drop-shadow(0 0 6px 
 .sb-refugio > svg { flex-shrink: 0; }
 .sb-refugio > div { min-width: 0; flex: 1; }
 .sb-user { display: flex; align-items: center; gap: 0.6rem; padding: 0.15rem; }
-.sb-avatar { width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #fff; background: var(--color-muted-accent); }
+.sb-avatar { position: relative; width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #fff; background: var(--color-muted-accent); }
+/* Punto de estado de conexión sobre el avatar — solo visible en colapsado (sustituye
+   al chip de conexión, que ahí se oculta para ganar espacio). */
+.sb-avatar-status { display: none; position: absolute; bottom: -1px; right: -1px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--bg-primary); }
+.sb-avatar-status.is-online { background: var(--color-success); }
+.sb-avatar-status.is-offline { background: var(--color-danger); }
 .sb-avatar--master { background: var(--color-primary); }
 .sb-avatar--admin { background: var(--color-teal); }
 .sb-avatar--medico { background: var(--color-cyan); }
@@ -2099,22 +2104,31 @@ html[data-theme="dark"] .sb-seal { filter: brightness(1.08) drop-shadow(0 0 6px 
 .sb-logout { width: auto; flex: 1; gap: 0.5rem; border-radius: 999px; padding: 0 0.9rem; }
 .sb-logout:hover { border-color: var(--color-danger); background: var(--color-danger-light); color: var(--color-danger); }
 .sb-logout__txt { font-size: 0.82rem; font-weight: 700; }
+.sb-icon-btn.is-active { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
+
+/* Popover del campamento (colapsado): flota a la derecha del rail, vía portal a body. */
+.sb-refugio-mini { position: relative; }
+.sb-refugio-pop { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 18px 42px -18px rgba(15, 23, 42, 0.45), 0 2px 10px rgba(15, 23, 42, 0.14); padding: 0.7rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.sb-refugio-pop__label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
 
 /* ── Estado COLAPSADO: solo iconos ── */
 .app-sidebar.is-collapsed .sb-title-group,
 .app-sidebar.is-collapsed .sb-nav-label,
-.app-sidebar.is-collapsed .sb-conn__txt,
 .app-sidebar.is-collapsed .sb-user__meta,
-.app-sidebar.is-collapsed .sb-logout__txt { display: none; }
-.app-sidebar.is-collapsed .sb-identity { justify-content: center; padding: 2.1rem 0.5rem 1rem; }
+.app-sidebar.is-collapsed .sb-logout__txt,
+.app-sidebar.is-collapsed .sb-conn { display: none; } /* conexión → punto sobre el avatar (más espacio) */
+.app-sidebar.is-collapsed .sb-identity { justify-content: center; padding: 1.9rem 0.5rem 0.8rem; }
+.app-sidebar.is-collapsed .sb-seal { width: 40px; height: 40px; }
 .app-sidebar.is-collapsed .sb-collapse { right: 50%; transform: translateX(50%); }
-.app-sidebar.is-collapsed .sb-nav { padding: 0.85rem 0.6rem; align-items: center; }
-.app-sidebar.is-collapsed .sb-nav-btn { justify-content: center; padding: 0; width: 46px; }
-.app-sidebar.is-collapsed .sb-ops { align-items: center; padding: 0.8rem 0.5rem 0.9rem; }
-.app-sidebar.is-collapsed .sb-conn { width: 40px; height: 40px; padding: 0; justify-content: center; border-radius: 50%; }
+.app-sidebar.is-collapsed .sb-nav { padding: 0.7rem 0.6rem; align-items: center; }
+.app-sidebar.is-collapsed .sb-nav-btn { justify-content: center; padding: 0; width: 44px; }
+.app-sidebar.is-collapsed .sb-ops { align-items: center; gap: 0.4rem; padding: 0.7rem 0.5rem 0.75rem; }
+.app-sidebar.is-collapsed .sb-refugio-mini { display: flex; justify-content: center; width: 100%; }
 .app-sidebar.is-collapsed .sb-user { justify-content: center; }
-.app-sidebar.is-collapsed .sb-actions { flex-direction: column; width: 100%; }
-.app-sidebar.is-collapsed .sb-logout { width: 40px; flex: none; padding: 0; border-radius: 50%; }
+.app-sidebar.is-collapsed .sb-avatar-status { display: block; }
+.app-sidebar.is-collapsed .sb-icon-btn { width: 38px; height: 38px; }
+.app-sidebar.is-collapsed .sb-actions { flex-direction: column; width: 100%; gap: 0.4rem; }
+.app-sidebar.is-collapsed .sb-logout { width: 38px; flex: none; padding: 0; border-radius: 50%; }
 
 @media (prefers-reduced-motion: reduce) {
   .app-sidebar, .sb-collapse svg { transition: none; }

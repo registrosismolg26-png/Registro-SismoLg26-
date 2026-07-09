@@ -10,7 +10,8 @@
 // El estado colapsado se persiste y se refleja en <html data-sidebar> para que el
 // contenido (padding del body, solo en CSS ≥1024px) se recorra en consecuencia.
 
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAppContext } from "@/context/AppContext";
 import { isMaster, isMedico } from "@/lib/permissions";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
@@ -24,6 +25,32 @@ export default function AppSidebar() {
   } = useAppContext();
 
   const [collapsed, setCollapsed] = useState(false);
+
+  // Popover del selector de campamento cuando el sidebar está COLAPSADO: permite
+  // cambiar de campamento SIN expandir. Flota a la derecha del rail (portal a body,
+  // para escapar el overflow:hidden del sidebar).
+  const [refPop, setRefPop] = useState(false);
+  const [popPos, setPopPos] = useState<{ left: number; bottom: number } | null>(null);
+  const refBtnRef = useRef<HTMLButtonElement>(null);
+  const openRefPop = () => {
+    const r = refBtnRef.current?.getBoundingClientRect();
+    if (r) setPopPos({ left: r.right + 10, bottom: window.innerHeight - r.bottom });
+    setRefPop(true);
+  };
+  useEffect(() => {
+    if (!refPop) return;
+    const onDoc = (e: MouseEvent) => {
+      // No cerrar si el clic cae en el popover, el botón, o el menú del propio select.
+      if ((e.target as HTMLElement).closest?.(".sb-refugio-pop, .sb-refugio-mini, .combo-panel")) return;
+      setRefPop(false);
+    };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setRefPop(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onEsc);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onEsc); };
+  }, [refPop]);
+  // Al expandir, cerrar el popover (ya se ve el selector completo).
+  useEffect(() => { if (!collapsed) setRefPop(false); }, [collapsed]);
 
   // Cargar preferencia persistida (una vez).
   useEffect(() => {
@@ -123,12 +150,34 @@ export default function AppSidebar() {
           </span>
         </div>
 
-        {/* Selector de campamento (solo Master). Colapsado → icono que expande. */}
+        {/* Selector de campamento (solo Master). Colapsado → popover flotante (cambiar sin expandir). */}
         {isMaster(role) && refugiosList.length > 0 && (
           collapsed ? (
-            <button type="button" className="sb-icon-btn" title="Campamento en vista — expandir para cambiar" onClick={() => setCollapsed(false)}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-            </button>
+            <div className="sb-refugio-mini">
+              <button
+                ref={refBtnRef}
+                type="button"
+                className={`sb-icon-btn${refPop ? " is-active" : ""}`}
+                title="Cambiar campamento en vista"
+                aria-label="Cambiar campamento en vista"
+                onClick={() => (refPop ? setRefPop(false) : openRefPop())}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+              </button>
+              {refPop && popPos && typeof document !== "undefined" && createPortal(
+                <div className="sb-refugio-pop pill-form" style={{ position: "fixed", left: popPos.left, bottom: popPos.bottom, width: 244, zIndex: 4000 }}>
+                  <span className="sb-refugio-pop__label">Campamento en vista</span>
+                  <SearchableSingleSelect
+                    value={viewRefugio}
+                    onChange={(v) => { setViewRefugio(v); setRefPop(false); }}
+                    options={refugiosList.map((rf) => ({ value: rf.nombre, label: rf.nombre }))}
+                    ariaLabel="Campamento activo"
+                    placeholder="Campamento…"
+                  />
+                </div>,
+                document.body
+              )}
+            </div>
           ) : (
             <div className="sb-refugio pill-form" title="Campamento que estás viendo en todo el sistema">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
@@ -143,9 +192,12 @@ export default function AppSidebar() {
           )
         )}
 
-        {/* Usuario */}
+        {/* Usuario. En colapsado, el estado de conexión se muestra como punto sobre el avatar. */}
         <div className="sb-user">
-          <span className={`sb-avatar sb-avatar--${roleClass}`} aria-hidden>{initials}</span>
+          <span className={`sb-avatar sb-avatar--${roleClass}`} aria-hidden>
+            {initials}
+            <span className={`sb-avatar-status ${isOnline ? "is-online" : "is-offline"}`} />
+          </span>
           <span className="sb-user__meta">
             <span className="sb-user__name">{currentUser.nombre}</span>
             <span className={`sb-role sb-role--${roleClass}`}>{roleLabel}</span>
