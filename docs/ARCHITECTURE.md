@@ -2,6 +2,8 @@
 
 Guía de arquitectura, patrones y convenciones para trabajar en este repo sin explorarlo entero. Pensada para agentes de IA (Claude Code, Gemini Antigravity) y humanos nuevos. **Léela antes de escribir o modificar código.**
 
+> 📉 **Costos de BD:** el análisis de **egress de Supabase** (dónde se consume, propuestas y lo ya aplicado) vive en [`docs/EGRESS.md`](./EGRESS.md). Consúltalo antes de tocar consultas/fetches de listas o estadísticas.
+
 ## Qué es
 
 PWA **offline-first** de censo de afectados por sismo, para la **Gobernación del Estado La Guaira**. Operadores registran personas en **refugios**, con o sin señal (zona de desastre). Multi-refugio con permisos por rol.
