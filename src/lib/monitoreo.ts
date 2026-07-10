@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import type { MonitoreoRow } from "@/types";
 
 const empty = (refugio: string): MonitoreoRow => ({
-  refugio, activos: 0, presentes: 0, intermitentes: 0, retirados: 0,
+  refugio, registrados: 0, presentes: 0, intermitentes: 0, retirados: 0,
   nucleos: 0, individuos: 0, asignados: 0, capacidad: 0,
   lesionados: 0, conPatologia: 0, embarazadas: 0, consultas: 0, fichas: 0,
 });
@@ -20,13 +20,13 @@ export async function computeMonitoreo(): Promise<{ campamentos: MonitoreoRow[];
   // Agregados del censo por refugio (una sola pasada).
   const reg = await prisma.$queryRaw<any[]>`
     SELECT refugio,
-      COUNT(*) FILTER (WHERE retirado <> 'SI')::int                                          AS activos,
-      COUNT(*) FILTER (WHERE retirado <> 'SI' AND intermitente = 'SI')::int                  AS intermitentes,
+      COUNT(*) FILTER (WHERE retirado = 'NO')::int                                          AS activos,
+      COUNT(*) FILTER (WHERE retirado = 'NO' AND intermitente = 'SI')::int                  AS intermitentes,
       COUNT(*) FILTER (WHERE retirado = 'SI')::int                                           AS retirados,
-      COUNT(*) FILTER (WHERE retirado <> 'SI' AND "estadoFisico" = 'LESIONADO')::int         AS lesionados,
-      COUNT(*) FILTER (WHERE retirado <> 'SI' AND patologia = 'SI')::int                     AS con_patologia,
-      COUNT(*) FILTER (WHERE retirado <> 'SI' AND embarazo = 'SI')::int                      AS embarazadas,
-      COUNT(*) FILTER (WHERE retirado <> 'SI' AND cuarto IS NOT NULL AND cuarto <> '')::int  AS asignados
+      COUNT(*) FILTER (WHERE retirado = 'NO' AND "estadoFisico" = 'LESIONADO')::int         AS lesionados,
+      COUNT(*) FILTER (WHERE retirado = 'NO' AND patologia = 'SI')::int                     AS con_patologia,
+      COUNT(*) FILTER (WHERE retirado = 'NO' AND embarazo = 'SI')::int                      AS embarazadas,
+      COUNT(*) FILTER (WHERE retirado = 'NO' AND cuarto IS NOT NULL)::int                   AS asignados
     FROM "Registro" GROUP BY refugio
   `;
 
@@ -40,7 +40,7 @@ export async function computeMonitoreo(): Promise<{ campamentos: MonitoreoRow[];
         CASE WHEN "jefeFamilia" = 'SI' THEN cedula
              ELSE COALESCE(NULLIF("cedulaJefeFamilia", ''), cedula) END AS family_id,
         COUNT(*) AS cnt
-      FROM "Registro" WHERE retirado <> 'SI'
+      FROM "Registro" WHERE retirado = 'NO'
       GROUP BY refugio, family_id
     ) g GROUP BY refugio
   `;
@@ -57,10 +57,13 @@ export async function computeMonitoreo(): Promise<{ campamentos: MonitoreoRow[];
   for (const rr of refugios) ensure(rr.nombre);
   for (const row of reg) {
     const m = ensure(row.refugio);
-    m.activos = Number(row.activos); m.intermitentes = Number(row.intermitentes); m.retirados = Number(row.retirados);
+    const activos = Number(row.activos);   // retirado = NO (= "Presentes" del Dashboard, incluye intermitentes)
+    m.presentes = activos;
+    m.retirados = Number(row.retirados);
+    m.registrados = activos + m.retirados;  // = "Total Registrados" (activos + retirados)
+    m.intermitentes = Number(row.intermitentes);
     m.lesionados = Number(row.lesionados); m.conPatologia = Number(row.con_patologia); m.embarazadas = Number(row.embarazadas);
     m.asignados = Number(row.asignados);
-    m.presentes = m.activos - m.intermitentes;
   }
   for (const row of fam) { const m = ensure(row.refugio); m.nucleos = Number(row.nucleos); m.individuos = Number(row.individuos); }
   for (const row of cons) { const m = ensure(row.refugio); m.consultas = Number(row.consultas); }

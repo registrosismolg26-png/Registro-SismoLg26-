@@ -62,9 +62,12 @@ export interface CurrentUser {
 export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad" | "balance" | "historial" | "caracterizacion" | "monitoreo";
 
 // Fila de monitoreo por campamento (números generales, todo agregado en SQL → sin PII).
+// Definiciones ALINEADAS con Estadísticas (src/lib/stats.ts + DashboardTab):
+//   registrados = activos + retirados (todos, = "Total Registrados")
+//   presentes   = activos (retirado=NO; INCLUYE intermitentes, = "Presentes")
 export interface MonitoreoRow {
   refugio: string;
-  activos: number; presentes: number; intermitentes: number; retirados: number;
+  registrados: number; presentes: number; intermitentes: number; retirados: number;
   nucleos: number; individuos: number;
   asignados: number; capacidad: number;
   lesionados: number; conPatologia: number; embarazadas: number;

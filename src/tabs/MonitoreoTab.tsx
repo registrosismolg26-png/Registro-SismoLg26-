@@ -12,7 +12,7 @@ import type { MonitoreoRow } from "@/types";
 interface Data { campamentos: MonitoreoRow[]; totales: MonitoreoRow; generadoEn: string; }
 
 const COLS: { key: keyof MonitoreoRow; label: string }[] = [
-  { key: "activos", label: "Registrados" },
+  { key: "registrados", label: "Registrados" },
   { key: "presentes", label: "Presentes" },
   { key: "intermitentes", label: "Intermit." },
   { key: "nucleos", label: "Núcleos" },
@@ -31,7 +31,7 @@ export default function MonitoreoTab() {
 
   const fetchMonitoreo = async (force = false) => {
     if (!force && typeof window !== "undefined") {
-      const cached = localStorage.getItem("cached_monitoreo_v1");
+      const cached = localStorage.getItem("cached_monitoreo_v2");
       if (cached) { try { setData(JSON.parse(cached)); } catch (e) { console.error(e); } }
     }
     if (!navigator.onLine) return;
@@ -43,7 +43,7 @@ export default function MonitoreoTab() {
       if (res.ok) {
         const etag = res.headers.get("ETag"); if (etag) etagRef.current = etag;
         const d = await res.json();
-        if (d.success) { setData(d); localStorage.setItem("cached_monitoreo_v1", JSON.stringify(d)); }
+        if (d.success) { setData(d); localStorage.setItem("cached_monitoreo_v2", JSON.stringify(d)); }
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -73,7 +73,7 @@ export default function MonitoreoTab() {
         <>
           {/* Resumen total */}
           <div className="monit-totals">
-            <div className="monit-tot"><span>{data.totales.activos}</span><small>Registrados</small></div>
+            <div className="monit-tot"><span>{data.totales.registrados}</span><small>Registrados</small></div>
             <div className="monit-tot"><span>{data.totales.presentes}</span><small>Presentes</small></div>
             <div className="monit-tot"><span>{data.totales.nucleos}</span><small>Núcleos</small></div>
             <div className="monit-tot"><span>{data.totales.lesionados}</span><small>Lesionados</small></div>
