@@ -9,6 +9,7 @@
 //    node scripts/broadcast-security-announce.mjs              # DRY-RUN: solo lista, NO envía
 //    node scripts/broadcast-security-announce.mjs --send       # envía de verdad
 //    node scripts/broadcast-security-announce.mjs --send --only=operadores   # solo un grupo
+//    node scripts/broadcast-security-announce.mjs --test=correo@x --send      # 1 correo de PRUEBA (no toca la BD)
 //
 //  Requiere: DATABASE_URL, GMAIL_USER, GMAIL_APP_PASSWORD (y opc. MAIL_FROM).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,6 +30,11 @@ import nodemailer from "nodemailer";
 
 const SEND = process.argv.includes("--send");
 const onlyArg = (process.argv.find((a) => a.startsWith("--only=")) || "").split("=")[1] || "";
+const testEmail = (process.argv.find((a) => a.startsWith("--test=")) || "").split("=")[1] || "";
+
+// Texto plano de respaldo: un correo con parte text/plain (no solo HTML) entra
+// mejor a "Principal". Quita el bloque <style> antes de destripar las etiquetas.
+const toText = (html) => html.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 
 // —— Plantilla institucional (copia fiel de src/lib/mailer.ts renderEmail) —————
 function renderEmail(titulo, cuerpoHtml) {
@@ -118,34 +124,43 @@ const ADMIN_ROLES = new Set(["MASTER", "ADMIN", "AdminMedico"]);
 const versionForRole = (role) => (ADMIN_ROLES.has(role) ? "admins" : "operadores");
 
 async function main() {
-  const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) { console.error("Falta DATABASE_URL (revisa tu .env)."); process.exit(1); }
+  let targets = [];
 
-  // 1) Traer usuarios (email + rol) de la BD.
-  const client = new pg.Client({
-    connectionString: dbUrl,
-    ssl: /localhost|127\.0\.0\.1/.test(dbUrl) ? false : { rejectUnauthorized: false },
-  });
-  await client.connect();
-  const { rows } = await client.query('SELECT email, role FROM "User"');
-  await client.end();
+  if (testEmail) {
+    // Modo PRUEBA: un solo correo a la dirección dada, sin tocar la BD. Útil para
+    // verificar dónde cae (usa una dirección DISTINTA a la que envía, GMAIL_USER).
+    const version = onlyArg === "operadores" ? "operadores" : "admins";
+    targets = [{ email: testEmail.trim().toLowerCase(), role: "(test)", version }];
+    console.log(`\nMODO TEST: 1 correo (versión ${version}) a ${targets[0].email}.`);
+  } else {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) { console.error("Falta DATABASE_URL (revisa tu .env)."); process.exit(1); }
 
-  // 2) Deduplicar por correo y clasificar por versión.
-  const seen = new Set();
-  const targets = [];
-  for (const r of rows) {
-    const email = String(r.email || "").trim().toLowerCase();
-    if (!email.includes("@") || seen.has(email)) continue;
-    const version = versionForRole(r.role);
-    if (onlyArg && version !== onlyArg) continue;
-    seen.add(email);
-    targets.push({ email, role: r.role, version });
+    // 1) Traer usuarios (email + rol) de la BD.
+    const client = new pg.Client({
+      connectionString: dbUrl,
+      ssl: /localhost|127\.0\.0\.1/.test(dbUrl) ? false : { rejectUnauthorized: false },
+    });
+    await client.connect();
+    const { rows } = await client.query('SELECT email, role FROM "User"');
+    await client.end();
+
+    // 2) Deduplicar por correo y clasificar por versión.
+    const seen = new Set();
+    for (const r of rows) {
+      const email = String(r.email || "").trim().toLowerCase();
+      if (!email.includes("@") || seen.has(email)) continue;
+      const version = versionForRole(r.role);
+      if (onlyArg && version !== onlyArg) continue;
+      seen.add(email);
+      targets.push({ email, role: r.role, version });
+    }
+    const counts = targets.reduce((a, t) => ((a[t.version] = (a[t.version] || 0) + 1), a), {});
+    console.log(`\nUsuarios en BD: ${rows.length} · destinatarios únicos: ${targets.length}`);
+    console.log(`  admins: ${counts.admins || 0} · operadores: ${counts.operadores || 0}`);
+    if (onlyArg) console.log(`  (filtrado --only=${onlyArg})`);
   }
 
-  const counts = targets.reduce((a, t) => ((a[t.version] = (a[t.version] || 0) + 1), a), {});
-  console.log(`\nUsuarios en BD: ${rows.length} · destinatarios únicos: ${targets.length}`);
-  console.log(`  admins: ${counts.admins || 0} · operadores: ${counts.operadores || 0}`);
-  if (onlyArg) console.log(`  (filtrado --only=${onlyArg})`);
   console.log("");
   for (const t of targets) console.log(`  [${t.version.padEnd(10)}] ${t.email}  (${t.role})`);
 
@@ -169,6 +184,8 @@ async function main() {
     try {
       await transporter.sendMail({
         from, to: t.email, subject: v.subject, html: v.html,
+        text: toText(v.html),
+        headers: { "List-Unsubscribe": `<mailto:${user}?subject=Baja%20de%20avisos>` },
         attachments: [{ filename: "logo.png", content: logoB64, encoding: "base64", cid: "logogob" }],
       });
       ok++; console.log(`  OK   ${t.email} (${t.version})`);
