@@ -71,7 +71,6 @@ export interface MonitoreoRow {
   nucleos: number; individuos: number;
   asignados: number; capacidad: number;
   lesionados: number; conPatologia: number; embarazadas: number;
-  consultas: number; fichas: number;
 }
 
 // ── Caracterización (encuesta socioeconómica) ───────────────────────────────

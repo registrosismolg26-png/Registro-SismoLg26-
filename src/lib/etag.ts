@@ -36,17 +36,16 @@ export async function registrosETag(scope: Scope): Promise<string | null> {
 }
 
 /** Sello GLOBAL para el monitoreo de campamentos (Master ve todo): (count, max(syncedAt))
- *  del censo + count de consultas + count de salones. Cubre altas/bajas/ediciones del
- *  censo (syncedAt), nuevas consultas y nuevos salones. Barato (unos escalares). */
+ *  del censo + count de salones. Cubre altas/bajas/ediciones del censo (syncedAt) y
+ *  altas/bajas de salones. Barato (unos escalares). */
 export async function monitoreoETag(): Promise<string | null> {
   try {
-    const [reg, cons, rooms] = await Promise.all([
+    const [reg, rooms] = await Promise.all([
       prisma.registro.aggregate({ _count: true, _max: { syncedAt: true } }),
-      prisma.consultaMedica.count(),
       prisma.customRoom.count(),
     ]);
     const max = reg._max.syncedAt ? reg._max.syncedAt.getTime() : 0;
-    return `"mon-${reg._count}-${max}-${cons}-${rooms}"`;
+    return `"mon-${reg._count}-${max}-${rooms}"`;
   } catch {
     return null;
   }
