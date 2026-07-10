@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mailerReady } from "@/lib/mailer";
-import { requestCode } from "@/lib/otp";
+import { requestCode, otpEnabled } from "@/lib/otp";
 
 // ── Recuperar contraseña · PASO 1 (SIN sesión) ──────────────────────────────
 // El usuario que olvidó su contraseña pide un código a SU correo. Reglas:
@@ -13,7 +13,7 @@ import { requestCode } from "@/lib/otp";
 //    correo en el paso 2), así no se filtra la existencia de la cuenta.
 export async function POST(req: Request) {
   try {
-    if (!mailerReady()) {
+    if (!mailerReady() || !otpEnabled()) {
       return NextResponse.json({ available: false }, { status: 200 });
     }
 

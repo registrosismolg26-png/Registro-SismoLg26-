@@ -112,8 +112,17 @@ export type OtpGateResult =
   | { status: "skip" | "ok" | "invalid" | "send_failed" }
   | { status: "required"; challengeId: string };
 
+/** Interruptor global del OTP. Por defecto ACTIVO; se APAGA con `OTP_ENABLED=false`
+ *  (o 0/off/no) SIN tocar las credenciales de Gmail. Útil si la entrega de correo se
+ *  degrada temporalmente y no queremos bloquear acciones: con el OTP apagado, crear/
+ *  editar/eliminar usuarios y cambiar contraseña operan sin código (como antes del OTP). */
+export function otpEnabled(): boolean {
+  const v = String(process.env.OTP_ENABLED ?? "").trim().toLowerCase();
+  return !["false", "0", "off", "no"].includes(v);
+}
+
 export async function otpGate(body: any, destEmail: string, purpose: OtpPurpose): Promise<OtpGateResult> {
-  if (!mailerReady()) return { status: "skip" }; // sin credenciales → no bloquea (como hoy)
+  if (!otpEnabled() || !mailerReady()) return { status: "skip" }; // apagado o sin correo → no bloquea
   const challengeId = body?.challengeId ? String(body.challengeId) : "";
   const code = body?.code ? String(body.code) : "";
   if (challengeId && code) {
