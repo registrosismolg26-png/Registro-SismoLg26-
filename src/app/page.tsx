@@ -38,6 +38,7 @@ import DashboardTab from "@/tabs/DashboardTab";
 import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CaracterizacionTab from "@/tabs/CaracterizacionTab";
+import MonitoreoTab from "@/tabs/MonitoreoTab";
 import CensoTab from "@/tabs/CensoTab";
 import MorbilidadTab from "@/tabs/MorbilidadTab";
 import BalanceTab from "@/tabs/BalanceTab";
@@ -1373,6 +1374,7 @@ export default function Home() {
       {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos */}
       {activeTab === "asignaciones" && !isMedico(currentUser.role) && <AsignacionesTab />}
       {activeTab === "caracterizacion" && isMaster(currentUser.role) && <CaracterizacionTab />}
+      {activeTab === "monitoreo" && isMaster(currentUser.role) && <MonitoreoTab />}
 
       {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
       {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}
