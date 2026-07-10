@@ -1,32 +1,35 @@
 "use client";
 
 // ── Pestaña Monitoreo de campamentos (SOLO Master) ──────────────────────────
-// VISTA GENERAL para ojear todos los campamentos (no para detallar). Mismos
-// cálculos que Estadísticas (src/lib/monitoreo.ts). Por campamento se muestra lo
-// esencial: población + OCUPACIÓN (barra) + un resalte de salud. El detalle fino
-// vive en el Panel de Estadísticas. Egress mínimo: agregados SQL + ETag/304 +
-// cache local, sin auto-refresh (al abrir + botón).
+// VISTA GENERAL para ojear todos los campamentos (no para detallar). Reutiliza
+// EXACTAMENTE el sistema de diseño del Panel: tarjetas .bal-card con DASH_ICONS,
+// mini-cards .bal-tipo para los números, y los colores del semáforo de ocupación
+// (.dash-room verde/amarillo/rojo). Datos de /api/monitoreo (agregados SQL). SIN
+// auto-refresh: al abrir + botón. ETag/304 + cache local.
 
 import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "@/lib/apiFetch";
+import { DASH_ICONS } from "@/components/dashIcons";
 import type { MonitoreoRow } from "@/types";
 
 interface Data { campamentos: MonitoreoRow[]; totales: MonitoreoRow; generadoEn: string; }
 
-// Consolidado (totales de todos los campamentos). Acentos como el Panel.
-const KPIS: { key: keyof MonitoreoRow; label: string; accent: string }[] = [
-  { key: "registrados", label: "Total Registrados", accent: "#2563eb" },
-  { key: "presentes", label: "Presentes", accent: "#0d9488" },
-  { key: "retirados", label: "Retirados", accent: "#dc2626" },
-  { key: "intermitentes", label: "Intermitentes", accent: "#d97706" },
-  { key: "nucleos", label: "Núcleos Familiares", accent: "#7c3aed" },
-  { key: "individuos", label: "Individuos Solos", accent: "#64748b" },
-  { key: "lesionados", label: "Lesionados", accent: "#e11d48" },
-  { key: "conPatologia", label: "Con Patología", accent: "#db2777" },
-  { key: "embarazadas", label: "Embarazadas", accent: "#be185d" },
+// Consolidado: mismas etiquetas, acentos e ICONOS que el Panel de Estadísticas.
+const KPIS: { key: keyof MonitoreoRow; label: string; accent: string; icon: string }[] = [
+  { key: "registrados", label: "Total Registrados", accent: "#2563eb", icon: "users" },
+  { key: "presentes", label: "Presentes", accent: "#0d9488", icon: "home" },
+  { key: "retirados", label: "Retirados", accent: "#dc2626", icon: "userx" },
+  { key: "intermitentes", label: "Intermitentes", accent: "#d97706", icon: "refresh" },
+  { key: "nucleos", label: "Núcleos Familiares", accent: "#7c3aed", icon: "family" },
+  { key: "individuos", label: "Individuos Solos", accent: "#64748b", icon: "user" },
+  { key: "lesionados", label: "Lesionados", accent: "#e11d48", icon: "alert" },
+  { key: "conPatologia", label: "Con Patología", accent: "#db2777", icon: "heart" },
+  { key: "embarazadas", label: "Embarazadas", accent: "#be185d", icon: "pregnant" },
 ];
 
-const nivel = (o: number) => (o >= 90 ? "full" : o >= 70 ? "mid" : "ok");
+// Semáforo de ocupación (mismos colores que .dash-room del Panel).
+const OCC_HEX: Record<string, string> = { green: "#10b981", yellow: "#f59e0b", red: "#ef4444", gray: "#94a3b8" };
+const occNivel = (o: number) => (o >= 90 ? "red" : o >= 70 ? "yellow" : "green");
 
 export default function MonitoreoTab() {
   const [data, setData] = useState<Data | null>(null);
@@ -67,7 +70,7 @@ export default function MonitoreoTab() {
           <p className="monit-sub">Vista general de todos los campamentos.{hora && <> · Actualizado {hora}</>}</p>
         </div>
         <button type="button" className="btn-secondary monit-refresh" onClick={() => fetchMonitoreo(true)} disabled={loading}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6" /><path d="M1 20v-6h6" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+          <span className="monit-refresh__ico">{DASH_ICONS.refresh}</span>
           <span className="btn-txt-collapsible">{loading ? "Actualizando…" : "Actualizar"}</span>
         </button>
       </div>
@@ -76,60 +79,59 @@ export default function MonitoreoTab() {
         <div className="monit-empty">{loading ? "Cargando…" : "Sin datos."}</div>
       ) : (
         <>
-          {/* Consolidado — números grandes de todos los campamentos */}
+          {/* Consolidado — tarjetas .bal-card idénticas al Panel */}
           <div className="dashboard-section monit-section">
             <div className="dash-sec-head" style={{ ["--accent" as any]: "#2563eb" } as React.CSSProperties}>
-              <span className="dash-sec-head__ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18 9l-5 5-3-3-4 4" /></svg></span>
+              <span className="dash-sec-head__ico">{DASH_ICONS.chart}</span>
               <h3 className="dashboard-section-title">Consolidado · {data.campamentos.length} campamentos</h3>
             </div>
-            <div className="monit-kpis">
+            <div className="bal-cards">
               {KPIS.map((k) => (
-                <div key={k.key} className="monit-kpi" style={{ ["--accent" as any]: k.accent } as React.CSSProperties}>
-                  <span className="monit-kpi__v">{data.totales[k.key] as number}</span>
-                  <span className="monit-kpi__l">{k.label}</span>
+                <div key={k.key} className="bal-card" style={{ ["--accent" as any]: k.accent } as React.CSSProperties}>
+                  <span className="bal-card__icon">{DASH_ICONS[k.icon]}</span>
+                  <span className="bal-card__value">{data.totales[k.key] as number}</span>
+                  <span className="bal-card__label">{k.label}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Por campamento — población + ocupación (lo esencial para ojear) */}
+          {/* Por campamento — población (.bal-tipo) + ocupación (semáforo) */}
           <div className="dashboard-section monit-section">
             <div className="dash-sec-head" style={{ ["--accent" as any]: "#0d9488" } as React.CSSProperties}>
-              <span className="dash-sec-head__ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg></span>
+              <span className="dash-sec-head__ico">{DASH_ICONS.home}</span>
               <h3 className="dashboard-section-title">Por campamento</h3>
             </div>
             <div className="monit-camps">
               {camps.map((c) => {
                 const o = ocup(c);
-                const lv = nivel(o);
-                const hay = c.lesionados > 0 || c.conPatologia > 0 || c.embarazadas > 0;
+                const lv = c.capacidad > 0 ? occNivel(o) : "gray";
+                const hex = OCC_HEX[lv];
                 return (
-                  <div key={c.refugio} className="monit-camp">
+                  <div key={c.refugio} className="bal-card monit-camp" style={{ ["--accent" as any]: hex } as React.CSSProperties}>
                     <div className="monit-camp__head">
-                      <h4 className="monit-camp__name" title={c.refugio}>{c.refugio}</h4>
-                      {c.capacidad > 0 && <span className={`monit-occ-badge is-${lv}`}>{o}%</span>}
+                      <span className="monit-camp__name" title={c.refugio}>{c.refugio}</span>
+                      {c.capacidad > 0 && <span className="monit-occ-badge">{o}%</span>}
                     </div>
 
-                    <div className="monit-camp__nums">
-                      <div className="monit-num"><span className="monit-num__v">{c.registrados}</span><span className="monit-num__l">Registrados</span></div>
-                      <div className="monit-num monit-num--alt"><span className="monit-num__v">{c.presentes}</span><span className="monit-num__l">Presentes</span></div>
+                    <div className="bal-tipos monit-camp__tipos">
+                      <div className="bal-tipo" style={{ ["--accent" as any]: "#2563eb" } as React.CSSProperties}>
+                        <span className="bal-tipo__count">{c.registrados}</span>
+                        <span className="bal-tipo__label">Registrados</span>
+                      </div>
+                      <div className="bal-tipo" style={{ ["--accent" as any]: "#0d9488" } as React.CSSProperties}>
+                        <span className="bal-tipo__count">{c.presentes}</span>
+                        <span className="bal-tipo__label">Presentes</span>
+                      </div>
                     </div>
 
                     {c.capacidad > 0 ? (
                       <div className="monit-occ">
-                        <div className="monit-occ__track"><div className={`monit-occ__fill is-${lv}`} style={{ width: `${Math.min(100, o)}%` }} /></div>
+                        <div className="monit-occ__track"><div className="monit-occ__fill" style={{ width: `${Math.min(100, o)}%`, background: hex }} /></div>
                         <span className="monit-occ__lbl">Ocupación · {c.asignados} de {c.capacidad} camas</span>
                       </div>
                     ) : (
                       <div className="monit-occ__none">Sin capacidad de salones configurada</div>
-                    )}
-
-                    {hay && (
-                      <div className="monit-camp__health">
-                        {c.lesionados > 0 && <span className="monit-tag monit-tag--les"><b>{c.lesionados}</b> lesionados</span>}
-                        {c.conPatologia > 0 && <span className="monit-tag monit-tag--pat"><b>{c.conPatologia}</b> con patología</span>}
-                        {c.embarazadas > 0 && <span className="monit-tag monit-tag--emb"><b>{c.embarazadas}</b> embarazadas</span>}
-                      </div>
                     )}
                   </div>
                 );

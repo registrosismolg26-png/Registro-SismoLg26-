@@ -3978,53 +3978,34 @@ h2.dashboard-section-title {
   .carac-cat-add > .btn-submit { width: 100% !important; }
 }
 
-/* ── Monitoreo de campamentos (Master) — vista general ─────────────────────── */
-.monit-view { display: flex; flex-direction: column; gap: 1.25rem; max-width: 1200px; margin-inline: auto; width: 100%; }
+/* ── Monitoreo de campamentos (Master) — reutiliza el sistema del Panel ─────── */
+/* --bal-radius: para que las .bal-card tomen el radio del panel (como el Dashboard). */
+.monit-view { --bal-radius: 20px; display: flex; flex-direction: column; gap: 1.25rem; max-width: 1200px; margin-inline: auto; width: 100%; }
 .monit-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .monit-head__txt { min-width: 0; }
-.monit-title { font-size: 1.5rem; font-weight: 800; color: var(--color-primary); margin: 0; }
+.monit-title { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--color-primary); margin: 0; }
 .monit-sub { font-size: 0.85rem; color: var(--text-secondary); margin: 0.2rem 0 0; }
 /* Botón pill del sistema (hereda --ctl-h/--ctl-radius de .pill-form). Solo-icono en móvil. */
 .monit-refresh { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; flex-shrink: 0; width: auto !important; padding: 0 1.15rem; }
+.monit-refresh__ico { display: inline-flex; }
+.monit-refresh__ico svg { width: 16px; height: 16px; }
 .monit-empty { text-align: center; color: var(--text-secondary); padding: 2.5rem 1rem; background: var(--bg-secondary); border: 1px dashed var(--border-color); border-radius: 16px; }
 .monit-section { margin: 0; }
 .monit-note { font-size: 0.78rem; color: var(--text-muted); text-align: center; margin: 0.25rem 0 0; }
 
-/* Consolidado: KPIs limpios, alto contraste (barra de acento SÓLIDA, valor oscuro). */
-.monit-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.7rem; }
-.monit-kpi { background: var(--bg-secondary); border: 1px solid var(--border-color); border-left: 5px solid var(--accent); border-radius: 14px; padding: 0.75rem 0.95rem; }
-.monit-kpi__v { display: block; font-size: 1.8rem; font-weight: 800; color: var(--text-primary); line-height: 1.05; font-variant-numeric: tabular-nums; }
-.monit-kpi__l { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }
-
-/* Por campamento: tarjeta minimalista = población + OCUPACIÓN (barra protagonista). */
-.monit-camps { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.9rem; }
-.monit-camp { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 20px; padding: 1.05rem 1.15rem; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: 0 4px 16px -10px rgba(0,0,0,0.18); }
+/* Por campamento: cada tarjeta ES una .bal-card (hereda caja/sombra/acento/radio).
+   Solo se define su layout interno + el semáforo de ocupación (colores .dash-room). */
+.monit-camps { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.85rem; }
+.bal-card.monit-camp { gap: 0.8rem; }
 .monit-camp__head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
-.monit-camp__name { margin: 0; font-size: 1.02rem; font-weight: 800; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.monit-occ-badge { flex-shrink: 0; font-size: 0.82rem; font-weight: 800; border-radius: 999px; padding: 0.25rem 0.7rem; color: #fff; font-variant-numeric: tabular-nums; }
-.monit-occ-badge.is-ok { background: #16a34a; }
-.monit-occ-badge.is-mid { background: #d97706; }
-.monit-occ-badge.is-full { background: #dc2626; }
-.monit-camp__nums { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
-.monit-num { border-radius: 14px; padding: 0.6rem 0.85rem; background: color-mix(in srgb, #2563eb 10%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, #2563eb 30%, transparent); }
-.monit-num--alt { background: color-mix(in srgb, #0d9488 10%, var(--bg-secondary)); border-color: color-mix(in srgb, #0d9488 30%, transparent); }
-.monit-num__v { display: block; font-size: 1.6rem; font-weight: 800; color: var(--text-primary); line-height: 1.05; font-variant-numeric: tabular-nums; }
-.monit-num__l { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }
+.monit-camp__name { font-family: var(--font-heading); font-size: 1.02rem; font-weight: 800; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.monit-occ-badge { flex-shrink: 0; font-family: var(--font-heading); font-size: 0.82rem; font-weight: 800; border-radius: 999px; padding: 0.22rem 0.7rem; color: #fff; background: var(--accent); font-variant-numeric: tabular-nums; }
+.bal-tipos.monit-camp__tipos { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .monit-occ { display: flex; flex-direction: column; gap: 0.35rem; }
 .monit-occ__track { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--text-primary) 14%, transparent); overflow: hidden; }
-.monit-occ__fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
-.monit-occ__fill.is-ok { background: #16a34a; }
-.monit-occ__fill.is-mid { background: #d97706; }
-.monit-occ__fill.is-full { background: #dc2626; }
-.monit-occ__lbl { font-size: 0.75rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.monit-occ__none { font-size: 0.75rem; color: var(--text-muted); font-style: italic; }
-/* Resalte de salud: solo lo notable (>0), discreto pero visible. */
-.monit-camp__health { display: flex; flex-wrap: wrap; gap: 0.4rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); }
-.monit-tag { font-size: 0.74rem; color: var(--text-secondary); border-radius: 999px; padding: 0.2rem 0.65rem; background: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent); }
-.monit-tag b { color: var(--accent); font-variant-numeric: tabular-nums; }
-.monit-tag--les { --accent: #e11d48; }
-.monit-tag--pat { --accent: #db2777; }
-.monit-tag--emb { --accent: #be185d; }
+.monit-occ__fill { height: 100%; border-radius: 999px; transition: width 0.45s ease; }
+.monit-occ__lbl { font-size: 0.74rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.monit-occ__none { font-size: 0.74rem; color: var(--text-muted); font-style: italic; }
 
 @media (max-width: 640px) {
   .monit-refresh { width: var(--ctl-h) !important; padding: 0 !important; gap: 0; }
