@@ -68,15 +68,15 @@ export default function MonitoreoTab() {
   const camps = data ? [...data.campamentos].sort((a, b) => b.registrados - a.registrados) : [];
 
   return (
-    <div className="tab-view monit-view">
+    <div className="tab-view monit-view pill-form">
       <div className="monit-head">
-        <div>
+        <div className="monit-head__txt">
           <h2 className="monit-title">Monitoreo de campamentos</h2>
           <p className="monit-sub">Mismos cálculos que el Panel de Estadísticas, por campamento.{hora && <> · Actualizado {hora}</>}</p>
         </div>
         <button type="button" className="btn-secondary monit-refresh" onClick={() => fetchMonitoreo(true)} disabled={loading}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6" /><path d="M1 20v-6h6" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-          {loading ? "Actualizando…" : "Actualizar"}
+          <span className="btn-txt-collapsible">{loading ? "Actualizando…" : "Actualizar"}</span>
         </button>
       </div>
 
