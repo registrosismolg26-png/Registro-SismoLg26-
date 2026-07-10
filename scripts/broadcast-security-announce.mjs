@@ -178,17 +178,20 @@ async function main() {
   const logoB64 = readFileSync("public/logo_gob_push.png").toString("base64");
 
   let ok = 0, fail = 0;
-  console.log(`\nEnviando ${targets.length} correos (espaciado ~1,5s)…\n`);
+  console.log(`\nEnviando ${targets.length} correos (espaciado ~1,5s)…  From: ${from}\n`);
   for (const t of targets) {
     const v = VERSIONS[t.version];
     try {
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from, to: t.email, subject: v.subject, html: v.html,
         text: toText(v.html),
         headers: { "List-Unsubscribe": `<mailto:${user}?subject=Baja%20de%20avisos>` },
         attachments: [{ filename: "logo.png", content: logoB64, encoding: "base64", cid: "logogob" }],
       });
-      ok++; console.log(`  OK   ${t.email} (${t.version})`);
+      ok++;
+      // Diagnóstico: respuesta SMTP de Gmail + destinatarios aceptados/rechazados.
+      const rej = (info.rejected || []).length ? ` RECHAZADO:${info.rejected.join(",")}` : "";
+      console.log(`  OK   ${t.email} (${t.version}) -> ${info.response || info.messageId || ""}${rej}`);
     } catch (e) {
       fail++; console.log(`  FAIL ${t.email} -> ${e?.message || e}`);
     }
