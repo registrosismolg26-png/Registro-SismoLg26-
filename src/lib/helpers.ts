@@ -1,6 +1,6 @@
 // ── Utilidades puras compartidas ────────────────────────────────────────────
 
-import type { Patologia, MedicamentoPredefinido, Medicamento, TipoLesion } from "@/types";
+import type { Patologia, MedicamentoPredefinido, Medicamento, TipoLesion, CaracterizacionOpcion } from "@/types";
 
 // Normaliza texto para BÚSQUEDAS: minúsculas y SIN acentos/diacríticos, para que
 // "patologia" encuentre "patología" y "nino" encuentre "niño". Úsalo tanto en la
@@ -49,6 +49,27 @@ export function tipoLesionNombre(id: string, catalogo: TipoLesion[]): string {
 // Lista de nombres de patologías a partir de sus ids (para resúmenes/CSV).
 export function patologiaNombres(ids: string[] | undefined | null, catalogo: Patologia[]): string[] {
   return (Array.isArray(ids) ? ids : []).map(id => patologiaNombre(id, catalogo));
+}
+
+// ── Caracterización: catálogo general (una tabla, filtrado por módulo/campo) ──
+// Opciones ACTIVAS de una lista concreta (ordenadas), para poblar un select.
+export function opcionesDe(
+  opciones: CaracterizacionOpcion[], modulo: string, campo: string
+): CaracterizacionOpcion[] {
+  return (opciones || [])
+    .filter(o => o.activo && o.modulo === modulo && o.campo === campo)
+    .sort((a, b) => a.orden - b.orden || a.valor.localeCompare(b.valor));
+}
+
+// Etiqueta (valor) de una opción por su id. Vacío → ""; id inexistente → "(no disponible)".
+export function opcionLabel(id: string | null | undefined, opciones: CaracterizacionOpcion[]): string {
+  if (!id) return "";
+  return (opciones || []).find(o => o.id === id)?.valor ?? "(no disponible)";
+}
+
+// Etiquetas de un multi-select (array de ids) → array de valores.
+export function opcionLabels(ids: string[] | undefined | null, opciones: CaracterizacionOpcion[]): string[] {
+  return (Array.isArray(ids) ? ids : []).map(id => opcionLabel(id, opciones)).filter(Boolean);
 }
 
 // Registro del catálogo para un ítem de medicamento (por su id).

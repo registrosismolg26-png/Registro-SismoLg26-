@@ -104,3 +104,52 @@ export const PERIODO_OPTIONS = [
   "Cada 6 horas",
   "Cada 4 horas",
 ];
+
+// ── Caracterización: metadata de campos con catálogo (fuente única) ─────────
+// Describe cada lista CERRADA de la ficha: en qué (modulo, campo) del catálogo
+// general vive, su etiqueta, si es multi-selección, a qué nivel pertenece
+// (hogar/persona) y en qué fase se muestra. La usan la UI de gestión del catálogo
+// y el formulario de la ficha (así no se duplica la estructura). Los campos de
+// texto/numéricos y los toggles SI/NO NO van aquí (se manejan directo en la ficha).
+export type CaracNivel = "hogar" | "persona";
+export interface CaracCampoMeta {
+  modulo: string;   // agrupador del catálogo (VIVIENDA, TRIAJE…)
+  campo: string;    // clave de la lista (tenencia, grupoSanguineo…)
+  label: string;    // etiqueta visible
+  nivel: CaracNivel;
+  multi?: boolean;  // selección múltiple (array de ids)
+  fase: 1 | 2;
+}
+export const CARAC_CAMPOS: CaracCampoMeta[] = [
+  // Persona — Fase 1
+  { modulo: "IDENTIDAD", campo: "estadoCivil", label: "Estado civil", nivel: "persona", fase: 1 },
+  { modulo: "FAMILIA", campo: "parentesco", label: "Parentesco", nivel: "persona", fase: 1 },
+  { modulo: "FAMILIA", campo: "vulnerabilidad", label: "Condición de vulnerabilidad", nivel: "persona", fase: 1 },
+  { modulo: "TRIAJE", campo: "grupoSanguineo", label: "Grupo sanguíneo", nivel: "persona", fase: 1 },
+  { modulo: "TRIAJE", campo: "alergia", label: "Alergias conocidas", nivel: "persona", multi: true, fase: 1 },
+  { modulo: "TRIAJE", campo: "discapacidadTipo", label: "Tipo de discapacidad", nivel: "persona", fase: 1 },
+  { modulo: "TRIAJE", campo: "vacunaAntitetanica", label: "Vacuna antitetánica", nivel: "persona", fase: 1 },
+  { modulo: "NECESIDADES", campo: "tallaCamisa", label: "Talla de camisa", nivel: "persona", fase: 1 },
+  { modulo: "NECESIDADES", campo: "tallaPantalon", label: "Talla de pantalón", nivel: "persona", fase: 1 },
+  { modulo: "NECESIDADES", campo: "tallaCalzado", label: "Talla de calzado", nivel: "persona", fase: 1 },
+  { modulo: "NECESIDADES", campo: "necesidad", label: "Necesidades urgentes", nivel: "persona", multi: true, fase: 1 },
+  // Hogar — Fase 1
+  { modulo: "VIVIENDA", campo: "tenencia", label: "Tenencia de la vivienda", nivel: "hogar", fase: 1 },
+  { modulo: "VIVIENDA", campo: "tipoVivienda", label: "Tipo de vivienda", nivel: "hogar", fase: 1 },
+  { modulo: "VIVIENDA", campo: "material", label: "Material predominante", nivel: "hogar", fase: 1 },
+  { modulo: "VIVIENDA", campo: "nivelDano", label: "Nivel de daño", nivel: "hogar", fase: 1 },
+  { modulo: "VIVIENDA", campo: "estadoEnseres", label: "Estado de enseres", nivel: "hogar", fase: 1 },
+  { modulo: "ENTORNO", campo: "servicioAfectado", label: "Servicios afectados", nivel: "hogar", multi: true, fase: 1 },
+  { modulo: "ENTORNO", campo: "riesgoEntorno", label: "Riesgos del entorno", nivel: "hogar", multi: true, fase: 1 },
+  // Persona — Fase 2
+  { modulo: "SOCIOECONOMICO", campo: "nivelEducativo", label: "Nivel educativo", nivel: "persona", fase: 2 },
+  { modulo: "LABORAL", campo: "impactoLaboral", label: "Impacto laboral del sismo", nivel: "persona", fase: 2 },
+  { modulo: "LABORAL", campo: "sectorEconomico", label: "Sector económico", nivel: "persona", fase: 2 },
+  { modulo: "LABORAL", campo: "oficio", label: "Oficio / habilidad", nivel: "persona", fase: 2 },
+  { modulo: "LABORAL", campo: "aptitudFisica", label: "Aptitud física para labores", nivel: "persona", fase: 2 },
+  { modulo: "LABORAL", campo: "disponibilidad", label: "Disponibilidad de horario", nivel: "persona", fase: 2 },
+  // Hogar — Fase 2
+  { modulo: "SOCIOECONOMICO", campo: "rangoIngreso", label: "Rango de ingreso familiar", nivel: "hogar", fase: 2 },
+  { modulo: "SOCIOECONOMICO", campo: "accesoPatria", label: "Acceso al Sistema Patria", nivel: "hogar", fase: 2 },
+  { modulo: "SOCIOECONOMICO", campo: "bonoContingencia", label: "Bono de contingencia", nivel: "hogar", fase: 2 },
+];

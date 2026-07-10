@@ -198,3 +198,110 @@ model MedicamentoPredefinido {
 
   @@unique([nombre, concentracion, presentacion])
 }
+
+// ── Caracterización (encuesta socioeconómica por familia) ───────────────────
+// Extiende el censo SIN duplicarlo: reutiliza los datos generales de `Registro`
+// (identidad, ubicación, GPS, salud básica, vínculo familiar) y solo añade lo
+// NUEVO. Dos niveles: HOGAR (1 por familia, anclado al jefe) y PERSONA (1 por
+// censado → consultable por persona). Las opciones cerradas viven en UN catálogo
+// general (CaracterizacionOpcion), referenciado por ID (rename-safe).
+
+// Catálogo general de opciones cerradas. Una sola tabla para TODAS las listas
+// (no una tabla por catálogo): `modulo` agrupa en la UI de gestión, `campo`
+// identifica la lista, `valor` es la opción visible.
+model CaracterizacionOpcion {
+  id        String   @id @default(uuid())
+  modulo    String   // agrupador UI (ej. "VIVIENDA", "TRIAJE", "LABORAL")
+  campo     String   // lista a la que pertenece (ej. "tenencia", "grupoSanguineo", "tallaCamisa")
+  valor     String   // opción visible (ej. "PROPIA PAGADA")
+  orden     Int      @default(0)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([modulo, campo, valor])
+  @@index([modulo, campo])
+}
+
+// Datos del HOGAR: 1 por familia, anclado al Registro del jefe de familia.
+model CaracterizacionHogar {
+  id                  String    @id @default(uuid())
+  jefeRegistroId      String    @unique // UID del Registro del jefe (ancla de la familia)
+  familiaCedula       String // cédula del jefe (denormalizada, para agrupar/mostrar)
+  refugio             String // denormalizado para el scope por refugio
+  fechaIngresoRefugio DateTime?
+  gpsViviendaLat      Float? // ubicación de la vivienda AFECTADA (distinta del refugio)
+  gpsViviendaLng      Float?
+  // Vivienda (ids de CaracterizacionOpcion; los SI/NO son explícitos)
+  tenenciaId          String?
+  misionVivienda      String? // "SI"/"NO"
+  tipoViviendaId      String?
+  materialId          String?
+  nivelDanoId         String?
+  estadoEnseresId     String?
+  // Entorno (multi-select → arrays de ids)
+  servicioAfectadoIds Json?     @default("[]")
+  riesgoEntornoIds    Json?     @default("[]")
+  // Socioeconómico del hogar (Fase 2)
+  rangoIngresoId      String?
+  recibeRemesas       String? // "SI"/"NO"
+  recibeClap          String? // "SI"/"NO"
+  accesoPatriaId      String?
+  recibeBonosPatria   String? // "SI"/"NO"
+  bonoContingenciaId  String?
+  createdAt           DateTime  @default(now())
+  syncedAt            DateTime? @default(now())
+
+  @@index([refugio, createdAt])
+}
+
+// Datos de la PERSONA: 1 por censado (registroId). Consultable por persona
+// (tipo de sangre, tallas, oficio…).
+model CaracterizacionPersona {
+  id                     String    @id @default(uuid())
+  registroId             String    @unique // UID del Registro de la persona
+  cedula                 String // denormalizada (lookup/scope)
+  familiaCedula          String // cédula del jefe (ancla de familia → traer la ficha completa)
+  refugio                String // denormalizado para el scope
+  // Identidad extra + composición familiar (Módulo 3)
+  estadoCivilId          String?
+  correo                 String?
+  telefonoAlt            String?
+  parentescoId           String? // respecto al jefe de familia
+  asisteEscuela          String? // "SI"/"NO"
+  vulnerabilidadId       String?
+  // Triaje extendido (Módulo 5)
+  grupoSanguineoId       String?
+  alergiaIds             Json?     @default("[]") // multi
+  discapacidad           String? // "SI"/"NO"
+  discapacidadTipoId     String?
+  discapacidadDesc       String?
+  vacunaAntitetanicaId   String?
+  saludMental            String? // "SI"/"NO" (requiere apoyo psicológico)
+  requiereAtencion       String? // "SI"/"NO" (atención médica inmediata)
+  detalleAtencion        String?
+  semanasGestacion       Int?
+  // Antropometría / necesidades (Módulo 4)
+  pesoKg                 Float?
+  estaturaCm             Float?
+  tallaCamisaId          String?
+  tallaPantalonId        String?
+  tallaCalzadoId         String?
+  necesidadIds           Json?     @default("[]") // multi
+  // Perfil laboral (Módulo 8, Fase 2)
+  nivelEducativoId       String?
+  impactoLaboralId       String?
+  sectorEconomicoId      String?
+  oficioId               String?
+  aniosExperiencia       Int?
+  rescatoHerramientas    String? // "SI"/"NO"/"PARCIAL"
+  aptitudFisicaLaboralId String?
+  disponibilidadId       String?
+  puedeTrabajarInmediato String? // "SI"/"NO"
+  validacionDestreza     String    @default("PENDIENTE") // PENDIENTE/APROBADA/RECHAZADA
+  createdAt              DateTime  @default(now())
+  syncedAt               DateTime? @default(now())
+
+  @@index([refugio, createdAt])
+  @@index([cedula])
+  @@index([refugio, familiaCedula]) // traer todas las personas de una familia (ficha completa)
+}

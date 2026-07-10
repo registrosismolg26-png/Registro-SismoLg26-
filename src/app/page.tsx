@@ -16,13 +16,17 @@ import {
   getPendingConsultas,
   markConsultaSynced,
   incrementConsultaAttempt,
-  markConsultaPermanentError
+  markConsultaPermanentError,
+  getPendingCaracterizacion,
+  markCaracterizacionSynced,
+  incrementCaracterizacionAttempt,
+  markCaracterizacionPermanentError
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
 import { syncActivityLogs } from "@/lib/activityLog";
 import { enablePush, pushSupported, pushPermission } from "@/lib/pushClient";
 import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad, isMedico } from "@/lib/permissions";
-import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido, TipoLesion } from "@/types";
+import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido, TipoLesion, CaracterizacionOpcion } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
 import AppSidebar from "@/components/AppSidebar";
@@ -33,6 +37,7 @@ import UsuariosTab from "@/tabs/UsuariosTab";
 import DashboardTab from "@/tabs/DashboardTab";
 import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
+import CaracterizacionTab from "@/tabs/CaracterizacionTab";
 import CensoTab from "@/tabs/CensoTab";
 import MorbilidadTab from "@/tabs/MorbilidadTab";
 import BalanceTab from "@/tabs/BalanceTab";
@@ -247,6 +252,8 @@ export default function Home() {
   const [localConsultas, setLocalConsultas] = useState<LocalConsulta[]>([]);
   const [loadingConsultas, setLoadingConsultas] = useState(false);
   const [predefinedMedicamentos, setPredefinedMedicamentos] = useState<MedicamentoPredefinido[]>([]);
+  // Caracterización: catálogo general de opciones cerradas (una sola tabla, por módulo/campo).
+  const [caracterizacionOpciones, setCaracterizacionOpciones] = useState<CaracterizacionOpcion[]>([]);
 
   // (Corrección local de la cola, modal QR, diagnóstico de notificaciones y
   //  modales de gestión de habitaciones movidos a src/tabs/ConfigTab.tsx.)
@@ -586,6 +593,10 @@ export default function Home() {
       fetchConsultas();
       refreshLocalConsultas();
     }
+    if (activeTab === "caracterizacion") {
+      fetchRegistros();               // familias del censo (304 si no cambió)
+      fetchCaracterizacionOpciones(); // catálogo general (cache 120s)
+    }
     if (canViewDashboard(currentUser.role)) {
       if (activeTab === "dashboard") {
         fetchStats();
@@ -773,6 +784,29 @@ export default function Home() {
     }
   };
 
+  // Catálogo general de caracterización. force=true → salta cache HTTP (tras editar opciones).
+  const fetchCaracterizacionOpciones = async (force = false) => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("sismo_cached_caracterizacion_opciones_v1");
+      if (cached) {
+        try { setCaracterizacionOpciones(JSON.parse(cached)); } catch (e) { console.error(e); }
+      }
+    }
+    if (!navigator.onLine) return;
+    try {
+      const res = await apiFetch("/api/caracterizacion/opciones", force ? { cache: "reload" } : {});
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.opciones) {
+          setCaracterizacionOpciones(data.opciones);
+          localStorage.setItem("sismo_cached_caracterizacion_opciones_v1", JSON.stringify(data.opciones));
+        }
+      }
+    } catch (err) {
+      console.error("Error al obtener opciones de caracterización:", err);
+    }
+  };
+
   const fetchConsultas = async () => {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("cached_consultas_v2");
@@ -821,9 +855,11 @@ export default function Home() {
     try {
       const pending = await getPending();
       // IMPORTANTE: no retornar si no hay censos pendientes — las CONSULTAS de
-      // morbilidad también se sincronizan abajo y deben correr aunque no haya censos.
+      // morbilidad y las FICHAS de caracterización también se sincronizan abajo y
+      // deben correr aunque no haya censos.
       const pendingConsultasInit = await getPendingConsultas();
-      if (pending.length === 0 && pendingConsultasInit.length === 0) return;
+      const pendingCaracterizacionInit = await getPendingCaracterizacion();
+      if (pending.length === 0 && pendingConsultasInit.length === 0 && pendingCaracterizacionInit.length === 0) return;
 
       // Orden: primero las CREACIONES (censos nuevos), luego las ediciones; y dentro
       // de cada grupo, en orden CRONOLÓGICO (createdAt asc) para no montarlos
@@ -963,6 +999,46 @@ export default function Home() {
         }
         await refreshLocalConsultas();
         await fetchConsultas();
+      }
+
+      // --- Sincronizar Caracterización (fichas por familia; 1 registro = 1 familia) ---
+      const pendingCaracterizacion = await getPendingCaracterizacion();
+      pendingCaracterizacion.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      if (pendingCaracterizacion.length > 0) {
+        for (let i = 0; i < pendingCaracterizacion.length; i += BATCH) {
+          const batch = pendingCaracterizacion.slice(i, i + BATCH);
+          const results = await Promise.allSettled(
+            batch.map(f =>
+              apiFetch("/api/caracterizacion", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: f.id, refugio: f.refugio, hogar: f.data.hogar, personas: f.data.personas }),
+                timeoutMs: 15000,
+              })
+            )
+          );
+          await Promise.allSettled(
+            results.map(async (result, j) => {
+              const f = batch[j];
+              if (result.status === "rejected") { await incrementCaracterizacionAttempt(f.id); return; }
+              const res = result.value;
+              if (res.status === 201 || res.status === 200) {
+                await markCaracterizacionSynced(f.id);
+              } else if (res.status === 400 || res.status === 401 || res.status === 403) {
+                const reason =
+                  res.status === 401 ? "Sesión no válida para sincronizar la ficha. Vuelva a iniciar sesión."
+                  : res.status === 403 ? "Sin permiso para guardar caracterización."
+                  : "Datos inválidos en la ficha.";
+                await markCaracterizacionPermanentError(f.id, reason);
+              } else {
+                if (res.status >= 500 && !serverError) {
+                  serverError = await res.json().then((d: any) => d?.details || d?.error || `HTTP ${res.status}`).catch(() => `HTTP ${res.status}`);
+                }
+                await incrementCaracterizacionAttempt(f.id);
+              }
+            })
+          );
+        }
       }
 
       // Si hubo un 500 del servidor, avisar (una vez) en vez de reintentar en silencio.
@@ -1261,6 +1337,7 @@ export default function Home() {
     patologias, fetchPatologias,
     tiposLesion, fetchTiposLesion,
     predefinedMedicamentos, fetchPredefinedMedicamentos,
+    caracterizacionOpciones, fetchCaracterizacionOpciones,
     consultas, localConsultas, loadingConsultas, refreshLocalConsultas, fetchConsultas,
     pendingSelectId, setPendingSelectId,
     pendingHistorialCedula, setPendingHistorialCedula,
@@ -1295,6 +1372,7 @@ export default function Home() {
 
       {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos */}
       {activeTab === "asignaciones" && !isMedico(currentUser.role) && <AsignacionesTab />}
+      {activeTab === "caracterizacion" && canRegister(currentUser.role) && <CaracterizacionTab />}
 
       {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
       {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}

@@ -1,3 +1,7 @@
+// La ficha de caracterización se encola con la misma forma que las demás
+// (import type: se borra en compilación → sin ciclo aunque @/types re-exporte de aquí).
+import type { LocalCaracterizacion } from "@/types";
+
 export interface LocalConsulta {
   id: string;
   type?: 'new';
@@ -75,11 +79,12 @@ export interface PadrónCiudadano {
 }
 
 const DB_NAME = 'registro-sismo-db';
-const DB_VERSION = 5; // v5: cola offline de logs de actividad (imprimir/exportar)
+const DB_VERSION = 6; // v6: cola offline de caracterización (fichas socioeconómicas)
 const STORE_NAME = 'registros';
 const PADRON_STORE = 'padron';
 const CONSULTAS_STORE = 'consultas';
 const LOGS_STORE = 'activity_logs';
+const CARACTERIZACION_STORE = 'caracterizacion';
 
 function getDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -114,6 +119,11 @@ function getDB(): Promise<IDBDatabase> {
       // Cola offline de logs de actividad (imprimir PDF / descargar Excel)
       if (!db.objectStoreNames.contains(LOGS_STORE)) {
         db.createObjectStore(LOGS_STORE, { keyPath: 'id' });
+      }
+
+      // Cola offline de fichas de caracterización (1 registro = ficha de una familia)
+      if (!db.objectStoreNames.contains(CARACTERIZACION_STORE)) {
+        db.createObjectStore(CARACTERIZACION_STORE, { keyPath: 'id' });
       }
     };
   });
@@ -705,6 +715,130 @@ export async function markConsultaPermanentError(id: string, reason: string): Pr
       }
     };
 
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// ══ Cola offline de CARACTERIZACIÓN (ficha por familia) ══════════════════════
+// 1 registro = la ficha de una familia (hogar + personas). Mismo patrón que las
+// demás colas: re-guardar = 'pending'; backoff exponencial 15s·2ⁿ (tope 5min);
+// error permanente 400/401/403. El `id` = jefeRegistroId (ancla → upsert idempotente).
+export async function saveLocalCaracterizacion(
+  ficha: Omit<LocalCaracterizacion, 'status' | 'attempts' | 'createdAt'> & { createdAt?: string }
+): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CARACTERIZACION_STORE, 'readwrite');
+    const store = transaction.objectStore(CARACTERIZACION_STORE);
+    const getRequest = store.get(ficha.id);
+    getRequest.onsuccess = () => {
+      const existing = getRequest.result as LocalCaracterizacion | undefined;
+      const fullRecord: LocalCaracterizacion = {
+        id: ficha.id,
+        type: 'new',
+        data: ficha.data,
+        refugio: ficha.refugio ?? existing?.refugio,
+        userId: ficha.userId ?? existing?.userId,
+        status: 'pending',
+        attempts: 0,
+        nextAttemptAt: undefined,
+        permanentError: undefined,
+        createdAt: existing?.createdAt || ficha.createdAt || new Date().toISOString(),
+      };
+      const putRequest = store.put(fullRecord);
+      putRequest.onsuccess = () => resolve();
+      putRequest.onerror = () => reject(putRequest.error);
+    };
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+export async function getPendingCaracterizacion(): Promise<LocalCaracterizacion[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CARACTERIZACION_STORE, 'readonly');
+    const store = transaction.objectStore(CARACTERIZACION_STORE);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const all = request.result as LocalCaracterizacion[];
+      const now = Date.now();
+      resolve(all.filter(c => c.status === 'pending' && (!c.nextAttemptAt || c.nextAttemptAt <= now)));
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getAllLocalCaracterizacion(): Promise<LocalCaracterizacion[]> {
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(CARACTERIZACION_STORE, 'readonly');
+      const store = transaction.objectStore(CARACTERIZACION_STORE);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result as LocalCaracterizacion[]);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
+
+export async function markCaracterizacionSynced(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CARACTERIZACION_STORE, 'readwrite');
+    const store = transaction.objectStore(CARACTERIZACION_STORE);
+    const request = store.get(id);
+    request.onsuccess = () => {
+      const record = request.result as LocalCaracterizacion | undefined;
+      if (record) {
+        record.status = 'synced';
+        const u = store.put(record);
+        u.onsuccess = () => resolve();
+        u.onerror = () => reject(u.error);
+      } else resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function incrementCaracterizacionAttempt(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CARACTERIZACION_STORE, 'readwrite');
+    const store = transaction.objectStore(CARACTERIZACION_STORE);
+    const request = store.get(id);
+    request.onsuccess = () => {
+      const record = request.result as LocalCaracterizacion | undefined;
+      if (record) {
+        record.attempts += 1;
+        record.nextAttemptAt = Date.now() + Math.min(15000 * Math.pow(2, record.attempts - 1), 300000);
+        const u = store.put(record);
+        u.onsuccess = () => resolve();
+        u.onerror = () => reject(u.error);
+      } else resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function markCaracterizacionPermanentError(id: string, reason: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CARACTERIZACION_STORE, 'readwrite');
+    const store = transaction.objectStore(CARACTERIZACION_STORE);
+    const request = store.get(id);
+    request.onsuccess = () => {
+      const record = request.result as LocalCaracterizacion | undefined;
+      if (record) {
+        record.status = 'error';
+        record.permanentError = reason;
+        const u = store.put(record);
+        u.onsuccess = () => resolve();
+        u.onerror = () => reject(u.error);
+      } else resolve();
+    };
     request.onerror = () => reject(request.error);
   });
 }

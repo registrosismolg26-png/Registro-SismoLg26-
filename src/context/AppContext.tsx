@@ -6,7 +6,7 @@
 // distribuyen a los componentes hijos sin prop-drilling.
 
 import { createContext, useContext } from "react";
-import type { CurrentUser, ActiveTab, ToastType, LocalRegistro, Patologia, MedicamentoPredefinido, TipoLesion } from "@/types";
+import type { CurrentUser, ActiveTab, ToastType, LocalRegistro, Patologia, MedicamentoPredefinido, TipoLesion, CaracterizacionOpcion } from "@/types";
 
 export interface AppContextValue {
   // Conexión y tema
@@ -48,6 +48,9 @@ export interface AppContextValue {
   fetchTiposLesion: (force?: boolean) => void;
   predefinedMedicamentos: MedicamentoPredefinido[];
   fetchPredefinedMedicamentos: (force?: boolean) => void;
+  // Caracterización: catálogo general de opciones cerradas (por módulo/campo).
+  caracterizacionOpciones: CaracterizacionOpcion[];
+  fetchCaracterizacionOpciones: (force?: boolean) => void;
   consultas: any[];
   localConsultas: any[];
   loadingConsultas: boolean;

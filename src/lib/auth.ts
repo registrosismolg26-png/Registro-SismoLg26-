@@ -84,6 +84,9 @@ export const canEditCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedico"
 // Catálogos médicos — ELIMINAR y superficie de administración: solo AdminMedico y Master
 // (OperadorMedico crea/edita pero NO elimina).
 export const canManageCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedico"].includes(u.role);
+// Caracterización — gestionar el catálogo general de opciones (config-like): Master y Admin.
+// (Llenar/ver fichas usa canRegister, igual que el censo.)
+export const canManageCaracterizacion = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 
 /** ¿Puede el usuario actuar sobre datos de este refugio? Master: cualquiera. */
 export const canActOnRefugio = (u: AuthUser, refugio: string) =>
