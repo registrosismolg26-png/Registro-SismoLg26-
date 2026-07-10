@@ -1574,7 +1574,20 @@ html[data-theme="dark"] .spinner {
 
   /* ── Modal ── */
   .modal-content { padding: 1.125rem; }
-  .modal-content--detail { max-height: 95vh; }
+  .modal-content--detail {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    overflow-y: auto;
+  }
+  .modal-overlay:has(.modal-content--detail) {
+    align-items: flex-start;
+    padding: 0;
+  }
   .detail-grid, .detail-edit-grid { grid-template-columns: 1fr; gap: 0.625rem; }
 
   /* ── Bar charts: gap menor ── */
@@ -6093,12 +6106,26 @@ select.morb-control { height: var(--morb-h); min-height: var(--morb-h); border-r
 .msheet.is-closing { animation: msheetOut 0.19s ease both; }
 .msheet--full { max-height: 92vh; height: 92vh; }
 
+.msheet__drag-handle {
+  flex: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+.msheet__drag-handle:active { cursor: grabbing; }
+
 .msheet__grip {
   width: 40px; height: 4px;
   border-radius: 999px;
   background: var(--border-color);
   margin: 8px auto 2px;
   flex: none;
+  transition: background 0.12s ease, width 0.12s ease;
+}
+.msheet__drag-handle:active .msheet__grip {
+  background: var(--color-primary);
+  width: 56px;
 }
 .msheet__head {
   display: flex;
