@@ -34,10 +34,10 @@ export default function UsuariosTab() {
       if (data.code === "CODE_REQUIRED") { setOtpError(null); setOtp({ challengeId: data.challengeId, doFetch, onSuccess }); return; }
       if (data.code === "CODE_INVALID") { setOtpError("Código inválido o vencido. Revisa tu correo o reenvía uno nuevo."); return; }
       setOtp(null);
-      showToast(data.error || "Error al guardar el usuario.", "warning");
+      showToast(data.error || "No se pudo completar la acción.", "warning");
     } catch (err) {
       console.error(err);
-      showToast("Error de conexión al guardar el usuario.", "warning");
+      showToast("Error de conexión al procesar la solicitud.", "warning");
     } finally {
       setOtpVerifying(false);
     }
@@ -242,7 +242,9 @@ export default function UsuariosTab() {
     );
   };
 
-  // Ejecuta el borrado del operador confirmado en el modal.
+  // Ejecuta el borrado del operador confirmado en el modal. Pasa por runUserAction
+  // para que, si el correo está configurado, exija OTP igual que crear/editar (el
+  // código va por query: DELETE no lleva body). El OtpModal se reutiliza tal cual.
   const handleDeleteUser = async () => {
     if (!userToDelete || !currentUser || !canManageUsers(currentUser.role)) return;
 
@@ -251,26 +253,20 @@ export default function UsuariosTab() {
       return;
     }
 
+    const target = userToDelete;
     setDeletingUser(true);
-    try {
-      const res = await apiFetch(`/api/auth/users?id=${userToDelete.id}`, {
-        method: "DELETE"
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error || "Error al eliminar operador.", "warning");
-        return;
+    await runUserAction(
+      (o) => apiFetch(
+        `/api/auth/users?id=${encodeURIComponent(target.id)}${o ? `&challengeId=${encodeURIComponent(o.challengeId)}&code=${encodeURIComponent(o.code)}` : ""}`,
+        { method: "DELETE" }
+      ),
+      () => {
+        showToast("Operador eliminado.", "success");
+        setUserToDelete(null);
+        fetchUsers();
       }
-
-      showToast("Operador eliminado.", "success");
-      setUserToDelete(null);
-      fetchUsers();
-    } catch (err) {
-      console.error(err);
-      showToast("Error de conexión al eliminar el operador.", "warning");
-    } finally {
-      setDeletingUser(false);
-    }
+    );
+    setDeletingUser(false);
   };
 
   // Animación de salida del modal de confirmar eliminación (conserva el usuario vía .data).

@@ -12,6 +12,7 @@ import { sha256 } from "@/lib/helpers";
 import type { CurrentUser, ActiveTab, ToastType } from "@/types";
 import { SwipeableToast } from "@/components/SwipeableToast";
 import PasswordInput from "@/components/PasswordInput";
+import ResetPasswordModal from "@/components/ResetPasswordModal";
 
 interface LoginFormProps {
   setCurrentUser: React.Dispatch<React.SetStateAction<CurrentUser | null>>;
@@ -27,6 +28,7 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toa
   const [loginError, setLoginError] = useState("");
   const [loadingAuth, setLoadingAuth] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [showReset, setShowReset] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +185,12 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toa
               />
             </div>
 
+            <div className="login-forgot-row">
+              <button type="button" className="login-forgot" onClick={() => setShowReset(true)}>
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+
             <button
               type="button"
               className={`pill-check pill-check--wrap${rememberMe ? " is-on" : ""}`}
@@ -208,6 +216,20 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, toa
             </div>
           </form>
         </div>
+
+        {showReset && (
+          <ResetPasswordModal
+            initialEmail={loginEmail}
+            onClose={() => setShowReset(false)}
+            onDone={(email) => {
+              setShowReset(false);
+              setLoginEmail(email);
+              setLoginPassword("");
+              showToast("Contraseña actualizada. Inicia sesión con tu nueva contraseña.", "success");
+            }}
+            showToast={showToast}
+          />
+        )}
 
         {toast && (
           <SwipeableToast

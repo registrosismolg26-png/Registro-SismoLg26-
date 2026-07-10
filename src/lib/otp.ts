@@ -1,23 +1,26 @@
 // ── OTP por correo (código de validación para acciones sensibles) ───────────
 // Genera un código de 6 dígitos, guarda su HASH (sha256) en VerificationCode y lo
 // envía por correo. `verifyCode` valida y CONSUME el código (un solo uso). Expira a
-// los 10 min; máx. 5 intentos. Se usa en crear/editar usuarios y cambiar contraseña.
+// los 10 min; máx. 5 intentos. Se usa en crear/editar usuarios, cambiar contraseña
+// y recuperar contraseña ("olvidé"). Cooldown 60s + limpieza de códigos vencidos.
 
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { sendMail, renderEmail, mailerReady } from "@/lib/mailer";
 
-export type OtpPurpose = "USER_MUTATION" | "PASSWORD_CHANGE";
+export type OtpPurpose = "USER_MUTATION" | "PASSWORD_CHANGE" | "PASSWORD_RESET";
 const TTL_MIN = 10;
 const MAX_ATTEMPTS = 5;
+const COOLDOWN_MS = 60_000; // no enviar OTRO correo si hay un código vigente de < 60s
 
 const hashCode = (code: string) => crypto.createHash("sha256").update(code).digest("hex");
 const genCode = () => String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
 
 const PURPOSE_LABEL: Record<OtpPurpose, string> = {
-  USER_MUTATION: "gestión de usuarios (crear o editar)",
+  USER_MUTATION: "gestión de usuarios (crear, editar o eliminar)",
   PASSWORD_CHANGE: "cambio de contraseña",
+  PASSWORD_RESET: "recuperación de contraseña",
 };
 
 /** Genera un código, lo guarda (hash) y lo envía por correo.
@@ -25,6 +28,21 @@ const PURPOSE_LABEL: Record<OtpPurpose, string> = {
 export async function requestCode(email: string, purpose: OtpPurpose): Promise<string | null> {
   const to = String(email || "").trim().toLowerCase();
   if (!to) return null;
+
+  // Limpieza: borra los códigos ya consumidos o vencidos de este correo (mantiene la tabla chica).
+  await prisma.verificationCode.deleteMany({
+    where: { email: to, OR: [{ consumedAt: { not: null } }, { expiresAt: { lt: new Date() } }] },
+  }).catch(() => {});
+
+  // Cooldown anti-spam: si hay un código VIGENTE de este correo+propósito creado hace
+  // < 60s, se reutiliza (no se envía otro correo) → el usuario usa el que ya recibió.
+  const reciente = await prisma.verificationCode.findFirst({
+    where: { email: to, purpose, consumedAt: null, expiresAt: { gt: new Date() }, createdAt: { gt: new Date(Date.now() - COOLDOWN_MS) } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  if (reciente) return reciente.id;
+
   const code = genCode();
   const rec = await prisma.verificationCode.create({
     data: { email: to, codeHash: hashCode(code), purpose, expiresAt: new Date(Date.now() + TTL_MIN * 60_000) },
@@ -47,26 +65,43 @@ export async function requestCode(email: string, purpose: OtpPurpose): Promise<s
   return rec.id;
 }
 
-/** Verifica y CONSUME un código (un solo uso). Devuelve true si es válido. */
+// Compara (timing-safe) y CONSUME el código; incrementa intentos y audita en fallo.
+async function consumeIfMatches(id: string, codeHash: string, code: string, purpose: OtpPurpose): Promise<boolean> {
+  const match = crypto.timingSafeEqual(Buffer.from(codeHash, "hex"), Buffer.from(hashCode(code), "hex"));
+  if (!match) {
+    await prisma.verificationCode.update({ where: { id }, data: { attempts: { increment: 1 } } }).catch(() => {});
+    console.warn(`[otp] intento fallido challenge=${id} purpose=${purpose}`); // auditoría en logs del server
+    return false;
+  }
+  await prisma.verificationCode.update({ where: { id }, data: { consumedAt: new Date() } });
+  return true;
+}
+
+/** Verifica y CONSUME un código por challengeId (un solo uso). true si es válido. */
 export async function verifyCode(challengeId: string, code: string, purpose: OtpPurpose): Promise<boolean> {
   const id = String(challengeId || "").trim();
   const c = String(code || "").trim();
   if (!id || !/^\d{6}$/.test(c)) return false;
 
   const rec = await prisma.verificationCode.findUnique({ where: { id } });
-  if (!rec) return false;
-  if (rec.purpose !== purpose) return false;
-  if (rec.consumedAt) return false;
-  if (rec.expiresAt.getTime() < Date.now()) return false;
-  if (rec.attempts >= MAX_ATTEMPTS) return false;
+  if (!rec || rec.purpose !== purpose || rec.consumedAt || rec.expiresAt.getTime() < Date.now() || rec.attempts >= MAX_ATTEMPTS) return false;
+  return consumeIfMatches(rec.id, rec.codeHash, c, purpose);
+}
 
-  const match = crypto.timingSafeEqual(Buffer.from(rec.codeHash, "hex"), Buffer.from(hashCode(c), "hex"));
-  if (!match) {
-    await prisma.verificationCode.update({ where: { id }, data: { attempts: { increment: 1 } } }).catch(() => {});
-    return false;
-  }
-  await prisma.verificationCode.update({ where: { id }, data: { consumedAt: new Date() } });
-  return true;
+/** Verifica y CONSUME el código VIGENTE más reciente de un CORREO. Se usa en
+ *  recuperación de contraseña (sin sesión): el cliente no maneja challengeId, así
+ *  la respuesta no revela qué correos existen. true si es válido. */
+export async function verifyCodeByEmail(email: string, code: string, purpose: OtpPurpose): Promise<boolean> {
+  const to = String(email || "").trim().toLowerCase();
+  const c = String(code || "").trim();
+  if (!to || !/^\d{6}$/.test(c)) return false;
+
+  const rec = await prisma.verificationCode.findFirst({
+    where: { email: to, purpose, consumedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!rec || rec.attempts >= MAX_ATTEMPTS) return false;
+  return consumeIfMatches(rec.id, rec.codeHash, c, purpose);
 }
 
 // ── Compuerta OTP para los endpoints sensibles ──────────────────────────────

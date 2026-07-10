@@ -115,6 +115,24 @@ export async function POST(req: Request) {
       }).catch(() => {});
     }
 
+    // Bienvenida (fire-and-forget) al NUEVO usuario con sus datos de acceso. Nunca
+    // rompe la creación. NO se envía la contraseña por correo (la comunica el admin o
+    // el usuario la establece con «¿Olvidaste tu contraseña?»); solo su acceso.
+    const appUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/+$/, "");
+    sendMail({
+      to: newUser.email,
+      subject: "Bienvenido al sistema de Campamentos Transitorios",
+      html: renderEmail("Tu cuenta fue creada", `
+        <p style="margin:0 0 10px">Hola <b>${newUser.nombre}</b>, se creó tu cuenta en el sistema de registro de la Gobernación del Estado La Guaira.</p>
+        <ul style="margin:8px 0;padding-left:18px;color:#334155">
+          <li>Usuario (correo de acceso): <b>${newUser.email}</b></li>
+          <li>Rol: <b>${newUser.role}</b></li>
+          <li>Campamento: <b>${newUser.campamentoTransitorio}</b></li>
+        </ul>
+        ${appUrl ? `<p style="margin:12px 0"><a href="${appUrl}" style="background:#1e3a8a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:700;display:inline-block">Ingresar al sistema</a></p>` : ""}
+        <p style="font-size:13px;color:#475569;margin:10px 0 0">Para establecer o recuperar tu contraseña, usa la opción <b>«¿Olvidaste tu contraseña?»</b> en la pantalla de inicio de sesión.</p>`),
+    }).catch(() => {});
+
     return NextResponse.json(
       { success: true, user: { id: newUser.id, email: newUser.email, nombre: newUser.nombre, role: newUser.role, campamentoTransitorio: newUser.campamentoTransitorio } },
       { status: 201 }
@@ -207,7 +225,8 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     }
 
-    const id = new URL(req.url).searchParams.get("id");
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
     if (!id) {
       return NextResponse.json({ error: "Falta el id del usuario" }, { status: 400 });
     }
@@ -224,6 +243,12 @@ export async function DELETE(req: Request) {
     if (!canManageTargetUser(auth, target)) {
       return NextResponse.json({ error: "No tiene permiso para eliminar este usuario." }, { status: 403 });
     }
+
+    // OTP: valida al ACTOR por correo antes de eliminar (si el correo está configurado).
+    // El código viaja por query (DELETE sin body): ?challengeId=…&code=…
+    const otpBody = { challengeId: url.searchParams.get("challengeId") || undefined, code: url.searchParams.get("code") || undefined };
+    const blocked = otpErrorResponse(await otpGate(otpBody, auth.email, "USER_MUTATION"), auth.email);
+    if (blocked) return blocked;
 
     // Limpiar suscripciones push huérfanas (no hay FK en cascada) y borrar.
     await prisma.pushSubscription.deleteMany({ where: { userId: id } }).catch(() => {});
