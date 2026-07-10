@@ -3898,7 +3898,10 @@ h2.dashboard-section-title {
 .carac-badge--completa { background: #f0fdf4; color: #166534; }
 
 /* Ficha (modal) */
-.carac-ficha { width: min(920px, 96vw); max-height: 92vh; display: flex; flex-direction: column; padding: 0; }
+.carac-ficha { width: min(1100px, 96vw); max-height: 92vh; display: flex; flex-direction: column; padding: 0; }
+/* Botones que van en línea (no full-width) dentro de la ficha: anulan el width:100% de .pill-form. */
+.carac-ficha__foot .btn-submit, .carac-ficha__foot .btn-secondary,
+.carac-gps__row .btn-secondary { width: auto !important; flex: 0 0 auto; }
 .carac-ficha__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.4rem 0.8rem; border-bottom: 1px solid var(--border-color); }
 .carac-ficha__head h3 { margin: 0; font-size: 1.15rem; color: var(--color-primary); font-weight: 800; }
 .carac-ficha__sub { margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--text-secondary); }
@@ -3906,6 +3909,8 @@ h2.dashboard-section-title {
 .carac-ficha__foot { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 0.9rem 1.4rem; border-top: 1px solid var(--border-color); }
 
 .carac-sec__title { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0 0 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid var(--color-primary-light); }
+.carac-sec__title--sub { margin-top: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); border-bottom-color: var(--border-color); }
+.carac-sub-head { grid-column: 1 / -1; margin: 0.7rem 0 -0.15rem; font-size: 0.8rem; font-weight: 700; color: var(--color-primary); padding-top: 0.7rem; border-top: 1px dashed var(--border-color); }
 .carac-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.85rem; }
 .carac-field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
 .carac-field > span { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
@@ -3929,18 +3934,21 @@ h2.dashboard-section-title {
 .carac-member__body { padding: 0.5rem 1rem 1.1rem; }
 
 /* Modal de gestión del catálogo */
-.carac-cat-modal { width: min(560px, 96vw); max-height: 88vh; overflow-y: auto; }
+.carac-cat-modal { width: min(680px, 96vw); max-height: 88vh; overflow-y: auto; }
 .carac-cat-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .carac-cat-head h3 { margin: 0; font-size: 1.1rem; color: var(--color-primary); font-weight: 800; }
 .carac-cat-field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.9rem; }
 .carac-cat-field > span { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
-.carac-cat-add { display: flex; gap: 0.6rem; margin-bottom: 1rem; }
-.carac-cat-add > .morb-control { flex: 1; }
+.carac-cat-add { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.carac-cat-add > .morb-control { flex: 1 1 auto; min-width: 0; }
+/* Los botones dentro de .pill-form son width:100% por defecto → en una fila flex
+   aplastan al input. En estas filas los volvemos a ancho de contenido. */
+.carac-cat-add > .btn-submit { flex: 0 0 auto; width: auto !important; padding-inline: 1.3rem; }
 .carac-cat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
 .carac-cat-item { display: flex; align-items: center; gap: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 999px; padding: 0.3rem 0.4rem 0.3rem 0.9rem; }
 .carac-cat-val { flex: 1; font-size: 0.85rem; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.carac-cat-item > .morb-control { flex: 1; }
-.carac-cat-mini { height: 36px !important; min-height: 36px !important; padding: 0 0.8rem !important; font-size: 0.78rem !important; flex-shrink: 0; }
+.carac-cat-item > .morb-control { flex: 1 1 auto; min-width: 0; }
+.carac-cat-mini { height: 36px !important; min-height: 36px !important; padding: 0 0.9rem !important; font-size: 0.78rem !important; flex: 0 0 auto; width: auto !important; }
 .carac-cat-icon { border: none; background: none; color: var(--text-muted); cursor: pointer; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .carac-cat-icon:hover { background: var(--color-primary-light); color: var(--color-primary); }
 .carac-cat-icon--del:hover { background: #fef2f2; color: #dc2626; }
@@ -3951,6 +3959,10 @@ h2.dashboard-section-title {
   .carac-card__right { justify-content: space-between; }
   .carac-ficha__body { padding: 0.85rem 1rem; }
   .carac-ficha__head, .carac-ficha__foot { padding-inline: 1rem; }
+  /* En pantallas muy chicas, el input de agregar ocupa toda la fila y el botón baja debajo. */
+  .carac-cat-add { flex-wrap: wrap; }
+  .carac-cat-add > .morb-control { flex: 1 1 100%; }
+  .carac-cat-add > .btn-submit { width: 100% !important; }
 }
 
 /* The table itself */

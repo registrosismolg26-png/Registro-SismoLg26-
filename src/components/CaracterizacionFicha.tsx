@@ -91,7 +91,19 @@ function TextField({ label, value, onChange, wide, type = "text", placeholder }:
   );
 }
 
+function EnumSelect({ label, value, onChange, opts }: { label: string; value: string | null | undefined; onChange: (v: string) => void; opts: { value: string; label: string }[] }) {
+  return (
+    <label className="carac-field">
+      <span>{label}</span>
+      <StyledSelect value={value || ""} onChange={onChange} ariaLabel={label}
+        options={[{ value: "", label: "—" }, ...opts]} />
+    </label>
+  );
+}
+
 const campoMeta = (campo: string) => CARAC_CAMPOS.find((c) => c.campo === campo)!;
+const RESCATO_OPTS = [{ value: "SI", label: "Sí" }, { value: "NO", label: "No" }, { value: "PARCIAL", label: "Parcial" }];
+const VALIDACION_OPTS = [{ value: "PENDIENTE", label: "Pendiente" }, { value: "APROBADA", label: "Aprobada" }, { value: "RECHAZADA", label: "Rechazada" }];
 
 export default function CaracterizacionFicha({ familia, onClose, onSaved }: { familia: Familia; onClose: () => void; onSaved: () => void }) {
   const { caracterizacionOpciones, currentUser, effectiveRefugio, coords, showToast, triggerSync } = useAppContext();
@@ -143,7 +155,7 @@ export default function CaracterizacionFicha({ familia, onClose, onSaved }: { fa
   }, [familia.jefeRegistroId, effectiveRefugio]);
 
   const hogarCampos = useMemo(() => CARAC_CAMPOS.filter((c) => c.nivel === "hogar" && c.fase === 1), []);
-  const personaCampos = useMemo(() => CARAC_CAMPOS.filter((c) => c.nivel === "persona" && c.fase === 1), []);
+  const hogarCamposF2 = useMemo(() => CARAC_CAMPOS.filter((c) => c.nivel === "hogar" && c.fase === 2), []);
 
   const usarUbicacion = () => {
     if (coords?.lat != null && coords?.lng != null) { setH({ gpsViviendaLat: coords.lat, gpsViviendaLng: coords.lng }); showToast("Ubicación actual tomada.", "success"); }
@@ -226,6 +238,15 @@ export default function CaracterizacionFicha({ familia, onClose, onSaved }: { fa
                 </div>
               </div>
             </div>
+            <h4 className="carac-sec__title carac-sec__title--sub">Socioeconómico del hogar</h4>
+            <div className="carac-grid">
+              {hogarCamposF2.map((meta) => (
+                <SingleOpcion key={meta.campo} opciones={opc} meta={meta} value={(hogar as any)[`${meta.campo}Id`]} onChange={(v) => setH({ [`${meta.campo}Id`]: v || null } as any)} />
+              ))}
+              <SiNo label="¿Recibe remesas del exterior?" value={hogar.recibeRemesas} onChange={(v) => setH({ recibeRemesas: v })} />
+              <SiNo label="¿Recibe CLAP regularmente?" value={hogar.recibeClap} onChange={(v) => setH({ recibeClap: v })} />
+              <SiNo label="¿Recibe bonos del Sistema Patria?" value={hogar.recibeBonosPatria} onChange={(v) => setH({ recibeBonosPatria: v })} />
+            </div>
           </section>
 
           {/* ── PERSONAS ── */}
@@ -267,6 +288,17 @@ export default function CaracterizacionFicha({ familia, onClose, onSaved }: { fa
                       <MultiOpcion opciones={opc} meta={campoMeta("necesidad")} values={p.necesidadIds || []} onChange={(v) => setP(m.registroId, { necesidadIds: v })} />
                       <TextField label="Correo electrónico" value={p.correo} onChange={(v) => setP(m.registroId, { correo: v })} />
                       <TextField label="Teléfono alternativo" value={p.telefonoAlt} onChange={(v) => setP(m.registroId, { telefonoAlt: v })} />
+                      <h5 className="carac-sub-head">Educación y perfil laboral</h5>
+                      <SingleOpcion opciones={opc} meta={campoMeta("nivelEducativo")} value={p.nivelEducativoId} onChange={(v) => setP(m.registroId, { nivelEducativoId: v || null })} />
+                      <SingleOpcion opciones={opc} meta={campoMeta("impactoLaboral")} value={p.impactoLaboralId} onChange={(v) => setP(m.registroId, { impactoLaboralId: v || null })} />
+                      <SingleOpcion opciones={opc} meta={campoMeta("sectorEconomico")} value={p.sectorEconomicoId} onChange={(v) => setP(m.registroId, { sectorEconomicoId: v || null })} />
+                      <SingleOpcion opciones={opc} meta={campoMeta("oficio")} value={p.oficioId} onChange={(v) => setP(m.registroId, { oficioId: v || null })} />
+                      <TextField label="Años de experiencia" type="number" value={p.aniosExperiencia != null ? String(p.aniosExperiencia) : ""} onChange={(v) => setP(m.registroId, { aniosExperiencia: v === "" ? null : Number(v) })} />
+                      <EnumSelect label="¿Rescató sus herramientas?" value={p.rescatoHerramientas} onChange={(v) => setP(m.registroId, { rescatoHerramientas: v })} opts={RESCATO_OPTS} />
+                      <SingleOpcion opciones={opc} meta={campoMeta("aptitudFisica")} value={p.aptitudFisicaLaboralId} onChange={(v) => setP(m.registroId, { aptitudFisicaLaboralId: v || null })} />
+                      <SingleOpcion opciones={opc} meta={campoMeta("disponibilidad")} value={p.disponibilidadId} onChange={(v) => setP(m.registroId, { disponibilidadId: v || null })} />
+                      <SiNo label="¿Puede trabajar de inmediato?" value={p.puedeTrabajarInmediato} onChange={(v) => setP(m.registroId, { puedeTrabajarInmediato: v })} />
+                      <EnumSelect label="Validación de destreza (uso interno)" value={p.validacionDestreza} onChange={(v) => setP(m.registroId, { validacionDestreza: v })} opts={VALIDACION_OPTS} />
                     </div>
                   )}
                 </div>
