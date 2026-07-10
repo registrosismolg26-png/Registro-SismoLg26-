@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { getAuthUser, canManageUsers, canManageTargetUser, invalidateSession, isMaster, hasRefugio, type AuthUser } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
 import { otpGate, otpErrorResponse } from "@/lib/otp";
-import { sendMail, renderEmail, alertEmails } from "@/lib/mailer";
+import { sendMail, renderEmail, alertEmails, mailButton } from "@/lib/mailer";
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -129,7 +129,7 @@ export async function POST(req: Request) {
           <li>Rol: <b>${newUser.role}</b></li>
           <li>Campamento: <b>${newUser.campamentoTransitorio}</b></li>
         </ul>
-        ${appUrl ? `<p style="margin:12px 0"><a href="${appUrl}" style="background:#1e3a8a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:700;display:inline-block">Ingresar al sistema</a></p>` : ""}
+        ${appUrl ? mailButton(appUrl, "Ingresar al sistema") : ""}
         <p style="font-size:13px;color:#475569;margin:10px 0 0">Para establecer o recuperar tu contraseña, usa la opción <b>«¿Olvidaste tu contraseña?»</b> en la pantalla de inicio de sesión.</p>`),
     }).catch(() => {});
 
