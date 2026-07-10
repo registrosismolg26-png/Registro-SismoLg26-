@@ -22,6 +22,7 @@ import QRCode from "qrcode";
 import { getPending, saveLocal, resetAttempts, resetAllLocalToPending, resetAllConsultasToPending, type LocalRegistro } from "@/lib/db";
 import { formatRoomLabel } from "@/lib/helpers";
 import { useAppContext } from "@/context/AppContext";
+import OtpModal from "@/components/OtpModal";
 import { apiFetch } from "@/lib/apiFetch";
 import { enablePush, pushSupported } from "@/lib/pushClient";
 import { canManageRooms, canRegister, isMaster } from "@/lib/permissions";
@@ -106,6 +107,50 @@ export default function ConfigTab() {
   };
   useBodyScrollLock(showAccount); // bloquea el scroll de fondo mientras el modal esté abierto
 
+  // OTP para el cambio de contraseña: si el back pide código (403 CODE_REQUIRED),
+  // se abre el modal y se reintenta con { challengeId, code }.
+  const [otp, setOtp] = useState<{ challengeId: string } | null>(null);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+
+  const submitAccount = async (otpArg?: { challengeId: string; code: string }) => {
+    if (!currentUser) return;
+    const nombre = miNombre.replace(/\s+/g, " ").trim();
+    const wantsPwd = !!(curPwd || newPwd || confPwd);
+    const nombreChanged = nombre !== currentUser.nombre;
+    const payload: any = {};
+    if (nombreChanged) payload.nombre = nombre;
+    if (wantsPwd) { payload.currentPassword = curPwd; payload.newPassword = newPwd; }
+    if (otpArg) { payload.challengeId = otpArg.challengeId; payload.code = otpArg.code; }
+    if (otpArg) setOtpVerifying(true); else setSavingAccount(true);
+    try {
+      const res = await apiFetch("/api/auth/me", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const d = await res.json().catch(() => ({} as any));
+      if (res.ok && d.success) {
+        // Refleja el nuevo nombre en la sesión local (memoria + almacenamiento).
+        const updated = { ...currentUser, nombre: d.user.nombre };
+        setCurrentUser(updated);
+        if (typeof window !== "undefined") {
+          if (localStorage.getItem("sismo_operator")) localStorage.setItem("sismo_operator", JSON.stringify(updated));
+          if (sessionStorage.getItem("sismo_operator")) sessionStorage.setItem("sismo_operator", JSON.stringify(updated));
+        }
+        setCurPwd(""); setNewPwd(""); setConfPwd("");
+        setShowAccount(false);
+        setOtp(null); setOtpError(null);
+        showToast(wantsPwd ? "Cuenta y contraseña actualizadas." : "Cuenta actualizada.", "success");
+        return;
+      }
+      if (d.code === "CODE_REQUIRED") { setOtpError(null); setOtp({ challengeId: d.challengeId }); return; }
+      if (d.code === "CODE_INVALID") { setOtpError("Código inválido o vencido. Revisa tu correo o reenvía uno nuevo."); return; }
+      setOtp(null);
+      showToast(d.error || "No se pudo actualizar la cuenta.", "error");
+    } catch {
+      showToast("Error de red al actualizar la cuenta.", "error");
+    } finally {
+      setSavingAccount(false); setOtpVerifying(false);
+    }
+  };
+
   const handleSaveAccount = async () => {
     if (!currentUser) return;
     const nombre = miNombre.replace(/\s+/g, " ").trim();
@@ -119,32 +164,7 @@ export default function ConfigTab() {
     const nombreChanged = nombre !== currentUser.nombre;
     if (!nombreChanged && !wantsPwd) { showToast("No hay cambios que guardar.", "info"); return; }
     if (!isOnline) { showToast("Necesitas conexión para actualizar tu cuenta.", "error"); return; }
-    setSavingAccount(true);
-    try {
-      const payload: any = {};
-      if (nombreChanged) payload.nombre = nombre;
-      if (wantsPwd) { payload.currentPassword = curPwd; payload.newPassword = newPwd; }
-      const res = await apiFetch("/api/auth/me", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const d = await res.json().catch(() => ({}));
-      if (res.ok && d.success) {
-        // Refleja el nuevo nombre en la sesión local (memoria + almacenamiento).
-        const updated = { ...currentUser, nombre: d.user.nombre };
-        setCurrentUser(updated);
-        if (typeof window !== "undefined") {
-          if (localStorage.getItem("sismo_operator")) localStorage.setItem("sismo_operator", JSON.stringify(updated));
-          if (sessionStorage.getItem("sismo_operator")) sessionStorage.setItem("sismo_operator", JSON.stringify(updated));
-        }
-        setCurPwd(""); setNewPwd(""); setConfPwd("");
-        setShowAccount(false);
-        showToast(wantsPwd ? "Cuenta y contraseña actualizadas." : "Cuenta actualizada.", "success");
-      } else {
-        showToast(d.error || "No se pudo actualizar la cuenta.", "error");
-      }
-    } catch {
-      showToast("Error de red al actualizar la cuenta.", "error");
-    } finally {
-      setSavingAccount(false);
-    }
+    await submitAccount();
   };
 
   // ── Gestión de Refugios (solo MASTER) ──
@@ -1525,6 +1545,19 @@ export default function ConfigTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {otp && currentUser && (
+        <OtpModal
+          email={currentUser.email}
+          purpose="PASSWORD_CHANGE"
+          verifying={otpVerifying}
+          error={otpError}
+          onVerify={(code) => submitAccount({ challengeId: otp.challengeId, code })}
+          onCancel={() => { setOtp(null); setOtpError(null); }}
+          onResent={(challengeId) => { setOtp({ challengeId }); setOtpError(null); }}
+          showToast={showToast}
+        />
       )}
     </>
   );

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { getAuthUser, canManageUsers, canManageTargetUser, invalidateSession, isMaster, hasRefugio, type AuthUser } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
+import { otpGate, otpErrorResponse } from "@/lib/otp";
+import { sendMail, renderEmail, alertEmails } from "@/lib/mailer";
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -59,7 +61,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     }
 
-    const { email, nombre, password, role, campamentoTransitorio } = await req.json();
+    const body = await req.json();
+    const { email, nombre, password, role, campamentoTransitorio } = body;
 
     if (!email || !nombre || !password || !role) {
       return NextResponse.json({ error: "Todos los campos son obligatorios" }, { status: 400 });
@@ -88,6 +91,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "El correo ya se encuentra registrado" }, { status: 409 });
     }
 
+    // OTP: valida al ACTOR (admin/master) por correo antes de crear (si el correo está configurado).
+    const blocked = otpErrorResponse(await otpGate(body, auth.email, "USER_MUTATION"), auth.email);
+    if (blocked) return blocked;
+
     const newUser = await withAuditUser(auth.email, (tx) => tx.user.create({
       data: {
         email: cleanEmail,
@@ -97,6 +104,16 @@ export async function POST(req: Request) {
         campamentoTransitorio: targetRefugio,
       },
     }));
+
+    // Aviso (fire-and-forget) a ALERT_EMAILS. Nunca rompe la creación.
+    const avisoTo = alertEmails();
+    if (avisoTo.length) {
+      sendMail({
+        to: avisoTo,
+        subject: `Nuevo usuario: ${newUser.nombre}`,
+        html: renderEmail("Nuevo usuario creado", `<p>Se creó una cuenta en el sistema:</p><ul style="margin:8px 0;padding-left:18px;color:#334155"><li><b>${newUser.nombre}</b> · ${newUser.email}</li><li>Rol: <b>${newUser.role}</b></li><li>Campamento: <b>${newUser.campamentoTransitorio}</b></li><li>Creado por: ${auth.nombre} (${auth.email})</li></ul>`),
+      }).catch(() => {});
+    }
 
     return NextResponse.json(
       { success: true, user: { id: newUser.id, email: newUser.email, nombre: newUser.nombre, role: newUser.role, campamentoTransitorio: newUser.campamentoTransitorio } },
@@ -115,7 +132,8 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     }
 
-    const { id, email, nombre, password, role, campamentoTransitorio } = await req.json();
+    const body = await req.json();
+    const { id, email, nombre, password, role, campamentoTransitorio } = body;
 
     if (!id || !email || !nombre || !role) {
       return NextResponse.json({ error: "Todos los campos obligatorios deben estar presentes" }, { status: 400 });
@@ -154,6 +172,10 @@ export async function PUT(req: Request) {
     if (existing) {
       return NextResponse.json({ error: "El correo ya está registrado en otra cuenta" }, { status: 409 });
     }
+
+    // OTP: valida al ACTOR por correo antes de editar (si el correo está configurado).
+    const blocked = otpErrorResponse(await otpGate(body, auth.email, "USER_MUTATION"), auth.email);
+    if (blocked) return blocked;
 
     const updateData: any = {
       email: cleanEmail,

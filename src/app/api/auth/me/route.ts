@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { getAuthUser, invalidateSession } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
+import { otpGate, otpErrorResponse } from "@/lib/otp";
 
 // Mismo esquema que login/users: "scrypt$<salt>$<hash>" (con respaldo SHA-256 legado).
 function hashPassword(password: string): string {
@@ -61,6 +62,10 @@ export async function PUT(req: Request) {
       if (!currentPassword || !verifyPassword(currentPassword, me.password)) {
         return NextResponse.json({ error: "La contraseña actual es incorrecta." }, { status: 403 });
       }
+      // OTP: código de validación al PROPIO correo antes de cambiar la contraseña
+      // (si el correo está configurado; si no, se omite y opera como hoy).
+      const blocked = otpErrorResponse(await otpGate(body, auth.email, "PASSWORD_CHANGE"), auth.email);
+      if (blocked) return blocked;
       data.password = hashPassword(newPassword);
     }
 

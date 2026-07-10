@@ -4015,6 +4015,18 @@ h2.dashboard-section-title {
   .monit-camps { grid-template-columns: 1fr; }
 }
 
+/* ── OtpModal (código de verificación por correo) ──────────────────────────── */
+.otp-modal { width: min(420px, 94vw); display: flex; flex-direction: column; align-items: center; gap: 0.65rem; text-align: center; }
+.otp-modal__ico { width: 52px; height: 52px; border-radius: 16px; background: var(--color-primary-light); color: var(--color-primary); display: inline-flex; align-items: center; justify-content: center; }
+.otp-modal__title { margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--color-primary); }
+.otp-modal__sub { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+.otp-input { text-align: center; font-size: 1.5rem !important; letter-spacing: 0.55rem; font-family: monospace; font-weight: 800; height: 56px !important; min-height: 56px !important; width: 100%; max-width: 250px; padding-right: calc(1.15rem - 0.55rem) !important; }
+.otp-modal__err { margin: 0; font-size: 0.8rem; font-weight: 700; color: #dc2626; }
+.otp-modal__actions { display: flex; gap: 0.6rem; width: 100%; margin-top: 0.3rem; }
+.otp-modal__actions .btn-submit, .otp-modal__actions .btn-secondary { flex: 1; width: auto !important; }
+.otp-modal__resend { background: none; border: none; color: var(--color-primary); font-size: 0.82rem; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0.25rem 0.5rem; }
+.otp-modal__resend:disabled { opacity: 0.5; cursor: default; text-decoration: none; }
+
 /* The table itself */
 .registro-table {
   width: 100%;

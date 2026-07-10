@@ -6,12 +6,42 @@
 
 import { useState, useEffect, type FormEvent } from "react";
 import { useAppContext } from "@/context/AppContext";
+import OtpModal from "@/components/OtpModal";
 import { apiFetch } from "@/lib/apiFetch";
 import { canManageUsers, isMaster, canManageTargetUser, hasRefugio, assignableRoles, ROLE_LABELS } from "@/lib/permissions";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 
 export default function UsuariosTab() {
   const { currentUser, isOnline, showToast } = useAppContext();
+
+  // OTP: cuando el backend pide código (403 CODE_REQUIRED), se abre el modal y se
+  // reintenta la MISMA acción con { challengeId, code }. `doFetch` es el fetch de la
+  // acción pendiente; `onSuccess` su cierre de éxito.
+  const [otp, setOtp] = useState<{ challengeId: string; doFetch: (o?: { challengeId: string; code: string }) => Promise<Response>; onSuccess: () => void } | null>(null);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+
+  const runUserAction = async (
+    doFetch: (o?: { challengeId: string; code: string }) => Promise<Response>,
+    onSuccess: () => void,
+    otpArg?: { challengeId: string; code: string }
+  ) => {
+    if (otpArg) setOtpVerifying(true);
+    try {
+      const res = await doFetch(otpArg);
+      const data = await res.json().catch(() => ({} as any));
+      if (res.ok) { setOtp(null); setOtpError(null); onSuccess(); return; }
+      if (data.code === "CODE_REQUIRED") { setOtpError(null); setOtp({ challengeId: data.challengeId, doFetch, onSuccess }); return; }
+      if (data.code === "CODE_INVALID") { setOtpError("Código inválido o vencido. Revisa tu correo o reenvía uno nuevo."); return; }
+      setOtp(null);
+      showToast(data.error || "Error al guardar el usuario.", "warning");
+    } catch (err) {
+      console.error(err);
+      showToast("Error de conexión al guardar el usuario.", "warning");
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
 
   // Roles que ESTE actor puede asignar (Master: todos; AdminMedico: solo médicos;
   // Admin: solo censo). Espejo del backend; el selector se puebla desde aquí.
@@ -140,36 +170,21 @@ export default function UsuariosTab() {
       return;
     }
 
-    try {
-      const res = await apiFetch("/api/auth/users", {
+    await runUserAction(
+      (o) => apiFetch("/api/auth/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...userForm })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error || "Error al crear usuario.", "warning");
-        return;
+        body: JSON.stringify({ ...userForm, ...(o || {}) }),
+      }),
+      () => {
+        showToast("Usuario creado con éxito.", "success");
+        setCreateUserModalOpen(false);
+        setUserForm({ nombre: "", email: "", password: "", confirmPassword: "", role: defaultRole, campamentoTransitorio: "" });
+        setUserShowPassword(false);
+        setUserShowConfirmPassword(false);
+        fetchUsers();
       }
-
-      showToast("Usuario creado con éxito.", "success");
-      setCreateUserModalOpen(false);
-      setUserForm({
-        nombre: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        role: defaultRole,
-        campamentoTransitorio: ""
-      });
-      setUserShowPassword(false);
-      setUserShowConfirmPassword(false);
-      fetchUsers();
-    } catch (err) {
-      console.error(err);
-      showToast("Error de conexión al guardar el usuario.", "warning");
-    }
+    );
   };
 
   const handleUpdateUser = async (e: FormEvent) => {
@@ -209,40 +224,22 @@ export default function UsuariosTab() {
       return;
     }
 
-    try {
-      const res = await apiFetch("/api/auth/users", {
+    await runUserAction(
+      (o) => apiFetch("/api/auth/users", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingUserId,
-          ...userForm
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error || "Error al actualizar usuario.", "warning");
-        return;
+        body: JSON.stringify({ id: editingUserId, ...userForm, ...(o || {}) }),
+      }),
+      () => {
+        showToast("Usuario actualizado con éxito.", "success");
+        setEditingUserId(null);
+        setEditUserModalOpen(false);
+        setUserForm({ nombre: "", email: "", password: "", confirmPassword: "", role: defaultRole, campamentoTransitorio: "" });
+        setUserShowPassword(false);
+        setUserShowConfirmPassword(false);
+        fetchUsers();
       }
-
-      showToast("Usuario actualizado con éxito.", "success");
-      setEditingUserId(null);
-      setEditUserModalOpen(false);
-      setUserForm({
-        nombre: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        role: defaultRole,
-        campamentoTransitorio: ""
-      });
-      setUserShowPassword(false);
-      setUserShowConfirmPassword(false);
-      fetchUsers();
-    } catch (err) {
-      console.error(err);
-      showToast("Error de conexión al guardar el usuario.", "warning");
-    }
+    );
   };
 
   // Ejecuta el borrado del operador confirmado en el modal.
@@ -812,6 +809,19 @@ export default function UsuariosTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {otp && currentUser && (
+        <OtpModal
+          email={currentUser.email}
+          purpose="USER_MUTATION"
+          verifying={otpVerifying}
+          error={otpError}
+          onVerify={(code) => runUserAction(otp.doFetch, otp.onSuccess, { challengeId: otp.challengeId, code })}
+          onCancel={() => { setOtp(null); setOtpError(null); }}
+          onResent={(challengeId) => { setOtp((o) => (o ? { ...o, challengeId } : o)); setOtpError(null); }}
+          showToast={showToast}
+        />
       )}
     </>
   );

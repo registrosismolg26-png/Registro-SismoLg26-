@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendPushToAdmins } from "@/lib/push";
 import { getAuthUser, canRegister, canActOnRefugio, isMaster, hasRefugio } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
+import { sendMail, renderEmail, alertEmails } from "@/lib/mailer";
 
 const VALID_GENERO = ["MASCULINO", "FEMENINO"];
 const VALID_ESTADO_FISICO = ["ILESO", "LESIONADO"];
@@ -329,6 +330,19 @@ export async function POST(req: Request) {
     await sendPushToAdmins(nuevo).catch((err) => {
       console.error("Error triggering push notifications to admins:", err);
     });
+
+    // Aviso de TRASLADO por correo (fire-and-forget). Solo si hubo traslado y hay
+    // destinatarios configurados (ALERT_EMAILS). Nunca rompe el registro.
+    if (transferredFrom.length) {
+      const avisoTo = alertEmails();
+      if (avisoTo.length) {
+        sendMail({
+          to: avisoTo,
+          subject: `Traslado de campamento: ${nuevo.nombreApellido}`,
+          html: renderEmail("Traslado entre campamentos", `<p><b>${nuevo.nombreApellido}</b> (C.I. ${nuevo.cedula}) fue trasladado(a):</p><ul style="margin:8px 0;padding-left:18px;color:#334155"><li>Desde: <b>${transferredFrom.join(", ")}</b></li><li>Hacia: <b>${nuevo.refugio}</b></li></ul>`),
+        }).catch(() => {});
+      }
+    }
 
     return NextResponse.json({ success: true, id: nuevo.id, transferredFrom }, { status: 201 });
   } catch (error: any) {

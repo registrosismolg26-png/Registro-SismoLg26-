@@ -305,3 +305,20 @@ model CaracterizacionPersona {
   @@index([cedula])
   @@index([refugio, familiaCedula]) // traer todas las personas de una familia (ficha completa)
 }
+
+// Código de validación por correo (OTP) para acciones sensibles: crear/editar
+// usuarios y cambiar contraseña. Se guarda el HASH del código (sha256), nunca el
+// código en claro. `challengeId` = id. Expira a los 10 min; máx. 5 intentos.
+model VerificationCode {
+  id         String    @id @default(uuid())
+  email      String // destinatario (minúsculas)
+  codeHash   String // sha256 del código de 6 dígitos
+  purpose    String // "USER_MUTATION" | "PASSWORD_CHANGE"
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([email, purpose])
+  @@index([createdAt])
+}
