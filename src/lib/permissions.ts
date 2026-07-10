@@ -22,9 +22,9 @@ export const isMedico          = (role: string) => ["AdminMedico", "OperadorMedi
 export const canEditCatalogosMedicos = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico"].includes(role);
 // Catálogos médicos — ELIMINAR y superficie de administración: solo AdminMedico y Master.
 export const canManageCatalogosMedicos = (role: string) => ["MASTER", "AdminMedico"].includes(role);
-// Caracterización — gestionar el catálogo general de opciones (config-like): Master y Admin.
-// (Llenar/ver fichas usa canRegister, igual que el censo.)
-export const canManageCaracterizacion = (role: string) => ["MASTER", "ADMIN"].includes(role);
+// Caracterización — POR AHORA todo el módulo (pestaña, fichas y catálogo) es SOLO Master.
+// (Cuando se abra a más roles, ampliar aquí + en el gating de la pestaña y el POST.)
+export const canManageCaracterizacion = (role: string) => ["MASTER"].includes(role);
 
 /** ¿El usuario tiene un refugio válido asociado? (espejo de auth.ts hasRefugio). */
 export const hasRefugio        = (refugio: string | null | undefined): boolean =>

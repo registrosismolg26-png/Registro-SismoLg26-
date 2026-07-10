@@ -192,7 +192,7 @@ export default function AppHeader() {
               <span>Registrados</span>
             </button>
           )}
-          {canRegister(currentUser.role) && (
+          {isMaster(currentUser.role) && (
             <button
               type="button"
               data-tab="caracterizacion"
@@ -310,7 +310,7 @@ export default function AppHeader() {
                   Registrados
                 </button>
               )}
-              {canRegister(currentUser.role) && activeTab !== "caracterizacion" && (
+              {isMaster(currentUser.role) && activeTab !== "caracterizacion" && (
                 <button type="button" className="nav-dropdown-item" onClick={() => { setActiveTab("caracterizacion"); setMenuOpen(false); }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>
                   Caracterización

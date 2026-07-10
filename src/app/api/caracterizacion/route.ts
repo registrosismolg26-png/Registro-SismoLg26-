@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, canRegister, isMaster, hasRefugio, refugioScopeFor } from "@/lib/auth";
+import { getAuthUser, isMaster, hasRefugio, refugioScopeFor } from "@/lib/auth";
 
 // Caracterización (ficha por familia). GET = estado LIGERO por refugio (qué familias
 // tienen hogar y qué personas tienen ficha) para pintar cobertura sin traer todo.
@@ -97,7 +97,8 @@ export async function POST(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (!canRegister(auth)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    // Por ahora, la caracterización es SOLO Master (UI y backend).
+    if (!isMaster(auth)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
     const body = await req.json();
 

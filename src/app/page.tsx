@@ -1372,7 +1372,7 @@ export default function Home() {
 
       {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos */}
       {activeTab === "asignaciones" && !isMedico(currentUser.role) && <AsignacionesTab />}
-      {activeTab === "caracterizacion" && canRegister(currentUser.role) && <CaracterizacionTab />}
+      {activeTab === "caracterizacion" && isMaster(currentUser.role) && <CaracterizacionTab />}
 
       {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
       {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}
