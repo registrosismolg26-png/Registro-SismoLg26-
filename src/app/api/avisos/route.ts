@@ -44,10 +44,15 @@ export async function POST(req: Request) {
     const users = await prisma.user.findMany({ where, select: { id: true, telegramChatId: true } });
     if (!users.length) return NextResponse.json({ success: true, count: 0, telegram: 0 });
 
+    // El EMISOR también recibe una COPIA (para ver lo que envió). `users` ya excluye
+    // su id, así que se agrega una sola vez → aparece en su propia campana/Telegram.
+    const sender = await prisma.user.findUnique({ where: { id: auth.id }, select: { id: true, telegramChatId: true } });
+    const recipients = sender ? [...users, sender] : users;
+
     // In-app: persiste (await, debe quedar guardado). tipo "AVISO".
     if (canalInApp) {
       await prisma.notification.createMany({
-        data: users.map((u) => ({ userId: u.id, tipo: "AVISO", titulo, cuerpo })),
+        data: recipients.map((u) => ({ userId: u.id, tipo: "AVISO", titulo, cuerpo })),
       });
     }
 
@@ -55,7 +60,7 @@ export async function POST(req: Request) {
     let tgTargets = 0;
     if (canalTelegram) {
       const txt = `📢 <b>${esc(titulo)}</b>\n${esc(cuerpo)}\n\n— ${esc(auth.nombre)}`;
-      for (const u of users) {
+      for (const u of recipients) {
         if (u.telegramChatId) { tgTargets++; sendTelegram(u.telegramChatId, txt).catch(() => {}); }
       }
     }
