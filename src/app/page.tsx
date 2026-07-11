@@ -45,6 +45,11 @@ import BalanceTab from "@/tabs/BalanceTab";
 import HistorialClinicoTab from "@/tabs/HistorialClinicoTab";
 import { SwipeableToast } from "@/components/SwipeableToast";
 import { useModalOverlayScrollLock, useModalOutsideClickGuard } from "@/components/useBodyScrollLock";
+import dynamic from "next/dynamic";
+
+// MapaTab carga Leaflet; se importa PEREZOSAMENTE (solo cuando Master abre la pestaña)
+// y sin SSR (Leaflet usa window/document) → no engorda el bundle ni afecta a los demás.
+const MapaTab = dynamic(() => import("@/tabs/MapaTab"), { ssr: false });
 
 export default function Home() {
   // Regla GENERAL de modales: mientras haya cualquier `.modal-overlay` en el DOM,
@@ -1375,6 +1380,7 @@ export default function Home() {
       {activeTab === "asignaciones" && !isMedico(currentUser.role) && <AsignacionesTab />}
       {activeTab === "caracterizacion" && isMaster(currentUser.role) && <CaracterizacionTab />}
       {activeTab === "monitoreo" && isMaster(currentUser.role) && <MonitoreoTab />}
+      {activeTab === "mapa" && isMaster(currentUser.role) && <MapaTab />}
 
       {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
       {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}

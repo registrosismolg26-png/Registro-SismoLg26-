@@ -51,6 +51,22 @@ export async function monitoreoETag(): Promise<string | null> {
   }
 }
 
+/** Sello GLOBAL para el mapa de calor: (count, max(syncedAt)) de los registros CON
+ *  GPS. Cambia al agregar/editar/borrar un registro con GPS; barato (unos escalares). */
+export async function mapaCalorETag(): Promise<string | null> {
+  try {
+    const agg = await prisma.registro.aggregate({
+      where: { gpsLat: { not: null }, gpsLng: { not: null } },
+      _count: true,
+      _max: { syncedAt: true },
+    });
+    const max = agg._max.syncedAt ? agg._max.syncedAt.getTime() : 0;
+    return `"mapa-${agg._count}-${max}"`;
+  } catch {
+    return null;
+  }
+}
+
 /** Sello (count, max(updatedAt)) de consultas para el ámbito dado. null si la columna
  *  `updatedAt` aún no está migrada (→ la ruta responde 200 normal, sin optimizar). */
 export async function consultasETag(scope: Scope): Promise<string | null> {

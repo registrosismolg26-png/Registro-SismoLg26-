@@ -14,6 +14,8 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "exceljs": "^4.4.0",
+    "leaflet": "^1.9.4",
+    "leaflet.heat": "^0.2.0",
     "next": "16.2.9",
     "nodemailer": "^9.0.3",
     "pg": "^8.22.0",
@@ -25,6 +27,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.2",
+    "@types/leaflet": "^1.9.21",
+    "@types/leaflet.heat": "^0.2.5",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.20.0",

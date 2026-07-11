@@ -30,6 +30,8 @@ export const NAV_ITEMS: NavItem[] = [
     icon: sv(<><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M9 12h6" /><path d="M9 16h6" /><path d="M9 8h2" /></>) },
   { tab: "monitoreo", label: "Monitoreo", show: (r) => isMaster(r),
     icon: sv(<><path d="M3 3v18h18" /><path d="M18 9l-5 5-3-3-4 4" /></>) },
+  { tab: "mapa", label: "Mapa de calor", show: (r) => isMaster(r),
+    icon: sv(<><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></>) },
   { tab: "morbilidad", label: "Morbilidad", show: (r) => canManageMorbilidad(r),
     icon: sv(<path d="M22 12h-4l-3 9L9 3l-3 9H2" />) },
   { tab: "balance", label: "Balance", show: (r) => canManageMorbilidad(r),
