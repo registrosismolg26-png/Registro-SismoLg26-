@@ -9,11 +9,14 @@ export async function GET(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    const items = await prisma.notification.findMany({
-      where: { userId: auth.id },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-    });
+    // Los AVISO (anuncios) SIEMPRE arriba; luego el resto (usuario nuevo, traslado,
+    // bienvenida) por fecha. Dos consultas para que un AVISO no se pierda aunque haya
+    // muchas notificaciones más nuevas debajo.
+    const [avisos, otros] = await Promise.all([
+      prisma.notification.findMany({ where: { userId: auth.id, tipo: "AVISO" }, orderBy: { createdAt: "desc" }, take: 15 }),
+      prisma.notification.findMany({ where: { userId: auth.id, tipo: { not: "AVISO" } }, orderBy: { createdAt: "desc" }, take: 30 }),
+    ]);
+    const items = [...avisos, ...otros];
     const unread = items.reduce((n, it) => n + (it.readAt ? 0 : 1), 0);
 
     // Contador de "nuevos afectados" (registros nuevos desde ?afectadosSince) para

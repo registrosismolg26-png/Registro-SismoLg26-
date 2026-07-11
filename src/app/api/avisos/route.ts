@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, canManageUsers, isMaster } from "@/lib/auth";
 import { assignableRoles } from "@/lib/permissions";
 import { sendTelegram } from "@/lib/telegram";
+import { sendPushToUsers } from "@/lib/push";
 
 // Enviar aviso (Master/Admin) a usuarios elegidos por ROL y CAMPAMENTO, por in-app
 // y/o Telegram. El servidor NO confía en el cliente: los roles se recortan a los que
@@ -54,6 +55,8 @@ export async function POST(req: Request) {
       await prisma.notification.createMany({
         data: recipients.map((u) => ({ userId: u.id, tipo: "AVISO", titulo, cuerpo })),
       });
+      // Push (PWA): que el aviso llegue aunque no tengan la app abierta.
+      await sendPushToUsers(recipients.map((u) => u.id), { title: titulo, body: cuerpo, url: "/", tag: `aviso-${Date.now()}` }).catch(() => {});
     }
 
     // Telegram DM a los vinculados (best-effort, no bloquea la respuesta).

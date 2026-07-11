@@ -72,3 +72,37 @@ export async function sendPushToAdmins(registro: { id: string; nombreApellido: s
     console.error("Error in sendPushToAdmins:", error);
   }
 }
+
+/** Push (PWA) a las suscripciones de una LISTA de usuarios (para los avisos del
+ *  composer). Best-effort: sin VAPID o sin suscripciones, no hace nada ni rompe. */
+export async function sendPushToUsers(
+  userIds: string[],
+  data: { title: string; body: string; url?: string; tag?: string }
+) {
+  try {
+    if (!publicKey || !privateKey) { console.warn("VAPID no configurado. Se omite el push."); return; }
+    if (!userIds.length) return;
+    const subscriptions = await prisma.pushSubscription.findMany({ where: { userId: { in: userIds } } });
+    if (!subscriptions.length) return;
+
+    const payload = JSON.stringify({
+      title: data.title,
+      body: data.body,
+      url: data.url || "/",
+      tag: data.tag || `aviso-${Date.now()}`,
+    });
+    const options = { TTL: 86400, headers: { "Urgency": "high" } };
+
+    await Promise.all(subscriptions.map((sub) => {
+      const pushSubscription = { endpoint: sub.endpoint, keys: { auth: sub.keysAuth, p256dh: sub.keysP256dh } };
+      return webpush.sendNotification(pushSubscription, payload, options).catch((err: any) => {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          return prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+        }
+        console.error("Error sending web push to subscriber:", err);
+      });
+    }));
+  } catch (error) {
+    console.error("Error in sendPushToUsers:", error);
+  }
+}
