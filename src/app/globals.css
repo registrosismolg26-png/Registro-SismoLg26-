@@ -4100,12 +4100,14 @@ h2.dashboard-section-title {
 .swipe-row__fg { position: relative; z-index: 1; background: var(--bg-secondary); }
 .swipe-row__fg.notif-item--unread { background: color-mix(in srgb, var(--color-primary) 8%, var(--bg-secondary)); }
 .swipe-row__fg:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
-.swipe-row__act { position: absolute; inset: 0; z-index: 0; display: flex; align-items: center; gap: 7px; padding: 0 1.05rem; color: #fff; font-size: 0.8rem; font-weight: 800; }
+.swipe-row__act { position: absolute; inset: 0; z-index: 0; display: flex; align-items: center; gap: 7px; padding: 0 1.05rem; color: #fff; font-size: 0.8rem; font-weight: 800; opacity: 0; pointer-events: none; transition: opacity 0.1s ease; }
 .swipe-row__act svg { width: 18px; height: 18px; transition: transform 0.12s ease; }
 .swipe-row__act--snooze { justify-content: flex-start; background: #d97706; }
 .swipe-row__act--dismiss { justify-content: flex-end; background: var(--color-danger); }
-.swipe-row__act.is-armed { filter: brightness(1.08); }
-.swipe-row__act.is-armed svg { transform: scale(1.18); }
+.swipe-row[data-reveal="snooze"] .swipe-row__act--snooze { opacity: 1; }
+.swipe-row[data-reveal="dismiss"] .swipe-row__act--dismiss { opacity: 1; }
+.swipe-row[data-armed="1"] .swipe-row__act { filter: brightness(1.1); }
+.swipe-row[data-armed="1"] .swipe-row__act svg { transform: scale(1.18); }
 
 /* ── Aviso flotante "Nuevo afectado" (se auto-oculta a 6 s) ── */
 .afec-flash { position: fixed; bottom: 20px; right: 20px; z-index: 99999; width: min(360px, calc(100vw - 32px)); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: 0 16px 40px -16px rgba(0,0,0,0.45); padding: 0.85rem 0.9rem 0.95rem; display: flex; flex-direction: column; gap: 0.7rem; overflow: hidden; animation: afecFlashIn 0.25s ease both; }

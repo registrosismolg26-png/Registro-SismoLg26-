@@ -44,6 +44,7 @@ import MorbilidadTab from "@/tabs/MorbilidadTab";
 import BalanceTab from "@/tabs/BalanceTab";
 import HistorialClinicoTab from "@/tabs/HistorialClinicoTab";
 import { SwipeableToast } from "@/components/SwipeableToast";
+import { useSwipeDismiss } from "@/lib/useSwipeDismiss";
 import { useModalOverlayScrollLock, useModalOutsideClickGuard } from "@/components/useBodyScrollLock";
 import dynamic from "next/dynamic";
 
@@ -554,6 +555,15 @@ export default function Home() {
     const t = setTimeout(() => setInternalNotification(null), 6000);
     return () => clearTimeout(t);
   }, [internalNotification]);
+
+  // El aviso flotante también se desliza a un lado para descartarlo (arrastre EN
+  // VIVO). `ignoreSelector:"button"` deja que los botones internos sigan clicables.
+  const flashSwipe = useSwipeDismiss<HTMLDivElement>({
+    onLeft: () => setInternalNotification(null),
+    onRight: () => setInternalNotification(null),
+    fade: true,
+    ignoreSelector: "button",
+  });
 
   // Navegación por notificación PWA: cuando llega pendingSelectId con match en
   // registros, cambiamos a la pestaña asignaciones. La selección del registro
@@ -1403,7 +1413,7 @@ export default function Home() {
 
       {/* Real-time internal PWA notification banner */}
       {internalNotification && (
-        <div className="afec-flash" role="status" aria-live="polite">
+        <div className="afec-flash" role="status" aria-live="polite" ref={flashSwipe.ref} {...flashSwipe.handlers}>
           <div className="afec-flash__row">
             <span className="afec-flash__ico">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
