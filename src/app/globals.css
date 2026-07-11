@@ -4082,6 +4082,48 @@ h2.dashboard-section-title {
 .aviso-chip button:hover { opacity: 1; }
 .aviso-link { background: none; border: none; color: var(--color-primary); font-size: 0.75rem; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0; }
 
+/* Pista de formato + vista previa (tipo WhatsApp) en el composer */
+.wa-hint { margin: 0.4rem 0 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; }
+.wa-hint b, .wa-hint em, .wa-hint s { color: var(--text-secondary); }
+.aviso-preview { display: flex; flex-direction: column; gap: 0.35rem; }
+.aviso-preview__tag { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.aviso-preview__card { display: flex; gap: 10px; padding: 0.7rem 0.85rem; border: 1px solid var(--border-color); border-radius: 14px; background: color-mix(in srgb, var(--color-primary) 5%, var(--bg-secondary)); }
+.aviso-preview__ico { flex: none; width: 32px; height: 32px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); background: var(--color-primary-light); }
+.aviso-preview__ico svg { width: 17px; height: 17px; }
+.aviso-preview__main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 0.15rem; }
+.aviso-preview__title { font-size: 0.86rem; font-weight: 800; color: var(--text-primary); word-break: break-word; }
+.aviso-preview__body { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; white-space: normal; word-break: break-word; }
+.aviso-preview__ph { color: var(--text-muted); font-style: italic; }
+
+/* ── Fila de notificación deslizable (descartar ← / posponer →) ── */
+.swipe-row { position: relative; overflow: hidden; }
+.swipe-row__fg { position: relative; z-index: 1; background: var(--bg-secondary); }
+.swipe-row__fg.notif-item--unread { background: color-mix(in srgb, var(--color-primary) 8%, var(--bg-secondary)); }
+.swipe-row__fg:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.swipe-row__act { position: absolute; inset: 0; z-index: 0; display: flex; align-items: center; gap: 7px; padding: 0 1.05rem; color: #fff; font-size: 0.8rem; font-weight: 800; }
+.swipe-row__act svg { width: 18px; height: 18px; transition: transform 0.12s ease; }
+.swipe-row__act--snooze { justify-content: flex-start; background: #d97706; }
+.swipe-row__act--dismiss { justify-content: flex-end; background: var(--color-danger); }
+.swipe-row__act.is-armed { filter: brightness(1.08); }
+.swipe-row__act.is-armed svg { transform: scale(1.18); }
+
+/* ── Aviso flotante "Nuevo afectado" (se auto-oculta a 6 s) ── */
+.afec-flash { position: fixed; bottom: 20px; right: 20px; z-index: 99999; width: min(360px, calc(100vw - 32px)); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: 0 16px 40px -16px rgba(0,0,0,0.45); padding: 0.85rem 0.9rem 0.95rem; display: flex; flex-direction: column; gap: 0.7rem; overflow: hidden; animation: afecFlashIn 0.25s ease both; }
+.afec-flash__row { display: flex; align-items: flex-start; gap: 0.6rem; }
+.afec-flash__ico { flex: none; width: 34px; height: 34px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); background: var(--color-primary-light); }
+.afec-flash__main { flex: 1; min-width: 0; }
+.afec-flash__tag { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-primary); }
+.afec-flash__txt { margin: 0.15rem 0 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; word-break: break-word; }
+.afec-flash__x { flex: none; width: 26px; height: 26px; border-radius: 50%; border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.afec-flash__x:hover { background: color-mix(in srgb, var(--text-primary) 8%, transparent); color: var(--text-secondary); }
+.afec-flash__actions { display: flex; gap: 0.5rem; }
+.afec-flash__btn { flex: 1; width: auto !important; margin: 0 !important; }
+.afec-flash__bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; transform-origin: left; background: var(--color-primary); animation: afecFlashBar 6s linear forwards; }
+@keyframes afecFlashIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes afecFlashBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .afec-flash { animation: none; } .afec-flash__bar { animation: none; } }
+@media (max-width: 560px) { .afec-flash { left: 12px; right: 12px; bottom: 12px; width: auto; } }
+
 /* Por campamento: cada tarjeta ES una .bal-card (hereda caja/sombra/acento/radio).
    Solo se define su layout interno + el semáforo de ocupación (colores .dash-room). */
 .monit-camps { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.85rem; }

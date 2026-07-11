@@ -4,6 +4,7 @@ import { getAuthUser, canManageUsers, isMaster } from "@/lib/auth";
 import { assignableRoles } from "@/lib/permissions";
 import { sendTelegram } from "@/lib/telegram";
 import { sendPushToUsers } from "@/lib/push";
+import { waToTelegramHtml } from "@/lib/waFormat";
 
 // Enviar aviso (Master/Admin) a usuarios elegidos por ROL y CAMPAMENTO, por in-app
 // y/o Telegram. El servidor NO confía en el cliente: los roles se recortan a los que
@@ -62,7 +63,8 @@ export async function POST(req: Request) {
     // Telegram DM a los vinculados (best-effort, no bloquea la respuesta).
     let tgTargets = 0;
     if (canalTelegram) {
-      const txt = `📢 <b>${esc(titulo)}</b>\n${esc(cuerpo)}\n\n— ${esc(auth.nombre)}`;
+      // El cuerpo respeta el formato WhatsApp (*negrita* _cursiva_ ~tachado~) → HTML de Telegram.
+      const txt = `📢 <b>${esc(titulo)}</b>\n${waToTelegramHtml(cuerpo)}\n\n— ${esc(auth.nombre)}`;
       for (const u of recipients) {
         if (u.telegramChatId) { tgTargets++; sendTelegram(u.telegramChatId, txt).catch(() => {}); }
       }

@@ -15,6 +15,9 @@ import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/apiFetch";
 import { useAppContext } from "@/context/AppContext";
 import { canManageUsers, isMedico, isMaster } from "@/lib/permissions";
+import SwipeableNotifRow from "@/components/SwipeableNotifRow";
+import WaText from "@/components/WaText";
+import { loadHidden, hideNotif, isHiddenNow } from "@/lib/notifHidden";
 
 interface Notif { id: string; tipo: string; titulo: string; cuerpo: string; refugio: string | null; entidadId: string | null; readAt: string | null; createdAt: string; }
 interface Afectado { id: string; nombreApellido: string; cedula: string; refugio: string; parroquia: string; retirado: string; createdAt: string; }
@@ -67,6 +70,9 @@ export default function NotificationBell() {
   const afectadosPrevSeen = useRef<string | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  // Descartadas / pospuestas — 100% cliente (localStorage), offline y sin egress.
+  const [hidden, setHidden] = useState<Record<string, number>>(() => loadHidden());
+  const doHide = (id: string, mode: "dismiss" | "snooze") => setHidden((h) => hideNotif(h, id, mode));
 
   const seenSince = () => {
     if (typeof window === "undefined") return null;
@@ -127,6 +133,7 @@ export default function NotificationBell() {
     if (next) {
       computePos();
       loadAvisos(true);
+      setHidden(loadHidden());   // reincorpora las pospuestas ya vencidas
       if (unread > 0) {
         setUnread(0);
         const marcados = items.map((n) => ({ ...n, readAt: n.readAt || new Date().toISOString() }));
@@ -150,7 +157,9 @@ export default function NotificationBell() {
   };
 
   useEffect(() => {
-    if (!open) return;
+    // Con el detalle abierto (modal por encima) NO enganchamos los cierres: así
+    // interactuar con el modal no colapsa el panel de fondo.
+    if (!open || detail) return;
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (btnRef.current?.contains(t) || panelRef.current?.contains(t)) return;
@@ -167,7 +176,7 @@ export default function NotificationBell() {
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onResize);
     return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("scroll", onScroll, true); window.removeEventListener("resize", onResize); };
-  }, [open]);
+  }, [open, detail]);
 
   // ── Navegación real a la ficha ──
   const irAPersona = (id: string | null, refugio: string | null) => {
@@ -195,6 +204,9 @@ export default function NotificationBell() {
 
   const badge = unread + (esAdminCenso ? nuevos : 0);
   const accion = detail ? accionDe(detail, role) : null;
+  // Oculta (descartadas / pospuestas vigentes) sin tocar el servidor.
+  const visibleItems = items.filter((n) => !isHiddenNow(hidden, n.id));
+  const visibleAfectados = afectados.filter((r) => !isHiddenNow(hidden, "afec:" + r.id));
 
   return (
     <div className="notif-bell">
@@ -219,20 +231,25 @@ export default function NotificationBell() {
           )}
 
           {section === "avisos" ? (
-            items.length === 0 ? (
+            visibleItems.length === 0 ? (
               <div className="notif-panel__empty">No tienes avisos.</div>
             ) : (
               <ul className="notif-list">
-                {items.map((n) => (
+                {visibleItems.map((n) => (
                   <li key={n.id}>
-                    <button type="button" className={`notif-item${n.readAt ? "" : " notif-item--unread"}`} onClick={() => setDetail(n)}>
+                    <SwipeableNotifRow
+                      className={`notif-item${n.readAt ? "" : " notif-item--unread"}`}
+                      onOpen={() => setDetail(n)}
+                      onDismiss={() => doHide(n.id, "dismiss")}
+                      onSnooze={() => doHide(n.id, "snooze")}
+                    >
                       <span className="notif-item__ico" style={{ color: tipoColor(n.tipo), background: `${tipoColor(n.tipo)}22` }}><TipoIcon tipo={n.tipo} /></span>
                       <span className="notif-item__main">
                         <span className="notif-item__title">{n.titulo}{!n.readAt && <span className="notif-item__dot" style={{ background: tipoColor(n.tipo) }} />}</span>
-                        <span className="notif-item__body">{n.cuerpo}</span>
+                        <span className="notif-item__body"><WaText text={n.cuerpo} /></span>
                         <span className="notif-item__time">{fechaCorta(n.createdAt)}</span>
                       </span>
-                    </button>
+                    </SwipeableNotifRow>
                   </li>
                 ))}
               </ul>
@@ -240,20 +257,25 @@ export default function NotificationBell() {
           ) : (
             afectadosLoading && afectados.length === 0 ? (
               <div className="notif-panel__empty">Cargando…</div>
-            ) : afectados.length === 0 ? (
+            ) : visibleAfectados.length === 0 ? (
               <div className="notif-panel__empty">No hay registros recientes.</div>
             ) : (
               <ul className="notif-list">
-                {afectados.map((r) => (
+                {visibleAfectados.map((r) => (
                   <li key={r.id}>
-                    <button type="button" className={`notif-item${esNuevoAfectado(r) ? " notif-item--unread" : ""}`} onClick={() => irAPersona(r.id, r.refugio)}>
+                    <SwipeableNotifRow
+                      className={`notif-item${esNuevoAfectado(r) ? " notif-item--unread" : ""}`}
+                      onOpen={() => irAPersona(r.id, r.refugio)}
+                      onDismiss={() => doHide("afec:" + r.id, "dismiss")}
+                      onSnooze={() => doHide("afec:" + r.id, "snooze")}
+                    >
                       <span className="afec-mini-ava">{iniciales(r.nombreApellido)}</span>
                       <span className="notif-item__main">
                         <span className="notif-item__title">{r.nombreApellido}{esNuevoAfectado(r) && <span className="afec-badge">Nuevo</span>}{r.retirado === "SI" && <span className="afec-badge afec-badge--out">Retirado</span>}</span>
                         <span className="notif-item__body">C.I. {r.cedula} · {r.refugio}{r.parroquia ? ` · ${r.parroquia}` : ""}</span>
                         <span className="notif-item__time">{fechaCorta(r.createdAt)} · Ver ficha →</span>
                       </span>
-                    </button>
+                    </SwipeableNotifRow>
                   </li>
                 ))}
               </ul>
@@ -264,7 +286,7 @@ export default function NotificationBell() {
       )}
 
       {detail && typeof document !== "undefined" && createPortal(
-        <div className="modal-overlay" onClick={() => setDetail(null)}>
+        <div className="modal-overlay" style={{ zIndex: 4200 }} onClick={() => setDetail(null)}>
           <div className="modal-content notif-detail" onClick={(e) => e.stopPropagation()}>
             <div className="notif-detail__head">
               <span className="notif-item__ico" style={{ color: tipoColor(detail.tipo), background: `${tipoColor(detail.tipo)}22` }}><TipoIcon tipo={detail.tipo} /></span>
@@ -273,7 +295,7 @@ export default function NotificationBell() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <p className="notif-detail__body">{detail.cuerpo}</p>
+            <p className="notif-detail__body" style={{ whiteSpace: "normal" }}><WaText text={detail.cuerpo} /></p>
             <p className="notif-detail__time">{fechaLarga(detail.createdAt)}</p>
             {accion && accion.can && (
               <div className="notif-detail__actions">

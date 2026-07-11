@@ -10,6 +10,7 @@ import { useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { assignableRoles, ROLE_LABELS, isMaster } from "@/lib/permissions";
 import SearchableSelect from "@/components/SearchableSelect";
+import WaText from "@/components/WaText";
 import type { ToastType } from "@/types";
 
 interface Props {
@@ -92,8 +93,27 @@ export default function AvisoComposer({ senderRole, senderRefugio, refugios, onC
 
           <div className="form-group">
             <label htmlFor="aviso-cuerpo">Mensaje</label>
-            <textarea id="aviso-cuerpo" className="morb-control" maxLength={1000} placeholder="Escribe el aviso…" value={cuerpo} onChange={(e) => setCuerpo(e.target.value)} rows={4} />
+            <textarea id="aviso-cuerpo" className="morb-control" maxLength={1000} placeholder="Escribe el aviso…  Usa *negrita*, _cursiva_, ~tachado~" value={cuerpo} onChange={(e) => setCuerpo(e.target.value)} rows={4} />
+            <p className="wa-hint">
+              Formato como WhatsApp: <b>*negrita*</b> · <em>_cursiva_</em> · <s>~tachado~</s>
+            </p>
           </div>
+
+          {/* Vista previa: cómo se verá el aviso en la campana del destinatario. */}
+          {(titulo.trim() || cuerpo.trim()) && (
+            <div className="aviso-preview">
+              <span className="aviso-preview__tag">Vista previa</span>
+              <div className="aviso-preview__card">
+                <span className="aviso-preview__ico">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l16-5v12L3 14z" /><path d="M11 16.5a2.5 2.5 0 0 1-4.9-.5" /></svg>
+                </span>
+                <div className="aviso-preview__main">
+                  <div className="aviso-preview__title">{titulo.trim() || "Título del aviso"}</div>
+                  <div className="aviso-preview__body">{cuerpo.trim() ? <WaText text={cuerpo} /> : <span className="aviso-preview__ph">El mensaje aparecerá aquí…</span>}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Campamento(s) */}
           <div className="form-group">

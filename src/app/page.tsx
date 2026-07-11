@@ -547,6 +547,14 @@ export default function Home() {
     };
   }, []);
 
+  // El aviso flotante de "Nuevo Afectado" se auto-oculta a los 6 s: es solo un
+  // vistazo rápido; el listado completo vive en la campana (Nuevos afectados).
+  useEffect(() => {
+    if (!internalNotification) return;
+    const t = setTimeout(() => setInternalNotification(null), 6000);
+    return () => clearTimeout(t);
+  }, [internalNotification]);
+
   // Navegación por notificación PWA: cuando llega pendingSelectId con match en
   // registros, cambiamos a la pestaña asignaciones. La selección del registro
   // (setSelectedRegistro) + limpieza de pendingSelectId la hace AsignacionesTab,
@@ -1395,76 +1403,34 @@ export default function Home() {
 
       {/* Real-time internal PWA notification banner */}
       {internalNotification && (
-        <div style={{
-          position: "fixed",
-          bottom: "20px",
-          right: "20px",
-          backgroundColor: "var(--bg-secondary, #1a202c)",
-          borderLeft: "4px solid var(--color-primary, #6366f1)",
-          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)",
-          borderRadius: "8px",
-          padding: "1rem",
-          zIndex: 99999,
-          maxWidth: "350px",
-          width: "90%",
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.75rem",
-          color: "var(--text-primary)",
-          border: "1px solid var(--border-color)"
-        }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-            <span style={{ fontSize: "1.25rem" }}>🔔</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: "700", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-primary)" }}>
-                Nuevo Afectado
-              </div>
-              <p style={{ fontSize: "0.85rem", margin: "4px 0 0 0", color: "var(--text-secondary)", lineHeight: "1.4" }}>
-                <strong>{internalNotification.nombreApellido}</strong> ha sido registrado.
-              </p>
+        <div className="afec-flash" role="status" aria-live="polite">
+          <div className="afec-flash__row">
+            <span className="afec-flash__ico">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </span>
+            <div className="afec-flash__main">
+              <div className="afec-flash__tag">Nuevo afectado</div>
+              <p className="afec-flash__txt"><strong>{internalNotification.nombreApellido}</strong> ha sido registrado.</p>
             </div>
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem" }}>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{
-                width: "auto",
-                margin: 0,
-                padding: "0 0.75rem",
-                fontSize: "0.75rem",
-                height: "28px",
-                backgroundColor: "transparent",
-                border: "none",
-                color: "var(--text-secondary)"
-              }}
-              onClick={() => setInternalNotification(null)}
-            >
-              Ignorar
+            <button type="button" className="afec-flash__x" aria-label="Ignorar" onClick={() => setInternalNotification(null)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
+          </div>
+          <div className="afec-flash__actions">
+            <button type="button" className="btn-secondary afec-flash__btn" onClick={() => setInternalNotification(null)}>Ignorar</button>
             <button
               type="button"
-              className="btn-secondary"
-              style={{
-                width: "auto",
-                margin: 0,
-                padding: "0 0.75rem",
-                fontSize: "0.75rem",
-                height: "28px",
-                backgroundColor: "var(--color-primary)",
-                color: "#ffffff",
-                borderColor: "var(--color-primary)",
-                fontWeight: "600"
-              }}
+              className="btn-submit afec-flash__btn"
               onClick={() => {
                 setPendingSelectId(internalNotification.registroId);
                 fetchRegistros();
                 setInternalNotification(null);
               }}
             >
-              Asignar Habitación
+              Asignar habitación
             </button>
           </div>
+          <span className="afec-flash__bar" aria-hidden />
         </div>
       )}
 
