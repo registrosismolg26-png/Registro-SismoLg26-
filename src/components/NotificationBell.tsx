@@ -1,27 +1,34 @@
 "use client";
 
 // ── Campana de avisos in-app ────────────────────────────────────────────────
-// Avisos del propio usuario (/api/notifications) con contador de no leídos. Cada tipo
-// tiene su ícono + color y un punto si está sin leer. El panel se rinde por PORTAL
-// con posición adaptable (funciona en cabecera y en sidebar). Al hacer clic en un
-// aviso se abre su DETALLE completo (para textos largos). Sin polling: carga al
-// montar, al volver a la pestaña y al abrir; caché compartido entre instancias.
+// Avisos del propio usuario (/api/notifications) con ícono+color+punto por tipo.
+// Clic en un aviso → detalle completo; desde el detalle, "Ir a la sección" (con
+// cambio de "campamento en vista" para Master, vía Notification.refugio). Además,
+// una fila "N nuevos afectados" (Master/Admin) que salta a la pestaña que lee los
+// registros recientes. Panel por PORTAL con posición adaptable (cabecera y sidebar).
+// Sin polling; caché compartido entre instancias.
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/apiFetch";
+import { useAppContext } from "@/context/AppContext";
+import { canManageUsers, isMedico, isMaster } from "@/lib/permissions";
+import type { ActiveTab } from "@/types";
 
-interface Notif { id: string; tipo: string; titulo: string; cuerpo: string; readAt: string | null; createdAt: string; }
+interface Notif { id: string; tipo: string; titulo: string; cuerpo: string; refugio: string | null; readAt: string | null; createdAt: string; }
 type Pos = { left: number; width: number; top?: number; bottom?: number };
 
-// Caché compartido: la campana está en cabecera Y sidebar (solo una visible), pero
-// ambas montan → evita el 2º fetch (egress).
-let sharedCache: { at: number; items: Notif[]; unread: number } | null = null;
+const SEEN_KEY = "nuevos_afectados_seen";
+let sharedCache: { at: number; items: Notif[]; unread: number; nuevos: number } | null = null;
 
-const TIPO_COLOR: Record<string, string> = {
-  AVISO: "#2563eb", USUARIO_NUEVO: "#10b981", TRASLADO: "#d97706", BIENVENIDA: "#0d9488",
-};
+const TIPO_COLOR: Record<string, string> = { AVISO: "#2563eb", USUARIO_NUEVO: "#10b981", TRASLADO: "#d97706", BIENVENIDA: "#0d9488" };
 const tipoColor = (t: string) => TIPO_COLOR[t] || "#64748b";
+// Salto por tipo → pestaña destino + permiso requerido para poder ir.
+const TIPO_TAB: Record<string, { tab: ActiveTab; label: string; can: (r: string) => boolean }> = {
+  USUARIO_NUEVO: { tab: "usuarios", label: "Usuarios", can: (r) => canManageUsers(r) },
+  TRASLADO: { tab: "asignaciones", label: "Registrados", can: (r) => !isMedico(r) },
+  BIENVENIDA: { tab: "config", label: "Configuración", can: (r) => !isMedico(r) && r !== "VISUALIZADOR" },
+};
 
 function TipoIcon({ tipo }: { tipo: string }) {
   const paths: Record<string, ReactNode> = {
@@ -38,25 +45,38 @@ const fechaLarga = (s: string) => new Date(s).toLocaleString("es-VE", { day: "2-
 const fechaCorta = (s: string) => new Date(s).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 export default function NotificationBell() {
+  const { currentUser, setActiveTab, setViewRefugio } = useAppContext();
+  const role = currentUser?.role ?? "";
+  const esAdminCenso = role === "MASTER" || role === "ADMIN";
+
   const [items, setItems] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
+  const [nuevos, setNuevos] = useState(0);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
   const [detail, setDetail] = useState<Notif | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
+  const seenSince = () => {
+    if (typeof window === "undefined") return null;
+    let v = localStorage.getItem(SEEN_KEY);
+    if (!v) { v = new Date().toISOString(); localStorage.setItem(SEEN_KEY, v); } // 1ª vez: desde ahora (sin flood)
+    return v;
+  };
+
   const load = async (force = false) => {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     if (sharedCache && Date.now() - sharedCache.at < (force ? 2_000 : 45_000)) {
-      setItems(sharedCache.items); setUnread(sharedCache.unread); return;
+      setItems(sharedCache.items); setUnread(sharedCache.unread); setNuevos(sharedCache.nuevos); return;
     }
     try {
-      const res = await apiFetch("/api/notifications");
+      const q = esAdminCenso ? `?afectadosSince=${encodeURIComponent(seenSince() || "")}` : "";
+      const res = await apiFetch(`/api/notifications${q}`);
       const d = await res.json().catch(() => ({}));
       if (d.success) {
-        sharedCache = { at: Date.now(), items: d.items || [], unread: d.unread || 0 };
-        setItems(sharedCache.items); setUnread(sharedCache.unread);
+        sharedCache = { at: Date.now(), items: d.items || [], unread: d.unread || 0, nuevos: d.nuevosAfectados || 0 };
+        setItems(sharedCache.items); setUnread(sharedCache.unread); setNuevos(sharedCache.nuevos);
       }
     } catch (e) { console.error(e); }
   };
@@ -88,7 +108,7 @@ export default function NotificationBell() {
         setUnread(0);
         const marcados = items.map((n) => ({ ...n, readAt: n.readAt || new Date().toISOString() }));
         setItems(marcados);
-        sharedCache = { at: Date.now(), items: marcados, unread: 0 };
+        if (sharedCache) sharedCache = { ...sharedCache, at: Date.now(), items: marcados, unread: 0 };
         apiFetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }).catch(() => {});
       }
     }
@@ -109,16 +129,47 @@ export default function NotificationBell() {
     return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
   }, [open]);
 
+  // Salto desde el detalle de un aviso a su sección (con cambio de campamento en Master).
+  const irASeccion = (n: Notif) => {
+    const meta = TIPO_TAB[n.tipo];
+    if (!meta) return;
+    if (n.refugio && isMaster(role)) setViewRefugio(n.refugio);
+    setActiveTab(meta.tab);
+    setDetail(null); setOpen(false);
+  };
+
+  // Fila "nuevos afectados" → pestaña que lee registros; marca visto (resetea el contador).
+  const verNuevosAfectados = () => {
+    const now = new Date().toISOString();
+    if (typeof window !== "undefined") localStorage.setItem(SEEN_KEY, now);
+    setNuevos(0);
+    if (sharedCache) sharedCache = { ...sharedCache, nuevos: 0 };
+    setActiveTab("nuevos-afectados");
+    setOpen(false);
+  };
+
+  const badge = unread + (esAdminCenso ? nuevos : 0);
+  const detailMeta = detail ? TIPO_TAB[detail.tipo] : undefined;
+
   return (
     <div className="notif-bell">
       <button ref={btnRef} type="button" className="notif-bell__btn" onClick={toggle} aria-label="Avisos" title="Avisos">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        {unread > 0 && <span className="notif-bell__badge">{unread > 9 ? "9+" : unread}</span>}
+        {badge > 0 && <span className="notif-bell__badge">{badge > 9 ? "9+" : badge}</span>}
       </button>
 
       {open && pos && typeof document !== "undefined" && createPortal(
         <div ref={panelRef} className="notif-panel" style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, zIndex: 4000 }}>
           <div className="notif-panel__head">Avisos</div>
+
+          {esAdminCenso && nuevos > 0 && (
+            <button type="button" className="notif-nuevos" onClick={verNuevosAfectados}>
+              <span className="notif-nuevos__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+              <span className="notif-nuevos__txt"><b>{nuevos}</b> nuevo{nuevos === 1 ? "" : "s"} afectado{nuevos === 1 ? "" : "s"}</span>
+              <span className="notif-nuevos__go">Ver →</span>
+            </button>
+          )}
+
           {items.length === 0 ? (
             <div className="notif-panel__empty">No tienes avisos.</div>
           ) : (
@@ -153,6 +204,11 @@ export default function NotificationBell() {
             </div>
             <p className="notif-detail__body">{detail.cuerpo}</p>
             <p className="notif-detail__time">{fechaLarga(detail.createdAt)}</p>
+            {detailMeta && detailMeta.can(role) && (
+              <div className="notif-detail__actions">
+                <button type="button" className="btn-submit" style={{ width: "auto" }} onClick={() => irASeccion(detail)}>Ir a {detailMeta.label} →</button>
+              </div>
+            )}
           </div>
         </div>,
         document.body

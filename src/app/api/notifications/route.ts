@@ -15,7 +15,21 @@ export async function GET(req: Request) {
       take: 30,
     });
     const unread = items.reduce((n, it) => n + (it.readAt ? 0 : 1), 0);
-    return NextResponse.json({ success: true, items, unread });
+
+    // Contador de "nuevos afectados" (registros nuevos desde ?afectadosSince) para
+    // Master/Admin — se lee del censo directamente, sin crear filas. Egress: un count.
+    let nuevosAfectados = 0;
+    const afectadosSince = new URL(req.url).searchParams.get("afectadosSince");
+    if ((auth.role === "MASTER" || auth.role === "ADMIN") && afectadosSince) {
+      const since = new Date(afectadosSince);
+      if (!isNaN(since.getTime())) {
+        const where: any = { createdAt: { gt: since } };
+        if (auth.role !== "MASTER") where.refugio = auth.refugio;
+        nuevosAfectados = await prisma.registro.count({ where }).catch(() => 0);
+      }
+    }
+
+    return NextResponse.json({ success: true, items, unread, nuevosAfectados });
   } catch (error: any) {
     console.error("Error en GET /api/notifications:", error);
     return NextResponse.json({ error: "Error al listar avisos" }, { status: 500 });

@@ -21,5 +21,8 @@ CREATE TABLE IF NOT EXISTS "Notification" (
 );
 CREATE INDEX IF NOT EXISTS "Notification_userId_createdAt_idx" ON "Notification" ("userId", "createdAt");
 
+-- Columna de campamento (para el salto de un aviso: Master cambia su "campamento en vista").
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "refugio" TEXT;
+
 -- Limpieza opcional de avisos viejos (re-ejecutable):
 -- DELETE FROM "Notification" WHERE "createdAt" < now() - interval '90 days';

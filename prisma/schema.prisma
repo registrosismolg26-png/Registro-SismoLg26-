@@ -333,9 +333,10 @@ model VerificationCode {
 model Notification {
   id        String    @id @default(uuid())
   userId    String // destinatario
-  tipo      String // "USUARIO_NUEVO" | "TRASLADO" | "BIENVENIDA" | "SEGURIDAD"
+  tipo      String // "USUARIO_NUEVO" | "TRASLADO" | "BIENVENIDA" | "AVISO"
   titulo    String
   cuerpo    String
+  refugio   String? // campamento al que apunta (para el salto: Master cambia su viewRefugio)
   readAt    DateTime?
   createdAt DateTime  @default(now())
 

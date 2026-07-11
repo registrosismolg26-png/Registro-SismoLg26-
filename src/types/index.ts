@@ -59,7 +59,7 @@ export interface CurrentUser {
 }
 
 // Vista de pestaña activa
-export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad" | "balance" | "historial" | "caracterizacion" | "monitoreo" | "mapa";
+export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad" | "balance" | "historial" | "caracterizacion" | "monitoreo" | "mapa" | "nuevos-afectados";
 
 // Fila de monitoreo por campamento (números generales, todo agregado en SQL → sin PII).
 // Definiciones ALINEADAS con Estadísticas (src/lib/stats.ts + DashboardTab):

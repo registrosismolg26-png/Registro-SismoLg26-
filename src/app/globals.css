@@ -4044,6 +4044,28 @@ h2.dashboard-section-title {
 .notif-detail__title { margin: 0; flex: 1; font-size: 1rem; font-weight: 800; color: var(--text-primary); }
 .notif-detail__body { margin: 0; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; white-space: pre-wrap; }
 .notif-detail__time { margin: 0.8rem 0 0; font-size: 0.72rem; color: var(--text-muted); }
+.notif-detail__actions { display: flex; justify-content: flex-end; margin-top: 0.9rem; }
+/* Fila "N nuevos afectados" al tope del panel de la campana (Master/Admin) */
+.notif-nuevos { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 0.6rem 0.85rem; border: none; border-bottom: 1px solid var(--border-color); background: color-mix(in srgb, var(--color-primary) 10%, transparent); color: var(--color-primary); cursor: pointer; }
+.notif-nuevos:hover { background: color-mix(in srgb, var(--color-primary) 16%, transparent); }
+.notif-nuevos__ico { display: inline-flex; }
+.notif-nuevos__ico svg { width: 16px; height: 16px; }
+.notif-nuevos__txt { flex: 1; font-size: 0.8rem; }
+.notif-nuevos__go { font-size: 0.75rem; font-weight: 800; }
+
+/* ── Pestaña "Nuevos afectados" (lista de registros recientes) ── */
+.afec-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.afec-row { display: flex; align-items: center; gap: 0.7rem; width: 100%; text-align: left; padding: 0.7rem 0.85rem; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-secondary); cursor: pointer; }
+.afec-row:hover { border-color: var(--color-primary); }
+.afec-row--new { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--border-color)); background: color-mix(in srgb, var(--color-primary) 6%, var(--bg-secondary)); }
+.afec-row__ava { flex: none; width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; background: var(--color-primary-light); color: var(--color-primary); }
+.afec-row__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.afec-row__name { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.afec-row__meta { font-size: 0.76rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.afec-row__time { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; }
+.afec-row__go { font-size: 0.72rem; font-weight: 800; color: var(--color-primary); }
+.afec-badge { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 15%, transparent); padding: 0.1rem 0.4rem; border-radius: 999px; }
+.afec-badge--out { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 15%, transparent); }
 
 /* ── Enviar aviso (composer Master/Admin) ── */
 .aviso-roles { display: flex; flex-wrap: wrap; gap: 0.4rem; }
