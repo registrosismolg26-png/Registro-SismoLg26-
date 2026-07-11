@@ -4109,22 +4109,32 @@ h2.dashboard-section-title {
 .swipe-row[data-armed="1"] .swipe-row__act { filter: brightness(1.1); }
 .swipe-row[data-armed="1"] .swipe-row__act svg { transform: scale(1.18); }
 
-/* ── Aviso flotante "Nuevo afectado" (se auto-oculta a 6 s) ── */
-.afec-flash { position: fixed; bottom: 20px; right: 20px; z-index: 99999; width: min(360px, calc(100vw - 32px)); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: 0 16px 40px -16px rgba(0,0,0,0.45); padding: 0.85rem 0.9rem 0.95rem; display: flex; flex-direction: column; gap: 0.7rem; overflow: hidden; animation: afecFlashIn 0.25s ease both; }
-.afec-flash__row { display: flex; align-items: flex-start; gap: 0.6rem; }
-.afec-flash__ico { flex: none; width: 34px; height: 34px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); background: var(--color-primary-light); }
-.afec-flash__main { flex: 1; min-width: 0; }
-.afec-flash__tag { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-primary); }
-.afec-flash__txt { margin: 0.15rem 0 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; word-break: break-word; }
-.afec-flash__x { flex: none; width: 26px; height: 26px; border-radius: 50%; border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
-.afec-flash__x:hover { background: color-mix(in srgb, var(--text-primary) 8%, transparent); color: var(--text-secondary); }
-.afec-flash__actions { display: flex; gap: 0.5rem; }
-.afec-flash__btn { flex: 1; width: auto !important; margin: 0 !important; }
-.afec-flash__bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; transform-origin: left; background: var(--color-primary); animation: afecFlashBar 6s linear forwards; }
-@keyframes afecFlashIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-@keyframes afecFlashBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-@media (prefers-reduced-motion: reduce) { .afec-flash { animation: none; } .afec-flash__bar { animation: none; } }
-@media (max-width: 560px) { .afec-flash { left: 12px; right: 12px; bottom: 12px; width: auto; } }
+/* ── Centro de notificaciones internas (UNIFICADO) ────────────────────────────
+   Un solo componente para toasts, alertas con acción y el banner de actualización.
+   Centrado; ABAJO en PC, ARRIBA en móvil. Pill + tema. La tarjeta se arrastra a los
+   lados para descartar (attachSwipe); su transform NO lo toca ninguna animación CSS
+   (la de entrada va en .ntf-slot) para no "congelar" el arrastre. */
+.ntf-center { position: fixed; left: 50%; transform: translateX(-50%); bottom: 22px; z-index: 9000; display: flex; flex-direction: column-reverse; gap: 10px; width: min(440px, calc(100vw - 24px)); pointer-events: none; }
+@media (max-width: 767px) { .ntf-center { bottom: auto; top: 14px; flex-direction: column; } }
+.ntf-slot { pointer-events: auto; animation: ntfIn 0.26s cubic-bezier(0.16,1,0.3,1) both; }
+@keyframes ntfIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ntf-slot { animation: none; } }
+.ntf-card { position: relative; pointer-events: auto; background: var(--bg-secondary); border: 1px solid var(--border-color); border-left: 4px solid var(--accent, var(--color-primary)); border-radius: 16px; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.35), 0 4px 8px -6px rgba(0,0,0,0.25); padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; touch-action: none; user-select: none; cursor: grab; }
+.ntf-card:active { cursor: grabbing; }
+.ntf-card__row { display: flex; align-items: flex-start; gap: 0.6rem; }
+.ntf-card__ico { flex: none; width: 34px; height: 34px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; color: var(--accent, var(--color-primary)); background: color-mix(in srgb, var(--accent, var(--color-primary)) 15%, transparent); }
+.ntf-card__ico svg { width: 18px; height: 18px; }
+.ntf-card__main { flex: 1; min-width: 0; }
+.ntf-card__title { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent, var(--color-primary)); }
+.ntf-card__msg { font-size: 0.86rem; color: var(--text-secondary); line-height: 1.45; margin-top: 0.1rem; word-break: break-word; }
+.ntf-card--simple .ntf-card__msg { color: var(--text-primary); font-weight: 500; }
+.ntf-card__x { flex: none; width: 26px; height: 26px; border-radius: 50%; border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.ntf-card__x:hover { background: color-mix(in srgb, var(--text-primary) 8%, transparent); color: var(--text-secondary); }
+.ntf-card__actions { display: flex; gap: 0.5rem; }
+.ntf-card__btn { flex: 1; height: 42px; border-radius: 999px; font-weight: 700; font-size: 0.82rem; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); transition: border-color 0.15s, color 0.15s, background 0.15s; }
+.ntf-card__btn:hover { border-color: var(--accent, var(--color-primary)); color: var(--accent, var(--color-primary)); }
+.ntf-card__btn--primary { background: var(--accent, var(--color-primary)); color: #fff; border-color: var(--accent, var(--color-primary)); }
+.ntf-card__btn--primary:hover { color: #fff; filter: brightness(1.05); }
 
 /* Por campamento: cada tarjeta ES una .bal-card (hereda caja/sombra/acento/radio).
    Solo se define su layout interno + el semáforo de ocupación (colores .dash-room). */

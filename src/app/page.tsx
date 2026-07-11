@@ -31,7 +31,7 @@ import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
 import AppSidebar from "@/components/AppSidebar";
 import LoginForm from "@/components/LoginForm";
-import UpdateBanner from "@/components/UpdateBanner";
+import NotificationCenter, { type AppNotif } from "@/components/NotificationCenter";
 import { AppContext, type AppContextValue } from "@/context/AppContext";
 import UsuariosTab from "@/tabs/UsuariosTab";
 import DashboardTab from "@/tabs/DashboardTab";
@@ -43,8 +43,6 @@ import CensoTab from "@/tabs/CensoTab";
 import MorbilidadTab from "@/tabs/MorbilidadTab";
 import BalanceTab from "@/tabs/BalanceTab";
 import HistorialClinicoTab from "@/tabs/HistorialClinicoTab";
-import { SwipeableToast } from "@/components/SwipeableToast";
-import { useSwipeDismiss } from "@/lib/useSwipeDismiss";
 import { useModalOverlayScrollLock, useModalOutsideClickGuard } from "@/components/useBodyScrollLock";
 import dynamic from "next/dynamic";
 
@@ -269,10 +267,10 @@ export default function Home() {
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
   const [pendingHistorialCedula, setPendingHistorialCedula] = useState<string | null>(null);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
-  const [internalNotification, setInternalNotification] = useState<{ registroId: string; nombreApellido: string } | null>(null);
-
-  // Toast Notification State
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  // Centro de notificaciones internas (UNIFICADO): toasts, alertas y actualización.
+  const [notifs, setNotifs] = useState<AppNotif[]>([]);
+  const pushNotif = (n: AppNotif) => setNotifs((prev) => [...prev.filter((x) => x.id !== n.id), n]);
+  const dismissNotif = (id: string) => setNotifs((prev) => prev.filter((n) => n.id !== id));
 
   // Service Worker Update States
   const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -299,8 +297,6 @@ export default function Home() {
   // Inactivity session timeout — updated on every pointer/key event
   const lastActivityRef = useRef<number>(Date.now());
 
-  // Toast timeout reference to prevent premature dismissal of subsequent toasts
-  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // SW Update Remind Later timeout reference
   const remindLaterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -470,6 +466,27 @@ export default function Home() {
     }, 3 * 60 * 1000); // 3 minutos
   };
 
+  // El banner de actualización se muestra por el centro UNIFICADO. Descartar por
+  // swipe/X = ocultar; POSPONER es SOLO el botón "Más tarde" (reaparece a 3 min).
+  useEffect(() => {
+    if (showUpdateBanner) {
+      pushNotif({
+        id: "__update__",
+        variant: "update",
+        title: "Actualización disponible",
+        message: "Hay una nueva versión lista. Actualiza cuando quieras.",
+        onClose: () => setShowUpdateBanner(false),
+        actions: [
+          { label: "Más tarde", onClick: handleRemindLater },
+          { label: "Actualizar ahora", primary: true, onClick: handleUpdateApp },
+        ],
+      });
+    } else {
+      dismissNotif("__update__");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showUpdateBanner]);
+
   // Load cached stats and registrations on mount — solo si el cache pertenece al
   // usuario de esta sesión (mejora H segura: en un dispositivo compartido no se
   // muestran datos del refugio de otro operador).
@@ -537,7 +554,14 @@ export default function Home() {
       } else if (event.data?.type === "NEW_REGISTRO_NOTIFICATION") {
         const { registroId, nombreApellido } = event.data;
         if (registroId && nombreApellido) {
-          setInternalNotification({ registroId, nombreApellido });
+          pushNotif({
+            id: `reg-${registroId}`,
+            variant: "alert",
+            title: "Nuevo afectado",
+            message: <><strong>{nombreApellido}</strong> ha sido registrado.</>,
+            duration: 8000,
+            actions: [{ label: "Asignar habitación", primary: true, onClick: () => { setPendingSelectId(registroId); fetchRegistros(); } }],
+          });
         }
       }
     };
@@ -548,22 +572,6 @@ export default function Home() {
     };
   }, []);
 
-  // El aviso flotante de "Nuevo Afectado" se auto-oculta a los 6 s: es solo un
-  // vistazo rápido; el listado completo vive en la campana (Nuevos afectados).
-  useEffect(() => {
-    if (!internalNotification) return;
-    const t = setTimeout(() => setInternalNotification(null), 6000);
-    return () => clearTimeout(t);
-  }, [internalNotification]);
-
-  // El aviso flotante también se desliza a un lado para descartarlo (arrastre EN
-  // VIVO). `ignoreSelector:"button"` deja que los botones internos sigan clicables.
-  const flashSwipe = useSwipeDismiss<HTMLDivElement>({
-    onLeft: () => setInternalNotification(null),
-    onRight: () => setInternalNotification(null),
-    fade: true,
-    ignoreSelector: "button",
-  });
 
   // Navegación por notificación PWA: cuando llega pendingSelectId con match en
   // registros, cambiamos a la pestaña asignaciones. La selección del registro
@@ -712,12 +720,7 @@ export default function Home() {
 
   // Helper to show temporary toasts
   const showToast = (message: string, type: ToastType) => {
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setToast({ message, type });
-    toastTimeoutRef.current = setTimeout(() => {
-      setToast(null);
-      toastTimeoutRef.current = null;
-    }, 4000);
+    pushNotif({ id: `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, variant: type, message, duration: 4000 });
   };
 
   // Get records list from IndexedDB to show history and sync progress
@@ -1341,13 +1344,14 @@ export default function Home() {
   // recibe props en lugar de consumir el context.
   if (!currentUser) {
     return (
-      <LoginForm
-        setCurrentUser={setCurrentUser}
-        setActiveTab={setActiveTab}
-        showToast={showToast}
-        toast={toast}
-        setToast={setToast}
-      />
+      <>
+        <LoginForm
+          setCurrentUser={setCurrentUser}
+          setActiveTab={setActiveTab}
+          showToast={showToast}
+        />
+        <NotificationCenter items={notifs} onDismiss={dismissNotif} />
+      </>
     );
   }
 
@@ -1411,52 +1415,8 @@ export default function Home() {
       {/* TAB 8: HISTORIAL CLÍNICO (médicos + Master) */}
       {activeTab === "historial" && canManageMorbilidad(currentUser.role) && <HistorialClinicoTab />}
 
-      {/* Real-time internal PWA notification banner */}
-      {internalNotification && (
-        <div className="afec-flash" role="status" aria-live="polite" ref={flashSwipe.ref} {...flashSwipe.handlers}>
-          <div className="afec-flash__row">
-            <span className="afec-flash__ico">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            </span>
-            <div className="afec-flash__main">
-              <div className="afec-flash__tag">Nuevo afectado</div>
-              <p className="afec-flash__txt"><strong>{internalNotification.nombreApellido}</strong> ha sido registrado.</p>
-            </div>
-            <button type="button" className="afec-flash__x" aria-label="Ignorar" onClick={() => setInternalNotification(null)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div className="afec-flash__actions">
-            <button type="button" className="btn-secondary afec-flash__btn" onClick={() => setInternalNotification(null)}>Ignorar</button>
-            <button
-              type="button"
-              className="btn-submit afec-flash__btn"
-              onClick={() => {
-                setPendingSelectId(internalNotification.registroId);
-                fetchRegistros();
-                setInternalNotification(null);
-              }}
-            >
-              Asignar habitación
-            </button>
-          </div>
-          <span className="afec-flash__bar" aria-hidden />
-        </div>
-      )}
-
-      {/* Update Notification Banner */}
-      {showUpdateBanner && (
-        <UpdateBanner onUpdate={handleUpdateApp} onRemindLater={handleRemindLater} />
-      )}
-
-      {/* Toast Notification */}
-      {toast && (
-        <SwipeableToast
-          message={toast.message}
-          type={toast.type}
-          onDismiss={() => setToast(null)}
-        />
-      )}
+      {/* Centro de notificaciones internas (UNIFICADO): toasts + alertas + actualización */}
+      <NotificationCenter items={notifs} onDismiss={dismissNotif} />
     </div>
     </AppContext.Provider>
   );
