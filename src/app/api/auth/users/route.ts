@@ -5,6 +5,8 @@ import { getAuthUser, canManageUsers, canManageTargetUser, invalidateSession, is
 import { withAuditUser } from "@/lib/audit";
 import { otpGate, otpErrorResponse } from "@/lib/otp";
 import { sendMail, renderEmail, alertEmails, mailButton } from "@/lib/mailer";
+import { sendTelegram, sendTelegramGroup } from "@/lib/telegram";
+import { adminRecipients, createNotifications } from "@/lib/notify";
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -132,6 +134,17 @@ export async function POST(req: Request) {
         ${appUrl ? mailButton(appUrl, "Ingresar al sistema") : ""}
         <p style="font-size:13px;color:#475569;margin:10px 0 0">Para establecer o recuperar tu contraseña, usa la opción <b>«¿Olvidaste tu contraseña?»</b> en la pantalla de inicio de sesión.</p>`),
     }).catch(() => {});
+
+    // Avisos: in-app (persistido) a Master/Admin del refugio + bienvenida in-app al
+    // nuevo usuario; y Telegram (grupo + DM a admins). Best-effort, no rompe nada.
+    const resumenU = `${newUser.nombre} (${newUser.role}) — ${newUser.campamentoTransitorio} · por ${auth.nombre}`;
+    const adminsU = await adminRecipients(newUser.campamentoTransitorio).catch(() => []);
+    await createNotifications([
+      ...adminsU.filter((a) => a.id !== newUser.id).map((a) => ({ userId: a.id, tipo: "USUARIO_NUEVO", titulo: "Nuevo usuario", cuerpo: resumenU })),
+      { userId: newUser.id, tipo: "BIENVENIDA", titulo: "Bienvenido al sistema", cuerpo: "Tu cuenta fue creada. Vincula Telegram en Configuración para recibir tus códigos y avisos." },
+    ]);
+    sendTelegramGroup(`👤 <b>Nuevo usuario</b>\n${resumenU}`).catch(() => {});
+    adminsU.forEach((a) => { if (a.telegramChatId && a.id !== newUser.id) sendTelegram(a.telegramChatId, `👤 <b>Nuevo usuario</b>\n${resumenU}`).catch(() => {}); });
 
     return NextResponse.json(
       { success: true, user: { id: newUser.id, email: newUser.email, nombre: newUser.nombre, role: newUser.role, campamentoTransitorio: newUser.campamentoTransitorio } },

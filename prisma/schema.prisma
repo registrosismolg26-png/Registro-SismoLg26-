@@ -73,6 +73,11 @@ model User {
   role                  String   // "MASTER" | "ADMIN" | "REGISTRADOR" | "VISUALIZADOR"
   campamentoTransitorio String
   createdAt             DateTime @default(now())
+  // Telegram — canal de respaldo (códigos/avisos). chatId = destino del bot;
+  // linkToken/expires = vinculación efímera (deep-link t.me/<bot>?start=<token>).
+  telegramChatId        String?
+  telegramLinkToken     String?
+  telegramLinkExpires   DateTime?
 }
 
 model PushSubscription {
@@ -321,4 +326,18 @@ model VerificationCode {
 
   @@index([email, purpose])
   @@index([createdAt])
+}
+
+// Aviso in-app (centro de notificaciones). 1 fila POR destinatario (userId); se
+// marca leído con readAt. Volumen bajo; cada usuario lista SOLO lo suyo.
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String // destinatario
+  tipo      String // "USUARIO_NUEVO" | "TRASLADO" | "BIENVENIDA" | "SEGURIDAD"
+  titulo    String
+  cuerpo    String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }

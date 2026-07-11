@@ -23,6 +23,7 @@ import { getPending, saveLocal, resetAttempts, resetAllLocalToPending, resetAllC
 import { formatRoomLabel } from "@/lib/helpers";
 import { useAppContext } from "@/context/AppContext";
 import OtpModal from "@/components/OtpModal";
+import TelegramLink from "@/components/TelegramLink";
 import { apiFetch } from "@/lib/apiFetch";
 import { enablePush, pushSupported } from "@/lib/pushClient";
 import { canManageRooms, canRegister, isMaster } from "@/lib/permissions";
@@ -109,7 +110,7 @@ export default function ConfigTab() {
 
   // OTP para el cambio de contraseña: si el back pide código (403 CODE_REQUIRED),
   // se abre el modal y se reintenta con { challengeId, code }.
-  const [otp, setOtp] = useState<{ challengeId: string } | null>(null);
+  const [otp, setOtp] = useState<{ challengeId: string; sentVia?: { email: boolean; telegram: boolean } } | null>(null);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
 
@@ -140,8 +141,8 @@ export default function ConfigTab() {
         showToast(wantsPwd ? "Cuenta y contraseña actualizadas." : "Cuenta actualizada.", "success");
         return;
       }
-      if (d.code === "CODE_REQUIRED") { setOtpError(null); setOtp({ challengeId: d.challengeId }); return; }
-      if (d.code === "CODE_INVALID") { setOtpError("Código inválido o vencido. Revisa tu correo o reenvía uno nuevo."); return; }
+      if (d.code === "CODE_REQUIRED") { setOtpError(null); setOtp({ challengeId: d.challengeId, sentVia: d.sentVia }); return; }
+      if (d.code === "CODE_INVALID") { setOtpError("Código inválido o vencido. Revisa tu correo/Telegram o reenvía uno nuevo."); return; }
       setOtp(null);
       showToast(d.error || "No se pudo actualizar la cuenta.", "error");
     } catch {
@@ -720,6 +721,7 @@ export default function ConfigTab() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Editar mi cuenta
           </button>
+          <TelegramLink showToast={showToast} />
           </div></div></div>
         </section>
 
@@ -1551,11 +1553,12 @@ export default function ConfigTab() {
         <OtpModal
           email={currentUser.email}
           purpose="PASSWORD_CHANGE"
+          sentVia={otp.sentVia}
           verifying={otpVerifying}
           error={otpError}
           onVerify={(code) => submitAccount({ challengeId: otp.challengeId, code })}
           onCancel={() => { setOtp(null); setOtpError(null); }}
-          onResent={(challengeId) => { setOtp({ challengeId }); setOtpError(null); }}
+          onResent={(challengeId) => { setOtp((o) => (o ? { ...o, challengeId } : { challengeId })); setOtpError(null); }}
           showToast={showToast}
         />
       )}

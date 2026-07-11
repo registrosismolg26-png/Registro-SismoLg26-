@@ -17,7 +17,7 @@ export default function UsuariosTab() {
   // OTP: cuando el backend pide código (403 CODE_REQUIRED), se abre el modal y se
   // reintenta la MISMA acción con { challengeId, code }. `doFetch` es el fetch de la
   // acción pendiente; `onSuccess` su cierre de éxito.
-  const [otp, setOtp] = useState<{ challengeId: string; doFetch: (o?: { challengeId: string; code: string }) => Promise<Response>; onSuccess: () => void } | null>(null);
+  const [otp, setOtp] = useState<{ challengeId: string; doFetch: (o?: { challengeId: string; code: string }) => Promise<Response>; onSuccess: () => void; sentVia?: { email: boolean; telegram: boolean } } | null>(null);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
 
@@ -26,13 +26,13 @@ export default function UsuariosTab() {
     onSuccess: () => void,
     otpArg?: { challengeId: string; code: string }
   ) => {
-    if (otpArg) setOtpVerifying(true);
+    setOtpVerifying(true); // muestra carga tanto al ENVIAR el código (1er paso) como al verificar
     try {
       const res = await doFetch(otpArg);
       const data = await res.json().catch(() => ({} as any));
       if (res.ok) { setOtp(null); setOtpError(null); onSuccess(); return; }
-      if (data.code === "CODE_REQUIRED") { setOtpError(null); setOtp({ challengeId: data.challengeId, doFetch, onSuccess }); return; }
-      if (data.code === "CODE_INVALID") { setOtpError("Código inválido o vencido. Revisa tu correo o reenvía uno nuevo."); return; }
+      if (data.code === "CODE_REQUIRED") { setOtpError(null); setOtp({ challengeId: data.challengeId, doFetch, onSuccess, sentVia: data.sentVia }); return; }
+      if (data.code === "CODE_INVALID") { setOtpError("Código inválido o vencido. Revisa tu correo/Telegram o reenvía uno nuevo."); return; }
       setOtp(null);
       showToast(data.error || "No se pudo completar la acción.", "warning");
     } catch (err) {
@@ -578,8 +578,8 @@ export default function UsuariosTab() {
                 <button type="button" className="btn-secondary" onClick={closeCreateUserModal}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn-submit" style={{ flex: 1 }}>
-                  Registrar Operador
+                <button type="submit" className="btn-submit" style={{ flex: 1 }} disabled={otpVerifying}>
+                  {otpVerifying ? <><span className="spinner spinner-sm"></span>Procesando…</> : "Registrar Operador"}
                 </button>
               </div>
             </form>
@@ -749,8 +749,8 @@ export default function UsuariosTab() {
                 <button type="button" className="btn-secondary" onClick={closeEditUserModal}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn-submit" style={{ flex: 1 }}>
-                  Guardar Cambios
+                <button type="submit" className="btn-submit" style={{ flex: 1 }} disabled={otpVerifying}>
+                  {otpVerifying ? <><span className="spinner spinner-sm"></span>Procesando…</> : "Guardar Cambios"}
                 </button>
               </div>
             </form>
@@ -811,6 +811,7 @@ export default function UsuariosTab() {
         <OtpModal
           email={currentUser.email}
           purpose="USER_MUTATION"
+          sentVia={otp.sentVia}
           verifying={otpVerifying}
           error={otpError}
           onVerify={(code) => runUserAction(otp.doFetch, otp.onSuccess, { challengeId: otp.challengeId, code })}

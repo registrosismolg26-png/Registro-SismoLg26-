@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { sendMail, renderEmail, mailerReady } from "@/lib/mailer";
+import { sendTelegram, telegramReady } from "@/lib/telegram";
 
 export type OtpPurpose = "USER_MUTATION" | "PASSWORD_CHANGE" | "PASSWORD_RESET";
 const TTL_MIN = 10;
@@ -23,9 +24,12 @@ const PURPOSE_LABEL: Record<OtpPurpose, string> = {
   PASSWORD_RESET: "recuperación de contraseña",
 };
 
-/** Genera un código, lo guarda (hash) y lo envía por correo.
- *  Devuelve el challengeId, o null si no se pudo enviar (sin credenciales / error). */
-export async function requestCode(email: string, purpose: OtpPurpose): Promise<string | null> {
+export interface RequestCodeResult { id: string; viaEmail: boolean; viaTelegram: boolean }
+
+/** Genera un código, lo guarda (hash) y lo entrega por correo y/o Telegram DM.
+ *  Devuelve `{ id, viaEmail, viaTelegram }` (canales usados/disponibles) o null si
+ *  NINGÚN canal pudo entregar. */
+export async function requestCode(email: string, purpose: OtpPurpose): Promise<RequestCodeResult | null> {
   const to = String(email || "").trim().toLowerCase();
   if (!to) return null;
 
@@ -34,14 +38,19 @@ export async function requestCode(email: string, purpose: OtpPurpose): Promise<s
     where: { email: to, OR: [{ consumedAt: { not: null } }, { expiresAt: { lt: new Date() } }] },
   }).catch(() => {});
 
-  // Cooldown anti-spam: si hay un código VIGENTE de este correo+propósito creado hace
-  // < 60s, se reutiliza (no se envía otro correo) → el usuario usa el que ya recibió.
+  // Canales disponibles para este usuario (para informar por dónde llega el código).
+  const user = await prisma.user.findUnique({ where: { email: to }, select: { telegramChatId: true } }).catch(() => null);
+  const canEmail = mailerReady();
+  const canTelegram = Boolean(user?.telegramChatId);
+
+  // Cooldown anti-spam: si hay un código VIGENTE (< 60s), se reutiliza (no reenvía);
+  // se reportan los canales disponibles (por donde llegó el original).
   const reciente = await prisma.verificationCode.findFirst({
     where: { email: to, purpose, consumedAt: null, expiresAt: { gt: new Date() }, createdAt: { gt: new Date(Date.now() - COOLDOWN_MS) } },
     orderBy: { createdAt: "desc" },
     select: { id: true },
   });
-  if (reciente) return reciente.id;
+  if (reciente) return { id: reciente.id, viaEmail: canEmail, viaTelegram: canTelegram };
 
   const code = genCode();
   const rec = await prisma.verificationCode.create({
@@ -52,17 +61,21 @@ export async function requestCode(email: string, purpose: OtpPurpose): Promise<s
     <p style="font-size:13px;color:#475569;margin:0 0 6px">Tu código de verificación es:</p>
     <div style="font-size:32px;font-weight:800;letter-spacing:8px;color:#1e3a8a;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 0;text-align:center;font-family:monospace">${code}</div>
     <p style="font-size:13px;color:#475569;margin:12px 0 0">Vence en ${TTL_MIN} minutos. Si no fuiste tú, ignora este correo y <b>no compartas el código</b> con nadie.</p>`;
-  const ok = await sendMail({
-    to,
-    subject: `Código de verificación: ${code}`,
-    html: renderEmail("Código de verificación", cuerpo),
-  });
-  if (!ok) {
-    // No se pudo enviar → borra el registro para no dejar códigos huérfanos.
+  // Entrega por TODOS los canales disponibles (redundancia): correo + Telegram DM.
+  const [emailOk, tgOk] = await Promise.all([
+    canEmail
+      ? sendMail({ to, subject: `Código de verificación: ${code}`, html: renderEmail("Código de verificación", cuerpo) })
+      : Promise.resolve(false),
+    canTelegram
+      ? sendTelegram(user!.telegramChatId!, `🔐 <b>Código de verificación</b>\nAcción: <b>${PURPOSE_LABEL[purpose]}</b>\n\nTu código: <b>${code}</b>\n\nVence en ${TTL_MIN} min. No lo compartas con nadie.`)
+      : Promise.resolve(false),
+  ]);
+  if (!emailOk && !tgOk) {
+    // Ningún canal entregó → borra el registro para no dejar códigos huérfanos.
     await prisma.verificationCode.delete({ where: { id: rec.id } }).catch(() => {});
     return null;
   }
-  return rec.id;
+  return { id: rec.id, viaEmail: emailOk, viaTelegram: tgOk };
 }
 
 // Compara (timing-safe) y CONSUME el código; incrementa intentos y audita en fallo.
@@ -110,7 +123,7 @@ export async function verifyCodeByEmail(email: string, code: string, purpose: Ot
 // (required + challengeId). El endpoint mapea el resultado a su respuesta.
 export type OtpGateResult =
   | { status: "skip" | "ok" | "invalid" | "send_failed" }
-  | { status: "required"; challengeId: string };
+  | { status: "required"; challengeId: string; viaEmail: boolean; viaTelegram: boolean };
 
 /** Interruptor global del OTP. Por defecto ACTIVO; se APAGA con `OTP_ENABLED=false`
  *  (o 0/off/no) SIN tocar las credenciales de Gmail. Útil si la entrega de correo se
@@ -122,21 +135,21 @@ export function otpEnabled(): boolean {
 }
 
 export async function otpGate(body: any, destEmail: string, purpose: OtpPurpose): Promise<OtpGateResult> {
-  if (!otpEnabled() || !mailerReady()) return { status: "skip" }; // apagado o sin correo → no bloquea
+  if (!otpEnabled() || (!mailerReady() && !telegramReady())) return { status: "skip" }; // apagado o sin canal → no bloquea
   const challengeId = body?.challengeId ? String(body.challengeId) : "";
   const code = body?.code ? String(body.code) : "";
   if (challengeId && code) {
     const ok = await verifyCode(challengeId, code, purpose);
     return { status: ok ? "ok" : "invalid" };
   }
-  const newId = await requestCode(destEmail, purpose);
-  return newId ? { status: "required", challengeId: newId } : { status: "send_failed" };
+  const res = await requestCode(destEmail, purpose);
+  return res ? { status: "required", challengeId: res.id, viaEmail: res.viaEmail, viaTelegram: res.viaTelegram } : { status: "send_failed" };
 }
 
 /** Mapea el resultado de otpGate a una respuesta HTTP. Devuelve null si se puede
  *  proceder ("skip" u "ok"); el endpoint hace `const b = otpErrorResponse(...); if (b) return b;`. */
 export function otpErrorResponse(gate: OtpGateResult, actorEmail: string): NextResponse | null {
-  if (gate.status === "required") return NextResponse.json({ error: `Ingresa el código de verificación enviado a ${actorEmail}.`, code: "CODE_REQUIRED", challengeId: gate.challengeId }, { status: 403 });
+  if (gate.status === "required") return NextResponse.json({ error: "Ingresa el código de verificación que te enviamos.", code: "CODE_REQUIRED", challengeId: gate.challengeId, sentVia: { email: gate.viaEmail, telegram: gate.viaTelegram } }, { status: 403 });
   if (gate.status === "invalid") return NextResponse.json({ error: "Código de verificación inválido o vencido.", code: "CODE_INVALID" }, { status: 403 });
   if (gate.status === "send_failed") return NextResponse.json({ error: "No se pudo enviar el código de verificación.", code: "CODE_SEND_FAILED" }, { status: 500 });
   return null;

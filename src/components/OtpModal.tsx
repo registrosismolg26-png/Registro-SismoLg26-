@@ -12,6 +12,7 @@ import { apiFetch } from "@/lib/apiFetch";
 interface Props {
   email: string;                              // a quién se envió (el propio usuario)
   purpose: "USER_MUTATION" | "PASSWORD_CHANGE";
+  sentVia?: { email: boolean; telegram: boolean }; // por dónde se envió (Telegram/correo)
   verifying?: boolean;                        // el padre está verificando
   error?: string | null;                      // error a mostrar (código inválido…)
   onVerify: (code: string) => void;           // el padre reenvía la acción con el código
@@ -20,8 +21,9 @@ interface Props {
   showToast?: (m: string, t: "success" | "error" | "info" | "warning") => void;
 }
 
-export default function OtpModal({ email, purpose, verifying, error, onVerify, onCancel, onResent, showToast }: Props) {
+export default function OtpModal({ email, purpose, sentVia, verifying, error, onVerify, onCancel, onResent, showToast }: Props) {
   const [code, setCode] = useState("");
+  const [via, setVia] = useState(sentVia);
   const [resending, setResending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -37,7 +39,7 @@ export default function OtpModal({ email, purpose, verifying, error, onVerify, o
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ purpose }),
       });
       const d = await res.json().catch(() => ({}));
-      if (res.ok && d.challengeId) { onResent?.(d.challengeId); setCode(""); showToast?.("Te enviamos un código nuevo.", "success"); }
+      if (res.ok && d.challengeId) { onResent?.(d.challengeId); if (d.sentVia) setVia(d.sentVia); setCode(""); showToast?.("Te enviamos un código nuevo.", "success"); }
       else showToast?.(d.error || "No se pudo reenviar el código.", "error");
     } catch { showToast?.("Error de red al reenviar.", "error"); }
     finally { setResending(false); }
@@ -49,8 +51,15 @@ export default function OtpModal({ email, purpose, verifying, error, onVerify, o
         <div className="otp-modal__ico">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
         </div>
-        <h3 className="otp-modal__title">Verificación por correo</h3>
-        <p className="otp-modal__sub">Enviamos un código de 6 dígitos a <b>{email}</b>. Ingrésalo para confirmar la acción.</p>
+        <h3 className="otp-modal__title">Verificación en dos pasos</h3>
+        <p className="otp-modal__sub">
+          {via?.telegram
+            ? <>Te enviamos un código de 6 dígitos por <b>Telegram</b>{via?.email ? <> (y a tu correo)</> : null}. Ingrésalo para confirmar.</>
+            : <>Te enviamos un código de 6 dígitos a tu correo <b>{email}</b>. Ingrésalo para confirmar.</>}
+        </p>
+        {!via?.telegram && (
+          <p className="otp-modal__hint">💡 ¿Prefieres recibir tus códigos por <b>Telegram</b>? Actívalo en <b>Configuración → Perfil</b>: llegan al instante, aunque el correo falle.</p>
+        )}
 
         <input
           ref={inputRef}
