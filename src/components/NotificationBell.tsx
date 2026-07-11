@@ -156,11 +156,17 @@ export default function NotificationBell() {
       if (btnRef.current?.contains(t) || panelRef.current?.contains(t)) return;
       setOpen(false);
     };
-    const onMove = () => setOpen(false);
+    // Cerrar si se hace scroll de la PÁGINA, pero NO al scrollear DENTRO del panel.
+    const onScroll = (e: Event) => {
+      const t = e.target as Node | null;
+      if (t && panelRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onResize = () => setOpen(false);
     document.addEventListener("mousedown", onDoc);
-    window.addEventListener("scroll", onMove, true);
-    window.addEventListener("resize", onMove);
-    return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("scroll", onScroll, true); window.removeEventListener("resize", onResize); };
   }, [open]);
 
   // ── Navegación real a la ficha ──
