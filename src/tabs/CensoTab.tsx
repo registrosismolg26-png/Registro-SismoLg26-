@@ -21,7 +21,7 @@ import { useState, useRef, useReducer, useMemo, useEffect } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import type { Medicamento, FormData } from "@/types";
-import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS } from "@/lib/constants";
+import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
@@ -924,14 +924,7 @@ export default function CensoTab() {
                         <StyledSelect
                           value={formData.dependentNumber}
                           onChange={(v) => dispatch({ type: "SET", field: "dependentNumber", value: v })}
-                          options={[
-                            { value: "1", label: "1er Hijo/Representado (-1)" },
-                            { value: "2", label: "2do Hijo/Representado (-2)" },
-                            { value: "3", label: "3er Hijo/Representado (-3)" },
-                            { value: "4", label: "4to Hijo/Representado (-4)" },
-                            { value: "5", label: "5to Hijo/Representado (-5)" },
-                            { value: "6", label: "6to Hijo/Representado (-6)" },
-                          ]}
+                          options={DEPENDENT_NUMBER_OPTIONS}
                           ariaLabel="Número correlativo de hijo/dependiente"
                         />
                       </div>

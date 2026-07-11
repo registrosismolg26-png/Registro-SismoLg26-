@@ -32,6 +32,17 @@ export const INITIAL_FORM: FormData = {
   intermitente: "NO", motivoIntermitente: "",
 };
 
+// Opciones del "número correlativo de hijo/dependiente". El dependiente se guarda
+// con la cédula del representante + este sufijo: "<cédula>-<N>" (ej. V-12345678-3).
+// Fuente ÚNICA usada por el censo (alta) y por la edición de registros. El parseo
+// del sufijo admite N de varios dígitos, así que la lista puede crecer sin tocar
+// la lógica (aquí: hasta 12).
+const DEP_ORDINALES = ["1er", "2do", "3er", "4to", "5to", "6to", "7mo", "8vo", "9no", "10mo", "11vo", "12vo"];
+export const DEPENDENT_NUMBER_OPTIONS = DEP_ORDINALES.map((ord, i) => ({
+  value: String(i + 1),
+  label: `${ord} Hijo/Representado (-${i + 1})`,
+}));
+
 // Correos con privilegios de super-admin (gestión de usuarios)
 export const ALLOWED_ADMINS = [
   "yender.umc@gmail.com",

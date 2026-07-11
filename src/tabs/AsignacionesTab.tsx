@@ -19,7 +19,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import Reveal from "@/components/Reveal";
-import { PARROQUIAS, PERIODO_OPTIONS } from "@/lib/constants";
+import { PARROQUIAS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS } from "@/lib/constants";
 import {
   formatRoomLabel,
   roomFillLevel,
@@ -2435,28 +2435,7 @@ export default function AsignacionesTab() {
                               }))
                             }
                             ariaLabel="Número correlativo de hijo/dependiente"
-                            options={[
-                              {
-                                value: "1",
-                                label: "1er Hijo/Representado (-1)",
-                              },
-                              {
-                                value: "2",
-                                label: "2do Hijo/Representado (-2)",
-                              },
-                              {
-                                value: "3",
-                                label: "3er Hijo/Representado (-3)",
-                              },
-                              {
-                                value: "4",
-                                label: "4to Hijo/Representado (-4)",
-                              },
-                              {
-                                value: "5",
-                                label: "5to Hijo/Representado (-5)",
-                              },
-                            ]}
+                            options={DEPENDENT_NUMBER_OPTIONS}
                           />
                         </div>
                       </Reveal>
