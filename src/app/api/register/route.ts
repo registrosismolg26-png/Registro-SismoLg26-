@@ -339,7 +339,7 @@ export async function POST(req: Request) {
       const resumen = `${nuevo.nombreApellido} (C.I. ${nuevo.cedula}): ${transferredFrom.join(", ")} → ${nuevo.refugio}`;
       // Aviso in-app (persistido) a Master/Admin del destino.
       const admins = await adminRecipients(nuevo.refugio).catch(() => []);
-      await createNotifications(admins.map((a) => ({ userId: a.id, tipo: "TRASLADO", titulo: "Traslado de campamento", cuerpo: resumen, refugio: nuevo.refugio })));
+      await createNotifications(admins.map((a) => ({ userId: a.id, tipo: "TRASLADO", titulo: "Traslado de campamento", cuerpo: resumen, refugio: nuevo.refugio, entidadId: nuevo.id })));
       // Envíos externos (best-effort, no bloquean): correo + Telegram (grupo + DM).
       const avisoTo = alertEmails();
       if (avisoTo.length) {

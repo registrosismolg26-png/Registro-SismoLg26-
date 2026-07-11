@@ -140,7 +140,7 @@ export async function POST(req: Request) {
     const resumenU = `${newUser.nombre} (${newUser.role}) — ${newUser.campamentoTransitorio} · por ${auth.nombre}`;
     const adminsU = await adminRecipients(newUser.campamentoTransitorio).catch(() => []);
     await createNotifications([
-      ...adminsU.filter((a) => a.id !== newUser.id).map((a) => ({ userId: a.id, tipo: "USUARIO_NUEVO", titulo: "Nuevo usuario", cuerpo: resumenU, refugio: newUser.campamentoTransitorio })),
+      ...adminsU.filter((a) => a.id !== newUser.id).map((a) => ({ userId: a.id, tipo: "USUARIO_NUEVO", titulo: "Nuevo usuario", cuerpo: resumenU, refugio: newUser.campamentoTransitorio, entidadId: newUser.id })),
       { userId: newUser.id, tipo: "BIENVENIDA", titulo: "Bienvenido al sistema", cuerpo: "Tu cuenta fue creada. Vincula Telegram en Configuración para recibir tus códigos y avisos." },
     ]);
     sendTelegramGroup(`👤 <b>Nuevo usuario</b>\n${resumenU}`).catch(() => {});

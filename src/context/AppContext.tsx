@@ -65,6 +65,10 @@ export interface AppContextValue {
   pendingHistorialCedula: string | null;
   setPendingHistorialCedula: React.Dispatch<React.SetStateAction<string | null>>;
 
+  // Navegación desde un aviso "usuario nuevo" → abrir la ficha de ese usuario en Usuarios.
+  pendingUserId: string | null;
+  setPendingUserId: React.Dispatch<React.SetStateAction<string | null>>;
+
   // Habitaciones
   customCuartos: string[];
   setCustomCuartos: React.Dispatch<React.SetStateAction<string[]>>;

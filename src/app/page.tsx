@@ -39,7 +39,6 @@ import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CaracterizacionTab from "@/tabs/CaracterizacionTab";
 import MonitoreoTab from "@/tabs/MonitoreoTab";
-import NuevosAfectadosTab from "@/tabs/NuevosAfectadosTab";
 import CensoTab from "@/tabs/CensoTab";
 import MorbilidadTab from "@/tabs/MorbilidadTab";
 import BalanceTab from "@/tabs/BalanceTab";
@@ -268,6 +267,7 @@ export default function Home() {
   // Cold-start navigation / real-time PWA notification (globales, no del config)
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
   const [pendingHistorialCedula, setPendingHistorialCedula] = useState<string | null>(null);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [internalNotification, setInternalNotification] = useState<{ registroId: string; nombreApellido: string } | null>(null);
 
   // Toast Notification State
@@ -1348,6 +1348,7 @@ export default function Home() {
     consultas, localConsultas, loadingConsultas, refreshLocalConsultas, fetchConsultas,
     pendingSelectId, setPendingSelectId,
     pendingHistorialCedula, setPendingHistorialCedula,
+    pendingUserId, setPendingUserId,
     customCuartos, setCustomCuartos, allCuartos, sortedCustomCuartos, dashboardRooms,
     roomCapacities, setRoomCapacities,
     viewRefugio, setViewRefugio, refugiosList, effectiveRefugio,
@@ -1382,7 +1383,6 @@ export default function Home() {
       {activeTab === "caracterizacion" && isMaster(currentUser.role) && <CaracterizacionTab />}
       {activeTab === "monitoreo" && isMaster(currentUser.role) && <MonitoreoTab />}
       {activeTab === "mapa" && isMaster(currentUser.role) && <MapaTab />}
-      {activeTab === "nuevos-afectados" && (isMaster(currentUser.role) || currentUser.role === "ADMIN") && <NuevosAfectadosTab />}
 
       {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
       {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}

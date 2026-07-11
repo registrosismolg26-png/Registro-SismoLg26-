@@ -1,34 +1,30 @@
 "use client";
 
-// ── Campana de avisos in-app ────────────────────────────────────────────────
-// Avisos del propio usuario (/api/notifications) con ícono+color+punto por tipo.
-// Clic en un aviso → detalle completo; desde el detalle, "Ir a la sección" (con
-// cambio de "campamento en vista" para Master, vía Notification.refugio). Además,
-// una fila "N nuevos afectados" (Master/Admin) que salta a la pestaña que lee los
-// registros recientes. Panel por PORTAL con posición adaptable (cabecera y sidebar).
-// Sin polling; caché compartido entre instancias.
+// ── Centro de avisos (campana) ──────────────────────────────────────────────
+// UN solo lugar con DOS secciones: "Avisos" (notificaciones) y "Nuevos afectados"
+// (registros recientes, leídos directo del censo — sin crear filas). Flujo real:
+//  · Avisos: clic → modal con el detalle completo + su botón de acción, que NAVEGA
+//    a la ficha concreta (Traslado→ficha de la persona; Usuario nuevo→ficha del
+//    usuario; Bienvenida→Configuración). Master cambia su "campamento en vista".
+//  · Nuevos afectados: clic en la fila → abre la ficha de esa persona (Master cambia
+//    de campamento). La lista se carga SOLO al abrir la sección (egress mínimo).
+// Panel por PORTAL con posición adaptable (cabecera y sidebar). Sin polling.
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/apiFetch";
 import { useAppContext } from "@/context/AppContext";
 import { canManageUsers, isMedico, isMaster } from "@/lib/permissions";
-import type { ActiveTab } from "@/types";
 
-interface Notif { id: string; tipo: string; titulo: string; cuerpo: string; refugio: string | null; readAt: string | null; createdAt: string; }
+interface Notif { id: string; tipo: string; titulo: string; cuerpo: string; refugio: string | null; entidadId: string | null; readAt: string | null; createdAt: string; }
+interface Afectado { id: string; nombreApellido: string; cedula: string; refugio: string; parroquia: string; retirado: string; createdAt: string; }
 type Pos = { left: number; width: number; top?: number; bottom?: number };
 
 const SEEN_KEY = "nuevos_afectados_seen";
-let sharedCache: { at: number; items: Notif[]; unread: number; nuevos: number } | null = null;
+let cacheAvisos: { at: number; items: Notif[]; unread: number; nuevos: number } | null = null;
 
 const TIPO_COLOR: Record<string, string> = { AVISO: "#2563eb", USUARIO_NUEVO: "#10b981", TRASLADO: "#d97706", BIENVENIDA: "#0d9488" };
 const tipoColor = (t: string) => TIPO_COLOR[t] || "#64748b";
-// Salto por tipo → pestaña destino + permiso requerido para poder ir.
-const TIPO_TAB: Record<string, { tab: ActiveTab; label: string; can: (r: string) => boolean }> = {
-  USUARIO_NUEVO: { tab: "usuarios", label: "Usuarios", can: (r) => canManageUsers(r) },
-  TRASLADO: { tab: "asignaciones", label: "Registrados", can: (r) => !isMedico(r) },
-  BIENVENIDA: { tab: "config", label: "Configuración", can: (r) => !isMedico(r) && r !== "VISUALIZADOR" },
-};
 
 function TipoIcon({ tipo }: { tipo: string }) {
   const paths: Record<string, ReactNode> = {
@@ -41,13 +37,23 @@ function TipoIcon({ tipo }: { tipo: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{p}</svg>;
 }
 
+// Acción de un aviso: a dónde navega + si el usuario puede.
+function accionDe(n: Notif, role: string): { label: string; can: boolean } | null {
+  if (n.tipo === "TRASLADO" && n.entidadId) return { label: "Ver ficha", can: !isMedico(role) };
+  if (n.tipo === "USUARIO_NUEVO" && n.entidadId) return { label: "Ver usuario", can: canManageUsers(role) };
+  if (n.tipo === "BIENVENIDA") return { label: "Ir a Configuración", can: !isMedico(role) && role !== "VISUALIZADOR" };
+  return null;
+}
+
 const fechaLarga = (s: string) => new Date(s).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const fechaCorta = (s: string) => new Date(s).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const iniciales = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[0] || "").join("").toUpperCase() || "?";
 
 export default function NotificationBell() {
-  const { currentUser, setActiveTab, setViewRefugio } = useAppContext();
+  const { currentUser, setActiveTab, setViewRefugio, setPendingSelectId, setPendingUserId } = useAppContext();
   const role = currentUser?.role ?? "";
   const esAdminCenso = role === "MASTER" || role === "ADMIN";
+  const master = isMaster(role);
 
   const [items, setItems] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
@@ -55,35 +61,52 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
   const [detail, setDetail] = useState<Notif | null>(null);
+  const [section, setSection] = useState<"avisos" | "afectados">("avisos");
+  const [afectados, setAfectados] = useState<Afectado[]>([]);
+  const [afectadosLoading, setAfectadosLoading] = useState(false);
+  const afectadosPrevSeen = useRef<string | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   const seenSince = () => {
     if (typeof window === "undefined") return null;
     let v = localStorage.getItem(SEEN_KEY);
-    if (!v) { v = new Date().toISOString(); localStorage.setItem(SEEN_KEY, v); } // 1ª vez: desde ahora (sin flood)
+    if (!v) { v = new Date().toISOString(); localStorage.setItem(SEEN_KEY, v); }
     return v;
   };
 
-  const load = async (force = false) => {
+  const loadAvisos = async (force = false) => {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    if (sharedCache && Date.now() - sharedCache.at < (force ? 2_000 : 45_000)) {
-      setItems(sharedCache.items); setUnread(sharedCache.unread); setNuevos(sharedCache.nuevos); return;
+    if (cacheAvisos && Date.now() - cacheAvisos.at < (force ? 2_000 : 45_000)) {
+      setItems(cacheAvisos.items); setUnread(cacheAvisos.unread); setNuevos(cacheAvisos.nuevos); return;
     }
     try {
       const q = esAdminCenso ? `?afectadosSince=${encodeURIComponent(seenSince() || "")}` : "";
       const res = await apiFetch(`/api/notifications${q}`);
       const d = await res.json().catch(() => ({}));
       if (d.success) {
-        sharedCache = { at: Date.now(), items: d.items || [], unread: d.unread || 0, nuevos: d.nuevosAfectados || 0 };
-        setItems(sharedCache.items); setUnread(sharedCache.unread); setNuevos(sharedCache.nuevos);
+        cacheAvisos = { at: Date.now(), items: d.items || [], unread: d.unread || 0, nuevos: d.nuevosAfectados || 0 };
+        setItems(cacheAvisos.items); setUnread(cacheAvisos.unread); setNuevos(cacheAvisos.nuevos);
       }
     } catch (e) { console.error(e); }
   };
 
+  const loadAfectados = async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    setAfectadosLoading(true);
+    try {
+      const prev = typeof window !== "undefined" ? localStorage.getItem(SEEN_KEY) : null;
+      afectadosPrevSeen.current = prev;
+      const res = await apiFetch(`/api/nuevos-afectados${prev ? `?since=${encodeURIComponent(prev)}` : ""}`);
+      const d = await res.json().catch(() => ({}));
+      if (d.success) setAfectados(d.items || []);
+    } catch (e) { console.error(e); }
+    finally { setAfectadosLoading(false); }
+  };
+
   useEffect(() => {
-    load(true);
-    const onVis = () => { if (document.visibilityState === "visible") load(); };
+    loadAvisos(true);
+    const onVis = () => { if (document.visibilityState === "visible") loadAvisos(); };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,7 +115,7 @@ export default function NotificationBell() {
   const computePos = () => {
     const r = btnRef.current?.getBoundingClientRect();
     if (!r) return;
-    const width = Math.min(320, window.innerWidth - 16);
+    const width = Math.min(340, window.innerWidth - 16);
     let left = r.right - width;
     left = Math.max(8, Math.min(left, window.innerWidth - 8 - width));
     const openUp = r.bottom > window.innerHeight * 0.55;
@@ -103,16 +126,27 @@ export default function NotificationBell() {
     const next = !open;
     if (next) {
       computePos();
-      load(true);
+      loadAvisos(true);
       if (unread > 0) {
         setUnread(0);
         const marcados = items.map((n) => ({ ...n, readAt: n.readAt || new Date().toISOString() }));
         setItems(marcados);
-        if (sharedCache) sharedCache = { ...sharedCache, at: Date.now(), items: marcados, unread: 0 };
+        if (cacheAvisos) cacheAvisos = { ...cacheAvisos, at: Date.now(), items: marcados, unread: 0 };
         apiFetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }).catch(() => {});
       }
     }
     setOpen(next);
+  };
+
+  const irASeccion = (s: "avisos" | "afectados") => {
+    setSection(s);
+    if (s === "afectados") {
+      loadAfectados();
+      // Marca "visto" → resetea el contador de nuevos afectados.
+      if (typeof window !== "undefined") localStorage.setItem(SEEN_KEY, new Date().toISOString());
+      setNuevos(0);
+      if (cacheAvisos) cacheAvisos = { ...cacheAvisos, nuevos: 0 };
+    }
   };
 
   useEffect(() => {
@@ -129,27 +163,32 @@ export default function NotificationBell() {
     return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
   }, [open]);
 
-  // Salto desde el detalle de un aviso a su sección (con cambio de campamento en Master).
-  const irASeccion = (n: Notif) => {
-    const meta = TIPO_TAB[n.tipo];
-    if (!meta) return;
-    if (n.refugio && isMaster(role)) setViewRefugio(n.refugio);
-    setActiveTab(meta.tab);
+  // ── Navegación real a la ficha ──
+  const irAPersona = (id: string | null, refugio: string | null) => {
+    if (!id) return;
+    if (master && refugio) setViewRefugio(refugio);
+    setPendingSelectId(id);
+    setActiveTab("asignaciones");
     setDetail(null); setOpen(false);
   };
-
-  // Fila "nuevos afectados" → pestaña que lee registros; marca visto (resetea el contador).
-  const verNuevosAfectados = () => {
-    const now = new Date().toISOString();
-    if (typeof window !== "undefined") localStorage.setItem(SEEN_KEY, now);
-    setNuevos(0);
-    if (sharedCache) sharedCache = { ...sharedCache, nuevos: 0 };
-    setActiveTab("nuevos-afectados");
-    setOpen(false);
+  const irAUsuario = (id: string | null) => {
+    if (!id) return;
+    setPendingUserId(id);
+    setActiveTab("usuarios");
+    setDetail(null); setOpen(false);
+  };
+  const ejecutarAccion = (n: Notif) => {
+    if (n.tipo === "TRASLADO") irAPersona(n.entidadId, n.refugio);
+    else if (n.tipo === "USUARIO_NUEVO") irAUsuario(n.entidadId);
+    else if (n.tipo === "BIENVENIDA") { setActiveTab("config"); setDetail(null); setOpen(false); }
+  };
+  const esNuevoAfectado = (r: Afectado) => {
+    const prev = afectadosPrevSeen.current;
+    return prev ? new Date(r.createdAt).getTime() > new Date(prev).getTime() : false;
   };
 
   const badge = unread + (esAdminCenso ? nuevos : 0);
-  const detailMeta = detail ? TIPO_TAB[detail.tipo] : undefined;
+  const accion = detail ? accionDe(detail, role) : null;
 
   return (
     <div className="notif-bell">
@@ -160,33 +199,59 @@ export default function NotificationBell() {
 
       {open && pos && typeof document !== "undefined" && createPortal(
         <div ref={panelRef} className="notif-panel" style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, zIndex: 4000 }}>
-          <div className="notif-panel__head">Avisos</div>
-
-          {esAdminCenso && nuevos > 0 && (
-            <button type="button" className="notif-nuevos" onClick={verNuevosAfectados}>
-              <span className="notif-nuevos__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
-              <span className="notif-nuevos__txt"><b>{nuevos}</b> nuevo{nuevos === 1 ? "" : "s"} afectado{nuevos === 1 ? "" : "s"}</span>
-              <span className="notif-nuevos__go">Ver →</span>
-            </button>
+          {esAdminCenso ? (
+            <div className="notif-seg">
+              <button type="button" className={`notif-seg__btn${section === "avisos" ? " is-active" : ""}`} onClick={() => irASeccion("avisos")}>
+                Avisos{unread > 0 && <span className="notif-seg__badge">{unread > 9 ? "9+" : unread}</span>}
+              </button>
+              <button type="button" className={`notif-seg__btn${section === "afectados" ? " is-active" : ""}`} onClick={() => irASeccion("afectados")}>
+                Nuevos afectados{nuevos > 0 && <span className="notif-seg__badge">{nuevos > 9 ? "9+" : nuevos}</span>}
+              </button>
+            </div>
+          ) : (
+            <div className="notif-panel__head">Avisos</div>
           )}
 
-          {items.length === 0 ? (
-            <div className="notif-panel__empty">No tienes avisos.</div>
+          {section === "avisos" ? (
+            items.length === 0 ? (
+              <div className="notif-panel__empty">No tienes avisos.</div>
+            ) : (
+              <ul className="notif-list">
+                {items.map((n) => (
+                  <li key={n.id}>
+                    <button type="button" className={`notif-item${n.readAt ? "" : " notif-item--unread"}`} onClick={() => setDetail(n)}>
+                      <span className="notif-item__ico" style={{ color: tipoColor(n.tipo), background: `${tipoColor(n.tipo)}22` }}><TipoIcon tipo={n.tipo} /></span>
+                      <span className="notif-item__main">
+                        <span className="notif-item__title">{n.titulo}{!n.readAt && <span className="notif-item__dot" style={{ background: tipoColor(n.tipo) }} />}</span>
+                        <span className="notif-item__body">{n.cuerpo}</span>
+                        <span className="notif-item__time">{fechaCorta(n.createdAt)}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
           ) : (
-            <ul className="notif-list">
-              {items.map((n) => (
-                <li key={n.id}>
-                  <button type="button" className={`notif-item${n.readAt ? "" : " notif-item--unread"}`} onClick={() => setDetail(n)}>
-                    <span className="notif-item__ico" style={{ color: tipoColor(n.tipo), background: `${tipoColor(n.tipo)}22` }}><TipoIcon tipo={n.tipo} /></span>
-                    <span className="notif-item__main">
-                      <span className="notif-item__title">{n.titulo}{!n.readAt && <span className="notif-item__dot" style={{ background: tipoColor(n.tipo) }} />}</span>
-                      <span className="notif-item__body">{n.cuerpo}</span>
-                      <span className="notif-item__time">{fechaCorta(n.createdAt)}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            afectadosLoading && afectados.length === 0 ? (
+              <div className="notif-panel__empty">Cargando…</div>
+            ) : afectados.length === 0 ? (
+              <div className="notif-panel__empty">No hay registros recientes.</div>
+            ) : (
+              <ul className="notif-list">
+                {afectados.map((r) => (
+                  <li key={r.id}>
+                    <button type="button" className={`notif-item${esNuevoAfectado(r) ? " notif-item--unread" : ""}`} onClick={() => irAPersona(r.id, r.refugio)}>
+                      <span className="afec-mini-ava">{iniciales(r.nombreApellido)}</span>
+                      <span className="notif-item__main">
+                        <span className="notif-item__title">{r.nombreApellido}{esNuevoAfectado(r) && <span className="afec-badge">Nuevo</span>}{r.retirado === "SI" && <span className="afec-badge afec-badge--out">Retirado</span>}</span>
+                        <span className="notif-item__body">C.I. {r.cedula} · {r.refugio}{r.parroquia ? ` · ${r.parroquia}` : ""}</span>
+                        <span className="notif-item__time">{fechaCorta(r.createdAt)} · Ver ficha →</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
           )}
         </div>,
         document.body
@@ -204,9 +269,9 @@ export default function NotificationBell() {
             </div>
             <p className="notif-detail__body">{detail.cuerpo}</p>
             <p className="notif-detail__time">{fechaLarga(detail.createdAt)}</p>
-            {detailMeta && detailMeta.can(role) && (
+            {accion && accion.can && (
               <div className="notif-detail__actions">
-                <button type="button" className="btn-submit" style={{ width: "auto" }} onClick={() => irASeccion(detail)}>Ir a {detailMeta.label} →</button>
+                <button type="button" className="btn-submit" style={{ width: "auto" }} onClick={() => ejecutarAccion(detail)}>{accion.label} →</button>
               </div>
             )}
           </div>

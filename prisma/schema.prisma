@@ -337,6 +337,7 @@ model Notification {
   titulo    String
   cuerpo    String
   refugio   String? // campamento al que apunta (para el salto: Master cambia su viewRefugio)
+  entidadId String? // id de la ficha a abrir al pulsar la acción (registroId / userId)
   readAt    DateTime?
   createdAt DateTime  @default(now())
 

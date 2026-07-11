@@ -20,7 +20,7 @@ export async function adminRecipients(refugio?: string): Promise<Recipient[]> {
 
 /** Persiste N avisos in-app (best-effort, no lanza). */
 export async function createNotifications(
-  rows: { userId: string; tipo: string; titulo: string; cuerpo: string; refugio?: string | null }[],
+  rows: { userId: string; tipo: string; titulo: string; cuerpo: string; refugio?: string | null; entidadId?: string | null }[],
 ): Promise<void> {
   if (!rows.length) return;
   try { await prisma.notification.createMany({ data: rows }); } catch (e) { console.error("[notify] createMany:", e); }

@@ -43,7 +43,7 @@ import Pagination from "@/components/Pagination";
 import type { Medicamento } from "@/types";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { canRegister, canDeleteRegistro } from "@/lib/permissions";
+import { canRegister, canDeleteRegistro, isMaster } from "@/lib/permissions";
 
 export default function AsignacionesTab() {
   const {
@@ -56,6 +56,7 @@ export default function AsignacionesTab() {
     showToast,
     currentUser,
     effectiveRefugio,
+    setViewRefugio,
     triggerSync,
     refreshLocalRecords,
     pendingSelectId,
@@ -306,15 +307,28 @@ export default function AsignacionesTab() {
   const ymdLocal = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-  // Navegación por notificación PWA: cuando pendingSelectId tiene match en
-  // registros, abrir su detalle y limpiar el pendiente. (Home ya cambió el tab.)
+  // Navegación por notificación/aviso: si pendingSelectId está en la lista, abre su
+  // detalle; si NO (Master con aviso de otro campamento, o aviso viejo sin refugio),
+  // TRAE la ficha por id (con su refugio) y la abre igual → no depende de la lista,
+  // así el detalle SIEMPRE se muestra aunque el campamento en vista no coincida.
+  const fetchSelectRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!pendingSelectId || !registros.length) return;
+    if (!pendingSelectId) return;
     const match = registros.find((r) => r.id === pendingSelectId);
-    if (match) {
-      setSelectedRegistro(match);
-      setPendingSelectId(null);
-    }
+    if (match) { setSelectedRegistro(match); setPendingSelectId(null); fetchSelectRef.current = null; return; }
+    if (fetchSelectRef.current === pendingSelectId) return; // ya se está trayendo
+    fetchSelectRef.current = pendingSelectId;
+    (async () => {
+      try {
+        const res = await apiFetch(`/api/registros/${pendingSelectId}`);
+        const d = await res.json().catch(() => ({}));
+        if (res.ok && d.success && d.registro) {
+          if (isMaster(currentUser?.role ?? "") && d.registro.refugio) setViewRefugio(d.registro.refugio);
+          setSelectedRegistro(d.registro);
+        }
+      } catch (e) { console.error(e); }
+      finally { setPendingSelectId(null); fetchSelectRef.current = null; }
+    })();
   }, [registros, pendingSelectId]);
 
   const filteredRegistros = useMemo(() => {

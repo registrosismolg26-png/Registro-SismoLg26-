@@ -13,7 +13,7 @@ import { canManageUsers, isMaster, canManageTargetUser, hasRefugio, assignableRo
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 
 export default function UsuariosTab() {
-  const { currentUser, isOnline, showToast } = useAppContext();
+  const { currentUser, isOnline, showToast, pendingUserId, setPendingUserId } = useAppContext();
 
   // OTP: cuando el backend pide código (403 CODE_REQUIRED), se abre el modal y se
   // reintenta la MISMA acción con { challengeId, code }. `doFetch` es el fetch de la
@@ -118,6 +118,20 @@ export default function UsuariosTab() {
     fetchRefugios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
+
+  // Navegación desde un aviso "usuario nuevo": abre la ficha (edición) de ese usuario.
+  useEffect(() => {
+    if (!pendingUserId || !systemUsers.length) return;
+    const usr = systemUsers.find((u) => u.id === pendingUserId);
+    if (usr) {
+      setEditingUserId(usr.id);
+      setUserForm({ nombre: usr.nombre, email: usr.email, password: "", confirmPassword: "", role: usr.role, campamentoTransitorio: usr.campamentoTransitorio || "" });
+      setUserErrors({});
+      setEditUserModalOpen(true);
+      setPendingUserId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingUserId, systemUsers]);
 
   const closeCreateUserModal = () => {
     setCreateUserClosing(true);
