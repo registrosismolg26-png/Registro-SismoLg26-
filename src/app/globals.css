@@ -4020,7 +4020,9 @@ h2.dashboard-section-title {
 .notif-bell__btn { position: relative; width: 32px; height: 32px; border-radius: 50%; border: none; background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-secondary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
 .notif-bell__btn:hover { background: color-mix(in srgb, var(--text-primary) 12%, transparent); color: var(--text-primary); }
 .notif-bell__badge { position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 999px; background: var(--color-danger); color: #fff; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
-.notif-panel { position: absolute; top: calc(100% + 8px); right: 0; width: min(320px, 86vw); max-height: 60vh; overflow-y: auto; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 16px 40px -18px rgba(0,0,0,0.35); z-index: 200; }
+/* Panel: se posiciona INLINE (portal a body, position:fixed) desde NotificationBell.
+   Aquí solo lo visual + el límite de alto. */
+.notif-panel { max-height: 60vh; overflow-y: auto; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 16px 40px -18px rgba(0,0,0,0.35); }
 .notif-panel__head { padding: 0.6rem 0.85rem; font-weight: 800; font-size: 0.8rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); position: sticky; top: 0; background: var(--bg-secondary); }
 .notif-panel__empty { padding: 1.4rem 0.85rem; text-align: center; color: var(--text-muted); font-size: 0.8rem; }
 .notif-list { list-style: none; margin: 0; padding: 0; }
