@@ -1,34 +1,51 @@
 "use client";
 
 // ── Campana de avisos in-app ────────────────────────────────────────────────
-// Muestra los avisos del propio usuario (/api/notifications) con contador de no
-// leídos. Va en la cabecera (móvil) Y en el sidebar (escritorio) — como el sidebar
-// tiene overflow:hidden y está abajo-izquierda, el PANEL se rinde por PORTAL a
-// document.body con posición ADAPTABLE (abre hacia arriba/abajo y se ancla dentro
-// de la pantalla según dónde esté el botón). Para NO consumir base de datos: carga
-// al montar, al volver a la pestaña y al abrir — SIN polling. Al abrir, marca leídos.
+// Avisos del propio usuario (/api/notifications) con contador de no leídos. Cada tipo
+// tiene su ícono + color y un punto si está sin leer. El panel se rinde por PORTAL
+// con posición adaptable (funciona en cabecera y en sidebar). Al hacer clic en un
+// aviso se abre su DETALLE completo (para textos largos). Sin polling: carga al
+// montar, al volver a la pestaña y al abrir; caché compartido entre instancias.
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/apiFetch";
 
 interface Notif { id: string; tipo: string; titulo: string; cuerpo: string; readAt: string | null; createdAt: string; }
 type Pos = { left: number; width: number; top?: number; bottom?: number };
 
-// Caché COMPARTIDO entre instancias: la campana está en cabecera Y sidebar; solo una
-// es visible por breakpoint, pero ambas montan → esto evita el 2º fetch (egress).
+// Caché compartido: la campana está en cabecera Y sidebar (solo una visible), pero
+// ambas montan → evita el 2º fetch (egress).
 let sharedCache: { at: number; items: Notif[]; unread: number } | null = null;
+
+const TIPO_COLOR: Record<string, string> = {
+  AVISO: "#2563eb", USUARIO_NUEVO: "#10b981", TRASLADO: "#d97706", BIENVENIDA: "#0d9488",
+};
+const tipoColor = (t: string) => TIPO_COLOR[t] || "#64748b";
+
+function TipoIcon({ tipo }: { tipo: string }) {
+  const paths: Record<string, ReactNode> = {
+    AVISO: <><path d="M3 11l16-5v12L3 14z" /><path d="M11 16.5a2.5 2.5 0 0 1-4.9-.5" /></>,
+    USUARIO_NUEVO: <><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></>,
+    TRASLADO: <><path d="M17 4l4 4-4 4" /><path d="M21 8H8" /><path d="M7 20l-4-4 4-4" /><path d="M3 16h13" /></>,
+    BIENVENIDA: <><rect x="3" y="8" width="18" height="4" /><path d="M12 8v13" /><path d="M5 12v9h14v-9" /></>,
+  };
+  const p = paths[tipo] || <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{p}</svg>;
+}
+
+const fechaLarga = (s: string) => new Date(s).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const fechaCorta = (s: string) => new Date(s).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 export default function NotificationBell() {
   const [items, setItems] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
+  const [detail, setDetail] = useState<Notif | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  // Reusa el caché compartido si es reciente (45s normal; 2s en `force`, para dedup de
-  // los montajes casi-simultáneos de las dos instancias). Si no, hace UN fetch.
   const load = async (force = false) => {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     if (sharedCache && Date.now() - sharedCache.at < (force ? 2_000 : 45_000)) {
@@ -52,14 +69,12 @@ export default function NotificationBell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Posiciona el panel (portal) según el botón: ancla dentro de la pantalla y abre
-  // hacia arriba si el botón está en la mitad inferior (caso sidebar), o hacia abajo.
   const computePos = () => {
     const r = btnRef.current?.getBoundingClientRect();
     if (!r) return;
     const width = Math.min(320, window.innerWidth - 16);
-    let left = r.right - width;                              // por defecto alineado a la derecha del botón
-    left = Math.max(8, Math.min(left, window.innerWidth - 8 - width)); // sin salirse por los lados
+    let left = r.right - width;
+    left = Math.max(8, Math.min(left, window.innerWidth - 8 - width));
     const openUp = r.bottom > window.innerHeight * 0.55;
     setPos(openUp ? { left, width, bottom: window.innerHeight - r.top + 8 } : { left, width, top: r.bottom + 8 });
   };
@@ -73,14 +88,13 @@ export default function NotificationBell() {
         setUnread(0);
         const marcados = items.map((n) => ({ ...n, readAt: n.readAt || new Date().toISOString() }));
         setItems(marcados);
-        sharedCache = { at: Date.now(), items: marcados, unread: 0 }; // refleja leído en la otra instancia
+        sharedCache = { at: Date.now(), items: marcados, unread: 0 };
         apiFetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }).catch(() => {});
       }
     }
     setOpen(next);
   };
 
-  // Cerrar al click fuera / scroll / resize (evita paneles con posición vieja).
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
@@ -95,14 +109,13 @@ export default function NotificationBell() {
     return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
   }, [open]);
 
-  const fecha = (s: string) => new Date(s).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-
   return (
     <div className="notif-bell">
       <button ref={btnRef} type="button" className="notif-bell__btn" onClick={toggle} aria-label="Avisos" title="Avisos">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         {unread > 0 && <span className="notif-bell__badge">{unread > 9 ? "9+" : unread}</span>}
       </button>
+
       {open && pos && typeof document !== "undefined" && createPortal(
         <div ref={panelRef} className="notif-panel" style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, zIndex: 4000 }}>
           <div className="notif-panel__head">Avisos</div>
@@ -111,14 +124,36 @@ export default function NotificationBell() {
           ) : (
             <ul className="notif-list">
               {items.map((n) => (
-                <li key={n.id} className={`notif-item${n.readAt ? "" : " notif-item--unread"}`}>
-                  <span className="notif-item__title">{n.titulo}</span>
-                  <span className="notif-item__body">{n.cuerpo}</span>
-                  <span className="notif-item__time">{fecha(n.createdAt)}</span>
+                <li key={n.id}>
+                  <button type="button" className={`notif-item${n.readAt ? "" : " notif-item--unread"}`} onClick={() => setDetail(n)}>
+                    <span className="notif-item__ico" style={{ color: tipoColor(n.tipo), background: `${tipoColor(n.tipo)}22` }}><TipoIcon tipo={n.tipo} /></span>
+                    <span className="notif-item__main">
+                      <span className="notif-item__title">{n.titulo}{!n.readAt && <span className="notif-item__dot" style={{ background: tipoColor(n.tipo) }} />}</span>
+                      <span className="notif-item__body">{n.cuerpo}</span>
+                      <span className="notif-item__time">{fechaCorta(n.createdAt)}</span>
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
           )}
+        </div>,
+        document.body
+      )}
+
+      {detail && typeof document !== "undefined" && createPortal(
+        <div className="modal-overlay" onClick={() => setDetail(null)}>
+          <div className="modal-content notif-detail" onClick={(e) => e.stopPropagation()}>
+            <div className="notif-detail__head">
+              <span className="notif-item__ico" style={{ color: tipoColor(detail.tipo), background: `${tipoColor(detail.tipo)}22` }}><TipoIcon tipo={detail.tipo} /></span>
+              <h3 className="notif-detail__title">{detail.titulo}</h3>
+              <button className="modal-close" onClick={() => setDetail(null)} aria-label="Cerrar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <p className="notif-detail__body">{detail.cuerpo}</p>
+            <p className="notif-detail__time">{fechaLarga(detail.createdAt)}</p>
+          </div>
         </div>,
         document.body
       )}

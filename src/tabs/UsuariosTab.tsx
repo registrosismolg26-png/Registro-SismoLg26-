@@ -7,6 +7,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useAppContext } from "@/context/AppContext";
 import OtpModal from "@/components/OtpModal";
+import AvisoComposer from "@/components/AvisoComposer";
 import { apiFetch } from "@/lib/apiFetch";
 import { canManageUsers, isMaster, canManageTargetUser, hasRefugio, assignableRoles, ROLE_LABELS } from "@/lib/permissions";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
@@ -77,6 +78,7 @@ export default function UsuariosTab() {
   const [userShowConfirmPassword, setUserShowConfirmPassword] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
+  const [avisoOpen, setAvisoOpen] = useState(false);
 
   // Fetch system users (Admin only)
   const fetchUsers = async () => {
@@ -294,26 +296,37 @@ export default function UsuariosTab() {
               </p>
             </div>
             {isOnline && (
-              <button
-                type="button"
-                className="btn-submit"
-                style={{ width: "auto", padding: "0 1.25rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", height: "var(--element-height)", flexShrink: 0 }}
-                onClick={() => {
-                  setCreateUserModalOpen(true);
-                  setUserForm({
-                    nombre: "",
-                    email: "",
-                    password: "",
-                    confirmPassword: "",
-                    role: defaultRole,
-                    campamentoTransitorio: ""
-                  });
-                  setUserErrors({});
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Nuevo Operador
-              </button>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ width: "auto", padding: "0 1.1rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", height: "var(--element-height)", flexShrink: 0 }}
+                  onClick={() => setAvisoOpen(true)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+                  Enviar aviso
+                </button>
+                <button
+                  type="button"
+                  className="btn-submit"
+                  style={{ width: "auto", padding: "0 1.25rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", height: "var(--element-height)", flexShrink: 0 }}
+                  onClick={() => {
+                    setCreateUserModalOpen(true);
+                    setUserForm({
+                      nombre: "",
+                      email: "",
+                      password: "",
+                      confirmPassword: "",
+                      role: defaultRole,
+                      campamentoTransitorio: ""
+                    });
+                    setUserErrors({});
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Nuevo Operador
+                </button>
+              </div>
             )}
           </div>
 
@@ -805,6 +818,16 @@ export default function UsuariosTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {avisoOpen && currentUser && (
+        <AvisoComposer
+          senderRole={currentUser.role}
+          senderRefugio={currentUser.campamentoTransitorio}
+          refugios={refugios}
+          onClose={() => setAvisoOpen(false)}
+          showToast={showToast}
+        />
       )}
 
       {otp && currentUser && (
