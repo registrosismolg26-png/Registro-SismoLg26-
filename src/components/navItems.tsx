@@ -44,8 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
     show: (r) => canRegister(r),
     icon: sv(
       <>
-        <path d="M9 11l3 3L22 4" />
-        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>
       </>,
     ),
   },
@@ -68,8 +67,7 @@ export const NAV_ITEMS: NavItem[] = [
     show: (r) => !isMedico(r),
     icon: sv(
       <>
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
+<path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/>
       </>,
     ),
   },
@@ -79,11 +77,7 @@ export const NAV_ITEMS: NavItem[] = [
     show: (r) => isMaster(r),
     icon: sv(
       <>
-        <rect x="8" y="2" width="8" height="4" rx="1" />
-        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-        <path d="M9 12h6" />
-        <path d="M9 16h6" />
-        <path d="M9 8h2" />
+<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
       </>,
     ),
   },
@@ -93,8 +87,10 @@ export const NAV_ITEMS: NavItem[] = [
     show: (r) => isMaster(r),
     icon: sv(
       <>
-        <path d="M3 3v18h18" />
-        <path d="M18 9l-5 5-3-3-4 4" />
+        <path d="m9 10 2 2 4-4" />
+        <rect width="20" height="14" x="2" y="3" rx="2" />
+        <path d="M12 17v4" />
+        <path d="M8 21h8" />
       </>,
     ),
   },
@@ -104,9 +100,7 @@ export const NAV_ITEMS: NavItem[] = [
     show: (r) => isMaster(r),
     icon: sv(
       <>
-        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-        <line x1="8" y1="2" x2="8" y2="18" />
-        <line x1="16" y1="6" x2="16" y2="22" />
+<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>
       </>,
     ),
   },
@@ -159,7 +153,20 @@ export const NAV_ITEMS: NavItem[] = [
     show: (r) => !isMedico(r) && r !== "VISUALIZADOR",
     icon: sv(
       <>
-       <path d="M11 10.27 7 3.34"/><path d="m11 13.73-4 6.93"/><path d="M12 22v-2"/><path d="M12 2v2"/><path d="M14 12h8"/><path d="m17 20.66-1-1.73"/><path d="m17 3.34-1 1.73"/><path d="M2 12h2"/><path d="m20.66 17-1.73-1"/><path d="m20.66 7-1.73 1"/><path d="m3.34 17 1.73-1"/><path d="m3.34 7 1.73 1"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="8"/>
+        <path d="M11 10.27 7 3.34" />
+        <path d="m11 13.73-4 6.93" />
+        <path d="M12 22v-2" />
+        <path d="M12 2v2" />
+        <path d="M14 12h8" />
+        <path d="m17 20.66-1-1.73" />
+        <path d="m17 3.34-1 1.73" />
+        <path d="M2 12h2" />
+        <path d="m20.66 17-1.73-1" />
+        <path d="m20.66 7-1.73 1" />
+        <path d="m3.34 17 1.73-1" />
+        <path d="m3.34 7 1.73 1" />
+        <circle cx="12" cy="12" r="2" />
+        <circle cx="12" cy="12" r="8" />
       </>,
     ),
   },
@@ -175,3 +182,4 @@ export const NAV_ITEMS: NavItem[] = [
     ),
   },
 ];
+

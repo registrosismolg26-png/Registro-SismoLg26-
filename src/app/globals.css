@@ -222,23 +222,27 @@ body {
 
 /* Banner superior de conexión/sincronización */
 .offline-top-banner {
+  position: sticky;
+  top: 0;
   height: 0;
   opacity: 0;
   overflow: hidden;
-  background: var(--color-primary);
-  color: #fff;
+  /* Light mode: Slate 200 (un poco más oscuro que el fondo f1f5f9) */
+  background: #e2e8f0;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: height 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   z-index: 1000;
   width: 100%;
   box-sizing: border-box;
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid #cbd5e1;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 .offline-top-banner.is-visible {
@@ -247,19 +251,36 @@ body {
   padding: 0 1rem;
 }
 
+/* Modificadores de estado: cambian el color del texto e icono, no el fondo */
 .offline-top-banner--danger {
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  color: #c2410c; /* Naranja/marrón oscuro para advertencia sin ser rojo chillón */
 }
 
 .offline-top-banner--syncing {
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  color: #1d4ed8; /* Azul primario */
 }
 
 .offline-top-banner--pending {
-  background: linear-gradient(135deg, #6366f1, #4338ca);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  color: #4338ca; /* Índigo */
+}
+
+/* Dark mode overrides (un poco más oscuro que el fondo oscuro #0f172a) */
+html[data-theme="dark"] .offline-top-banner {
+  background: #020617; /* Slate 950 (un poco más oscuro que el fondo #0f172a) */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="dark"] .offline-top-banner--danger {
+  color: #f87171; /* Rojo claro sutil en fondo oscuro */
+}
+
+html[data-theme="dark"] .offline-top-banner--syncing {
+  color: #60a5fa; /* Azul claro sutil en fondo oscuro */
+}
+
+html[data-theme="dark"] .offline-top-banner--pending {
+  color: #a5b4fc; /* Índigo claro sutil en fondo oscuro */
 }
 
 .offline-banner-content {
@@ -277,21 +298,172 @@ body {
 
 @keyframes pulseIcon {
   0%, 100% { opacity: 0.8; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.08); }
+  50% { opacity: 1; transform: scale(1.06); }
 }
 
 .spinner-white {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #ffffff;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  border-top-color: currentColor; /* El spinner hereda el color del estado actual */
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+html[data-theme="dark"] .spinner-white {
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: currentColor;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ── Bottom Dock (dock flotante inferior — solo móvil ≤768px) ──────────────── */
+
+/* Contenedor raíz: posiciona el dock + botón buscar en fila */
+.bottom-dock-wrapper {
+  display: none; /* oculto por defecto; visible en móvil via media query */
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  width: calc(100% - 32px);
+  max-width: 520px;
+  align-items: center;
+  gap: 10px;
+  animation: dockSlideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Mostrar solo en móvil */
+@media (max-width: 768px) {
+  .bottom-dock-wrapper {
+    display: flex;
+  }
+}
+
+/* Aparición del dock */
+@keyframes dockSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(22px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Píldora principal de navegación — crece para ocupar el espacio disponible */
+.bottom-dock {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Pista con scroll horizontal y forma de píldora */
+.bottom-dock__track {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  background: var(--nav-bg);
+  border: 1px solid var(--nav-border);
+  border-radius: 50px;
+  padding: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  box-shadow:
+    0 16px 40px -10px rgba(0, 0, 0, 0.25),
+    0 4px 10px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.bottom-dock__track::-webkit-scrollbar { display: none; }
+
+/* Indicador deslizante sin sombra */
+.bottom-dock__pill {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 40px;
+  background: var(--color-primary);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Botón: icono encima, label debajo, compacto */
+.bottom-dock__btn {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 12px;
+  min-width: 52px;
+  white-space: nowrap;
+  background: transparent;
+  border: none;
+  border-radius: 40px;
+  color: var(--text-secondary);
+  font-family: var(--font-system);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bottom-dock__btn:not(.active):hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.bottom-dock__btn.active {
+  color: #ffffff;
+}
+
+.bottom-dock__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bottom-dock__label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* ── Botón flotante redondo de Buscar (FAB independiente) ── */
+.bottom-dock-search {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--nav-bg);
+  border: 1px solid var(--nav-border);
+  color: var(--text-secondary);
+  text-decoration: none;
+  box-shadow:
+    0 16px 40px -10px rgba(0, 0, 0, 0.25),
+    0 4px 10px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.bottom-dock-search:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
 
 /* App Container */
 .container {
@@ -2916,6 +3088,13 @@ html[data-theme="dark"] .spinner {
   }
   .app-nav {
     border-radius: 24px;
+    /* BottomDock reemplaza la navegación en móvil → ocultar app-nav */
+    display: none;
+  }
+
+  /* Padding inferior para que el contenido no quede oculto bajo el dock flotante */
+  .container {
+    padding-bottom: 100px;
   }
 
   /* Header: franja de operación ordenada en móvil (estado + usuario arriba,

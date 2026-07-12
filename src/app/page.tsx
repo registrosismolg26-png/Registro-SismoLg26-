@@ -44,6 +44,7 @@ import type {
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
 import AppSidebar from "@/components/AppSidebar";
+import BottomDock from "@/components/BottomDock";
 import LoginForm from "@/components/LoginForm";
 import NotificationCenter, {
   type AppNotif,
@@ -1791,6 +1792,8 @@ export default function Home() {
               En escritorio (≥1024px) el CSS oculta AppHeader y muestra el sidebar flotante. */}
           <AppHeader />
           <AppSidebar />
+          {/* Dock de navegación inferior flotante (solo móvil ≤768px) */}
+          <BottomDock />
 
           {/* TAB 1: FORM VIEW (CENSO) — no visible para médicos ni Visualizador */}
           {activeTab === "censo" && canRegister(currentUser.role) && (
