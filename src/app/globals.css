@@ -1160,35 +1160,6 @@ html[data-theme="dark"] .profile-sheet-btn--logout:hover {
   }
 }
 
-/* Botón de cierre de sesión */
-.logout-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.75rem;
-  background: transparent;
-  border: 1px solid rgba(220, 38, 38, 0.4);
-  border-radius: 100px;
-  color: var(--color-danger);
-  font-family: var(--font-system);
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
-}
-.logout-btn:hover {
-  background: var(--color-danger);
-  border-color: var(--color-danger);
-  color: #ffffff;
-}
-
 /* Variantes legacy del header (pantalla de login centrado) */
 .title-area {
   display: flex;
@@ -1288,26 +1259,6 @@ html[data-theme="dark"] .profile-sheet-btn--logout:hover {
 
 .status-dot.offline {
   background-color: var(--color-danger);
-}
-
-.queue-badge {
-  background-color: var(--color-primary-light);
-  color: var(--color-primary);
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.675rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: 1px solid var(--color-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  align-self: flex-start;
-  width: fit-content;
-  white-space: nowrap;
-  gap: 0.25rem;
 }
 
 /* Form Styles */
@@ -1552,80 +1503,12 @@ html[data-theme="dark"] select {
   letter-spacing: 0.04em;
 }
 
-.btn-add-med {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--color-primary);
-  background: none;
-  border: 1px solid var(--color-primary);
-  border-radius: 100px;
-  padding: 0.2rem 0.65rem;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-.btn-add-med:hover {
-  background: var(--color-primary);
-  color: #fff;
-}
-
 .med-empty {
   font-size: 0.72rem;
   color: var(--text-muted);
   text-align: center;
   padding: 0.875rem 1rem;
   margin: 0;
-}
-
-.med-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  gap: 0.375rem;
-  padding: 0.375rem 0.5rem;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color);
-}
-.med-row:last-child {
-  border-bottom: none;
-}
-
-.med-row--header {
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-}
-.med-row--header span {
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0 0.25rem;
-}
-
-.med-row--readonly {
-  padding: 0.45rem 0.75rem;
-  gap: 0.5rem;
-}
-.med-row--readonly span {
-  font-size: 0.78rem;
-  color: var(--text-primary);
-}
-
-.med-input {
-  width: 100%;
-  font-size: 0.78rem;
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  min-width: 0;
-}
-.med-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary-light);
 }
 
 .btn-remove-med {
@@ -1649,19 +1532,6 @@ html[data-theme="dark"] select {
 .btn-remove-med:hover {
   background: var(--color-danger);
   color: #fff;
-}
-
-.med-table-view {
-  margin-top: 0.375rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  overflow: hidden;
-}
-.med-table-view .med-row--header {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-.med-table-view .med-row--readonly {
-  grid-template-columns: 1fr 1fr 1fr;
 }
 
 /* Custom styled Radio Cards (Flat Modern Pill Toggles) */
@@ -1745,85 +1615,6 @@ html[data-theme="dark"] select {
   color: var(--text-muted);
   cursor: not-allowed;
   box-shadow: none;
-}
-
-/* History Card */
-.history-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  box-shadow: var(--card-shadow);
-}
-
-.history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.75rem;
-}
-
-.history-title {
-  font-size: 0.775rem;
-  font-weight: 800;
-  color: var(--text-secondary);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.history-list::-webkit-scrollbar {
-  width: 4px;
-}
-.history-list::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 2px;
-}
-
-.history-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
-  font-size: 0.8rem;
-}
-
-.history-item-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.history-item-name {
-  font-weight: 700;
-}
-
-.history-item-meta {
-  color: var(--text-secondary);
-  font-size: 0.725rem;
-}
-
-.history-item-status {
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.675rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .history-item-status.synced {
@@ -2285,23 +2076,7 @@ html[data-theme="dark"] .spinner {
   .radio-group {
     gap: 0.4rem;
   }
-  .history-card {
-    padding: 0.875rem;
-  }
-
-  .nav-tabs {
-    padding: 0.2rem;
-  }
-  .nav-tab-btn {
-    height: 34px;
-    font-size: 0.75rem;
-    min-width: 70px;
-  }
-  .operator-bar {
-    padding: 0.4rem 0.75rem;
-  }
-
-  /* ── Dashboard: KPI compactos ── */
+          /* ── Dashboard: KPI compactos ── */
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.45rem;
@@ -2333,30 +2108,7 @@ html[data-theme="dark"] .spinner {
     font-size: 0.75rem;
   }
 
-  /* ── Donut chart: columna vertical en xs ── */
-  .donut-chart-wrapper {
-    flex-direction: column;
-    align-items: center;
-    gap: 0.625rem;
-  }
-  .donut-chart-wrapper > svg {
-    width: 82px;
-    height: 82px;
-  }
-  .donut-legend {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.375rem 0.875rem;
-    justify-content: center;
-  }
-  .donut-legend-item {
-    font-size: 0.675rem;
-  }
-  .donut-legend-pct {
-    margin-left: 0.25rem;
-  }
-
-  /* ── Gauge: más pequeño ── */
+            /* ── Gauge: más pequeño ── */
   .gauge-wrapper {
     gap: 0.5rem;
   }
@@ -2371,11 +2123,7 @@ html[data-theme="dark"] .spinner {
     font-size: 0.65rem;
   }
 
-  /* ── Segmented bar: leyenda más compacta ── */
-  .segmented-bar-legend {
-    gap: 0.375rem 0.625rem;
-  }
-  .legend-item {
+    .legend-item {
     font-size: 0.65rem;
     gap: 0.25rem;
   }
@@ -2445,12 +2193,7 @@ html[data-theme="dark"] .spinner {
   .header-ops-status {
     padding: 0.24rem 0.55rem;
   }
-  .logout-btn {
-    padding: 0.3rem 0.55rem;
-    font-size: 0.65rem;
-  }
-
-  /* ── Login ── */
+    /* ── Login ── */
   .login-card {
     padding: 1.25rem;
   }
@@ -2573,11 +2316,7 @@ html[data-theme="dark"] .spinner {
   .dashboard-section {
     padding: 1.375rem;
   }
-  .nav-primary-btn {
-    padding: 0 0.75rem;
-  }
-
-  /* ── Dashboard 2 columnas desde tablet ──
+    /* ── Dashboard 2 columnas desde tablet ──
      Selector compuesto (.tab-view.tab-view--dashboard) para ganar
      en especificidad sobre la regla base .tab-view { display: flex } */
   .tab-view.tab-view--dashboard {
@@ -2610,12 +2349,7 @@ html[data-theme="dark"] .spinner {
     min-width: 0;
   }
 
-  /* ── Donut + Gauge: crecer en tablet ── */
-  .donut-chart-wrapper > svg {
-    width: 120px;
-    height: 120px;
-  }
-  .gauge-wrapper svg {
+    .gauge-wrapper svg {
     width: 115px;
     height: 64px;
   }
@@ -2655,26 +2389,7 @@ html[data-theme="dark"] .spinner {
   .nav-hamburger {
     display: none !important;
   }
-  .nav-drawer,
-  .nav-drawer--closed {
-    display: flex !important;
-    flex-direction: row !important;
-    border-top: none !important;
-    padding: 0 0.35rem 0.35rem !important;
-    animation: none !important;
-    gap: 0.15rem;
-  }
-  .nav-drawer-btn {
-    flex: 1;
-    height: 40px;
-    padding: 0 0.5rem;
-    justify-content: center;
-    text-align: center;
-    border-radius: 7px;
-    font-size: 0.78rem;
-  }
-
-  /* DASHBOARD: 2 columnas parejas en desktop (los paneles tilean sin huecos) */
+      /* DASHBOARD: 2 columnas parejas en desktop (los paneles tilean sin huecos) */
   .tab-view.tab-view--dashboard {
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
@@ -2686,12 +2401,7 @@ html[data-theme="dark"] .spinner {
     grid-column: 1 / -1;
   }
 
-  /* Donut + Gauge: más grandes en desktop */
-  .donut-chart-wrapper > svg {
-    width: 150px;
-    height: 150px;
-  }
-  .gauge-wrapper svg {
+    .gauge-wrapper svg {
     width: 140px;
     height: 79px;
   }
@@ -2771,12 +2481,7 @@ html[data-theme="dark"] .spinner {
     font-size: 2.1rem;
   }
 
-  /* Donut + Gauge: máximo tamaño en monitor ancho */
-  .donut-chart-wrapper > svg {
-    width: 180px;
-    height: 180px;
-  }
-  .gauge-wrapper svg {
+    .gauge-wrapper svg {
     width: 160px;
     height: 90px;
   }
@@ -2812,10 +2517,7 @@ html[data-theme="dark"] .spinner {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .nav-drawer-btn {
-    font-size: 0.82rem;
   }
-}
 
 /* ── 2xl: TV / Ultra-wide (1600px+) ─────────────────────────────────────── */
 @media (min-width: 1600px) {
@@ -2848,12 +2550,7 @@ html[data-theme="dark"] .spinner {
     gap: 2.25rem;
   }
 
-  /* Donut + Gauge: máximos */
-  .donut-chart-wrapper > svg {
-    width: 200px;
-    height: 200px;
-  }
-  .gauge-wrapper svg {
+    .gauge-wrapper svg {
     width: 180px;
     height: 101px;
   }
@@ -2865,11 +2562,7 @@ html[data-theme="dark"] .spinner {
     font-size: 0.9rem;
   }
 
-  .nav-drawer-btn {
-    font-size: 0.88rem;
-    height: 44px;
-  }
-  .modal-content--detail {
+    .modal-content--detail {
     max-width: 1100px;
   }
 }
@@ -4188,35 +3881,6 @@ h2.dashboard-section-title {
   flex-shrink: 0;
 }
 
-/* Horizontal Segmented Progress Bar */
-.segmented-bar-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.segmented-bar-track {
-  width: 100%;
-  height: 12px;
-  background-color: var(--border-color);
-  border-radius: 6px;
-  overflow: hidden;
-  display: flex;
-}
-
-.segmented-segment {
-  height: 100%;
-  transition: width 0.3s ease;
-}
-
-.segmented-bar-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 0.25rem;
-}
-
 .legend-item {
   display: flex;
   align-items: center;
@@ -4416,38 +4080,6 @@ h2.dashboard-section-title {
   color: var(--color-muted-accent);
 }
 
-/* --- Donut SVG chart wrapper --- */
-.donut-chart-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-}
-.donut-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  flex: 1;
-}
-.donut-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-.donut-legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.donut-legend-pct {
-  margin-left: auto;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
 /* --- Parroquia bar slide-in animation --- */
 @keyframes slideRight {
   from {
@@ -4457,14 +4089,6 @@ h2.dashboard-section-title {
     width: var(--bar-width);
   }
 }
-.parroquia-bar {
-  height: 10px;
-  background: var(--color-primary);
-  border-radius: 6px;
-  animation: slideRight 0.45s ease-out both;
-  width: var(--bar-width);
-}
-
 @keyframes indeterminate {
   0% {
     transform: translateX(-100%);
@@ -4712,20 +4336,6 @@ h2.dashboard-section-title {
   gap: 1rem;
 }
 
-/* --- History card modifiers --- */
-.history-card--gap-sm {
-  gap: 0.5rem;
-}
-.history-card--alert {
-  border: 1px dashed var(--color-warning);
-  background: var(--color-warning-light);
-}
-
-/* --- History list top margin --- */
-.history-list--mt {
-  margin-top: 0.5rem;
-}
-
 /* --- Cedula / Phone inline field grids --- */
 .field-row-cedula {
   display: grid;
@@ -4877,28 +4487,6 @@ h2.dashboard-section-title {
 .tabular-num {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-}
-
-/* --- Emergency transfer buttons (config tab) --- */
-.transfer-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-}
-.transfer-btn {
-  border-radius: 100px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-.transfer-btn--primary {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-  color: var(--color-primary);
 }
 
 /* ── Gestión de Habitaciones (config tab) ── */
@@ -5309,28 +4897,6 @@ h2.dashboard-section-title {
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--color-danger);
-}
-
-/* --- Queue badge role modifier --- */
-.queue-badge--role-admin {
-  background: var(--color-primary-light);
-}
-.queue-badge--role-registrador {
-  background: var(--bg-primary);
-}
-
-/* --- Donut SVG text labels (fill inherits theme) --- */
-.donut-svg-center-val {
-  fill: var(--text-primary);
-}
-.donut-svg-center-lbl {
-  fill: var(--text-muted);
-}
-
-/* --- Legend donut-legend inline value formatting --- */
-.donut-legend-pct span {
-  font-weight: normal;
-  color: var(--text-muted);
 }
 
 /* --- Syncing status text in app-header --- */
@@ -11430,32 +10996,6 @@ select.morb-control {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
-}
-.rep-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  height: 48px;
-  padding: 0 1.4rem;
-  border: none;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  color: #fff;
-  font-size: 0.92rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    filter 0.15s,
-    transform 0.15s;
-}
-.rep-btn:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-.rep-btn svg {
-  width: 18px;
-  height: 18px;
 }
 .rep-spin {
   width: 34px;
