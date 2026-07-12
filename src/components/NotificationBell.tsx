@@ -236,7 +236,7 @@ export default function NotificationBell() {
               <li key={n.id}>
                 <SwipeableNotifRow
                   className={`notif-item${n.readAt ? "" : " notif-item--unread"}`}
-                  onOpen={() => setDetail(n)}
+                  onOpen={() => { setDetail(n); setOpen(false); }}
                   onDismiss={() => doHide(n.id, "dismiss")}
                   onSnooze={() => doHide(n.id, "snooze")}
                 >

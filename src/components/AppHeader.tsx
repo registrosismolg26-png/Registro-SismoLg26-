@@ -109,23 +109,10 @@ export default function AppHeader() {
           </div>
         </div>
 
-        {/* ── Franja de operación (chips a color, coherente con el reformat) ── */}
-        <div className="header-ops">
-          <div className="hops-cluster">
-            {/* Estado de conexión */}
-            <div className={`hops-conn ${isOnline ? "is-online" : "is-offline"}`}>
-              <span className="hops-conn__dot" aria-hidden />
-              <span className="hops-conn__txt">{isOnline ? "En línea" : "Sin señal"}</span>
-              {(pendingCount > 0 || isSyncing) && (
-                <span className="hops-conn__pend" title="Registros pendientes por sincronizar">
-                  {isSyncing && syncQueueProgress
-                    ? <><span className="spinner spinner-sm" /> {syncQueueProgress.done}/{syncQueueProgress.total}</>
-                    : <>{pendingCount} pend.</>}
-                </span>
-              )}
-            </div>
-            {/* Refugio en vista (solo Master) — nuevo select buscable */}
-            {isMaster(currentUser.role) && refugiosList.length > 0 && (
+        {/* ── Franja de operación (campamento en vista, solo Master) ── */}
+        {isMaster(currentUser.role) && refugiosList.length > 0 && (
+          <div className="header-ops">
+            <div className="hops-cluster">
               <div className="hops-refugio" title="Campamento que estás viendo en todo el sistema">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 <SearchableSingleSelect
@@ -136,9 +123,9 @@ export default function AppHeader() {
                   placeholder="Campamento…"
                 />
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
       </header>
 

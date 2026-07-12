@@ -876,18 +876,20 @@ export default function Home() {
   // batch-of-2 keeps bandwidth manageable while still being faster than purely sequential.
   const triggerSync = async () => {
     if (isSyncingRef.current) return;
+
+    // Check if there are actual pending items to sync before altering state
+    const pending = await getPending();
+    const pendingConsultasInit = await getPendingConsultas();
+    const pendingCaracterizacionInit = await getPendingCaracterizacion();
+    if (pending.length === 0 && pendingConsultasInit.length === 0 && pendingCaracterizacionInit.length === 0) {
+      return;
+    }
+
     isSyncingRef.current = true;
     setIsSyncing(true);
 
     let serverError: string | null = null; // detalle del primer 5xx (para no fallar en silencio)
     try {
-      const pending = await getPending();
-      // IMPORTANTE: no retornar si no hay censos pendientes — las CONSULTAS de
-      // morbilidad y las FICHAS de caracterización también se sincronizan abajo y
-      // deben correr aunque no haya censos.
-      const pendingConsultasInit = await getPendingConsultas();
-      const pendingCaracterizacionInit = await getPendingCaracterizacion();
-      if (pending.length === 0 && pendingConsultasInit.length === 0 && pendingCaracterizacionInit.length === 0) return;
 
       // Orden: primero las CREACIONES (censos nuevos), luego las ediciones; y dentro
       // de cada grupo, en orden CRONOLÓGICO (createdAt asc) para no montarlos
@@ -1380,44 +1382,88 @@ export default function Home() {
     downloadFullPadron, deletePadronLocal, refreshVotersCount,
   };
 
+  const showBanner = !isOnline || pendingCount > 0 || isSyncing;
+  let bannerText = "";
+  let bannerClass = "offline-top-banner";
+
+  if (!isOnline) {
+    bannerClass += " offline-top-banner--danger";
+    bannerText = `Sin conexión: Trabajando sin Internet · ${pendingCount} registro${pendingCount !== 1 ? "s" : ""} local${pendingCount !== 1 ? "es" : ""} pendiente${pendingCount !== 1 ? "s" : ""}`;
+  } else if (isSyncing && syncQueueProgress) {
+    bannerClass += " offline-top-banner--syncing";
+    bannerText = `Sincronizando datos... ${syncQueueProgress.done} de ${syncQueueProgress.total} completados`;
+  } else if (pendingCount > 0) {
+    bannerClass += " offline-top-banner--pending";
+    bannerText = `${pendingCount} registro${pendingCount !== 1 ? "s" : ""} pendiente${pendingCount !== 1 ? "s" : ""} por sincronizar`;
+  }
+
   return (
     <AppContext.Provider value={appCtx}>
-    <div className="container">
-      {/* Cabecera institucional + navegación (dentro del Provider).
-          En escritorio (≥1024px) el CSS oculta AppHeader y muestra el sidebar flotante. */}
-      <AppHeader />
-      <AppSidebar />
+      <div className="app-layout-wrapper">
+        <div className={`${bannerClass}${showBanner ? " is-visible" : ""}`} role="status">
+          <div className="offline-banner-content">
+            {!isOnline && (
+              <>
+                <svg className="offline-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.5M5 12.5a10.94 10.94 0 0 1 5.83-2.84M8.5 16a6 6 0 0 1 7 0M12 20h.01"/>
+                </svg>
+                <span>{bannerText}</span>
+              </>
+            )}
+            {isOnline && isSyncing && (
+              <>
+                <span className="spinner spinner-sm spinner-white" />
+                <span>{bannerText}</span>
+              </>
+            )}
+            {isOnline && !isSyncing && pendingCount > 0 && (
+              <>
+                <svg className="offline-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>{bannerText}</span>
+              </>
+            )}
+          </div>
+        </div>
 
-      {/* TAB 1: FORM VIEW (CENSO) — no visible para médicos ni Visualizador */}
-      {activeTab === "censo" && canRegister(currentUser.role) && <CensoTab />}
+        <div className="container">
+          {/* Cabecera institucional + navegación (dentro del Provider).
+              En escritorio (≥1024px) el CSS oculta AppHeader y muestra el sidebar flotante. */}
+          <AppHeader />
+          <AppSidebar />
 
-      {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
-      {activeTab === "dashboard" && canViewDashboard(currentUser.role) && <DashboardTab />}
+          {/* TAB 1: FORM VIEW (CENSO) — no visible para médicos ni Visualizador */}
+          {activeTab === "censo" && canRegister(currentUser.role) && <CensoTab />}
 
-      {/* TAB 3: USER ADMINISTRATION (MASTER, ADMIN o AdminMedico —filtrado) */}
-      {activeTab === "usuarios" && canManageUsers(currentUser.role) && <UsuariosTab />}
+          {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
+          {activeTab === "dashboard" && canViewDashboard(currentUser.role) && <DashboardTab />}
 
-      {/* TAB 4: CONFIGURATION — no visible para médicos ni Visualizador */}
-      {activeTab === "config" && !isMedico(currentUser.role) && currentUser.role !== "VISUALIZADOR" && <ConfigTab />}
+          {/* TAB 3: USER ADMINISTRATION (MASTER, ADMIN o AdminMedico —filtrado) */}
+          {activeTab === "usuarios" && canManageUsers(currentUser.role) && <UsuariosTab />}
 
-      {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos */}
-      {activeTab === "asignaciones" && !isMedico(currentUser.role) && <AsignacionesTab />}
-      {activeTab === "caracterizacion" && isMaster(currentUser.role) && <CaracterizacionTab />}
-      {activeTab === "monitoreo" && isMaster(currentUser.role) && <MonitoreoTab />}
-      {activeTab === "mapa" && isMaster(currentUser.role) && <MapaTab />}
+          {/* TAB 4: CONFIGURATION — no visible para médicos ni Visualizador */}
+          {activeTab === "config" && !isMedico(currentUser.role) && currentUser.role !== "VISUALIZADOR" && <ConfigTab />}
 
-      {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
-      {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}
+          {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos */}
+          {activeTab === "asignaciones" && !isMedico(currentUser.role) && <AsignacionesTab />}
+          {activeTab === "caracterizacion" && isMaster(currentUser.role) && <CaracterizacionTab />}
+          {activeTab === "monitoreo" && isMaster(currentUser.role) && <MonitoreoTab />}
+          {activeTab === "mapa" && isMaster(currentUser.role) && <MapaTab />}
 
-      {/* TAB 7: BALANCE DE SALUD (médicos + Master) */}
-      {activeTab === "balance" && canManageMorbilidad(currentUser.role) && <BalanceTab />}
+          {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
+          {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}
 
-      {/* TAB 8: HISTORIAL CLÍNICO (médicos + Master) */}
-      {activeTab === "historial" && canManageMorbilidad(currentUser.role) && <HistorialClinicoTab />}
+          {/* TAB 7: BALANCE DE SALUD (médicos + Master) */}
+          {activeTab === "balance" && canManageMorbilidad(currentUser.role) && <BalanceTab />}
 
-      {/* Centro de notificaciones internas (UNIFICADO): toasts + alertas + actualización */}
-      <NotificationCenter items={notifs} onDismiss={dismissNotif} />
-    </div>
+          {/* TAB 8: HISTORIAL CLÍNICO (médicos + Master) */}
+          {activeTab === "historial" && canManageMorbilidad(currentUser.role) && <HistorialClinicoTab />}
+
+          {/* Centro de notificaciones internas (UNIFICADO): toasts + alertas + actualización */}
+          <NotificationCenter items={notifs} onDismiss={dismissNotif} />
+        </div>
+      </div>
     </AppContext.Provider>
   );
 }

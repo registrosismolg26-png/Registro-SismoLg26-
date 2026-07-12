@@ -210,6 +210,71 @@ body {
     color 0.25s ease;
 }
 
+/* App Layout Wrapper */
+.app-layout-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* Banner superior de conexión/sincronización */
+.offline-top-banner {
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.8rem;
+  font-weight: 700;
+  z-index: 1000;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.offline-top-banner.is-visible {
+  height: 38px;
+  opacity: 1;
+  padding: 0 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.offline-top-banner--danger {
+  background: #dc2626;
+}
+
+.offline-top-banner--syncing {
+  background: #2563eb;
+}
+
+.offline-top-banner--pending {
+  background: #4f46e5;
+}
+
+.offline-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  animation: fadeIn 0.2s ease;
+}
+
+.offline-banner-icon {
+  flex-shrink: 0;
+}
+
+.spinner-white {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+}
+
 /* App Container */
 .container {
   width: 100%;

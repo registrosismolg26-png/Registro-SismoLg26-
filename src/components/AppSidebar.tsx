@@ -197,7 +197,7 @@ export default function AppSidebar() {
         <div className="sb-user">
           <span className={`sb-avatar sb-avatar--${roleClass}`} aria-hidden>
             {initials}
-            <span className={`sb-avatar-status ${isOnline ? "is-online" : "is-offline"}`} />
+            {!isOnline && <span className="sb-avatar-status is-offline" />}
           </span>
           <span className="sb-user__meta">
             <span className="sb-user__name">{currentUser.nombre}</span>
