@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canManageUsers, isMaster } from "@/lib/auth";
-import { assignableRoles } from "@/lib/permissions";
+import { avisoAudienceRoles } from "@/lib/permissions";
 import { sendTelegram } from "@/lib/telegram";
 import { sendPushToUsers } from "@/lib/push";
 import { waToTelegramHtml } from "@/lib/waFormat";
 
 // Enviar aviso (Master/Admin) a usuarios elegidos por ROL y CAMPAMENTO, por in-app
-// y/o Telegram. El servidor NO confía en el cliente: los roles se recortan a los que
-// el emisor puede gestionar (assignableRoles) y el ámbito de campamento se fuerza
-// (Master elige o todos; Admin/AdminMedico → SIEMPRE su propio refugio).
+// y/o Telegram. El servidor NO confía en el cliente: los roles se recortan a la
+// audiencia válida del emisor (avisoAudienceRoles — el Master SÍ puede incluir a los
+// MASTER) y el ámbito de campamento se fuerza (Master elige o todos; Admin/AdminMedico
+// → SIEMPRE su propio refugio).
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export async function POST(req: Request) {
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     if (!canalInApp && !canalTelegram) return NextResponse.json({ error: "Elige al menos un canal (in-app o Telegram)." }, { status: 400 });
 
     // Roles válidos para ESTE emisor (recorte server-side).
-    const permitidos = assignableRoles(auth.role);
+    const permitidos = avisoAudienceRoles(auth.role);
     roles = roles.filter((r) => permitidos.includes(r));
     if (!roles.length) return NextResponse.json({ error: "Selecciona al menos un rol válido." }, { status: 400 });
 

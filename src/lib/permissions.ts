@@ -39,6 +39,15 @@ export function assignableRoles(role: string): string[] {
   return ["REGISTRADOR", "VISUALIZADOR"];
 }
 
+/** Roles a los que un emisor puede DIRIGIR un aviso. Distinto de `assignableRoles`
+ *  (crear/asignar usuarios): aquí el Master SÍ puede incluir a los MASTER (avisar a
+ *  otros Master y verse a sí mismo en la audiencia). El resto de emisores mantiene
+ *  su ámbito. El backend revalida con esta misma función. */
+export function avisoAudienceRoles(role: string): string[] {
+  if (isMaster(role)) return ["MASTER", "ADMIN", "REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  return assignableRoles(role);
+}
+
 /** Etiquetas legibles de cada rol para la UI. */
 export const ROLE_LABELS: Record<string, string> = {
   MASTER: "Master",

@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
-import { assignableRoles, ROLE_LABELS, isMaster } from "@/lib/permissions";
+import { avisoAudienceRoles, ROLE_LABELS, isMaster } from "@/lib/permissions";
 import SearchableSelect from "@/components/SearchableSelect";
 import WaText from "@/components/WaText";
 import type { ToastType } from "@/types";
@@ -23,7 +23,7 @@ interface Props {
 
 export default function AvisoComposer({ senderRole, senderRefugio, refugios, onClose, showToast }: Props) {
   const master = isMaster(senderRole);
-  const roleOptions = assignableRoles(senderRole);
+  const roleOptions = avisoAudienceRoles(senderRole);
 
   const [titulo, setTitulo] = useState("");
   const [cuerpo, setCuerpo] = useState("");
