@@ -20,18 +20,34 @@ import {
   getPendingCaracterizacion,
   markCaracterizacionSynced,
   incrementCaracterizacionAttempt,
-  markCaracterizacionPermanentError
+  markCaracterizacionPermanentError,
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
 import { syncActivityLogs } from "@/lib/activityLog";
 import { enablePush, pushSupported, pushPermission } from "@/lib/pushClient";
-import { isMaster, canManageUsers, canRegister, canViewDashboard, canManageMorbilidad, isMedico } from "@/lib/permissions";
-import type { ToastType, ActiveTab, Patologia, MedicamentoPredefinido, TipoLesion, CaracterizacionOpcion } from "@/types";
+import {
+  isMaster,
+  canManageUsers,
+  canRegister,
+  canViewDashboard,
+  canManageMorbilidad,
+  isMedico,
+} from "@/lib/permissions";
+import type {
+  ToastType,
+  ActiveTab,
+  Patologia,
+  MedicamentoPredefinido,
+  TipoLesion,
+  CaracterizacionOpcion,
+} from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
 import AppSidebar from "@/components/AppSidebar";
 import LoginForm from "@/components/LoginForm";
-import NotificationCenter, { type AppNotif } from "@/components/NotificationCenter";
+import NotificationCenter, {
+  type AppNotif,
+} from "@/components/NotificationCenter";
 import { AppContext, type AppContextValue } from "@/context/AppContext";
 import UsuariosTab from "@/tabs/UsuariosTab";
 import DashboardTab from "@/tabs/DashboardTab";
@@ -43,7 +59,10 @@ import CensoTab from "@/tabs/CensoTab";
 import MorbilidadTab from "@/tabs/MorbilidadTab";
 import BalanceTab from "@/tabs/BalanceTab";
 import HistorialClinicoTab from "@/tabs/HistorialClinicoTab";
-import { useModalOverlayScrollLock, useModalOutsideClickGuard } from "@/components/useBodyScrollLock";
+import {
+  useModalOverlayScrollLock,
+  useModalOutsideClickGuard,
+} from "@/components/useBodyScrollLock";
 import dynamic from "next/dynamic";
 
 // MapaTab carga Leaflet; se importa PEREZOSAMENTE (solo cuando Master abre la pestaña)
@@ -60,18 +79,26 @@ export default function Home() {
 
   // Connection state
   const [isOnline, setIsOnline] = useState<boolean>(true);
-  
+
   // Theme state
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   // Electoral Padron States
   const [votersCount, setVotersCount] = useState<number>(0);
-  const [syncStatus, setSyncStatus] = useState<"idle" | "downloading" | "saving" | "completed" | "error">("idle");
+  const [syncStatus, setSyncStatus] = useState<
+    "idle" | "downloading" | "saving" | "completed" | "error"
+  >("idle");
   const [syncProgress, setSyncProgress] = useState<number>(0);
   const [syncTotal, setSyncTotal] = useState<number>(0);
 
   // Auth States
-  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string; role: string; campamentoTransitorio: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    email: string;
+    nombre: string;
+    role: string;
+    campamentoTransitorio: string;
+  } | null>(null);
   // "Power admin" global (super-admin) = MASTER. El backend valida de verdad;
   // esto solo controla la UI de acciones globales.
   const isPowerAdmin = useMemo(() => {
@@ -86,12 +113,18 @@ export default function Home() {
   // registrados, salones, censo). Estado local; inicia con su refugio asignado.
   // El resto de usuarios siempre ve su propio refugio (no puede cambiarlo).
   const [viewRefugio, setViewRefugio] = useState<string>("");
-  const [refugiosList, setRefugiosList] = useState<{ id: string; nombre: string; ubicacion?: string | null }[]>([]);
+  const [refugiosList, setRefugiosList] = useState<
+    { id: string; nombre: string; ubicacion?: string | null }[]
+  >([]);
   const effectiveRefugio = currentUser
-    ? (isMaster(currentUser.role) ? (viewRefugio || currentUser.campamentoTransitorio) : currentUser.campamentoTransitorio)
+    ? isMaster(currentUser.role)
+      ? viewRefugio || currentUser.campamentoTransitorio
+      : currentUser.campamentoTransitorio
     : "";
   const effectiveRefugioRef = useRef(effectiveRefugio);
-  useEffect(() => { effectiveRefugioRef.current = effectiveRefugio; }, [effectiveRefugio]);
+  useEffect(() => {
+    effectiveRefugioRef.current = effectiveRefugio;
+  }, [effectiveRefugio]);
 
   // Inicializa el refugio de vista con el del usuario al iniciar sesión.
   useEffect(() => {
@@ -108,8 +141,10 @@ export default function Home() {
     if (!currentUser) return;
     if (typeof window === "undefined" || !navigator.onLine) return;
     apiFetch("/api/refugios")
-      .then(res => (res.ok ? res.json() : null))
-      .then(data => { if (data?.refugios) setRefugiosList(data.refugios); })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.refugios) setRefugiosList(data.refugios);
+      })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
@@ -117,17 +152,25 @@ export default function Home() {
   // Cuartos dinámicos (personalizados por admin, cargados desde la BD por refugio)
   const [customCuartos, setCustomCuartos] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
-    try { return JSON.parse(localStorage.getItem("customCuartos") || "[]"); }
-    catch { return []; }
+    try {
+      return JSON.parse(localStorage.getItem("customCuartos") || "[]");
+    } catch {
+      return [];
+    }
   });
 
   // Capacidad de camas por salón (nombre → nº de camas). Mapa paralelo a
   // customCuartos para no romper allCuartos (string[]); default 18 si falta.
-  const [roomCapacities, setRoomCapacities] = useState<Record<string, number>>(() => {
-    if (typeof window === "undefined") return {};
-    try { return JSON.parse(localStorage.getItem("roomCapacities") || "{}"); }
-    catch { return {}; }
-  });
+  const [roomCapacities, setRoomCapacities] = useState<Record<string, number>>(
+    () => {
+      if (typeof window === "undefined") return {};
+      try {
+        return JSON.parse(localStorage.getItem("roomCapacities") || "{}");
+      } catch {
+        return {};
+      }
+    },
+  );
 
   useEffect(() => {
     localStorage.setItem("customCuartos", JSON.stringify(customCuartos));
@@ -203,7 +246,10 @@ export default function Home() {
   // a Morbilidad. Espeja el gating del AppHeader/render.
   useEffect(() => {
     if (!currentUser || !isMedico(currentUser.role)) return;
-    const allowed = currentUser.role === "AdminMedico" ? ["morbilidad", "balance", "historial", "usuarios"] : ["morbilidad", "balance", "historial"];
+    const allowed =
+      currentUser.role === "AdminMedico"
+        ? ["morbilidad", "balance", "historial", "usuarios"]
+        : ["morbilidad", "balance", "historial"];
     if (!allowed.includes(activeTab)) setActiveTab("morbilidad");
   }, [currentUser, activeTab]);
 
@@ -220,16 +266,18 @@ export default function Home() {
   const dashboardRooms = useMemo(() => {
     const activeRooms = [...CUARTOS, ...customCuartos];
     const activeSet = new Set(activeRooms);
-    
+
     // Find unique assigned rooms that are not currently in the DB
     const missingRooms: string[] = [];
-    registros.forEach(r => {
+    registros.forEach((r) => {
       if (r.cuarto && r.cuarto.trim() && !activeSet.has(r.cuarto)) {
         missingRooms.push(r.cuarto);
       }
     });
 
-    const uniqueMissing = Array.from(new Set(missingRooms)).sort((a, b) => b.localeCompare(a));
+    const uniqueMissing = Array.from(new Set(missingRooms)).sort((a, b) =>
+      b.localeCompare(a),
+    );
     return [...activeRooms, ...uniqueMissing];
   }, [customCuartos, registros]);
 
@@ -243,12 +291,18 @@ export default function Home() {
 
   // GPS state (global: se captura al montar y se expone por el context; CensoTab
   //  lo consume para adjuntar las coordenadas al registro)
-  const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
+  const [coords, setCoords] = useState<{
+    lat: number | null;
+    lng: number | null;
+  }>({ lat: null, lng: null });
 
   // Offline queue local records
   const [localRecords, setLocalRecords] = useState<LocalRegistro[]>([]);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [syncQueueProgress, setSyncQueueProgress] = useState<{ done: number; total: number } | null>(null);
+  const [syncQueueProgress, setSyncQueueProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
 
   // Patologias & Medical Consultations (Morbilidad)
   const [patologias, setPatologias] = useState<Patologia[]>([]);
@@ -256,24 +310,33 @@ export default function Home() {
   const [consultas, setConsultas] = useState<any[]>([]);
   const [localConsultas, setLocalConsultas] = useState<LocalConsulta[]>([]);
   const [loadingConsultas, setLoadingConsultas] = useState(false);
-  const [predefinedMedicamentos, setPredefinedMedicamentos] = useState<MedicamentoPredefinido[]>([]);
+  const [predefinedMedicamentos, setPredefinedMedicamentos] = useState<
+    MedicamentoPredefinido[]
+  >([]);
   // Caracterización: catálogo general de opciones cerradas (una sola tabla, por módulo/campo).
-  const [caracterizacionOpciones, setCaracterizacionOpciones] = useState<CaracterizacionOpcion[]>([]);
+  const [caracterizacionOpciones, setCaracterizacionOpciones] = useState<
+    CaracterizacionOpcion[]
+  >([]);
 
   // (Corrección local de la cola, modal QR, diagnóstico de notificaciones y
   //  modales de gestión de habitaciones movidos a src/tabs/ConfigTab.tsx.)
 
   // Cold-start navigation / real-time PWA notification (globales, no del config)
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
-  const [pendingHistorialCedula, setPendingHistorialCedula] = useState<string | null>(null);
+  const [pendingHistorialCedula, setPendingHistorialCedula] = useState<
+    string | null
+  >(null);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   // Centro de notificaciones internas (UNIFICADO): toasts, alertas y actualización.
   const [notifs, setNotifs] = useState<AppNotif[]>([]);
-  const pushNotif = (n: AppNotif) => setNotifs((prev) => [...prev.filter((x) => x.id !== n.id), n]);
-  const dismissNotif = (id: string) => setNotifs((prev) => prev.filter((n) => n.id !== id));
+  const pushNotif = (n: AppNotif) =>
+    setNotifs((prev) => [...prev.filter((x) => x.id !== n.id), n]);
+  const dismissNotif = (id: string) =>
+    setNotifs((prev) => prev.filter((n) => n.id !== id));
 
   // Service Worker Update States
-  const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [swRegistration, setSwRegistration] =
+    useState<ServiceWorkerRegistration | null>(null);
   const [showUpdateBanner, setShowUpdateBanner] = useState<boolean>(false);
 
   // Sync guard: useRef avoids stale-closure bug in setInterval (useState value is frozen in the closure)
@@ -297,7 +360,6 @@ export default function Home() {
   // Inactivity session timeout — updated on every pointer/key event
   const lastActivityRef = useRef<number>(Date.now());
 
-
   // SW Update Remind Later timeout reference
   const remindLaterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -305,9 +367,11 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       setIsOnline(navigator.onLine);
-      
+
       // Load user session
-      const savedUser = localStorage.getItem("sismo_operator") || sessionStorage.getItem("sismo_operator");
+      const savedUser =
+        localStorage.getItem("sismo_operator") ||
+        sessionStorage.getItem("sismo_operator");
       if (savedUser) {
         try {
           const parsed = JSON.parse(savedUser);
@@ -324,7 +388,10 @@ export default function Home() {
       }
 
       // Load theme
-      const savedTheme = localStorage.getItem("theme") as "dark" | "light" | null;
+      const savedTheme = localStorage.getItem("theme") as
+        | "dark"
+        | "light"
+        | null;
       const initialTheme = savedTheme || "dark";
       setTheme(initialTheme);
       document.documentElement.setAttribute("data-theme", initialTheme);
@@ -342,15 +409,14 @@ export default function Home() {
           }
         }, 1000);
       };
-      
+
       const handleOffline = () => {
         setIsOnline(false);
-        showToast("Sin conexión. Trabajando en modo local.", "warning");
       };
 
       window.addEventListener("online", handleOnline);
       window.addEventListener("offline", handleOffline);
-      
+
       // Get current local voters count in IndexedDB
       refreshVotersCount();
 
@@ -384,7 +450,8 @@ export default function Home() {
 
   // Service Worker registration & automatic updates
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    if (typeof window === "undefined" || !("serviceWorker" in navigator))
+      return;
 
     // Solo registrar en producción
     if (process.env.NODE_ENV !== "production") return;
@@ -396,28 +463,34 @@ export default function Home() {
       setShowUpdateBanner(true);
     };
 
-    navigator.serviceWorker.register("/sw.js").then((reg) => {
-      registration = reg;
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => {
+        registration = reg;
 
-      // Si ya hay un service worker esperando (por ejemplo, de una recarga previa)
-      if (reg.waiting) {
-        handleUpdate(reg);
-      }
-
-      // Escuchar si se encuentra un nuevo service worker instalando
-      reg.addEventListener("updatefound", () => {
-        const newWorker = reg.installing;
-        if (newWorker) {
-          newWorker.addEventListener("statechange", () => {
-            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-              handleUpdate(reg);
-            }
-          });
+        // Si ya hay un service worker esperando (por ejemplo, de una recarga previa)
+        if (reg.waiting) {
+          handleUpdate(reg);
         }
+
+        // Escuchar si se encuentra un nuevo service worker instalando
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener("statechange", () => {
+              if (
+                newWorker.state === "installed" &&
+                navigator.serviceWorker.controller
+              ) {
+                handleUpdate(reg);
+              }
+            });
+          }
+        });
+      })
+      .catch((err) => {
+        console.warn("SW registration failed:", err);
       });
-    }).catch((err) => {
-      console.warn("SW registration failed:", err);
-    });
 
     // Recargar la página cuando el nuevo Service Worker toma el control
     let refreshing = false;
@@ -426,12 +499,17 @@ export default function Home() {
       refreshing = true;
       window.location.reload();
     };
-    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      handleControllerChange,
+    );
 
     // Función para buscar actualizaciones proactivamente
     const checkForUpdates = () => {
       if (registration) {
-        registration.update().catch((err) => console.log("SW update check failed:", err));
+        registration
+          .update()
+          .catch((err) => console.log("SW update check failed:", err));
       }
     };
 
@@ -443,8 +521,12 @@ export default function Home() {
     return () => {
       clearInterval(interval);
       window.removeEventListener("focus", checkForUpdates);
-      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
-      if (remindLaterTimeoutRef.current) clearTimeout(remindLaterTimeoutRef.current);
+      navigator.serviceWorker.removeEventListener(
+        "controllerchange",
+        handleControllerChange,
+      );
+      if (remindLaterTimeoutRef.current)
+        clearTimeout(remindLaterTimeoutRef.current);
     };
   }, []);
 
@@ -458,12 +540,16 @@ export default function Home() {
 
   const handleRemindLater = () => {
     setShowUpdateBanner(false);
-    if (remindLaterTimeoutRef.current) clearTimeout(remindLaterTimeoutRef.current);
-    remindLaterTimeoutRef.current = setTimeout(() => {
-      if (swRegistration && swRegistration.waiting) {
-        setShowUpdateBanner(true);
-      }
-    }, 3 * 60 * 1000); // 3 minutos
+    if (remindLaterTimeoutRef.current)
+      clearTimeout(remindLaterTimeoutRef.current);
+    remindLaterTimeoutRef.current = setTimeout(
+      () => {
+        if (swRegistration && swRegistration.waiting) {
+          setShowUpdateBanner(true);
+        }
+      },
+      3 * 60 * 1000,
+    ); // 3 minutos
   };
 
   // El banner de actualización se muestra por el centro UNIFICADO. Descartar por
@@ -478,7 +564,11 @@ export default function Home() {
         onClose: () => setShowUpdateBanner(false),
         actions: [
           { label: "Más tarde", onClick: handleRemindLater },
-          { label: "Actualizar ahora", primary: true, onClick: handleUpdateApp },
+          {
+            label: "Actualizar ahora",
+            primary: true,
+            onClick: handleUpdateApp,
+          },
         ],
       });
     } else {
@@ -492,18 +582,30 @@ export default function Home() {
   // muestran datos del refugio de otro operador).
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("sismo_operator") || sessionStorage.getItem("sismo_operator");
+      const savedUser =
+        localStorage.getItem("sismo_operator") ||
+        sessionStorage.getItem("sismo_operator");
       let ownerId = "";
-      try { ownerId = savedUser ? JSON.parse(savedUser).id : ""; } catch {}
+      try {
+        ownerId = savedUser ? JSON.parse(savedUser).id : "";
+      } catch {}
 
       if (ownerId && localStorage.getItem("cached_owner") === ownerId) {
         const cachedRegs = localStorage.getItem("cached_registros");
         if (cachedRegs) {
-          try { setRegistros(JSON.parse(cachedRegs)); } catch (e) { console.error(e); }
+          try {
+            setRegistros(JSON.parse(cachedRegs));
+          } catch (e) {
+            console.error(e);
+          }
         }
         const cachedStats = localStorage.getItem("cached_stats");
         if (cachedStats) {
-          try { setStats(JSON.parse(cachedStats)); } catch (e) { console.error(e); }
+          try {
+            setStats(JSON.parse(cachedStats));
+          } catch (e) {
+            console.error(e);
+          }
         }
       } else {
         // Cache de otro usuario o sin dueño → descartar por seguridad.
@@ -521,7 +623,9 @@ export default function Home() {
     if (!pushSupported()) return;
     // Solo si ya concedió o aún no decidió; si está bloqueado, no insistimos aquí.
     if (pushPermission() === "denied") return;
-    const timeout = setTimeout(() => { void enablePush(currentUser.id); }, 1000);
+    const timeout = setTimeout(() => {
+      void enablePush(currentUser.id);
+    }, 1000);
     return () => clearTimeout(timeout);
   }, [currentUser]);
 
@@ -533,7 +637,9 @@ export default function Home() {
       if (registroId) {
         setPendingSelectId(registroId);
         // Clean URL query parameters
-        const newUrl = window.location.pathname + window.location.search.replace(/[\?&]registroId=[^&]+/, "");
+        const newUrl =
+          window.location.pathname +
+          window.location.search.replace(/[\?&]registroId=[^&]+/, "");
         window.history.replaceState({}, "", newUrl);
       }
     }
@@ -558,9 +664,22 @@ export default function Home() {
             id: `reg-${registroId}`,
             variant: "alert",
             title: "Nuevo afectado",
-            message: <><strong>{nombreApellido}</strong> ha sido registrado.</>,
+            message: (
+              <>
+                <strong>{nombreApellido}</strong> ha sido registrado.
+              </>
+            ),
             duration: 8000,
-            actions: [{ label: "Asignar habitación", primary: true, onClick: () => { setPendingSelectId(registroId); fetchRegistros(); } }],
+            actions: [
+              {
+                label: "Asignar habitación",
+                primary: true,
+                onClick: () => {
+                  setPendingSelectId(registroId);
+                  fetchRegistros();
+                },
+              },
+            ],
           });
         }
       }
@@ -572,7 +691,6 @@ export default function Home() {
     };
   }, []);
 
-
   // Navegación por notificación PWA: cuando llega pendingSelectId con match en
   // registros, cambiamos a la pestaña asignaciones. La selección del registro
   // (setSelectedRegistro) + limpieza de pendingSelectId la hace AsignacionesTab,
@@ -581,7 +699,7 @@ export default function Home() {
   // montado en el primer render).
   useEffect(() => {
     if (!pendingSelectId || !registros.length) return;
-    const match = registros.find(r => r.id === pendingSelectId);
+    const match = registros.find((r) => r.id === pendingSelectId);
     if (match) {
       setActiveTab("asignaciones");
     }
@@ -622,12 +740,16 @@ export default function Home() {
     if (activeTab === "asignaciones") {
       fetchRegistros();
     }
-    if (activeTab === "morbilidad" || activeTab === "balance" || activeTab === "historial") {
+    if (
+      activeTab === "morbilidad" ||
+      activeTab === "balance" ||
+      activeTab === "historial"
+    ) {
       fetchConsultas();
       refreshLocalConsultas();
     }
     if (activeTab === "caracterizacion") {
-      fetchRegistros();               // familias del censo (304 si no cambió)
+      fetchRegistros(); // familias del censo (304 si no cambió)
       fetchCaracterizacionOpciones(); // catálogo general (cache 120s)
     }
     if (canViewDashboard(currentUser.role)) {
@@ -655,15 +777,23 @@ export default function Home() {
         if (res.ok) {
           const d = await res.json();
           serverTotal = d.total || 0;
-          if (serverTotal > 0) localStorage.setItem("padron_total", String(serverTotal));
+          if (serverTotal > 0)
+            localStorage.setItem("padron_total", String(serverTotal));
         }
-      } catch { /* sin señal: se usa el total guardado */ }
+      } catch {
+        /* sin señal: se usa el total guardado */
+      }
 
-      const knownTotal = serverTotal || parseInt(localStorage.getItem("padron_total") || "0", 10);
+      const knownTotal =
+        serverTotal ||
+        parseInt(localStorage.getItem("padron_total") || "0", 10);
 
       // Reanudar si la copia local está incompleta; o primera descarga si aún no
       // hay nada y no se pudo consultar el total.
-      if ((knownTotal > 0 && localCount < knownTotal) || (localCount === 0 && knownTotal === 0)) {
+      if (
+        (knownTotal > 0 && localCount < knownTotal) ||
+        (localCount === 0 && knownTotal === 0)
+      ) {
         downloadFullPadron();
       }
     })();
@@ -672,7 +802,9 @@ export default function Home() {
   // Inactivity session expiry: logout after INACTIVITY_MS of no pointer/key events
   useEffect(() => {
     if (!currentUser) return;
-    const touch = () => { lastActivityRef.current = Date.now(); };
+    const touch = () => {
+      lastActivityRef.current = Date.now();
+    };
     window.addEventListener("pointerdown", touch, { passive: true });
     window.addEventListener("keydown", touch, { passive: true });
     const guard = setInterval(() => {
@@ -707,32 +839,43 @@ export default function Home() {
         (position) => {
           setCoords({
             lat: position.coords.latitude,
-            lng: position.coords.longitude
+            lng: position.coords.longitude,
           });
         },
         (error) => {
           console.warn("Error al obtener coordenadas GPS:", error.message);
         },
-        { enableHighAccuracy: true, timeout: 5000 }
+        { enableHighAccuracy: true, timeout: 5000 },
       );
     }
   };
 
   // Helper to show temporary toasts
   const showToast = (message: string, type: ToastType) => {
-    pushNotif({ id: `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, variant: type, message, duration: 4000 });
+    pushNotif({
+      id: `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      variant: type,
+      message,
+      duration: 4000,
+    });
   };
 
   // Get records list from IndexedDB to show history and sync progress
   const refreshLocalRecords = async () => {
     const records = await getAllLocal();
-    records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    records.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
     setLocalRecords(records);
   };
 
   const refreshLocalConsultas = async () => {
     const list = await getAllLocalConsultas();
-    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    list.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
     setLocalConsultas(list);
   };
 
@@ -751,12 +894,18 @@ export default function Home() {
     }
     if (!navigator.onLine) return;
     try {
-      const res = await apiFetch("/api/patologias", force ? { cache: "reload" } : {});
+      const res = await apiFetch(
+        "/api/patologias",
+        force ? { cache: "reload" } : {},
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.patologias) {
           setPatologias(data.patologias);
-          localStorage.setItem("sismo_cached_patologias_v2", JSON.stringify(data.patologias));
+          localStorage.setItem(
+            "sismo_cached_patologias_v2",
+            JSON.stringify(data.patologias),
+          );
         }
       }
     } catch (err) {
@@ -768,17 +917,27 @@ export default function Home() {
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem("sismo_cached_tipos_lesion_v1");
       if (cached) {
-        try { setTiposLesion(JSON.parse(cached)); } catch (e) { console.error(e); }
+        try {
+          setTiposLesion(JSON.parse(cached));
+        } catch (e) {
+          console.error(e);
+        }
       }
     }
     if (!navigator.onLine) return;
     try {
-      const res = await apiFetch("/api/tipos-lesion", force ? { cache: "reload" } : {});
+      const res = await apiFetch(
+        "/api/tipos-lesion",
+        force ? { cache: "reload" } : {},
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.tiposLesion) {
           setTiposLesion(data.tiposLesion);
-          localStorage.setItem("sismo_cached_tipos_lesion_v1", JSON.stringify(data.tiposLesion));
+          localStorage.setItem(
+            "sismo_cached_tipos_lesion_v1",
+            JSON.stringify(data.tiposLesion),
+          );
         }
       }
     } catch (err) {
@@ -788,7 +947,9 @@ export default function Home() {
 
   const fetchPredefinedMedicamentos = async (force = false) => {
     if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("sismo_cached_predefined_medicamentos");
+      const cached = localStorage.getItem(
+        "sismo_cached_predefined_medicamentos",
+      );
       if (cached) {
         try {
           setPredefinedMedicamentos(JSON.parse(cached));
@@ -799,12 +960,18 @@ export default function Home() {
     }
     if (!navigator.onLine) return;
     try {
-      const res = await apiFetch("/api/medicamentos", force ? { cache: "reload" } : {});
+      const res = await apiFetch(
+        "/api/medicamentos",
+        force ? { cache: "reload" } : {},
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.medicamentos) {
           setPredefinedMedicamentos(data.medicamentos);
-          localStorage.setItem("sismo_cached_predefined_medicamentos", JSON.stringify(data.medicamentos));
+          localStorage.setItem(
+            "sismo_cached_predefined_medicamentos",
+            JSON.stringify(data.medicamentos),
+          );
         }
       }
     } catch (err) {
@@ -815,19 +982,31 @@ export default function Home() {
   // Catálogo general de caracterización. force=true → salta cache HTTP (tras editar opciones).
   const fetchCaracterizacionOpciones = async (force = false) => {
     if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("sismo_cached_caracterizacion_opciones_v1");
+      const cached = localStorage.getItem(
+        "sismo_cached_caracterizacion_opciones_v1",
+      );
       if (cached) {
-        try { setCaracterizacionOpciones(JSON.parse(cached)); } catch (e) { console.error(e); }
+        try {
+          setCaracterizacionOpciones(JSON.parse(cached));
+        } catch (e) {
+          console.error(e);
+        }
       }
     }
     if (!navigator.onLine) return;
     try {
-      const res = await apiFetch("/api/caracterizacion/opciones", force ? { cache: "reload" } : {});
+      const res = await apiFetch(
+        "/api/caracterizacion/opciones",
+        force ? { cache: "reload" } : {},
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.opciones) {
           setCaracterizacionOpciones(data.opciones);
-          localStorage.setItem("sismo_cached_caracterizacion_opciones_v1", JSON.stringify(data.opciones));
+          localStorage.setItem(
+            "sismo_cached_caracterizacion_opciones_v1",
+            JSON.stringify(data.opciones),
+          );
         }
       }
     } catch (err) {
@@ -850,9 +1029,14 @@ export default function Home() {
     setLoadingConsultas(true);
     try {
       const scopeKey = effectiveRefugioRef.current || "__all__";
-      const q = effectiveRefugioRef.current ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}` : "";
+      const q = effectiveRefugioRef.current
+        ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}`
+        : "";
       const prevEtag = consultasEtagRef.current[scopeKey];
-      const res = await apiFetch(`/api/consultas${q}`, prevEtag ? { headers: { "If-None-Match": prevEtag } } : {});
+      const res = await apiFetch(
+        `/api/consultas${q}`,
+        prevEtag ? { headers: { "If-None-Match": prevEtag } } : {},
+      );
       // 304 = nada cambió en el servidor → conservamos lo ya cargado (cache/estado actual).
       if (res.status === 304) return;
       if (res.ok) {
@@ -861,7 +1045,10 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.consultas) {
           setConsultas(data.consultas);
-          localStorage.setItem("cached_consultas_v2", JSON.stringify(data.consultas));
+          localStorage.setItem(
+            "cached_consultas_v2",
+            JSON.stringify(data.consultas),
+          );
         }
       }
     } catch (err) {
@@ -881,7 +1068,11 @@ export default function Home() {
     const pending = await getPending();
     const pendingConsultasInit = await getPendingConsultas();
     const pendingCaracterizacionInit = await getPendingCaracterizacion();
-    if (pending.length === 0 && pendingConsultasInit.length === 0 && pendingCaracterizacionInit.length === 0) {
+    if (
+      pending.length === 0 &&
+      pendingConsultasInit.length === 0 &&
+      pendingCaracterizacionInit.length === 0
+    ) {
       return;
     }
 
@@ -890,7 +1081,6 @@ export default function Home() {
 
     let serverError: string | null = null; // detalle del primer 5xx (para no fallar en silencio)
     try {
-
       // Orden: primero las CREACIONES (censos nuevos), luego las ediciones; y dentro
       // de cada grupo, en orden CRONOLÓGICO (createdAt asc) para no montarlos
       // desordenados. Así una creación siempre llega antes que su edición.
@@ -898,7 +1088,9 @@ export default function Home() {
         const au = a.type === "update" ? 1 : 0;
         const bu = b.type === "update" ? 1 : 0;
         if (au !== bu) return au - bu;
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       });
 
       const BATCH = 2;
@@ -908,17 +1100,22 @@ export default function Home() {
         const batch = pending.slice(i, i + BATCH);
 
         const results = await Promise.allSettled(
-          batch.map(record =>
+          batch.map((record) =>
             apiFetch("/api/register", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               // Manda el TIPO REAL: los registros viejos sin type (p. ej. "asignar cuarto"
               // guardados antes del fix) llegan como undefined → NO se saltan → se aplican
               // como edición. Solo las creaciones marcadas 'new' se saltan si ya existen.
-              body: JSON.stringify({ ...record.data, id: record.id, refugio: record.refugio, _localType: record.type }),
+              body: JSON.stringify({
+                ...record.data,
+                id: record.id,
+                refugio: record.refugio,
+                _localType: record.type,
+              }),
               timeoutMs: 15000,
-            })
-          )
+            }),
+          ),
         );
 
         await Promise.allSettled(
@@ -934,31 +1131,50 @@ export default function Home() {
               await markSynced(record.id, "registrado");
             } else if (res.status === 409) {
               await markSynced(record.id, "duplicado");
-              showToast(`La cédula de ${record.data.nombreApellido} ya está registrada en el servidor.`, "warning");
-            } else if (res.status === 400 || res.status === 401 || res.status === 403) {
+              showToast(
+                `La cédula de ${record.data.nombreApellido} ya está registrada en el servidor.`,
+                "warning",
+              );
+            } else if (
+              res.status === 400 ||
+              res.status === 401 ||
+              res.status === 403
+            ) {
               // Rechazo definitivo: reintentar no ayuda. Sale de la cola y se avisa.
               let reason =
-                res.status === 401 ? "Sesión no válida para sincronizar. Vuelva a iniciar sesión."
-                : res.status === 403 ? "Sin permiso para sincronizar este registro (refugio o rol)."
-                : "Datos inválidos en el registro.";
+                res.status === 401
+                  ? "Sesión no válida para sincronizar. Vuelva a iniciar sesión."
+                  : res.status === 403
+                    ? "Sin permiso para sincronizar este registro (refugio o rol)."
+                    : "Datos inválidos en el registro.";
               if (res.status === 400) {
-                const d = await res.json().catch(() => ({} as any));
-                if (d?.error || d?.details) reason = [d.error, d.details].filter(Boolean).join(" — ");
+                const d = await res.json().catch(() => ({}) as any);
+                if (d?.error || d?.details)
+                  reason = [d.error, d.details].filter(Boolean).join(" — ");
               }
-              if (!serverError) serverError = `${record.data.nombreApellido}: ${reason}`;
+              if (!serverError)
+                serverError = `${record.data.nombreApellido}: ${reason}`;
               await markPermanentError(record.id, reason);
             } else {
               // 5xx u otros → temporal: backoff. Captura el detalle del servidor UNA vez
               // (el offline enmascaraba estos 500 → nada llegaba a la BD sin aviso).
               if (res.status >= 500 && !serverError) {
-                serverError = await res.json().then((d: any) => d?.details || d?.error || `HTTP ${res.status}`).catch(() => `HTTP ${res.status}`);
+                serverError = await res
+                  .json()
+                  .then(
+                    (d: any) => d?.details || d?.error || `HTTP ${res.status}`,
+                  )
+                  .catch(() => `HTTP ${res.status}`);
               }
               await incrementAttempt(record.id);
             }
-          })
+          }),
         );
 
-        setSyncQueueProgress({ done: Math.min(i + BATCH, pending.length), total: pending.length });
+        setSyncQueueProgress({
+          done: Math.min(i + BATCH, pending.length),
+          total: pending.length,
+        });
       }
 
       await refreshLocalRecords();
@@ -966,13 +1182,16 @@ export default function Home() {
 
       // --- Sincronizar Consultas Médicas (en orden cronológico) ---
       const pendingConsultas = await getPendingConsultas();
-      pendingConsultas.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      pendingConsultas.sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
       if (pendingConsultas.length > 0) {
         for (let i = 0; i < pendingConsultas.length; i += BATCH) {
           const batch = pendingConsultas.slice(i, i + BATCH);
 
           const results = await Promise.allSettled(
-            batch.map(c =>
+            batch.map((c) =>
               apiFetch("/api/consultas", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -995,11 +1214,11 @@ export default function Home() {
                   antecedentesMedicamentoIds: c.data.antecedentesMedicamentoIds,
                   diagnosticoPatologiaIds: c.data.diagnosticoPatologiaIds,
                   diagnosticoMedicamentoIds: c.data.diagnosticoMedicamentoIds,
-                  notasDoctor: c.data.notasDoctor
+                  notasDoctor: c.data.notasDoctor,
                 }),
                 timeoutMs: 15000,
-              })
-            )
+              }),
+            ),
           );
 
           await Promise.allSettled(
@@ -1012,19 +1231,31 @@ export default function Home() {
               const res = result.value;
               if (res.status === 201 || res.status === 200) {
                 await markConsultaSynced(c.id);
-              } else if (res.status === 400 || res.status === 401 || res.status === 403) {
+              } else if (
+                res.status === 400 ||
+                res.status === 401 ||
+                res.status === 403
+              ) {
                 const reason =
-                  res.status === 401 ? "Sesión no válida para sincronizar consulta. Vuelva a iniciar sesión."
-                  : res.status === 403 ? "Sin permiso para registrar esta consulta médica."
-                  : "Datos inválidos en la consulta.";
+                  res.status === 401
+                    ? "Sesión no válida para sincronizar consulta. Vuelva a iniciar sesión."
+                    : res.status === 403
+                      ? "Sin permiso para registrar esta consulta médica."
+                      : "Datos inválidos en la consulta.";
                 await markConsultaPermanentError(c.id, reason);
               } else {
                 if (res.status >= 500 && !serverError) {
-                  serverError = await res.json().then((d: any) => d?.details || d?.error || `HTTP ${res.status}`).catch(() => `HTTP ${res.status}`);
+                  serverError = await res
+                    .json()
+                    .then(
+                      (d: any) =>
+                        d?.details || d?.error || `HTTP ${res.status}`,
+                    )
+                    .catch(() => `HTTP ${res.status}`);
                 }
                 await incrementConsultaAttempt(c.id);
               }
-            })
+            }),
           );
         }
         await refreshLocalConsultas();
@@ -1033,40 +1264,63 @@ export default function Home() {
 
       // --- Sincronizar Caracterización (fichas por familia; 1 registro = 1 familia) ---
       const pendingCaracterizacion = await getPendingCaracterizacion();
-      pendingCaracterizacion.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      pendingCaracterizacion.sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
       if (pendingCaracterizacion.length > 0) {
         for (let i = 0; i < pendingCaracterizacion.length; i += BATCH) {
           const batch = pendingCaracterizacion.slice(i, i + BATCH);
           const results = await Promise.allSettled(
-            batch.map(f =>
+            batch.map((f) =>
               apiFetch("/api/caracterizacion", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: f.id, refugio: f.refugio, hogar: f.data.hogar, personas: f.data.personas }),
+                body: JSON.stringify({
+                  id: f.id,
+                  refugio: f.refugio,
+                  hogar: f.data.hogar,
+                  personas: f.data.personas,
+                }),
                 timeoutMs: 15000,
-              })
-            )
+              }),
+            ),
           );
           await Promise.allSettled(
             results.map(async (result, j) => {
               const f = batch[j];
-              if (result.status === "rejected") { await incrementCaracterizacionAttempt(f.id); return; }
+              if (result.status === "rejected") {
+                await incrementCaracterizacionAttempt(f.id);
+                return;
+              }
               const res = result.value;
               if (res.status === 201 || res.status === 200) {
                 await markCaracterizacionSynced(f.id);
-              } else if (res.status === 400 || res.status === 401 || res.status === 403) {
+              } else if (
+                res.status === 400 ||
+                res.status === 401 ||
+                res.status === 403
+              ) {
                 const reason =
-                  res.status === 401 ? "Sesión no válida para sincronizar la ficha. Vuelva a iniciar sesión."
-                  : res.status === 403 ? "Sin permiso para guardar caracterización."
-                  : "Datos inválidos en la ficha.";
+                  res.status === 401
+                    ? "Sesión no válida para sincronizar la ficha. Vuelva a iniciar sesión."
+                    : res.status === 403
+                      ? "Sin permiso para guardar caracterización."
+                      : "Datos inválidos en la ficha.";
                 await markCaracterizacionPermanentError(f.id, reason);
               } else {
                 if (res.status >= 500 && !serverError) {
-                  serverError = await res.json().then((d: any) => d?.details || d?.error || `HTTP ${res.status}`).catch(() => `HTTP ${res.status}`);
+                  serverError = await res
+                    .json()
+                    .then(
+                      (d: any) =>
+                        d?.details || d?.error || `HTTP ${res.status}`,
+                    )
+                    .catch(() => `HTTP ${res.status}`);
                 }
                 await incrementCaracterizacionAttempt(f.id);
               }
-            })
+            }),
           );
         }
       }
@@ -1089,7 +1343,10 @@ export default function Home() {
   // reintenta automáticamente si faltan registros (hasta 3 veces).
   const downloadFullPadron = async () => {
     if (!isOnline) {
-      showToast("Se requiere conexión a internet para descargar el padrón.", "warning");
+      showToast(
+        "Se requiere conexión a internet para descargar el padrón.",
+        "warning",
+      );
       return;
     }
 
@@ -1099,7 +1356,12 @@ export default function Home() {
     const alreadyLocal = await getLocalPadronCount();
     setSyncProgress(alreadyLocal);
     setSyncTotal(0);
-    showToast(alreadyLocal > 0 ? "Reanudando descarga del padrón..." : "Descargando padrón electoral...", "info");
+    showToast(
+      alreadyLocal > 0
+        ? "Reanudando descarga del padrón..."
+        : "Descargando padrón electoral...",
+      "info",
+    );
 
     const MAX_RETRIES = 3;
     let totalInserted = alreadyLocal;
@@ -1112,12 +1374,18 @@ export default function Home() {
         const skipAlreadyInserted = totalInserted;
 
         if (attempt > 0) {
-          showToast(`Padrón incompleto. Reintentando (${attempt}/${MAX_RETRIES})...`, "warning");
+          showToast(
+            `Padrón incompleto. Reintentando (${attempt}/${MAX_RETRIES})...`,
+            "warning",
+          );
         }
 
         // Descarga por streaming (NDJSON, potencialmente grande y lenta en 2G):
         // timeout amplio para no abortar el stream a mitad de descarga.
-        const res = await apiFetch("/api/padron/download", { method: "POST", timeoutMs: 600000 });
+        const res = await apiFetch("/api/padron/download", {
+          method: "POST",
+          timeoutMs: 600000,
+        });
         if (!res.ok || !res.body) throw new Error("Fallo al descargar padrón");
 
         // Leer el total del servidor desde el header
@@ -1157,14 +1425,18 @@ export default function Home() {
               linesSkipped++;
               continue;
             }
-            try { pending.push(JSON.parse(line)); } catch {}
+            try {
+              pending.push(JSON.parse(line));
+            } catch {}
           }
           if (pending.length >= WRITE_EVERY) await flushPending();
         }
 
         // Flush línea residual
         if (buffer.trim()) {
-          try { pending.push(JSON.parse(buffer)); } catch {}
+          try {
+            pending.push(JSON.parse(buffer));
+          } catch {}
         }
         await flushPending();
 
@@ -1181,10 +1453,13 @@ export default function Home() {
       if (serverTotal && finalCount < serverTotal) {
         showToast(
           `Padrón descargado parcialmente: ${finalCount.toLocaleString()} de ${serverTotal.toLocaleString()} registros. Intenta de nuevo.`,
-          "warning"
+          "warning",
         );
       } else {
-        showToast(`Padrón descargado: ${finalCount.toLocaleString()} registros.`, "success");
+        showToast(
+          `Padrón descargado: ${finalCount.toLocaleString()} registros.`,
+          "success",
+        );
       }
 
       await refreshVotersCount();
@@ -1194,7 +1469,6 @@ export default function Home() {
         setSyncProgress(0);
         setSyncTotal(0);
       }, 3000);
-
     } catch (err: any) {
       console.error(err);
       setSyncStatus("error");
@@ -1203,9 +1477,12 @@ export default function Home() {
     }
   };
 
-
   const deletePadronLocal = async () => {
-    if (confirm("¿Estás seguro de borrar el padrón electoral local de este dispositivo?")) {
+    if (
+      confirm(
+        "¿Estás seguro de borrar el padrón electoral local de este dispositivo?",
+      )
+    ) {
       try {
         await clearLocalPadron();
         await refreshVotersCount();
@@ -1238,7 +1515,9 @@ export default function Home() {
       setLoadingStats(true);
     }
     try {
-      const q = effectiveRefugioRef.current ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}` : "";
+      const q = effectiveRefugioRef.current
+        ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}`
+        : "";
       const res = await apiFetch(`/api/stats${q}`);
       const data = await res.json();
       if (data.success) {
@@ -1276,14 +1555,21 @@ export default function Home() {
     setLoadingRegistros(true);
     try {
       const scopeKey = effectiveRefugioRef.current || "__all__";
-      const q = effectiveRefugioRef.current ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}` : "";
+      const q = effectiveRefugioRef.current
+        ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}`
+        : "";
       const prevEtag = registrosEtagRef.current[scopeKey];
-      const res = await apiFetch(`/api/registros${q}`, prevEtag ? { headers: { "If-None-Match": prevEtag } } : {});
+      const res = await apiFetch(
+        `/api/registros${q}`,
+        prevEtag ? { headers: { "If-None-Match": prevEtag } } : {},
+      );
       // 304 = sin cambios en el servidor → conservamos el cache/estado ya cargado.
       if (res.status === 304) return;
       if (!res.ok) {
-        const body = await res.json().catch(() => ({} as any));
-        throw new Error(`HTTP ${res.status} — ${body?.details || body?.error || "sin detalle"}`);
+        const body = await res.json().catch(() => ({}) as any);
+        throw new Error(
+          `HTTP ${res.status} — ${body?.details || body?.error || "sin detalle"}`,
+        );
       }
       const etag = res.headers.get("ETag");
       if (etag) registrosEtagRef.current[scopeKey] = etag;
@@ -1295,7 +1581,10 @@ export default function Home() {
         if (currentUser) localStorage.setItem("cached_owner", currentUser.id);
       }
     } catch (err: any) {
-      showToast("Error al cargar los registros: " + (err?.message ?? ""), "error");
+      showToast(
+        "Error al cargar los registros: " + (err?.message ?? ""),
+        "error",
+      );
     } finally {
       setLoadingRegistros(false);
     }
@@ -1338,8 +1627,8 @@ export default function Home() {
   };
 
   const pendingCount =
-    localRecords.filter(r => r.status === "pending").length +
-    localConsultas.filter(c => c.status === "pending").length;
+    localRecords.filter((r) => r.status === "pending").length +
+    localConsultas.filter((c) => c.status === "pending").length;
 
   // Si el usuario no está autenticado, mostrar la pantalla de login.
   // OJO: LoginForm se renderiza FUERA del <AppContext.Provider>, por eso
@@ -1359,27 +1648,67 @@ export default function Home() {
 
   // Authenticated Dashboard Layout
   const appCtx: AppContextValue = {
-    isOnline, theme, toggleTheme,
-    currentUser, setCurrentUser, isPowerAdmin: !!isPowerAdmin, handleLogout,
-    activeTab, setActiveTab, showToast,
-    triggerSync, isSyncing, syncQueueProgress, pendingCount,
-    registros, setRegistros, fetchRegistros, loadingRegistros,
-    localRecords, refreshLocalRecords,
-    patologias, fetchPatologias,
-    tiposLesion, fetchTiposLesion,
-    predefinedMedicamentos, fetchPredefinedMedicamentos,
-    caracterizacionOpciones, fetchCaracterizacionOpciones,
-    consultas, localConsultas, loadingConsultas, refreshLocalConsultas, fetchConsultas,
-    pendingSelectId, setPendingSelectId,
-    pendingHistorialCedula, setPendingHistorialCedula,
-    pendingUserId, setPendingUserId,
-    customCuartos, setCustomCuartos, allCuartos, sortedCustomCuartos, dashboardRooms,
-    roomCapacities, setRoomCapacities,
-    viewRefugio, setViewRefugio, refugiosList, effectiveRefugio,
-    stats, loadingStats, fetchStats,
-    votersCount, coords,
-    syncStatus, syncProgress, syncTotal,
-    downloadFullPadron, deletePadronLocal, refreshVotersCount,
+    isOnline,
+    theme,
+    toggleTheme,
+    currentUser,
+    setCurrentUser,
+    isPowerAdmin: !!isPowerAdmin,
+    handleLogout,
+    activeTab,
+    setActiveTab,
+    showToast,
+    triggerSync,
+    isSyncing,
+    syncQueueProgress,
+    pendingCount,
+    registros,
+    setRegistros,
+    fetchRegistros,
+    loadingRegistros,
+    localRecords,
+    refreshLocalRecords,
+    patologias,
+    fetchPatologias,
+    tiposLesion,
+    fetchTiposLesion,
+    predefinedMedicamentos,
+    fetchPredefinedMedicamentos,
+    caracterizacionOpciones,
+    fetchCaracterizacionOpciones,
+    consultas,
+    localConsultas,
+    loadingConsultas,
+    refreshLocalConsultas,
+    fetchConsultas,
+    pendingSelectId,
+    setPendingSelectId,
+    pendingHistorialCedula,
+    setPendingHistorialCedula,
+    pendingUserId,
+    setPendingUserId,
+    customCuartos,
+    setCustomCuartos,
+    allCuartos,
+    sortedCustomCuartos,
+    dashboardRooms,
+    roomCapacities,
+    setRoomCapacities,
+    viewRefugio,
+    setViewRefugio,
+    refugiosList,
+    effectiveRefugio,
+    stats,
+    loadingStats,
+    fetchStats,
+    votersCount,
+    coords,
+    syncStatus,
+    syncProgress,
+    syncTotal,
+    downloadFullPadron,
+    deletePadronLocal,
+    refreshVotersCount,
   };
 
   const showBanner = !isOnline || pendingCount > 0 || isSyncing;
@@ -1388,7 +1717,7 @@ export default function Home() {
 
   if (!isOnline) {
     bannerClass += " offline-top-banner--danger";
-    bannerText = `Sin conexión: Trabajando sin Internet · ${pendingCount} registro${pendingCount !== 1 ? "s" : ""} local${pendingCount !== 1 ? "es" : ""} pendiente${pendingCount !== 1 ? "s" : ""}`;
+    bannerText = `Sin conexión: Trabajando en modo local · ${pendingCount} registro${pendingCount !== 1 ? "s" : ""} pendiente${pendingCount !== 1 ? "s" : ""}`;
   } else if (isSyncing && syncQueueProgress) {
     bannerClass += " offline-top-banner--syncing";
     bannerText = `Sincronizando datos... ${syncQueueProgress.done} de ${syncQueueProgress.total} completados`;
@@ -1400,12 +1729,31 @@ export default function Home() {
   return (
     <AppContext.Provider value={appCtx}>
       <div className="app-layout-wrapper">
-        <div className={`${bannerClass}${showBanner ? " is-visible" : ""}`} role="status">
+        <div
+          className={`${bannerClass}${showBanner ? " is-visible" : ""}`}
+          role="status"
+        >
           <div className="offline-banner-content">
             {!isOnline && (
               <>
-                <svg className="offline-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.5M5 12.5a10.94 10.94 0 0 1 5.83-2.84M8.5 16a6 6 0 0 1 7 0M12 20h.01"/>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 20h.01" />
+                  <path d="M8.5 16.429a5 5 0 0 1 7 0" />
+                  <path d="M5 12.859a10 10 0 0 1 5.17-2.69" />
+                  <path d="M19 12.859a10 10 0 0 0-2.007-1.523" />
+                  <path d="M2 8.82a15 15 0 0 1 4.177-2.643" />
+                  <path d="M22 8.82a15 15 0 0 0-11.288-3.764" />
+                  <path d="m2 2 20 20" />
                 </svg>
                 <span>{bannerText}</span>
               </>
@@ -1418,8 +1766,19 @@ export default function Home() {
             )}
             {isOnline && !isSyncing && pendingCount > 0 && (
               <>
-                <svg className="offline-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                <svg
+                  className="offline-banner-icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
                 </svg>
                 <span>{bannerText}</span>
               </>
@@ -1434,31 +1793,49 @@ export default function Home() {
           <AppSidebar />
 
           {/* TAB 1: FORM VIEW (CENSO) — no visible para médicos ni Visualizador */}
-          {activeTab === "censo" && canRegister(currentUser.role) && <CensoTab />}
+          {activeTab === "censo" && canRegister(currentUser.role) && (
+            <CensoTab />
+          )}
 
           {/* TAB 2: DASHBOARD VIEW (ADMIN ONLY) */}
-          {activeTab === "dashboard" && canViewDashboard(currentUser.role) && <DashboardTab />}
+          {activeTab === "dashboard" && canViewDashboard(currentUser.role) && (
+            <DashboardTab />
+          )}
 
           {/* TAB 3: USER ADMINISTRATION (MASTER, ADMIN o AdminMedico —filtrado) */}
-          {activeTab === "usuarios" && canManageUsers(currentUser.role) && <UsuariosTab />}
+          {activeTab === "usuarios" && canManageUsers(currentUser.role) && (
+            <UsuariosTab />
+          )}
 
           {/* TAB 4: CONFIGURATION — no visible para médicos ni Visualizador */}
-          {activeTab === "config" && !isMedico(currentUser.role) && currentUser.role !== "VISUALIZADOR" && <ConfigTab />}
+          {activeTab === "config" &&
+            !isMedico(currentUser.role) &&
+            currentUser.role !== "VISUALIZADOR" && <ConfigTab />}
 
           {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos */}
-          {activeTab === "asignaciones" && !isMedico(currentUser.role) && <AsignacionesTab />}
-          {activeTab === "caracterizacion" && isMaster(currentUser.role) && <CaracterizacionTab />}
-          {activeTab === "monitoreo" && isMaster(currentUser.role) && <MonitoreoTab />}
+          {activeTab === "asignaciones" && !isMedico(currentUser.role) && (
+            <AsignacionesTab />
+          )}
+          {activeTab === "caracterizacion" && isMaster(currentUser.role) && (
+            <CaracterizacionTab />
+          )}
+          {activeTab === "monitoreo" && isMaster(currentUser.role) && (
+            <MonitoreoTab />
+          )}
           {activeTab === "mapa" && isMaster(currentUser.role) && <MapaTab />}
 
           {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
-          {activeTab === "morbilidad" && canManageMorbilidad(currentUser.role) && <MorbilidadTab />}
+          {activeTab === "morbilidad" &&
+            canManageMorbilidad(currentUser.role) && <MorbilidadTab />}
 
           {/* TAB 7: BALANCE DE SALUD (médicos + Master) */}
-          {activeTab === "balance" && canManageMorbilidad(currentUser.role) && <BalanceTab />}
+          {activeTab === "balance" && canManageMorbilidad(currentUser.role) && (
+            <BalanceTab />
+          )}
 
           {/* TAB 8: HISTORIAL CLÍNICO (médicos + Master) */}
-          {activeTab === "historial" && canManageMorbilidad(currentUser.role) && <HistorialClinicoTab />}
+          {activeTab === "historial" &&
+            canManageMorbilidad(currentUser.role) && <HistorialClinicoTab />}
 
           {/* Centro de notificaciones internas (UNIFICADO): toasts + alertas + actualización */}
           <NotificationCenter items={notifs} onDismiss={dismissNotif} />
