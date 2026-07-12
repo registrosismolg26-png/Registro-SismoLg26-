@@ -71,10 +71,11 @@ export default function SearchableSingleSelect({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [isMobile]);
 
-  // Autofoco del buscador al abrir (escritorio y móvil).
+  // Autofoco del buscador SOLO en escritorio. En MÓVIL no se enfoca al abrir: así no
+  // salta el teclado tapando la lista — el teclado abre solo si el usuario toca el input.
   useEffect(() => {
-    if (!open) return;
-    const t = setTimeout(() => (isMobile ? sheetInputRef : searchRef).current?.focus(), 60);
+    if (!open || isMobile) return;
+    const t = setTimeout(() => searchRef.current?.focus(), 60);
     return () => clearTimeout(t);
   }, [open, isMobile]);
 

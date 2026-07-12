@@ -69,13 +69,8 @@ export default function SearchableSelect({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [isMobile]);
 
-  // Autofoco del buscador cuando se abre la hoja móvil.
-  useEffect(() => {
-    if (isMobile && open) {
-      const t = setTimeout(() => sheetInputRef.current?.focus(), 60);
-      return () => clearTimeout(t);
-    }
-  }, [isMobile, open]);
+  // En MÓVIL NO se enfoca el buscador al abrir la hoja: así no salta el teclado
+  // automáticamente (tapaba la lista). El teclado abre cuando el usuario toca el input.
 
   const filtered = useMemo(() => {
     const q = normalizeText(query.trim());
