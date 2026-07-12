@@ -61,6 +61,7 @@ export default function MobileSheet({ open, onClose, title, children, search, fu
   const sheetRef      = useRef<HTMLDivElement>(null);
   const overlayRef    = useRef<HTMLDivElement>(null);
   const handleRef     = useRef<HTMLDivElement>(null);
+  const bodyRef       = useRef<HTMLDivElement>(null);
   const rafRef        = useRef<number | null>(null);
   const dragActive    = useRef(false);
   const startY        = useRef(0);
@@ -133,7 +134,9 @@ export default function MobileSheet({ open, onClose, title, children, search, fu
       startTime.current  = e.timeStamp;
       currentDY.current  = 0;
 
-      if (sheetRef.current)   sheetRef.current.style.transition   = "none";
+      // Matar la animación de entrada (msheetIn … both): su fill sobrescribe el
+      // transform inline y "congela" el arrastre. Sin esto, el sheet no se mueve.
+      if (sheetRef.current)   { sheetRef.current.style.animation = "none"; sheetRef.current.style.transition = "none"; }
       if (overlayRef.current) overlayRef.current.style.transition = "none";
     };
 
@@ -184,6 +187,63 @@ export default function MobileSheet({ open, onClose, title, children, search, fu
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
   }, [render, applyFrame, commitClose, commitSnap]);
+
+  // Arrastre desde el CUERPO (no solo el grip): si la lista está scrolleada ARRIBA
+  // (scrollTop 0) y jalas hacia ABAJO, el sheet se arrastra y se cierra — como en
+  // iOS/Android. Bloqueo de eje: horizontal → no interfiere (swipe de renglones);
+  // vertical con scroll disponible → deja hacer scroll; solo captura vertical-abajo
+  // estando en el tope. Reutiliza el mismo motor (applyFrame/commit).
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    let mode: "" | "h" | "scroll" | "sheet" = "";
+    let sy = 0, sx = 0, st = 0, cur = 0, canDrag = false;
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      mode = ""; sy = e.touches[0].clientY; sx = e.touches[0].clientX; st = e.timeStamp; cur = 0;
+      canDrag = body.scrollTop <= 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const dy = e.touches[0].clientY - sy;
+      const dx = e.touches[0].clientX - sx;
+      if (!mode) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        if (Math.abs(dx) > Math.abs(dy)) { mode = "h"; return; }     // horizontal → renglón
+        if (canDrag && dy > 0) {
+          mode = "sheet";
+          // Matar la animación de entrada (su fill congela el transform inline).
+          if (sheetRef.current)   { sheetRef.current.style.animation = "none"; sheetRef.current.style.transition = "none"; }
+          if (overlayRef.current) overlayRef.current.style.transition = "none";
+        } else { mode = "scroll"; return; }                          // scroll normal
+      }
+      if (mode !== "sheet") return;
+      cur = dy;
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => applyFrame(dy));
+      if (dy > 0 && e.cancelable) e.preventDefault();
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (mode !== "sheet") { mode = ""; return; }
+      mode = "";
+      if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      const dt  = Math.max(1, e.timeStamp - st);
+      const vel = cur / dt;
+      if (cur > CLOSE_THRESHOLD || vel > CLOSE_VELOCITY) commitClose(); else commitSnap();
+    };
+
+    body.addEventListener("touchstart",  onStart, { passive: true });
+    body.addEventListener("touchmove",   onMove,  { passive: false });
+    body.addEventListener("touchend",    onEnd,   { passive: true });
+    body.addEventListener("touchcancel", onEnd,   { passive: true });
+    return () => {
+      body.removeEventListener("touchstart",  onStart);
+      body.removeEventListener("touchmove",   onMove);
+      body.removeEventListener("touchend",    onEnd);
+      body.removeEventListener("touchcancel", onEnd);
+    };
+  }, [render, applyFrame, commitClose, commitSnap]);
   // ──────────────────────────────────────────────────────────────────────────
 
   if (!render || typeof document === "undefined") return null;
@@ -210,7 +270,7 @@ export default function MobileSheet({ open, onClose, title, children, search, fu
           </div>
         </div>
         {search ? <div className="msheet__search">{search}</div> : null}
-        <div className="msheet__body">{children}</div>
+        <div ref={bodyRef} className="msheet__body">{children}</div>
       </div>
     </div>,
     document.body
