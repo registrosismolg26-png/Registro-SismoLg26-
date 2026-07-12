@@ -118,7 +118,23 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
               className={`msheet__opt${o.value === value ? " is-selected" : ""}`}
               onClick={() => choose(o.value)}
             >
-              {o.label}
+              <span>{o.label}</span>
+              {o.value === value && (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginLeft: "auto", color: "var(--color-primary)", flexShrink: 0 }}
+                >
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              )}
             </button>
           ))}
         </MobileSheet>

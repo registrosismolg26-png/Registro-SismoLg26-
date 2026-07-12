@@ -120,7 +120,23 @@ export default function SearchableSingleSelect({
                   onMouseDown={variant === "desk" ? (e) => { e.preventDefault(); choose(o.value); } : undefined}
                   onClick={variant === "sheet" ? () => choose(o.value) : undefined}
                 >
-                  {o.label}
+                  <span>{o.label}</span>
+                  {variant === "sheet" && selected && (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ marginLeft: "auto", color: "var(--color-primary)", flexShrink: 0 }}
+                    >
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  )}
                 </button>
               );
             })}

@@ -18,6 +18,8 @@ import { canManageUsers, isMedico, isMaster } from "@/lib/permissions";
 import SwipeableNotifRow from "@/components/SwipeableNotifRow";
 import WaText from "@/components/WaText";
 import { loadHidden, hideNotif, isHiddenNow } from "@/lib/notifHidden";
+import { useIsMobile } from "./useIsMobile";
+import MobileSheet from "./MobileSheet";
 
 interface Notif { id: string; tipo: string; titulo: string; cuerpo: string; refugio: string | null; entidadId: string | null; readAt: string | null; createdAt: string; }
 interface Afectado { id: string; nombreApellido: string; cedula: string; refugio: string; parroquia: string; retirado: string; createdAt: string; }
@@ -54,6 +56,7 @@ const iniciales = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[
 
 export default function NotificationBell() {
   const { currentUser, setActiveTab, setViewRefugio, setPendingSelectId, setPendingUserId } = useAppContext();
+  const isMobile = useIsMobile();
   const role = currentUser?.role ?? "";
   const esAdminCenso = role === "MASTER" || role === "ADMIN";
   const master = isMaster(role);
@@ -157,6 +160,7 @@ export default function NotificationBell() {
   };
 
   useEffect(() => {
+    if (isMobile) return; // En móvil, el cierre lo maneja MobileSheet nativamente
     // Con el detalle abierto (modal por encima) NO enganchamos los cierres: así
     // interactuar con el modal no colapsa el panel de fondo.
     if (!open || detail) return;
@@ -176,7 +180,7 @@ export default function NotificationBell() {
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onResize);
     return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("scroll", onScroll, true); window.removeEventListener("resize", onResize); };
-  }, [open, detail]);
+  }, [open, detail, isMobile]);
 
   // ── Navegación real a la ficha ──
   const irAPersona = (id: string | null, refugio: string | null) => {
@@ -208,6 +212,75 @@ export default function NotificationBell() {
   const visibleItems = items.filter((n) => !isHiddenNow(hidden, n.id));
   const visibleAfectados = afectados.filter((r) => !isHiddenNow(hidden, "afec:" + r.id));
 
+  const panelContent = (
+    <>
+      {esAdminCenso ? (
+        <div className="notif-seg">
+          <button type="button" className={`notif-seg__btn${section === "avisos" ? " is-active" : ""}`} onClick={() => irASeccion("avisos")}>
+            Avisos{unread > 0 && <span className="notif-seg__badge">{unread > 9 ? "9+" : unread}</span>}
+          </button>
+          <button type="button" className={`notif-seg__btn${section === "afectados" ? " is-active" : ""}`} onClick={() => irASeccion("afectados")}>
+            Nuevos afectados{nuevos > 0 && <span className="notif-seg__badge">{nuevos > 9 ? "9+" : nuevos}</span>}
+          </button>
+        </div>
+      ) : (
+        !isMobile && <div className="notif-panel__head">Avisos</div>
+      )}
+
+      {section === "avisos" ? (
+        visibleItems.length === 0 ? (
+          <div className="notif-panel__empty">No tienes avisos.</div>
+        ) : (
+          <ul className="notif-list">
+            {visibleItems.map((n) => (
+              <li key={n.id}>
+                <SwipeableNotifRow
+                  className={`notif-item${n.readAt ? "" : " notif-item--unread"}`}
+                  onOpen={() => setDetail(n)}
+                  onDismiss={() => doHide(n.id, "dismiss")}
+                  onSnooze={() => doHide(n.id, "snooze")}
+                >
+                  <span className="notif-item__ico" style={{ color: tipoColor(n.tipo), background: `${tipoColor(n.tipo)}22` }}><TipoIcon tipo={n.tipo} /></span>
+                  <span className="notif-item__main">
+                    <span className="notif-item__title">{n.titulo}{!n.readAt && <span className="notif-item__dot" style={{ background: tipoColor(n.tipo) }} />}</span>
+                    <span className="notif-item__body"><WaText text={n.cuerpo} /></span>
+                    <span className="notif-item__time">{fechaCorta(n.createdAt)}</span>
+                  </span>
+                </SwipeableNotifRow>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : (
+        afectadosLoading && afectados.length === 0 ? (
+          <div className="notif-panel__empty">Cargando…</div>
+        ) : visibleAfectados.length === 0 ? (
+          <div className="notif-panel__empty">No hay registros recientes.</div>
+        ) : (
+          <ul className="notif-list">
+            {visibleAfectados.map((r) => (
+              <li key={r.id}>
+                <SwipeableNotifRow
+                  className={`notif-item${esNuevoAfectado(r) ? " notif-item--unread" : ""}`}
+                  onOpen={() => irAPersona(r.id, r.refugio)}
+                  onDismiss={() => doHide("afec:" + r.id, "dismiss")}
+                  onSnooze={() => doHide("afec:" + r.id, "snooze")}
+                >
+                  <span className="afec-mini-ava">{iniciales(r.nombreApellido)}</span>
+                  <span className="notif-item__main">
+                    <span className="notif-item__title">{r.nombreApellido}{esNuevoAfectado(r) && <span className="afec-badge">Nuevo</span>}{r.retirado === "SI" && <span className="afec-badge afec-badge--out">Retirado</span>}</span>
+                    <span className="notif-item__body">C.I. {r.cedula} · {r.refugio}{r.parroquia ? ` · ${r.parroquia}` : ""}</span>
+                    <span className="notif-item__time">{fechaCorta(r.createdAt)} · Ver ficha →</span>
+                  </span>
+                </SwipeableNotifRow>
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+    </>
+  );
+
   return (
     <div className="notif-bell">
       <button ref={btnRef} type="button" className="notif-bell__btn" onClick={toggle} aria-label="Avisos" title="Avisos">
@@ -215,74 +288,17 @@ export default function NotificationBell() {
         {badge > 0 && <span className="notif-bell__badge">{badge > 9 ? "9+" : badge}</span>}
       </button>
 
-      {open && pos && typeof document !== "undefined" && createPortal(
-        <div ref={panelRef} className="notif-panel" style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, zIndex: 4000 }}>
-          {esAdminCenso ? (
-            <div className="notif-seg">
-              <button type="button" className={`notif-seg__btn${section === "avisos" ? " is-active" : ""}`} onClick={() => irASeccion("avisos")}>
-                Avisos{unread > 0 && <span className="notif-seg__badge">{unread > 9 ? "9+" : unread}</span>}
-              </button>
-              <button type="button" className={`notif-seg__btn${section === "afectados" ? " is-active" : ""}`} onClick={() => irASeccion("afectados")}>
-                Nuevos afectados{nuevos > 0 && <span className="notif-seg__badge">{nuevos > 9 ? "9+" : nuevos}</span>}
-              </button>
-            </div>
-          ) : (
-            <div className="notif-panel__head">Avisos</div>
-          )}
-
-          {section === "avisos" ? (
-            visibleItems.length === 0 ? (
-              <div className="notif-panel__empty">No tienes avisos.</div>
-            ) : (
-              <ul className="notif-list">
-                {visibleItems.map((n) => (
-                  <li key={n.id}>
-                    <SwipeableNotifRow
-                      className={`notif-item${n.readAt ? "" : " notif-item--unread"}`}
-                      onOpen={() => setDetail(n)}
-                      onDismiss={() => doHide(n.id, "dismiss")}
-                      onSnooze={() => doHide(n.id, "snooze")}
-                    >
-                      <span className="notif-item__ico" style={{ color: tipoColor(n.tipo), background: `${tipoColor(n.tipo)}22` }}><TipoIcon tipo={n.tipo} /></span>
-                      <span className="notif-item__main">
-                        <span className="notif-item__title">{n.titulo}{!n.readAt && <span className="notif-item__dot" style={{ background: tipoColor(n.tipo) }} />}</span>
-                        <span className="notif-item__body"><WaText text={n.cuerpo} /></span>
-                        <span className="notif-item__time">{fechaCorta(n.createdAt)}</span>
-                      </span>
-                    </SwipeableNotifRow>
-                  </li>
-                ))}
-              </ul>
-            )
-          ) : (
-            afectadosLoading && afectados.length === 0 ? (
-              <div className="notif-panel__empty">Cargando…</div>
-            ) : visibleAfectados.length === 0 ? (
-              <div className="notif-panel__empty">No hay registros recientes.</div>
-            ) : (
-              <ul className="notif-list">
-                {visibleAfectados.map((r) => (
-                  <li key={r.id}>
-                    <SwipeableNotifRow
-                      className={`notif-item${esNuevoAfectado(r) ? " notif-item--unread" : ""}`}
-                      onOpen={() => irAPersona(r.id, r.refugio)}
-                      onDismiss={() => doHide("afec:" + r.id, "dismiss")}
-                      onSnooze={() => doHide("afec:" + r.id, "snooze")}
-                    >
-                      <span className="afec-mini-ava">{iniciales(r.nombreApellido)}</span>
-                      <span className="notif-item__main">
-                        <span className="notif-item__title">{r.nombreApellido}{esNuevoAfectado(r) && <span className="afec-badge">Nuevo</span>}{r.retirado === "SI" && <span className="afec-badge afec-badge--out">Retirado</span>}</span>
-                        <span className="notif-item__body">C.I. {r.cedula} · {r.refugio}{r.parroquia ? ` · ${r.parroquia}` : ""}</span>
-                        <span className="notif-item__time">{fechaCorta(r.createdAt)} · Ver ficha →</span>
-                      </span>
-                    </SwipeableNotifRow>
-                  </li>
-                ))}
-              </ul>
-            )
-          )}
-        </div>,
-        document.body
+      {isMobile ? (
+        <MobileSheet open={open} onClose={() => setOpen(false)} title="Notificaciones" className="notif-sheet-modal" fullHeight={true}>
+          {panelContent}
+        </MobileSheet>
+      ) : (
+        open && pos && typeof document !== "undefined" && createPortal(
+          <div ref={panelRef} className="notif-panel" style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, zIndex: 4000 }}>
+            {panelContent}
+          </div>,
+          document.body
+        )
       )}
 
       {detail && typeof document !== "undefined" && createPortal(
