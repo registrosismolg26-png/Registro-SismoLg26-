@@ -7024,7 +7024,7 @@ h2.dashboard-section-title {
 }
 .swipe-row__act--snooze {
   justify-content: flex-start;
-  background: #d97706;
+  background: var(--color-warning);
 }
 .swipe-row__act--dismiss {
   justify-content: flex-end;
