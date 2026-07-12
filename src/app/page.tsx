@@ -46,6 +46,7 @@ import AppHeader from "@/components/AppHeader";
 import AppSidebar from "@/components/AppSidebar";
 import BottomDock from "@/components/BottomDock";
 import LoginForm from "@/components/LoginForm";
+import { NAV_ITEMS } from "@/components/navItems";
 import NotificationCenter, {
   type AppNotif,
 } from "@/components/NotificationCenter";
@@ -100,6 +101,9 @@ export default function Home() {
     role: string;
     campamentoTransitorio: string;
   } | null>(null);
+  // ¿Sesión ya restaurada desde storage? Hasta que el effect de arranque corre,
+  // mostramos un splash (no el login) → sin el "flash" de login al recargar/actualizar.
+  const [authReady, setAuthReady] = useState(false);
   // "Power admin" global (super-admin) = MASTER. El backend valida de verdad;
   // esto solo controla la UI de acciones globales.
   const isPowerAdmin = useMemo(() => {
@@ -254,6 +258,13 @@ export default function Home() {
     if (!allowed.includes(activeTab)) setActiveTab("morbilidad");
   }, [currentUser, activeTab]);
 
+  // Persistir la pestaña activa para restaurarla al recargar (solo tras el arranque,
+  // para no pisar la guardada con el default "censo" antes de leerla).
+  useEffect(() => {
+    if (!authReady) return;
+    try { localStorage.setItem("sismo_active_tab", activeTab); } catch { /* noop */ }
+  }, [activeTab, authReady]);
+
   // Dashboard Stats States
   const [stats, setStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -381,12 +392,20 @@ export default function Home() {
               parsed.campamentoTransitorio = "";
             }
             setCurrentUser(parsed);
+            // Restaurar la última pestaña si el rol la puede ver (NAV_ITEMS = fuente
+            // de verdad del gating) → recargar/actualizar no te devuelve a "Registro".
+            const savedTab = localStorage.getItem("sismo_active_tab");
+            if (savedTab) {
+              const item = NAV_ITEMS.find((n) => n.tab === savedTab);
+              if (item?.show(parsed.role)) setActiveTab(savedTab as ActiveTab);
+            }
           }
         } catch (e) {
           localStorage.removeItem("sismo_operator");
           sessionStorage.removeItem("sismo_operator");
         }
       }
+      setAuthReady(true);
 
       // Load theme
       const savedTheme = localStorage.getItem("theme") as
@@ -1613,6 +1632,7 @@ export default function Home() {
     localStorage.removeItem("sismo_operator");
     sessionStorage.removeItem("sismo_operator");
     // Descartar el cache local del operador saliente (no filtrar entre sesiones).
+    localStorage.removeItem("sismo_active_tab");
     localStorage.removeItem("cached_registros");
     localStorage.removeItem("cached_stats");
     localStorage.removeItem("cached_owner");
@@ -1630,6 +1650,17 @@ export default function Home() {
   const pendingCount =
     localRecords.filter((r) => r.status === "pending").length +
     localConsultas.filter((c) => c.status === "pending").length;
+
+  // Splash mientras se restaura la sesión desde storage (evita el flash de login al
+  // recargar/actualizar). En SSR y el primer render cliente authReady=false → splash,
+  // sin desajuste de hidratación.
+  if (!authReady) {
+    return (
+      <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-primary)" }}>
+        <span className="spinner" aria-label="Cargando" />
+      </div>
+    );
+  }
 
   // Si el usuario no está autenticado, mostrar la pantalla de login.
   // OJO: LoginForm se renderiza FUERA del <AppContext.Provider>, por eso

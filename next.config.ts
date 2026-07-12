@@ -9,14 +9,23 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
+    // El cache "immutable" de los chunks de Next SOLO en producción. En dev ese
+    // header hace que el navegador sirva CSS/JS viejo (no ves tus cambios ni borrando
+    // .next); Next mismo lo advierte. En dev no se emite → siempre fresco.
+    const staticImmutable =
+      process.env.NODE_ENV === "production"
+        ? [
+            {
+              // Immutable long-cache for versioned Next.js static chunks (JS, CSS)
+              source: "/_next/static/:path*",
+              headers: [
+                { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+              ],
+            },
+          ]
+        : [];
     return [
-      {
-        // Immutable long-cache for versioned Next.js static chunks (JS, CSS)
-        source: "/_next/static/:path*",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
-        ],
-      },
+      ...staticImmutable,
       {
         // Short cache for HTML documents — always re-validate
         source: "/:path*.html",
