@@ -10,7 +10,7 @@ import { getAuthUser } from "@/lib/auth";
 // AuditLog NO está en el schema de Prisma (tabla + trigger son SQL), por eso se
 // inserta con $executeRaw. Best-effort desde el cliente: no bloquea la acción.
 
-const ACCIONES = new Set(["PRINT", "EXPORT"]);
+const ACCIONES = new Set(["PRINT", "EXPORT", "ERROR"]);
 
 export async function POST(request: Request) {
   try {
@@ -24,15 +24,31 @@ export async function POST(request: Request) {
     }
 
     const str = (v: unknown, max = 160) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
-    const metadata = {
-      recurso: str(body?.recurso) || "—",              // qué se imprimió/exportó
-      formato: str(body?.formato, 20),                 // "PDF" | "Excel"
-      refugio: str(body?.refugio),                     // campamento activo
-      filtros: str(body?.filtros, 600),                // resumen de filtros aplicados
-      total: typeof body?.total === "number" ? body.total : null, // filas incluidas
-      rol: auth.role,
-    };
-    const entidad = accion === "PRINT" ? "Impresion" : "Exportacion";
+    let metadata: Record<string, unknown>;
+    let entidad: string;
+    if (accion === "ERROR") {
+      // Error del cliente capturado en campo (no-PII): mensaje/stack recortados + contexto.
+      metadata = {
+        mensaje: str(body?.mensaje, 500) || "—",
+        stack: str(body?.stack, 2000),
+        ruta: str(body?.ruta, 300),                    // location.pathname (sin query)
+        origen: str(body?.origen, 40),                 // onerror | unhandledrejection
+        ua: str(request.headers.get("user-agent"), 300),
+        refugio: auth.refugio || null,
+        rol: auth.role,
+      };
+      entidad = "ErrorCliente";
+    } else {
+      metadata = {
+        recurso: str(body?.recurso) || "—",              // qué se imprimió/exportó
+        formato: str(body?.formato, 20),                 // "PDF" | "Excel"
+        refugio: str(body?.refugio),                     // campamento activo
+        filtros: str(body?.filtros, 600),                // resumen de filtros aplicados
+        total: typeof body?.total === "number" ? body.total : null, // filas incluidas
+        rol: auth.role,
+      };
+      entidad = accion === "PRINT" ? "Impresion" : "Exportacion";
+    }
 
     await prisma.$executeRaw`
       INSERT INTO "AuditLog"(entidad, entidad_id, accion, metadata, user_email)

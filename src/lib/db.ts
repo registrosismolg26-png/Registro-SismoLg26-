@@ -493,14 +493,22 @@ export async function getPendingConsultas(): Promise<LocalConsulta[]> {
 // error PERMANENTE (400/401/403) queda como 'error' con su razón y NO se reintenta.
 export interface LocalActivityLog {
   id: string;
-  payload: {
-    accion: 'PRINT' | 'EXPORT';
-    recurso: string;
-    formato?: string;
-    refugio?: string;
-    filtros?: string;
-    total?: number;
-  };
+  payload:
+    | {
+        accion: 'PRINT' | 'EXPORT';
+        recurso: string;
+        formato?: string;
+        refugio?: string;
+        filtros?: string;
+        total?: number;
+      }
+    | {
+        accion: 'ERROR';        // error del cliente capturado en campo (no-PII)
+        mensaje: string;
+        stack?: string;
+        ruta?: string;
+        origen?: string;
+      };
   status: 'pending' | 'error';
   attempts: number;
   nextAttemptAt?: number;

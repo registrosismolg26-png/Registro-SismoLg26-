@@ -9,14 +9,43 @@ import { saveLog, getPendingLogs, markLogSynced, incrementLogAttempt, markLogPer
 //   · 400/401/403 → permanente: queda como 'error' con su razón y NO se reintenta.
 // NUNCA lanza ni bloquea la impresión/descarga (best-effort en el punto de uso).
 
-export type ActivityLogPayload = {
-  accion: "PRINT" | "EXPORT";
-  recurso: string;              // "Registrados", "Morbilidad", "Panel de Estadísticas"…
-  formato?: "PDF" | "Excel";
-  refugio?: string;
-  filtros?: string;             // resumen legible de los filtros aplicados
-  total?: number;               // cantidad de filas incluidas
-};
+export type ActivityLogPayload =
+  | {
+      accion: "PRINT" | "EXPORT";
+      recurso: string;              // "Registrados", "Morbilidad", "Panel de Estadísticas"…
+      formato?: "PDF" | "Excel";
+      refugio?: string;
+      filtros?: string;             // resumen legible de los filtros aplicados
+      total?: number;               // cantidad de filas incluidas
+    }
+  | {
+      accion: "ERROR";              // error del cliente capturado globalmente (no-PII)
+      mensaje: string;
+      stack?: string;
+      ruta?: string;                // location.pathname (SIN query → sin PII)
+      origen?: string;              // "onerror" | "unhandledrejection"
+    };
+
+// ── Errores del cliente → misma cola/AuditLog (accion "ERROR") ───────────────
+// Con DEDUPE (no repetir el mismo error) y TOPE por sesión (no inundar la cola si
+// algo falla en bucle). Best-effort: nunca lanza.
+const seenErrors = new Set<string>();
+let errorsSent = 0;
+const MAX_ERRORS_PER_SESSION = 25;
+
+export function logClientError(e: { mensaje: string; stack?: string; ruta?: string; origen?: string }): void {
+  try {
+    if (errorsSent >= MAX_ERRORS_PER_SESSION) return;
+    const firstLine = (e.stack || "").split("\n")[0] || "";
+    const sig = (e.mensaje || "").slice(0, 120) + "|" + firstLine.slice(0, 120);
+    if (seenErrors.has(sig)) return;
+    seenErrors.add(sig);
+    errorsSent++;
+    logActivity({ accion: "ERROR", mensaje: e.mensaje, stack: e.stack, ruta: e.ruta, origen: e.origen });
+  } catch {
+    /* best-effort */
+  }
+}
 
 // Encola la acción y dispara un intento inmediato (si hay conexión).
 export function logActivity(payload: ActivityLogPayload): void {

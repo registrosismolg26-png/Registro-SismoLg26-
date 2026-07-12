@@ -24,6 +24,7 @@ import {
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
 import { syncActivityLogs } from "@/lib/activityLog";
+import { installErrorReporter } from "@/lib/clientErrors";
 import { enablePush, pushSupported, pushPermission } from "@/lib/pushClient";
 import {
   isMaster,
@@ -452,6 +453,7 @@ export default function Home() {
       // atascados queda como acción MANUAL en Config ("Reenviar cambios").
       triggerSync();
       void syncActivityLogs(); // procesa la cola de logs pendientes al montar
+      installErrorReporter();  // captura errores JS no atrapados en campo → AuditLog
 
       const interval = setInterval(() => {
         if (navigator.onLine) {
