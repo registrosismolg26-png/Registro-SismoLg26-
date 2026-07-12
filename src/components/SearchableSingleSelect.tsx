@@ -205,7 +205,9 @@ export default function SearchableSingleSelect({
         onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
       >
         <span className={current ? "" : "morb-select__ph"}>{current ? current.label : placeholder}</span>
-        <span className="morb-select__arrow" aria-hidden>▾</span>
+        <span className="morb-select__arrow" aria-hidden>
+<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" ><path d="m6 9 6 6 6-6"/></svg>
+        </span>
       </button>
 
       {desktopPanel && typeof document !== "undefined" ? createPortal(desktopPanel, document.body) : null}

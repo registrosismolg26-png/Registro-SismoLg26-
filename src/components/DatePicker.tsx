@@ -171,7 +171,9 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
         onClick={openPicker}
       >
         <span className={label ? "" : "morb-select__ph"}>{label || placeholder}</span>
-        <span className="morb-select__arrow" aria-hidden>▾</span>
+        <span className="morb-select__arrow" aria-hidden>
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" ><path d="m6 9 6 6 6-6"/></svg>
+        </span>
       </button>
 
       {desktopPopup && typeof document !== "undefined" ? createPortal(desktopPopup, document.body) : null}
