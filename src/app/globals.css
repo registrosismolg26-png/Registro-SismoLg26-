@@ -1426,6 +1426,46 @@ textarea:focus {
   box-shadow: 0 0 0 3px var(--color-primary-ring);
 }
 
+/* Autofill de Chrome/WebKit: por defecto pinta el input con SU fondo (claro) y texto
+   oscuro, ignorando el tema y rompiéndolo (sobre todo el oscuro). El fondo de autofill
+   no se puede cambiar directo (Chrome lo fuerza), así que se ENMASCARA con un box-shadow
+   inset del color del input, y el texto se fija con -webkit-text-fill-color. Todo con las
+   variables del tema → correcto en claro y en oscuro. El transition largo evita el
+   destello amarillo inicial. */
+input[type="text"]:-webkit-autofill,
+input[type="number"]:-webkit-autofill,
+input[type="date"]:-webkit-autofill,
+input[type="email"]:-webkit-autofill,
+input[type="password"]:-webkit-autofill,
+input[type="tel"]:-webkit-autofill,
+input[type="search"]:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill,
+input[type="text"]:-webkit-autofill:hover,
+input[type="email"]:-webkit-autofill:hover,
+input[type="password"]:-webkit-autofill:hover,
+input[type="number"]:-webkit-autofill:hover,
+input[type="tel"]:-webkit-autofill:hover {
+  -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset;
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+  border-color: var(--border-color);
+  transition: background-color 9999s ease-in-out 0s;
+}
+/* Autofill + foco: conserva el anillo de foco además del enmascarado. */
+input[type="text"]:-webkit-autofill:focus,
+input[type="email"]:-webkit-autofill:focus,
+input[type="password"]:-webkit-autofill:focus,
+input[type="number"]:-webkit-autofill:focus,
+input[type="tel"]:-webkit-autofill:focus,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow:
+    0 0 0 1000px var(--input-bg) inset,
+    0 0 0 3px var(--color-primary-ring);
+  border-color: var(--color-primary);
+}
+
 /* Validation styling & layout-shift protection containers */
 input.has-error,
 select.has-error,
