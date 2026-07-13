@@ -1698,6 +1698,8 @@ export default function Home() {
           setCurrentUser={setCurrentUser}
           setActiveTab={setActiveTab}
           showToast={showToast}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
         <NotificationCenter items={notifs} onDismiss={dismissNotif} />
       </>
