@@ -87,4 +87,16 @@ const logoAssetTs =
 await fs.writeFile(path.join(ROOT, "src", "lib", "logoAsset.ts"), logoAssetTs);
 console.log(`  ✓ src/lib/logoAsset.ts  (base64, ${b64.length} chars)`);
 
+// Badge monocromo para las notificaciones de Android (barra de estado). Android usa
+// el canal ALFA como silueta y la pinta de un solo color, así que el emblema a color se
+// volvería una mancha. Se usa una "G" tipográfica nítida (blanca sobre transparente):
+// la silueta = la letra, y a ~24px se lee claro. Se referencia como `badge` en public/sw.js.
+const badgeSvg = Buffer.from(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96">` +
+    `<text x="48" y="73" font-family="Arial,Helvetica,sans-serif" font-size="86" ` +
+    `font-weight="900" fill="#ffffff" text-anchor="middle">G</text></svg>`,
+);
+await fs.writeFile(PUB("badge-mono.png"), await sharp(badgeSvg).png().toBuffer());
+console.log("  ✓ public/badge-mono.png  (badge 'G' monocromo para notificaciones)");
+
 console.log("Listo. Recuerda subir ?v=N en layout.tsx y manifest.json.");

@@ -1,7 +1,7 @@
 // AUTOGENERADO: `scripts/update-sw-version.mjs` (script `prebuild`) reemplaza este
 // valor con el commit SHA en cada build, para invalidar el cache de todos los
 // clientes en cada deploy. NO editar a mano; el valor de abajo es solo placeholder.
-const BUILD_TS = "38e65d2e7aca";
+const BUILD_TS = "927bf0c1955c";
 const CACHE_NAME = `registro-sismo-v${BUILD_TS}`;
 
 const PRECACHE = [
@@ -17,7 +17,14 @@ const PRECACHE = [
 // dispara tras aceptar el banner.
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
+    caches.open(CACHE_NAME).then((cache) =>
+      // Cachear cada recurso POR SEPARADO con allSettled: si UNO falla (p. ej. un 404),
+      // la instalación NO se aborta. Antes se usaba cache.addAll(), que rechaza en bloque
+      // si cualquier recurso falla; cuando /manifest.json quedó en 404, el install del SW
+      // fallaba y el worker nunca llegaba a "installed" → el banner de actualización dejó
+      // de aparecer. Con allSettled el SW siempre instala aunque falte algún recurso.
+      Promise.allSettled(PRECACHE.map((u) => cache.add(u)))
+    )
   );
 });
 
@@ -156,7 +163,7 @@ self.addEventListener("push", (event) => {
       const options = {
         body,
         icon: "/logo_gob_push.png",
-        badge: "/favicon.ico",
+        badge: "/badge-mono.png",
         vibrate: [200, 100, 200],
         // tag ÚNICO por registro → las notificaciones se APILAN (no se reemplazan entre sí),
         // agrupadas por campamento. renotify:false porque cada tag es nuevo (no hay reemplazo).
