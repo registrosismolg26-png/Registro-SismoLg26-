@@ -248,6 +248,66 @@ export default function AsignacionesTab() {
     }
   };
 
+  // Abre el modal de un registro DIRECTO en modo edición (precarga editData igual
+  // que el botón "Editar" de dentro del modal). Se reutiliza desde la fila de la
+  // tabla (acción rápida) y desde ese botón, para no duplicar la precarga.
+  const enterEditMode = (reg: any) => {
+    if (!reg) return;
+    setSelectedRegistro(reg);
+    setAsignCuarto(reg.cuarto || "");
+    setEditMode(true);
+    let formattedBirthDate = "";
+    if (reg.fechaNacimiento) {
+      const dObj = new Date(reg.fechaNacimiento);
+      if (!isNaN(dObj.getTime())) {
+        const day = String(dObj.getDate()).padStart(2, "0");
+        const month = String(dObj.getMonth() + 1).padStart(2, "0");
+        formattedBirthDate = `${day}/${month}/${dObj.getFullYear()}`;
+      }
+    }
+    // Reconoce si el registro es un hijo/dependiente (cédula con sufijo "-N"):
+    // separa nacionalidad, dígitos del representante y el correlativo.
+    const parsedCed = parseStoredCedula(reg.cedula);
+    let jefeNum = reg.cedulaJefeFamilia || "";
+    if (jefeNum.startsWith("V-") || jefeNum.startsWith("E-")) {
+      jefeNum = jefeNum.slice(2);
+    } else if (jefeNum.startsWith("V") || jefeNum.startsWith("E")) {
+      jefeNum = jefeNum.slice(1);
+    }
+    setEditData({
+      nacionalidad: parsedCed.nac,
+      cedula: parsedCed.digits,
+      isChildDependent: parsedCed.isChild,
+      dependentNumber: parsedCed.depNum,
+      nombreApellido: reg.nombreApellido,
+      parroquia: reg.parroquia,
+      sector: reg.sector,
+      comunidad: reg.comunidad,
+      direccionExacta: reg.direccionExacta,
+      genero: reg.genero,
+      estadoFisico: reg.estadoFisico,
+      embarazo: reg.embarazo === "SI" ? "SI" : "NO",
+      patologia: reg.patologia,
+      patologiaIds: Array.isArray(reg.patologiaIds) ? reg.patologiaIds : [],
+      telefono: reg.telefono || "",
+      retirado: reg.retirado || "NO",
+      retiradoRazon: reg.retiradoRazon || "",
+      fechaNacimiento: formattedBirthDate,
+      jefeFamilia: reg.jefeFamilia || "NO",
+      perteneceNucleo: reg.perteneceNucleo || "NO",
+      cedulaJefeFamilia: jefeNum,
+      intermitente: reg.intermitente || "NO",
+      motivoIntermitente: reg.motivoIntermitente || "",
+      cuarto: reg.cuarto || "",
+    });
+    const initialMeds = Array.isArray(reg.medicamentoIds)
+      ? reg.medicamentoIds
+      : [];
+    setEditMedicamentos(initialMeds);
+    setOriginalMedsCount(initialMeds.length);
+    lookupJefeEdit(jefeNum);
+  };
+
   // Patologías por-ID en la edición: array de ids del catálogo.
   const addEditPatologia = (id: string) => {
     if (!id) return;
@@ -1591,7 +1651,7 @@ export default function AsignacionesTab() {
                             <button
                               className="btn-ver btn-ver--room"
                               aria-label="Asignar habitación"
-                              title="Asignar habitación"
+                              data-tip="Habitación"
                               onClick={() => openAssignRoom(reg)}
                             >
                               <svg
@@ -1613,7 +1673,7 @@ export default function AsignacionesTab() {
                           <button
                             className="btn-ver"
                             aria-label="Ver detalles"
-                            title="Ver detalles"
+                            data-tip="Ver"
                             onClick={() => {
                               setSelectedRegistro(reg);
                               setAsignCuarto(reg.cuarto || "");
@@ -1636,6 +1696,29 @@ export default function AsignacionesTab() {
                             </svg>
                             <span className="btn-ver__txt">Ver</span>
                           </button>
+                          {canRegister(currentUser.role) && (
+                            <button
+                              className="btn-ver btn-ver--edit"
+                              aria-label="Editar registro"
+                              data-tip="Editar"
+                              onClick={() => enterEditMode(reg)}
+                            >
+                              <svg
+                                width="15"
+                                height="15"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                              <span className="btn-ver__txt">Editar</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2160,89 +2243,7 @@ export default function AsignacionesTab() {
                           gap: "0.5rem",
                           height: "var(--element-height, 42px)",
                         }}
-                        onClick={() => {
-                          setEditMode(true);
-                          const isoDateStr = selectedRegistro.fechaNacimiento;
-                          let formattedBirthDate = "";
-                          if (isoDateStr) {
-                            const dObj = new Date(isoDateStr);
-                            if (!isNaN(dObj.getTime())) {
-                              const day = String(dObj.getDate()).padStart(
-                                2,
-                                "0",
-                              );
-                              const month = String(
-                                dObj.getMonth() + 1,
-                              ).padStart(2, "0");
-                              const year = dObj.getFullYear();
-                              formattedBirthDate = `${day}/${month}/${year}`;
-                            }
-                          }
-                          // Reconoce si el registro es un hijo/dependiente (cédula con
-                          // sufijo "-N"): separa nacionalidad, dígitos del representante y
-                          // el correlativo, para precargar el check y el selector.
-                          const parsedCed = parseStoredCedula(
-                            selectedRegistro.cedula,
-                          );
-                          const nac = parsedCed.nac;
-                          const num = parsedCed.digits;
-
-                          let jefeNum =
-                            selectedRegistro.cedulaJefeFamilia || "";
-                          if (
-                            jefeNum.startsWith("V-") ||
-                            jefeNum.startsWith("E-")
-                          ) {
-                            jefeNum = jefeNum.slice(2);
-                          } else if (
-                            jefeNum.startsWith("V") ||
-                            jefeNum.startsWith("E")
-                          ) {
-                            jefeNum = jefeNum.slice(1);
-                          }
-
-                          setEditData({
-                            nacionalidad: nac,
-                            cedula: num,
-                            isChildDependent: parsedCed.isChild,
-                            dependentNumber: parsedCed.depNum,
-                            nombreApellido: selectedRegistro.nombreApellido,
-                            parroquia: selectedRegistro.parroquia,
-                            sector: selectedRegistro.sector,
-                            comunidad: selectedRegistro.comunidad,
-                            direccionExacta: selectedRegistro.direccionExacta,
-                            genero: selectedRegistro.genero,
-                            estadoFisico: selectedRegistro.estadoFisico,
-                            embarazo:
-                              selectedRegistro.embarazo === "SI" ? "SI" : "NO",
-                            patologia: selectedRegistro.patologia,
-                            patologiaIds: Array.isArray(
-                              selectedRegistro.patologiaIds,
-                            )
-                              ? selectedRegistro.patologiaIds
-                              : [],
-                            telefono: selectedRegistro.telefono || "",
-                            retirado: selectedRegistro.retirado || "NO",
-                            retiradoRazon: selectedRegistro.retiradoRazon || "",
-                            fechaNacimiento: formattedBirthDate,
-                            jefeFamilia: selectedRegistro.jefeFamilia || "NO",
-                            perteneceNucleo:
-                              selectedRegistro.perteneceNucleo || "NO",
-                            cedulaJefeFamilia: jefeNum,
-                            intermitente: selectedRegistro.intermitente || "NO",
-                            motivoIntermitente:
-                              selectedRegistro.motivoIntermitente || "",
-                            cuarto: selectedRegistro.cuarto || "",
-                          });
-                          const initialMeds = Array.isArray(
-                            selectedRegistro.medicamentoIds,
-                          )
-                            ? selectedRegistro.medicamentoIds
-                            : [];
-                          setEditMedicamentos(initialMeds);
-                          setOriginalMedsCount(initialMeds.length);
-                          lookupJefeEdit(jefeNum);
-                        }}
+                        onClick={() => enterEditMode(selectedRegistro)}
                       >
                         <svg
                           width="14"

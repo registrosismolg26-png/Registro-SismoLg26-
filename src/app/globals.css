@@ -6887,6 +6887,7 @@ h2.dashboard-section-title {
   }
   .registro-table td.col-action .row-actions {
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 0.5rem;
   }
 
@@ -6969,7 +6970,7 @@ h2.dashboard-section-title {
   transform: scale(1.08);
 }
 .btn-ver::after {
-  content: "Ver detalles";
+  content: attr(data-tip);
   position: absolute;
   top: calc(100% + 6px);
   left: 50%;
@@ -10507,14 +10508,14 @@ select.morb-control {
   gap: 0.5rem;
 }
 
-/* ── Fila de la tabla con 2 acciones (asignar habitación + ver) ── */
+/* ── Fila de la tabla con acciones (asignar habitación + ver + editar) ── */
 .row-actions {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
 }
 .registro-table .col-action {
-  width: 5.75rem;
+  width: 8rem;
 }
 .btn-ver--room {
   background: var(--color-success-light, #ecfdf5);
@@ -10522,6 +10523,16 @@ select.morb-control {
 }
 .btn-ver--room:hover {
   background: var(--color-success);
+  color: #fff;
+}
+/* Editar rápido (va directo al modo edición): acento ámbar, distinto de Ver (azul)
+   y Habitación (verde) para diferenciar la acción de un vistazo. */
+.btn-ver--edit {
+  background: var(--color-warning-light, #fef3c7);
+  color: var(--color-warning, #d97706);
+}
+.btn-ver--edit:hover {
+  background: var(--color-warning, #d97706);
   color: #fff;
 }
 
