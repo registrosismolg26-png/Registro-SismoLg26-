@@ -1,7 +1,7 @@
 // AUTOGENERADO: `scripts/update-sw-version.mjs` (script `prebuild`) reemplaza este
 // valor con el commit SHA en cada build, para invalidar el cache de todos los
 // clientes en cada deploy. NO editar a mano; el valor de abajo es solo placeholder.
-const BUILD_TS = "927bf0c1955c";
+const BUILD_TS = "713edd780477";
 const CACHE_NAME = `registro-sismo-v${BUILD_TS}`;
 
 const PRECACHE = [
@@ -138,6 +138,9 @@ self.addEventListener("push", (event) => {
   // único, las notificaciones se APILAN en lugar de reemplazarse. Fallback: si por lo
   // que sea no llega, usar la URL (lleva el registroId) para no colapsar todas en una.
   const notifTag  = data.tag || `nuevo-registro-${notifUrl}`;
+  // Tipo de push: "aviso" (composer) vs registro nuevo (default). Define cómo se
+  // muestra cuando la app está ABIERTA (visible).
+  const tipo      = data.type || "registro";
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
@@ -145,17 +148,28 @@ self.addEventListener("push", (event) => {
       // de mostrar la notificación del sistema operativo.
       const visibleClient = clientList.find((c) => c.visibilityState === "visible");
       if (visibleClient) {
-        const registroId = notifUrl
-          ? new URL(notifUrl, self.location.origin).searchParams.get("registroId")
-          : null;
-        const nombreApellido = body.split(" (")[0];
-        visibleClient.postMessage({
-          type: "NEW_REGISTRO_NOTIFICATION",
-          registroId,
-          nombreApellido,
-          refugio,
-          url: notifUrl
-        });
+        // App abierta: en vez de la notificación del SO, se avisa al cliente para que
+        // muestre la notificación INTERNA (con sonido). Mensaje distinto según el tipo.
+        if (tipo === "aviso") {
+          visibleClient.postMessage({
+            type: "NEW_AVISO_NOTIFICATION",
+            titulo: title,
+            cuerpo: body,
+            url: notifUrl
+          });
+        } else {
+          const registroId = notifUrl
+            ? new URL(notifUrl, self.location.origin).searchParams.get("registroId")
+            : null;
+          const nombreApellido = body.split(" (")[0];
+          visibleClient.postMessage({
+            type: "NEW_REGISTRO_NOTIFICATION",
+            registroId,
+            nombreApellido,
+            refugio,
+            url: notifUrl
+          });
+        }
         return;
       }
 

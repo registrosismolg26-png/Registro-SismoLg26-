@@ -86,6 +86,7 @@ export async function sendPushToUsers(
     if (!subscriptions.length) return;
 
     const payload = JSON.stringify({
+      type: "aviso", // el SW lo usa para mostrarlo como AVISO (no como "nuevo afectado")
       title: data.title,
       body: data.body,
       url: data.url || "/",

@@ -247,8 +247,15 @@ export default function NotificationBell() {
     const onVis = () => {
       if (document.visibilityState === "visible") loadAvisos();
     };
+    // Cuando llega un aviso por push con la app abierta (page.tsx despacha "sismo:aviso"),
+    // refrescar la campana al instante (badge de no leídos).
+    const onAviso = () => loadAvisos(true);
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    window.addEventListener("sismo:aviso", onAviso);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("sismo:aviso", onAviso);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

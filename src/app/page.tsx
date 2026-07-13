@@ -72,6 +72,39 @@ import dynamic from "next/dynamic";
 // y sin SSR (Leaflet usa window/document) → no engorda el bundle ni afecta a los demás.
 const MapaTab = dynamic(() => import("@/tabs/MapaTab"), { ssr: false });
 
+// Sonido corto de notificación (dos tonos ascendentes) vía Web Audio — sin assets ni
+// dependencias, funciona offline. Requiere que haya habido alguna interacción del usuario
+// en la sesión (política de autoplay del navegador); si está bloqueado, falla en silencio.
+function playNotifSound() {
+  try {
+    const Ctx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const now = ctx.currentTime;
+    const tono = (freq: number, t: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = freq;
+      o.connect(g);
+      g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, now + t);
+      g.gain.exponentialRampToValueAtTime(0.25, now + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.3);
+      o.start(now + t);
+      o.stop(now + t + 0.32);
+    };
+    tono(784, 0); // Sol5
+    tono(1046, 0.14); // Do6
+    setTimeout(() => ctx.close().catch(() => {}), 900);
+  } catch {
+    /* autoplay bloqueado o sin soporte de Web Audio */
+  }
+}
+
 export default function Home() {
   // Regla GENERAL de modales: mientras haya cualquier `.modal-overlay` en el DOM,
   // el scroll del fondo queda bloqueado (con compensación de scrollbar).
@@ -704,6 +737,19 @@ export default function Home() {
             ],
           });
         }
+      } else if (event.data?.type === "NEW_AVISO_NOTIFICATION") {
+        // Aviso (composer) con la app ABIERTA: se muestra como notificación interna
+        // + sonido, y se refresca la campana (badge de no leídos).
+        const { titulo, cuerpo } = event.data;
+        pushNotif({
+          id: `aviso-${Date.now()}`,
+          variant: "info",
+          title: titulo || "Nuevo aviso",
+          message: cuerpo || "",
+          duration: 10000,
+        });
+        playNotifSound();
+        window.dispatchEvent(new Event("sismo:aviso"));
       }
     };
 
