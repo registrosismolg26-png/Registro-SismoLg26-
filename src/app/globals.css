@@ -1376,15 +1376,13 @@ textarea:focus {
 input.has-error,
 select.has-error,
 textarea.has-error,
-.custom-select-trigger.has-error,
 .radio-card.has-error {
   border-color: var(--color-danger) !important;
 }
 
 input.has-error:focus,
 select.has-error:focus,
-textarea.has-error:focus,
-.custom-select-trigger.has-error:focus {
+textarea.has-error:focus {
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
 }
 
@@ -1957,81 +1955,6 @@ html[data-theme="dark"] .spinner {
   }
 }
 
-/* Custom Select Dropdown Styling */
-.custom-select-trigger {
-  width: 100%;
-  height: var(--element-height);
-  background-color: var(--input-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0 1rem;
-  color: var(--text-primary);
-  font-family: var(--font-system);
-  font-size: 0.9rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-  user-select: none;
-}
-
-.custom-select-trigger:focus,
-.custom-select-trigger.open {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-ring);
-}
-
-.custom-select-trigger .arrow-icon {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  transition: transform 0.2s ease;
-}
-
-.custom-select-trigger.open .arrow-icon {
-  transform: rotate(180deg);
-}
-
-.custom-select-options {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  margin-top: 0.25rem;
-  padding: 0.25rem 0;
-  list-style: none;
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 100;
-  box-shadow:
-    0 10px 15px -3px rgba(0, 0, 0, 0.1),
-    0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  animation: fadeInDown 0.15s ease;
-}
-
-.custom-select-option {
-  padding: 0.6rem 1rem;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background-color 0.1s ease;
-}
-
-.custom-select-option:hover {
-  background-color: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.custom-select-option.selected {
-  background-color: var(--color-primary);
-  color: #ffffff;
-}
 
 @keyframes fadeInDown {
   from {
