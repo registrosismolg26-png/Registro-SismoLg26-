@@ -25,10 +25,16 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "Campamentos Transitorios — La Guaira 2026",
   description: "Sistema de gestión de campamentos transitorios de La Guaira.",
-  manifest: "/manifest.json?v=5",
+  manifest: "/manifest.json?v=6",
   icons: {
-    icon: "/logo_gob.webp",
-    apple: "/logo_gob.webp",
+    // El favicon.ico (src/app/favicon.ico) lo inyecta Next por convención; aquí se
+    // añaden PNG versionados (?v=6) para forzar el refresco del favicon y de los
+    // iconos, evitando el cache agresivo del navegador al reusar la misma URL.
+    icon: [
+      { url: "/icon-192.png?v=6", type: "image/png", sizes: "192x192" },
+      { url: "/favicon-32.png?v=6", type: "image/png", sizes: "32x32" },
+    ],
+    apple: "/apple-icon-180.png?v=6",
   },
   appleWebApp: {
     capable: true,
