@@ -10,7 +10,7 @@
 //    de campamento). La lista se carga SOLO al abrir la sección (egress mínimo).
 // Panel por PORTAL con posición adaptable (cabecera y sidebar). Sin polling.
 
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/apiFetch";
 import { useAppContext } from "@/context/AppContext";
@@ -417,7 +417,7 @@ export default function NotificationBell() {
             className={`notif-seg__btn${section === "afectados" ? " is-active" : ""}`}
             onClick={() => irASeccion("afectados")}
           >
-            Nuevos afectados
+            Registro
             {nuevos > 0 && (
               <span className="notif-seg__badge">
                 {nuevos > 9 ? "9+" : nuevos}
@@ -444,6 +444,7 @@ export default function NotificationBell() {
                   }}
                   onDismiss={() => doHide(n.id, "dismiss")}
                   onSnooze={() => doHide(n.id, "snooze")}
+                  style={{ "--acc": tipoColor(n.tipo) } as CSSProperties}
                 >
                   <span
                     className="notif-item__ico"
@@ -468,6 +469,7 @@ export default function NotificationBell() {
                       <WaText text={n.cuerpo} />
                     </span>
                     <span className="notif-item__time">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
                       {fechaCorta(n.createdAt)}
                     </span>
                   </span>
@@ -489,6 +491,7 @@ export default function NotificationBell() {
                 onOpen={() => irAPersona(r.id, r.refugio)}
                 onDismiss={() => doHide("afec:" + r.id, "dismiss")}
                 onSnooze={() => doHide("afec:" + r.id, "snooze")}
+                style={{ "--acc": "var(--color-success)" } as CSSProperties}
               >
                 <span className="afec-mini-ava">
                   {iniciales(r.nombreApellido)}
@@ -510,6 +513,7 @@ export default function NotificationBell() {
                     {r.parroquia ? ` · ${r.parroquia}` : ""}
                   </span>
                   <span className="notif-item__time">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
                     {fechaCorta(r.createdAt)} · Ver ficha →
                   </span>
                 </span>

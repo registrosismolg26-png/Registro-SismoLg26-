@@ -6,18 +6,19 @@
 // lista con scroll vertical, así que touchAction "pan-y". La acción de fondo se
 // pinta con data-reveal / data-armed (imperativo).
 
-import { useRef, type ReactNode } from "react";
+import { useRef, type ReactNode, type CSSProperties } from "react";
 import { useSwipeDismiss } from "@/lib/useSwipeDismiss";
 
 interface Props {
   className?: string;
+  style?: CSSProperties;
   onOpen: () => void;
   onDismiss: () => void;
   onSnooze: () => void;
   children: ReactNode;
 }
 
-export default function SwipeableNotifRow({ className = "", onOpen, onDismiss, onSnooze, children }: Props) {
+export default function SwipeableNotifRow({ className = "", style, onOpen, onDismiss, onSnooze, children }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const fgRef = useSwipeDismiss<HTMLDivElement>({
     onLeft: onDismiss,
@@ -45,6 +46,7 @@ export default function SwipeableNotifRow({ className = "", onOpen, onDismiss, o
       <div
         ref={fgRef}
         className={`swipe-row__fg ${className}`}
+        style={style}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}

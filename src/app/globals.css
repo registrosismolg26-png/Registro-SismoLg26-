@@ -6117,91 +6117,108 @@ h2.dashboard-section-title {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 14px;
-  box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 20px 44px -20px rgba(2, 6, 23, 0.5);
 }
 .notif-panel__head {
-  padding: 0.6rem 0.85rem;
+  padding: 0.7rem 0.9rem;
+  font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
+  z-index: 1;
 }
 .notif-panel__empty {
-  padding: 1.4rem 0.85rem;
+  padding: 2rem 1rem;
   text-align: center;
   color: var(--text-muted);
   font-size: 0.8rem;
+  background: var(--bg-primary);
 }
+/* Lista = columna de TARJETAS con aire (menos plano/apretado). El fondo es la superficie
+   (bg-primary) y cada fila una tarjeta (bg-secondary, ver .swipe-row) → da profundidad. */
 .notif-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 2px 9px 11px;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 240px;
 }
 .notif-list li {
   list-style: none;
 }
+/* Entrada suave de las tarjetas nuevas (llegada en vivo). Va en el <li>, NO en el
+   elemento del swipe, para no pisar el transform del arrastre. */
+@media (prefers-reduced-motion: no-preference) {
+  .notif-list li {
+    animation: notif-card-in 0.3s cubic-bezier(0.34, 1.2, 0.4, 1);
+  }
+}
+@keyframes notif-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 .notif-item {
   display: flex;
-  gap: 10px;
+  gap: 11px;
   width: 100%;
   text-align: left;
-  padding: 0.6rem 0.85rem;
+  padding: 0.7rem 0.75rem;
   border: none;
-  border-bottom: 1px solid var(--border-color);
-  background: transparent;
   cursor: pointer;
-}
-.notif-item:hover {
-  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
-}
-.notif-item--unread {
-  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
-}
-.notif-item--unread:hover {
-  background: color-mix(in srgb, var(--color-primary) 11%, transparent);
 }
 .notif-item__ico {
   flex: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 .notif-item__ico svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 .notif-item__main {
   min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.18rem;
 }
 .notif-item__title {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
+  font-family: var(--font-heading);
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--text-primary);
+  line-height: 1.2;
 }
 .notif-item__dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex: none;
 }
 .notif-item__body {
-  font-size: 0.75rem;
+  font-size: 0.765rem;
   color: var(--text-secondary);
   line-height: 1.4;
   display: -webkit-box;
@@ -6210,9 +6227,16 @@ h2.dashboard-section-title {
   overflow: hidden;
 }
 .notif-item__time {
-  font-size: 0.68rem;
+  font-size: 0.67rem;
   color: var(--text-muted);
-  margin-top: 0.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+}
+.notif-item__time svg {
+  width: 11px;
+  height: 11px;
 }
 /* Detalle de un aviso (modal) */
 .notif-detail {
@@ -6252,44 +6276,46 @@ h2.dashboard-section-title {
 /* Selector de secciones (Avisos | Nuevos afectados) dentro del panel de la campana */
 .notif-seg {
   display: flex;
-  gap: 4px;
-  padding: 6px;
-  border-bottom: 1px solid var(--border-color);
+  gap: 6px;
+  padding: 8px;
   position: sticky;
   top: 0;
-  background: var(--bg-secondary);
-  z-index: 1;
+  background: var(--bg-primary);
+  z-index: 2;
 }
 .notif-seg__btn {
   flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 0.4rem 0.5rem;
+  gap: 6px;
+  padding: 0.5rem 0.45rem;
   border: none;
-  border-radius: 9px;
+  border-radius: 999px;
   background: transparent;
   color: var(--text-secondary);
   font-size: 0.76rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 .notif-seg__btn:hover {
   background: color-mix(in srgb, var(--text-primary) 6%, transparent);
 }
 .notif-seg__btn.is-active {
-  background: var(--color-primary-light);
+  background: var(--bg-secondary);
   color: var(--color-primary);
+  font-weight: 700;
+  box-shadow: 0 2px 8px -3px rgba(2, 6, 23, 0.35);
 }
 .notif-seg__badge {
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
   border-radius: 999px;
   background: var(--color-danger);
   color: #fff;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -6297,25 +6323,25 @@ h2.dashboard-section-title {
 }
 .afec-mini-ava {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   background: var(--color-primary-light);
   color: var(--color-primary);
 }
 .afec-badge {
-  font-size: 0.62rem;
+  font-size: 0.63rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 15%, transparent);
-  padding: 0.1rem 0.4rem;
+  padding: 0.12rem 0.45rem;
   border-radius: 999px;
 }
 .afec-badge--out {
@@ -6446,14 +6472,26 @@ h2.dashboard-section-title {
 .swipe-row {
   position: relative;
   overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 13px;
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.05);
 }
 .swipe-row__fg {
   position: relative;
   z-index: 1;
   background: var(--bg-secondary);
 }
+.swipe-row__fg.notif-item:hover {
+  background: color-mix(in srgb, var(--text-primary) 3%, var(--bg-secondary));
+}
+/* No leído: tinte suave + barra de acento a la izquierda, en el color del tipo (--acc,
+   que el componente pasa por inline-style; cae a --color-primary si no viene). */
 .swipe-row__fg.notif-item--unread {
-  background: color-mix(in srgb, var(--color-primary) 8%, var(--bg-secondary));
+  background: color-mix(in srgb, var(--acc, var(--color-primary)) 7%, var(--bg-secondary));
+  box-shadow: inset 3px 0 0 0 var(--acc, var(--color-primary));
+}
+.swipe-row__fg.notif-item--unread:hover {
+  background: color-mix(in srgb, var(--acc, var(--color-primary)) 11%, var(--bg-secondary));
 }
 .swipe-row__fg:focus-visible {
   outline: 2px solid var(--color-primary);
