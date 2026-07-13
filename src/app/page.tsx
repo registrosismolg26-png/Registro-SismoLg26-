@@ -844,9 +844,33 @@ export default function Home() {
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    document.documentElement.setAttribute("data-theme", nextTheme);
-    localStorage.setItem("theme", nextTheme);
+    const applyTheme = () => {
+      setTheme(nextTheme);
+      document.documentElement.setAttribute("data-theme", nextTheme);
+      localStorage.setItem("theme", nextTheme);
+    };
+    const root = document.documentElement;
+    const docVT = document as Document & {
+      startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+    };
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Sin soporte de View Transitions API o con "reduce motion" → cambio
+    // instantáneo (no rompe nada; la app queda igual, solo sin animación).
+    if (!docVT.startViewTransition || reduce) {
+      applyTheme();
+      return;
+    }
+    // Dirección del recorte circular (centrado en pantalla), según el sentido:
+    //  - claro → oscuro: el círculo se cierra del BORDE al CENTRO (to-dark)
+    //  - oscuro → claro: el círculo se abre del CENTRO al BORDE (to-light)
+    root.setAttribute(
+      "data-theme-anim",
+      nextTheme === "dark" ? "to-dark" : "to-light",
+    );
+    const vt = docVT.startViewTransition(applyTheme);
+    vt.finished.finally(() => root.removeAttribute("data-theme-anim"));
   };
 
   const refreshVotersCount = async () => {

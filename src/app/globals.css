@@ -152,6 +152,60 @@
   --chart-lesionado-track: rgba(220, 38, 38, 0.12);
 }
 
+/* ── Transición de tema (claro ⇄ oscuro): recorte circular con View Transitions API ──
+   La dirección depende del sentido; el atributo data-theme-anim se pone en <html>
+   solo mientras dura la transición:
+     • claro → oscuro (to-dark):  el snapshot VIEJO (claro) se cierra del BORDE al
+       CENTRO, dejando ver el oscuro desde los bordes.
+     • oscuro → claro (to-light): el snapshot NUEVO (claro) se abre del CENTRO al BORDE.
+   Sin soporte de la API o con prefers-reduced-motion el cambio es instantáneo (ver
+   toggleTheme en page.tsx). El radio 75% cubre las esquinas en cualquier proporción de
+   pantalla cuando el círculo está centrado. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(root) {
+    animation-duration: 0.5s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* Desactiva el cross-fade nativo; el clip circular lo controlamos nosotros. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+  /* claro → oscuro: el snapshot viejo (claro) va encima y se encoge hacia el centro. */
+  html[data-theme-anim="to-dark"]::view-transition-old(root) {
+    z-index: 1;
+    animation: theme-circle-out 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  html[data-theme-anim="to-dark"]::view-transition-new(root) {
+    z-index: 0;
+  }
+  /* oscuro → claro: el snapshot nuevo (claro) va encima y crece desde el centro. */
+  html[data-theme-anim="to-light"]::view-transition-new(root) {
+    z-index: 1;
+    animation: theme-circle-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  html[data-theme-anim="to-light"]::view-transition-old(root) {
+    z-index: 0;
+  }
+}
+@keyframes theme-circle-in {
+  from {
+    clip-path: circle(0% at 50% 50%);
+  }
+  to {
+    clip-path: circle(75% at 50% 50%);
+  }
+}
+@keyframes theme-circle-out {
+  from {
+    clip-path: circle(75% at 50% 50%);
+  }
+  to {
+    clip-path: circle(0% at 50% 50%);
+  }
+}
+
 html[data-theme="dark"] {
   /* Institutional Dark Theme */
   --bg-primary: #0f172a; /* Slate 900 */
