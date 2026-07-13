@@ -736,6 +736,8 @@ export default function Home() {
               },
             ],
           });
+          playNotifSound();
+          window.dispatchEvent(new Event("sismo:afectado"));
         }
       } else if (event.data?.type === "NEW_AVISO_NOTIFICATION") {
         // Aviso (composer) con la app ABIERTA: se muestra como notificación interna

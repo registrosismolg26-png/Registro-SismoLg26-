@@ -259,6 +259,20 @@ export default function NotificationBell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Refresco EN VIVO cuando llega un afectado nuevo por push (page.tsx despacha
+  // "sismo:afectado"): actualiza el contador de "nuevos"; y si el panel está ABIERTO en
+  // la sección Afectados, recarga la lista para que aparezca sin cerrar/reabrir. Se re-
+  // registra con [open, section] para leer sus valores actuales.
+  useEffect(() => {
+    const onAfectado = () => {
+      loadAvisos(true);
+      if (open && section === "afectados") loadAfectados();
+    };
+    window.addEventListener("sismo:afectado", onAfectado);
+    return () => window.removeEventListener("sismo:afectado", onAfectado);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, section]);
+
   const computePos = () => {
     const r = btnRef.current?.getBoundingClientRect();
     if (!r) return;
