@@ -67,11 +67,6 @@ export function opcionLabel(id: string | null | undefined, opciones: Caracteriza
   return (opciones || []).find(o => o.id === id)?.valor ?? "(no disponible)";
 }
 
-// Etiquetas de un multi-select (array de ids) → array de valores.
-export function opcionLabels(ids: string[] | undefined | null, opciones: CaracterizacionOpcion[]): string[] {
-  return (Array.isArray(ids) ? ids : []).map(id => opcionLabel(id, opciones)).filter(Boolean);
-}
-
 // Registro del catálogo para un ítem de medicamento (por su id).
 export function medById(id: string, catalogo: MedicamentoPredefinido[]): MedicamentoPredefinido | undefined {
   return catalogo.find(m => m.id === id);
@@ -85,15 +80,6 @@ export function medLabel(id: string, catalogo: MedicamentoPredefinido[]): string
   return [m.nombre, m.presentacion].map(s => (s || "").trim()).filter(Boolean).join(" - ");
 }
 
-// Concentración (dosis) de un medicamento por id — solo lectura, viene del catálogo.
-export function medConcentracion(id: string, catalogo: MedicamentoPredefinido[]): string {
-  return (medById(id, catalogo)?.concentracion || "").trim();
-}
-
-// Solo el nombre (principio activo) de un medicamento por id.
-export function medNombre(id: string, catalogo: MedicamentoPredefinido[]): string {
-  return medById(id, catalogo)?.nombre ?? "(no disponible)";
-}
 
 // Texto de una receta/lista de medicamentos { id, dosis, periodo } (para resúmenes/CSV).
 export function medItemsText(items: Medicamento[] | undefined | null, catalogo: MedicamentoPredefinido[]): string {

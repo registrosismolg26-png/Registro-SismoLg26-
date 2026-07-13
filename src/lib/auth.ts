@@ -5,7 +5,6 @@
 
 import { prisma } from "@/lib/prisma";
 
-export type Role = "MASTER" | "ADMIN" | "REGISTRADOR" | "VISUALIZADOR" | "AdminMedico" | "OperadorMedico" | "AsistenteMedico";
 
 export interface AuthUser {
   id: string;
@@ -115,10 +114,6 @@ export function canManageTargetUser(
   return false;
 }
 
-/** Filtro Prisma de refugio para lecturas: Master ve todo; el resto solo el suyo. */
-export function refugioScope(u: AuthUser): { refugio?: string } {
-  return isMaster(u) ? {} : { refugio: u.refugio };
-}
 
 /** Filtro de refugio respetando el "refugio de vista" que Master envía por
  *  ?refugio: Master → ese refugio (o TODOS si no lo manda); el resto → siempre

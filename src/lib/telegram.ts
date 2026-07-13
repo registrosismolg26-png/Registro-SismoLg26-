@@ -13,7 +13,6 @@ const alertChatId = (process.env.TELEGRAM_ALERT_CHAT_ID || "").trim();
 const api = (method: string) => `https://api.telegram.org/bot${token}/${method}`;
 
 export const telegramReady = (): boolean => Boolean(token);
-export const telegramGroupReady = (): boolean => Boolean(token && alertChatId);
 
 async function tg<T = any>(method: string, body: Record<string, any>): Promise<T | null> {
   if (!token) return null;

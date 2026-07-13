@@ -353,11 +353,6 @@ export async function getLocalPadronCount(): Promise<number> {
   }
 }
 
-export async function isPadronCargado(): Promise<boolean> {
-  const count = await getLocalPadronCount();
-  return count > 0;
-}
-
 // Clear all offline electoral registry records
 export async function clearLocalPadron(): Promise<void> {
   const db = await getDB();

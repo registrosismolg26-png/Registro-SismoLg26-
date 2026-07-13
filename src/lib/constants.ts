@@ -43,26 +43,6 @@ export const DEPENDENT_NUMBER_OPTIONS = DEP_ORDINALES.map((ord, i) => ({
   label: `${ord} Hijo/Representado (-${i + 1})`,
 }));
 
-// Correos con privilegios de super-admin (gestión de usuarios)
-export const ALLOWED_ADMINS = [
-  "yender.umc@gmail.com",
-  "juventudlgelectoral@gmail.com",
-  "abelenviso@gmail.com"
-];
-
-// Entes por defecto para el informe de WhatsApp
-export const DEFAULT_ENTES = [
-  "Ministerio de Alimentación y sus entes",
-  "Gobernación",
-  "MPP Educación",
-  "MPP Indistria y Comercio",
-  "MPP Proceso Social del Trabajo",
-  "MPP Juventud",
-  "MPP para la Defensa",
-  "Alcaldía",
-  "Vicepresidencia de Obras Publicad y Servicios",
-  "Juventud Socialista (brigadas de solidaridad)"
-];
 
 // Tiempo de expiración de sesión por inactividad (1 hora)
 export const INACTIVITY_MS = 60 * 60 * 1000;
