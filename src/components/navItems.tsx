@@ -149,11 +149,11 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     tab: "config",
-    // Todos los operadores (incl. médicos) ven Config para su PERFIL; las secciones de
-    // administración (padrón, salones, refugios) van gateadas dentro de ConfigTab, así
-    // que los médicos solo ven "Perfil de Operador". El Visualizador no entra.
+    // TODOS los usuarios ven Config para su PERFIL de operador (editar cuenta, vincular
+    // Telegram, activar notificaciones). Las secciones de administración (padrón, salones,
+    // refugios) van gateadas dentro de ConfigTab, así que cada rol solo ve lo que le toca.
     label: "Configuración",
-    show: (r) => r !== "VISUALIZADOR",
+    show: () => true,
     icon: sv(
       <>
         <path d="M11 10.27 7 3.34" />
