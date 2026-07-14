@@ -1917,9 +1917,9 @@ export default function Home() {
             <UsuariosTab />
           )}
 
-          {/* TAB 4: CONFIGURATION — no visible para médicos ni Visualizador */}
+          {/* TAB 4: CONFIGURATION — todos los operadores (incl. médicos) para su PERFIL;
+              las secciones admin van gateadas dentro de ConfigTab. Visualizador NO. */}
           {activeTab === "config" &&
-            !isMedico(currentUser.role) &&
             currentUser.role !== "VISUALIZADOR" && <ConfigTab />}
 
           {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos */}

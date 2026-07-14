@@ -149,8 +149,11 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     tab: "config",
+    // Todos los operadores (incl. médicos) ven Config para su PERFIL; las secciones de
+    // administración (padrón, salones, refugios) van gateadas dentro de ConfigTab, así
+    // que los médicos solo ven "Perfil de Operador". El Visualizador no entra.
     label: "Configuración",
-    show: (r) => !isMedico(r) && r !== "VISUALIZADOR",
+    show: (r) => r !== "VISUALIZADOR",
     icon: sv(
       <>
         <path d="M11 10.27 7 3.34" />
