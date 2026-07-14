@@ -280,15 +280,15 @@ export default function Home() {
   // Tab View Routing State
   const [activeTab, setActiveTab] = useState<ActiveTab>("censo");
 
-  // Los roles médicos solo ven Morbilidad (AdminMedico además Usuarios). Si entran
-  // en una pestaña que no les corresponde (p. ej. el default "censo"), se les lleva
-  // a Morbilidad. Espeja el gating del AppHeader/render.
+  // Los roles médicos ven Morbilidad + Config (su perfil); AdminMedico además Usuarios.
+  // Si entran en una pestaña que no les corresponde (p. ej. el default "censo"), se les
+  // lleva a Morbilidad. Espeja el gating del AppHeader/navItems/render.
   useEffect(() => {
     if (!currentUser || !isMedico(currentUser.role)) return;
     const allowed =
       currentUser.role === "AdminMedico"
-        ? ["morbilidad", "balance", "historial", "usuarios"]
-        : ["morbilidad", "balance", "historial"];
+        ? ["morbilidad", "balance", "historial", "usuarios", "config"]
+        : ["morbilidad", "balance", "historial", "config"];
     if (!allowed.includes(activeTab)) setActiveTab("morbilidad");
   }, [currentUser, activeTab]);
 
