@@ -23,8 +23,18 @@ export async function sendPushToAdmins(registro: { id: string; nombreApellido: s
       return;
     }
 
-    // Find all stored push subscriptions
-    const subscriptions = await prisma.pushSubscription.findMany();
+    // Alertas de "nuevo afectado": SOLO a ADMIN/MASTER (los roles que gestionan el censo).
+    // Antes se enviaba a TODAS las suscripciones; ahora que cualquier operador puede activar
+    // el push (para recibir avisos), hay que filtrar por rol para no spamear a médicos, etc.
+    const admins = await prisma.user.findMany({
+      where: { role: { in: ["MASTER", "ADMIN"] } },
+      select: { id: true },
+    });
+    const adminIds = admins.map((a) => a.id);
+    if (!adminIds.length) return;
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: adminIds } },
+    });
 
     const refugio = registro.refugio || "Sin campamento";
 

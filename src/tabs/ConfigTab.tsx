@@ -182,8 +182,10 @@ export default function ConfigTab() {
   const [deletingRefugio, setDeletingRefugio] = useState(false);
 
   const [notifBusy, setNotifBusy] = useState(false);
-  // Solo los roles que reciben alertas de registro pueden activarlas.
-  const canManageNotif = !!currentUser && (currentUser.role === "ADMIN" || isMaster(currentUser.role));
+  // Cualquier operador puede activar/renovar SUS propias notificaciones (para recibir los
+  // avisos). Las alertas de "nuevo afectado" del censo se filtran en el servidor a
+  // ADMIN/MASTER (ver sendPushToAdmins), así que activar aquí no le trae spam del censo.
+  const canManageNotif = !!currentUser;
   const notifSupported = pushSupported();
 
   useEffect(() => {
