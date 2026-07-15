@@ -14,6 +14,7 @@ import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
 import { apiFetch } from "@/lib/apiFetch";
 import { logActivity } from "@/lib/activityLog";
 import StyledSelect from "@/components/StyledSelect";
+import SismoDayBadge from "@/components/SismoDayBadge";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 
@@ -599,6 +600,7 @@ Hora: *${hhStr}:${minStr}* ${ampm}
               <h2>Panel de Estadísticas</h2>
               <p>
                 {campamentoActivo ? <span className="bal-hero__chip">{campamentoActivo}</span> : "Consolidado general"}
+                {" "}<SismoDayBadge />
                 {isUpdatingPresentation && (
                   <span className="dash-hero__live"><span className="pulse-dot" /> Actualizando…</span>
                 )}

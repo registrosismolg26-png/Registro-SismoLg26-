@@ -9,6 +9,7 @@
 // desglose por habitación no es representable aquí, tal como se pidió).
 
 import { type ReactNode, type CSSProperties } from "react";
+import SismoDayBadge from "@/components/SismoDayBadge";
 
 const pct = (n: number, total: number) => (total > 0 ? (n / total) * 100 : 0);
 
@@ -105,7 +106,7 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
         <span className="bal-hero__icon">{IC.chart}</span>
         <div className="bal-hero__text">
           <h2>Reporte de Estadísticas</h2>
-          <p><span className="bal-hero__chip">{refugioLabel}</span> · compartido por {sharedBy}</p>
+          <p><span className="bal-hero__chip">{refugioLabel}</span>{" "}<SismoDayBadge /> · compartido por {sharedBy}</p>
         </div>
       </div>
 

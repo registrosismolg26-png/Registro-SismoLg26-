@@ -6,6 +6,7 @@
 // números que animan al cambiar, semáforos de ocupación. 100% pill y responsive.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import SismoDayBadge from "@/components/SismoDayBadge";
 
 interface Props {
   stats: any;
@@ -297,6 +298,7 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
           </div>
         </div>
         <div className="pres__headright">
+          <SismoDayBadge />
           {/* Controles: pausar rotación · tema claro/oscuro · salir */}
           <div className="pres__controls">
             <button type="button" className="pres__ctl" onClick={() => setPaused((p) => !p)} title={paused ? "Reanudar rotación" : "Pausar rotación"} aria-label={paused ? "Reanudar" : "Pausar"}>
