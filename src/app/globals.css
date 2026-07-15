@@ -11718,6 +11718,8 @@ select.morb-control {
    (dashboard / reporte); en presentación (tema propio, independiente del data-theme global)
    sigue el color del contexto para no desentonar. No invasivo, responsive; se auto-actualiza
    a la medianoche de Venezuela sin recargar (ver SismoDayBadge). */
+/* Mismas propiedades que .bal-hero__chip (para IGUAL alto/alineación junto a él) + el
+   icono y el gap. NO se fija line-height ni vertical-align: se heredan como en el chip. */
 .sismo-daybadge {
   display: inline-flex;
   align-items: center;
@@ -11728,14 +11730,12 @@ select.morb-control {
   color: var(--color-primary);
   font-size: 0.76rem;
   font-weight: 700;
-  line-height: 1;
   white-space: nowrap;
-  vertical-align: middle;
 }
 .sismo-daybadge svg {
   flex: none;
-  width: 12px;
-  height: 12px;
+  width: 1em;
+  height: 1em;
   opacity: 0.9;
 }
 /* En presentación (tema propio) sigue el color del contexto; se coloca debajo de la fecha. */
