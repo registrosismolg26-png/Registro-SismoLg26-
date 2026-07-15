@@ -298,7 +298,6 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
           </div>
         </div>
         <div className="pres__headright">
-          <SismoDayBadge />
           {/* Controles: pausar rotación · tema claro/oscuro · salir */}
           <div className="pres__controls">
             <button type="button" className="pres__ctl" onClick={() => setPaused((p) => !p)} title={paused ? "Reanudar rotación" : "Pausar rotación"} aria-label={paused ? "Reanudar" : "Pausar"}>
@@ -320,6 +319,7 @@ export default function PresentationView({ stats, roomCounts, roomCapacities, al
           <div className="pres__clock">
             <div className="pres__time"><b>{hh}</b>:<b>{mm}</b><span className="pres__sec">{ss}</span></div>
             <div className="pres__date">{fecha}</div>
+            <SismoDayBadge className="pres__daybadge" />
           </div>
         </div>
       </header>
