@@ -55,6 +55,8 @@ next-env.d.ts
 # Mockups/pruebas de UI y config local del previsualizador
 /probar-*.html
 /.claude/launch.json
-# Scripts de preparación de datos de un solo uso (referencian archivos con PII)
+# Scripts de importación/preparación de datos de un solo uso (solo local; la data
+# ya fue sincronizada a la BD). Los archivos con PII que leen no se versionan.
 /scripts/enrich-censo-mare.mjs
 /scripts/actualizar-jefe-sql.mjs
+/scripts/import-registro-csv.mjs
