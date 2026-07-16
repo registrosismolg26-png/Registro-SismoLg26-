@@ -6242,12 +6242,17 @@ h2.dashboard-section-title {
 .notif-detail {
   max-width: 420px;
   width: min(420px, 94vw);
+  /* Cap a la altura del viewport: un aviso largo NO desborda la pantalla ni empuja
+     la X fuera del encuadre; el cuerpo hace scroll interno (ver __body). */
+  max-height: 90vh;
+  max-height: 90dvh; /* respeta la barra del navegador en móvil */
 }
 .notif-detail__head {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   margin-bottom: 0.6rem;
+  flex-shrink: 0; /* la cabecera (con la X) queda fija y SIEMPRE visible */
 }
 .notif-detail__title {
   margin: 0;
@@ -6262,16 +6267,21 @@ h2.dashboard-section-title {
   color: var(--text-secondary);
   line-height: 1.55;
   white-space: pre-wrap;
+  overflow-y: auto; /* el cuerpo largo hace scroll DENTRO de la modal */
+  min-height: 0; /* permite que el flex-item encoja para activar el scroll */
+  overscroll-behavior: contain;
 }
 .notif-detail__time {
   margin: 0.8rem 0 0;
   font-size: 0.72rem;
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 .notif-detail__actions {
   display: flex;
   justify-content: flex-end;
   margin-top: 0.9rem;
+  flex-shrink: 0; /* el botón de acción queda fijo abajo, siempre visible */
 }
 /* Selector de secciones (Avisos | Nuevos afectados) dentro del panel de la campana */
 .notif-seg {
