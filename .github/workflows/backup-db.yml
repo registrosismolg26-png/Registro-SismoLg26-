@@ -1,0 +1,45 @@
+name: Backup BD (Supabase)
+
+# Backup automático de la base de datos, porque el plan gratuito de Supabase
+# NO incluye backups gestionados (esos son del plan Pro). Corre pg_dump contra
+# la BD, comprime, CIFRA (datos personales sensibles) y guarda el resultado
+# como artifact privado del repositorio.
+
+on:
+  schedule:
+    - cron: "0 7 * * *" # diario 07:00 UTC (~03:00 Venezuela)
+  workflow_dispatch: {} # permite lanzarlo a mano desde la pestaña "Actions"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar pg_dump 17 (compatible con Postgres de Supabase)
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump + comprimir + cifrar
+        env:
+          # Connection string del SESSION POOLER de Supabase (ver notas abajo).
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          STAMP=$(date -u +%Y%m%d-%H%M%S)
+          FILE="backup-${STAMP}.sql.gz"
+          pg_dump "$DATABASE_URL" --no-owner --no-privileges | gzip -9 > "$FILE"
+          gpg --batch --yes --symmetric --cipher-algo AES256 \
+              --passphrase "$GPG_PASSPHRASE" -o "${FILE}.gpg" "$FILE"
+          rm -f "$FILE"
+          echo "ARTIFACT=${FILE}.gpg" >> "$GITHUB_ENV"
+          echo "Backup generado: ${FILE}.gpg ($(du -h "${FILE}.gpg" | cut -f1))"
+
+      - name: Subir backup como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: ${{ env.ARTIFACT }}
+          retention-days: 30 # GitHub conserva el artifact 30 días

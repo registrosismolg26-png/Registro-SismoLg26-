@@ -44,3 +44,17 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# ── Archivos de trabajo y datos con PII (NO versionar) ──────────────────────
+# Datos personales derivados del censo/padrón. OJO: los .sql de ESQUEMA/migración
+# viven en prisma/ y SÍ se versionan; esta regla solo ignora .sql sueltos en la raíz.
+/*.xlsx
+/*.csv
+/*.docx
+/*.sql
+# Mockups/pruebas de UI y config local del previsualizador
+/probar-*.html
+/.claude/launch.json
+# Scripts de preparación de datos de un solo uso (referencian archivos con PII)
+/scripts/enrich-censo-mare.mjs
+/scripts/actualizar-jefe-sql.mjs
