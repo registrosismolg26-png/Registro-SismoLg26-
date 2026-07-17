@@ -47,7 +47,10 @@ export default function CensoTab() {
     effectiveRefugio,
     localRecords,
     patologias,
-    predefinedMedicamentos
+    predefinedMedicamentos,
+    refugiosList,
+    comunidades,
+    tiposCarpa
   } = useAppContext();
 
   const [step, setStep] = useState<1|2|3|4>(1);
@@ -81,6 +84,10 @@ export default function CensoTab() {
   // Check del paso final: la persona se retira a Hogar Solidario → marca
   // retirado=SI + razón "HOGAR SOLIDARIO". Un retirado no ocupa habitación.
   const [hogarSolidario, setHogarSolidario] = useState(false);
+  // Asignación por CARPA (refugios Itinerante/Mixto): tipo de carpa + Nº. La comunidad
+  // viene del paso 2 (formData.comunidad); el cuarto se compone "COMUNIDAD - TIPO - NN".
+  const [carpaTipo, setCarpaTipo] = useState("");
+  const [carpaNro, setCarpaNro] = useState("");
   const roomCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     registros.filter((r: any) => r.retirado !== "SI" && r.cuarto).forEach((r: any) => {
@@ -104,6 +111,18 @@ export default function CensoTab() {
 
   // Form State — useReducer eliminates stale-closure bugs from useState in callbacks
   const [formData, dispatch] = useReducer(formReducer, INITIAL_FORM);
+
+  // Variante del censo según el tipo del refugio activo: TRANSITORIO → habitación (cuarto);
+  // ITINERANTE/MIXTO → Comunidad (paso 2, del catálogo) + Tipo de carpa + Nº (paso 4).
+  const refugioTipo = refugiosList.find(r => r.nombre === effectiveRefugio)?.tipo || "TRANSITORIO";
+  const esCarpa = refugioTipo === "ITINERANTE" || refugioTipo === "MIXTO";
+  // Comunidades del catálogo filtradas por la parroquia elegida (para el select del paso 2).
+  const comunidadOpts = useMemo(
+    () => comunidades
+      .filter(c => c.parroquia === formData.parroquia)
+      .map(c => ({ value: c.nombre, label: c.nombre })),
+    [comunidades, formData.parroquia]
+  );
 
   // Medicamentos dinámicos (array independiente del reducer de strings)
   const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
@@ -619,7 +638,15 @@ export default function CensoTab() {
           gpsLng: coords.lng !== null ? coords.lng : undefined,
           telefono: finalTelefono !== null ? finalTelefono : undefined,
           medicamentoIds: medicamentos.filter(m => m.id),
-          cuarto: hogarSolidario ? undefined : (asignCuartoCenso || undefined),
+          // En Itinerante/Mixto el cuarto se compone "COMUNIDAD - TIPO DE CARPA - NN" (la
+          // comunidad viene del paso 2); en Transitorio es la habitación elegida.
+          cuarto: hogarSolidario
+            ? undefined
+            : esCarpa
+              ? (carpaTipo && carpaNro
+                  ? `${formData.comunidad} - ${carpaTipo} - ${String(carpaNro).padStart(2, "0")}`.toUpperCase()
+                  : undefined)
+              : (asignCuartoCenso || undefined),
           intermitente: formData.intermitente || "NO",
           motivoIntermitente: formData.intermitente === "SI" ? formData.motivoIntermitente.trim() : undefined,
           retirado: hogarSolidario ? "SI" : "NO",
@@ -639,6 +666,8 @@ export default function CensoTab() {
       setLookupStatus("idle");
       setJefeLookup(null);
       setAsignCuartoCenso("");
+      setCarpaTipo("");
+      setCarpaNro("");
       setHogarSolidario(false);
       setStep(1);
 
@@ -785,6 +814,9 @@ export default function CensoTab() {
                         dispatch({ type: "SET", field: "parroquia", value: v });
                         markTouched("parroquia");
                         setErrors(prev => ({ ...prev, parroquia: validateField("parroquia", v) }));
+                        // En Itinerante/Mixto la comunidad se filtra por parroquia: al
+                        // cambiar la parroquia se limpia la comunidad para no dejar una inválida.
+                        if (esCarpa) dispatch({ type: "SET", field: "comunidad", value: "" });
                       }}
                       options={PARROQUIAS.map(p => ({ value: p, label: p }))}
                       placeholder="Seleccione una parroquia..."
@@ -814,15 +846,34 @@ export default function CensoTab() {
 
                   <div className="form-group">
                     <label htmlFor="comunidad">Comunidad<span className="required-star">*</span></label>
-                    <input
-                      type="text"
-                      name="comunidad"
-                      id="comunidad"
-                      placeholder="Ej: Consejo Comunal Luchadores"
-                      value={formData.comunidad}
-                      onChange={handleInputChange}
-                      className={err("comunidad") ? "has-error" : ""}
-                    />
+                    {esCarpa ? (
+                      <SearchableSingleSelect
+                        value={formData.comunidad}
+                        onChange={(v) => {
+                          dispatch({ type: "SET", field: "comunidad", value: v });
+                          markTouched("comunidad");
+                          setErrors(prev => ({ ...prev, comunidad: validateField("comunidad", v) }));
+                        }}
+                        options={comunidadOpts}
+                        placeholder={formData.parroquia ? "Seleccione la comunidad…" : "Elija primero la parroquia"}
+                        searchPlaceholder="Buscar comunidad…"
+                        clearLabel=""
+                        emptyText={formData.parroquia ? "Sin comunidades en esta parroquia" : "Elija primero la parroquia"}
+                        ariaLabel="Comunidad"
+                        error={!!err("comunidad")}
+                        disabled={!formData.parroquia}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        name="comunidad"
+                        id="comunidad"
+                        placeholder="Ej: Consejo Comunal Luchadores"
+                        value={formData.comunidad}
+                        onChange={handleInputChange}
+                        className={err("comunidad") ? "has-error" : ""}
+                      />
+                    )}
                     <div className="error-container">
                       {err("comunidad") && <span className="field-error-message">{err("comunidad")}</span>}
                     </div>
@@ -1270,7 +1321,8 @@ export default function CensoTab() {
                       onClick={() => {
                         const checked = !hogarSolidario;
                         setHogarSolidario(checked);
-                        if (checked) setAsignCuartoCenso(""); // un retirado no ocupa habitación
+                        // un retirado no ocupa habitación ni carpa
+                        if (checked) { setAsignCuartoCenso(""); setCarpaTipo(""); setCarpaNro(""); }
                       }}
                     >
                       <span className="pill-check__box" aria-hidden>
@@ -1280,27 +1332,71 @@ export default function CensoTab() {
                     </button>
                   </div>
 
-                  <div className="form-group">
-                    <label>
-                      Habitación / Salón <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
-                    </label>
-                    <SearchableSingleSelect
-                      value={asignCuartoCenso}
-                      onChange={setAsignCuartoCenso}
-                      options={allCuartos.map(c => ({ value: c, label: roomLabel(c) }))}
-                      placeholder="Sin habitación asignada"
-                      searchPlaceholder="Buscar habitación…"
-                      clearLabel="— Sin habitación asignada —"
-                      emptyText="Sin habitaciones configuradas"
-                      ariaLabel="Habitación / Salón"
-                      disabled={hogarSolidario}
-                    />
-                    <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                      {hogarSolidario
-                        ? "Se retira a Hogar Solidario: no se le asigna habitación."
-                        : "Si lo dejas vacío, la persona queda registrada sin habitación asignada."}
-                    </p>
-                  </div>
+                  {esCarpa ? (
+                    <>
+                      <div className="form-group">
+                        <label>Comunidad asignada</label>
+                        <input type="text" value={formData.comunidad || "—"} readOnly aria-label="Comunidad asignada" style={{ opacity: 0.85 }} />
+                        <p style={{ margin: "0.35rem 0 0", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                          Viene del paso de Ubicación Geográfica.
+                        </p>
+                      </div>
+                      <div className="form-group">
+                        <label>
+                          Tipo de carpa <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
+                        </label>
+                        <StyledSelect
+                          value={carpaTipo}
+                          onChange={setCarpaTipo}
+                          options={tiposCarpa.map(t => ({ value: t.nombre, label: t.nombre }))}
+                          placeholder="Sin carpa asignada"
+                          ariaLabel="Tipo de carpa"
+                          disabled={hogarSolidario}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>
+                          N.º de carpa <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          inputMode="numeric"
+                          placeholder="Ej: 1"
+                          value={carpaNro}
+                          onChange={(e) => setCarpaNro(e.target.value.replace(/\D/g, ""))}
+                          disabled={hogarSolidario}
+                        />
+                        <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                          {hogarSolidario
+                            ? "Se retira a Hogar Solidario: no se le asigna carpa."
+                            : "Queda como “COMUNIDAD - TIPO DE CARPA - Nº”. Si dejas tipo o número vacío, queda sin carpa."}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="form-group">
+                      <label>
+                        Habitación / Salón <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
+                      </label>
+                      <SearchableSingleSelect
+                        value={asignCuartoCenso}
+                        onChange={setAsignCuartoCenso}
+                        options={allCuartos.map(c => ({ value: c, label: roomLabel(c) }))}
+                        placeholder="Sin habitación asignada"
+                        searchPlaceholder="Buscar habitación…"
+                        clearLabel="— Sin habitación asignada —"
+                        emptyText="Sin habitaciones configuradas"
+                        ariaLabel="Habitación / Salón"
+                        disabled={hogarSolidario}
+                      />
+                      <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                        {hogarSolidario
+                          ? "Se retira a Hogar Solidario: no se le asigna habitación."
+                          : "Si lo dejas vacío, la persona queda registrada sin habitación asignada."}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

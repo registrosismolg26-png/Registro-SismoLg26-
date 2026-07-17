@@ -180,11 +180,19 @@ export default function Home() {
   // accesible a cualquier autenticado, así que se carga para todos.
   useEffect(() => {
     if (!currentUser) return;
-    if (typeof window === "undefined" || !navigator.onLine) return;
+    if (typeof window === "undefined") return;
+    // Cache local (offline): el censo necesita el `tipo` del refugio (Transitorio vs
+    // Itinerante/Mixto) aunque no haya señal → se lee del cache primero.
+    const cached = localStorage.getItem("sismo_cached_refugios_v1");
+    if (cached) { try { setRefugiosList(JSON.parse(cached)); } catch (e) { console.error(e); } }
+    if (!navigator.onLine) return;
     apiFetch("/api/refugios")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.refugios) setRefugiosList(data.refugios);
+        if (data?.refugios) {
+          setRefugiosList(data.refugios);
+          localStorage.setItem("sismo_cached_refugios_v1", JSON.stringify(data.refugios));
+        }
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1760,6 +1768,7 @@ export default function Home() {
     localStorage.removeItem("sismo_cached_tipos_lesion_v1");
     localStorage.removeItem("sismo_cached_comunidades_v1");
     localStorage.removeItem("sismo_cached_tipos_carpa_v1");
+    localStorage.removeItem("sismo_cached_refugios_v1");
     setViewRefugio("");
     setRefugiosList([]);
     prevEffRefugioRef.current = null;
