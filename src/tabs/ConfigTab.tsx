@@ -169,7 +169,7 @@ export default function ConfigTab() {
   };
 
   // ── Gestión de Refugios (solo MASTER) ──
-  interface Refugio { id: string; nombre: string; ubicacion?: string | null; createdAt?: string }
+  interface Refugio { id: string; nombre: string; ubicacion?: string | null; tipo?: string; createdAt?: string }
   const [refugios, setRefugios] = useState<Refugio[]>([]);
   const [loadingRefugios, setLoadingRefugios] = useState(false);
   const [newRefugio, setNewRefugio] = useState("");
@@ -178,6 +178,7 @@ export default function ConfigTab() {
   const [refugioRenameValue, setRefugioRenameValue] = useState("");
   const [savingRefugioRename, setSavingRefugioRename] = useState(false);
   const [refugioUbicacionValue, setRefugioUbicacionValue] = useState("");
+  const [refugioTipoValue, setRefugioTipoValue] = useState("TRANSITORIO");
   const [refugioToDelete, setRefugioToDelete] = useState<Refugio | null>(null);
   const [deletingRefugio, setDeletingRefugio] = useState(false);
 
@@ -296,7 +297,7 @@ export default function ConfigTab() {
       const res = await apiFetch("/api/refugios", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: refugioToRename.id, nombre, ubicacion: refugioUbicacionValue.trim() })
+        body: JSON.stringify({ id: refugioToRename.id, nombre, ubicacion: refugioUbicacionValue.trim(), tipo: refugioTipoValue })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1136,6 +1137,11 @@ export default function ConfigTab() {
                     <div key={rf.id} className="sync-log-item" style={{ cursor: "default" }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <span className="sync-log-name">{rf.nombre}</span>
+                        {rf.tipo && rf.tipo !== "TRANSITORIO" && (
+                          <span className="config-acc__badge" style={{ marginLeft: "0.4rem", fontSize: "0.62rem", verticalAlign: "middle" }}>
+                            {rf.tipo === "ITINERANTE" ? "Itinerante" : "Mixto"}
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexShrink: 0 }}>
                         <button
@@ -1143,7 +1149,7 @@ export default function ConfigTab() {
                           className="dash-icon-btn"
                           data-tip="Renombrar"
                           disabled={!isOnline}
-                          onClick={() => { setRefugioToRename(rf); setRefugioRenameValue(rf.nombre); setRefugioUbicacionValue(rf.ubicacion || ""); }}
+                          onClick={() => { setRefugioToRename(rf); setRefugioRenameValue(rf.nombre); setRefugioUbicacionValue(rf.ubicacion || ""); setRefugioTipoValue(rf.tipo || "TRANSITORIO"); }}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
@@ -1438,6 +1444,23 @@ export default function ConfigTab() {
                   Se usa en el reporte de WhatsApp de este campamento.
                 </p>
               </div>
+
+              <div className="form-group">
+                <label>Tipo de campamento</label>
+                <StyledSelect
+                  value={refugioTipoValue}
+                  onChange={setRefugioTipoValue}
+                  options={[
+                    { value: "TRANSITORIO", label: "Transitorio (asignación por habitación)" },
+                    { value: "ITINERANTE", label: "Itinerante (comunidad + carpa)" },
+                    { value: "MIXTO", label: "Mixto (comunidad + carpa)" },
+                  ]}
+                  ariaLabel="Tipo de campamento"
+                />
+                <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", margin: "0.3rem 0 0" }}>
+                  Transitorio asigna habitaciones. Itinerante/Mixto asignan comunidad + tipo de carpa + Nº.
+                </p>
+              </div>
             </div>
 
             <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
@@ -1449,7 +1472,7 @@ export default function ConfigTab() {
                 className="btn-submit"
                 style={{ flex: 1 }}
                 onClick={handleRenameRefugioConfirmed}
-                disabled={!refugioRenameValue.trim() || savingRefugioRename || (refugioRenameValue.trim() === refugioToRename.nombre && refugioUbicacionValue.trim() === (refugioToRename.ubicacion || ""))}
+                disabled={!refugioRenameValue.trim() || savingRefugioRename || (refugioRenameValue.trim() === refugioToRename.nombre && refugioUbicacionValue.trim() === (refugioToRename.ubicacion || "") && refugioTipoValue === (refugioToRename.tipo || "TRANSITORIO"))}
               >
                 {savingRefugioRename ? <><span className="spinner spinner-sm"></span>Guardando</> : "Guardar Cambios"}
               </button>
