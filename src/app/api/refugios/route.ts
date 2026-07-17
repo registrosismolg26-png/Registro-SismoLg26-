@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, isMaster } from "@/lib/auth";
 
+// Tipos válidos de campamento. TRANSITORIO = asignación por habitación (cuarto);
+// ITINERANTE/MIXTO = asignación por Comunidad + Tipo de carpa + Nº (compuesta en `cuarto`).
+const TIPOS_REFUGIO: readonly string[] = ["TRANSITORIO", "ITINERANTE", "MIXTO"];
+const normTipo = (v: unknown): string => {
+  const t = String(v ?? "").trim().toUpperCase();
+  return TIPOS_REFUGIO.includes(t) ? t : "TRANSITORIO";
+};
+
 // GET — cualquier usuario autenticado. Lista de refugios para selectores.
 export async function GET(req: Request) {
   try {
@@ -42,7 +50,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "El campamento ya existe" }, { status: 409 });
     }
 
-    const refugio = await prisma.refugio.create({ data: { nombre } });
+    const refugio = await prisma.refugio.create({ data: { nombre, tipo: normTipo(body?.tipo) } });
     return NextResponse.json({ success: true, refugio }, { status: 201 });
   } catch (error: any) {
     console.error("Error en POST /api/refugios:", error);
@@ -71,6 +79,10 @@ export async function PUT(req: Request) {
     const ubicacion = body?.ubicacion !== undefined
       ? (String(body.ubicacion).trim() || null)
       : undefined;
+    // tipo opcional: solo se actualiza si viene y es un valor válido.
+    const tipo = body?.tipo !== undefined && TIPOS_REFUGIO.includes(String(body.tipo).trim().toUpperCase())
+      ? String(body.tipo).trim().toUpperCase()
+      : undefined;
 
     const current = await prisma.refugio.findUnique({ where: { id } });
     if (!current) {
@@ -81,9 +93,12 @@ export async function PUT(req: Request) {
     const nameChanged = oldName !== nombre;
 
     if (!nameChanged) {
-      // Solo se edita la ubicación (o nada cambió).
-      const refugio = ubicacion !== undefined
-        ? await prisma.refugio.update({ where: { id }, data: { ubicacion } })
+      // Solo se edita la ubicación y/o el tipo (o nada cambió).
+      const data: { ubicacion?: string | null; tipo?: string } = {};
+      if (ubicacion !== undefined) data.ubicacion = ubicacion;
+      if (tipo !== undefined) data.tipo = tipo;
+      const refugio = Object.keys(data).length
+        ? await prisma.refugio.update({ where: { id }, data })
         : current;
       return NextResponse.json({ success: true, refugio });
     }
@@ -99,7 +114,7 @@ export async function PUT(req: Request) {
     const [refugio] = await prisma.$transaction([
       prisma.refugio.update({
         where: { id },
-        data: { nombre, ...(ubicacion !== undefined ? { ubicacion } : {}) },
+        data: { nombre, ...(ubicacion !== undefined ? { ubicacion } : {}), ...(tipo !== undefined ? { tipo } : {}) },
       }),
       prisma.user.updateMany({
         where: { campamentoTransitorio: oldName },

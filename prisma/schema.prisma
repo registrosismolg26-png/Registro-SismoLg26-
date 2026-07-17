@@ -103,6 +103,29 @@ model Refugio {
   id        String   @id @default(uuid())
   nombre    String   @unique
   ubicacion String?  // URL de Google Maps del refugio (para el reporte)
+  // Tipo de campamento: TRANSITORIO (asignación por habitación/cuarto, como hoy) |
+  // ITINERANTE | MIXTO (asignación por Comunidad + Tipo de carpa + Nº, compuesta EN `cuarto`).
+  tipo      String   @default("TRANSITORIO")
+  createdAt DateTime @default(now())
+}
+
+// Catálogo de COMUNIDADES (refugios ITINERANTE/MIXTO): cada comunidad pertenece a una
+// parroquia; en el censo se elige filtrada por la parroquia (paso Ubicación Geográfica).
+// Administrable desde Config (Master). Sin auto-seed (carga inicial por SQL manual).
+model Comunidad {
+  id        String   @id @default(uuid())
+  nombre    String
+  parroquia String
+  createdAt DateTime @default(now())
+
+  @@unique([nombre, parroquia])
+  @@index([parroquia])
+}
+
+// Catálogo de TIPOS DE CARPA (refugios ITINERANTE/MIXTO). Administrable (Config, Master).
+model TipoCarpa {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
   createdAt DateTime @default(now())
 }
 

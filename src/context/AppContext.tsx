@@ -6,7 +6,7 @@
 // distribuyen a los componentes hijos sin prop-drilling.
 
 import { createContext, useContext } from "react";
-import type { CurrentUser, ActiveTab, ToastType, LocalRegistro, Patologia, MedicamentoPredefinido, TipoLesion, CaracterizacionOpcion } from "@/types";
+import type { CurrentUser, ActiveTab, ToastType, LocalRegistro, Patologia, MedicamentoPredefinido, TipoLesion, CaracterizacionOpcion, Comunidad, TipoCarpa } from "@/types";
 
 export interface AppContextValue {
   // Conexión y tema
@@ -83,8 +83,15 @@ export interface AppContextValue {
   // usuarios siempre ve su propio refugio. `effectiveRefugio` es el que aplica.
   viewRefugio: string;
   setViewRefugio: (r: string) => void;
-  refugiosList: { id: string; nombre: string; ubicacion?: string | null }[];
+  refugiosList: { id: string; nombre: string; ubicacion?: string | null; tipo?: string }[];
   effectiveRefugio: string;
+
+  // Catálogos de campamento (refugios ITINERANTE/MIXTO): comunidades (por parroquia) y
+  // tipos de carpa. Cacheados en localStorage → disponibles OFFLINE en el censo.
+  comunidades: Comunidad[];
+  fetchComunidades: (force?: boolean) => void;
+  tiposCarpa: TipoCarpa[];
+  fetchTiposCarpa: (force?: boolean) => void;
 
   // Estadísticas
   stats: any;

@@ -41,6 +41,8 @@ import type {
   MedicamentoPredefinido,
   TipoLesion,
   CaracterizacionOpcion,
+  Comunidad,
+  TipoCarpa,
 } from "@/types";
 import { CUARTOS, INACTIVITY_MS } from "@/lib/constants";
 import AppHeader from "@/components/AppHeader";
@@ -153,7 +155,7 @@ export default function Home() {
   // El resto de usuarios siempre ve su propio refugio (no puede cambiarlo).
   const [viewRefugio, setViewRefugio] = useState<string>("");
   const [refugiosList, setRefugiosList] = useState<
-    { id: string; nombre: string; ubicacion?: string | null }[]
+    { id: string; nombre: string; ubicacion?: string | null; tipo?: string }[]
   >([]);
   const effectiveRefugio = currentUser
     ? isMaster(currentUser.role)
@@ -353,6 +355,9 @@ export default function Home() {
   // Patologias & Medical Consultations (Morbilidad)
   const [patologias, setPatologias] = useState<Patologia[]>([]);
   const [tiposLesion, setTiposLesion] = useState<TipoLesion[]>([]);
+  // Catálogos de campamento (refugios ITINERANTE/MIXTO) — cacheados en localStorage (offline).
+  const [comunidades, setComunidades] = useState<Comunidad[]>([]);
+  const [tiposCarpa, setTiposCarpa] = useState<TipoCarpa[]>([]);
   const [consultas, setConsultas] = useState<any[]>([]);
   const [localConsultas, setLocalConsultas] = useState<LocalConsulta[]>([]);
   const [loadingConsultas, setLoadingConsultas] = useState(false);
@@ -781,6 +786,8 @@ export default function Home() {
       fetchRegistros();
       fetchPatologias();
       fetchTiposLesion();
+      fetchComunidades();
+      fetchTiposCarpa();
       fetchPredefinedMedicamentos();
       fetchConsultas();
       refreshLocalConsultas();
@@ -1005,6 +1012,44 @@ export default function Home() {
     } catch (err) {
       console.error("Error al obtener patologías:", err);
     }
+  };
+
+  // Catálogos de campamento: mismo patrón que fetchPatologias (cache localStorage + fetch
+  // online). Quedan disponibles OFFLINE en el censo desde el cache.
+  const fetchComunidades = async (force = false) => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("sismo_cached_comunidades_v1");
+      if (cached) { try { setComunidades(JSON.parse(cached)); } catch (e) { console.error(e); } }
+    }
+    if (!navigator.onLine) return;
+    try {
+      const res = await apiFetch("/api/comunidades", force ? { cache: "reload" } : {});
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.comunidades) {
+          setComunidades(data.comunidades);
+          localStorage.setItem("sismo_cached_comunidades_v1", JSON.stringify(data.comunidades));
+        }
+      }
+    } catch (err) { console.error("Error al obtener comunidades:", err); }
+  };
+
+  const fetchTiposCarpa = async (force = false) => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("sismo_cached_tipos_carpa_v1");
+      if (cached) { try { setTiposCarpa(JSON.parse(cached)); } catch (e) { console.error(e); } }
+    }
+    if (!navigator.onLine) return;
+    try {
+      const res = await apiFetch("/api/tipos-carpa", force ? { cache: "reload" } : {});
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.tiposCarpa) {
+          setTiposCarpa(data.tiposCarpa);
+          localStorage.setItem("sismo_cached_tipos_carpa_v1", JSON.stringify(data.tiposCarpa));
+        }
+      }
+    } catch (err) { console.error("Error al obtener tipos de carpa:", err); }
   };
 
   const fetchTiposLesion = async (force = false) => {
@@ -1713,6 +1758,8 @@ export default function Home() {
     localStorage.removeItem("cached_consultas_v2");
     localStorage.removeItem("sismo_cached_predefined_medicamentos");
     localStorage.removeItem("sismo_cached_tipos_lesion_v1");
+    localStorage.removeItem("sismo_cached_comunidades_v1");
+    localStorage.removeItem("sismo_cached_tipos_carpa_v1");
     setViewRefugio("");
     setRefugiosList([]);
     prevEffRefugioRef.current = null;
@@ -1780,6 +1827,10 @@ export default function Home() {
     fetchPatologias,
     tiposLesion,
     fetchTiposLesion,
+    comunidades,
+    fetchComunidades,
+    tiposCarpa,
+    fetchTiposCarpa,
     predefinedMedicamentos,
     fetchPredefinedMedicamentos,
     caracterizacionOpciones,
