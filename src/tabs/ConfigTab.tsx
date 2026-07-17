@@ -173,6 +173,8 @@ export default function ConfigTab() {
   const [refugios, setRefugios] = useState<Refugio[]>([]);
   const [loadingRefugios, setLoadingRefugios] = useState(false);
   const [newRefugio, setNewRefugio] = useState("");
+  const [newRefugioTipo, setNewRefugioTipo] = useState("TRANSITORIO");
+  const [newRefugioUbicacion, setNewRefugioUbicacion] = useState("");
   const [creatingRefugio, setCreatingRefugio] = useState(false);
   const [refugioToRename, setRefugioToRename] = useState<Refugio | null>(null);
   const [refugioRenameValue, setRefugioRenameValue] = useState("");
@@ -266,7 +268,7 @@ export default function ConfigTab() {
       const res = await apiFetch("/api/refugios", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre })
+        body: JSON.stringify({ nombre, tipo: newRefugioTipo, ubicacion: newRefugioUbicacion.trim() })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -275,6 +277,8 @@ export default function ConfigTab() {
       }
       showToast("Campamento creado con éxito.", "success");
       setNewRefugio("");
+      setNewRefugioTipo("TRANSITORIO");
+      setNewRefugioUbicacion("");
       await fetchRefugios(true);
     } catch (err) {
       console.error("Error al crear refugio:", err);
@@ -1109,6 +1113,20 @@ export default function ConfigTab() {
                     disabled={!isOnline || creatingRefugio}
                   />
                 </div>
+                <div className="room-add-field">
+                  <label className="room-add-label">Tipo</label>
+                  <StyledSelect
+                    value={newRefugioTipo}
+                    onChange={setNewRefugioTipo}
+                    options={[
+                      { value: "TRANSITORIO", label: "Transitorio" },
+                      { value: "ITINERANTE", label: "Itinerante" },
+                      { value: "MIXTO", label: "Mixto" },
+                    ]}
+                    ariaLabel="Tipo de campamento"
+                    disabled={!isOnline || creatingRefugio}
+                  />
+                </div>
                 <button
                   type="button"
                   className="btn-submit btn-submit--sm"
@@ -1117,6 +1135,17 @@ export default function ConfigTab() {
                 >
                   {creatingRefugio ? <><span className="spinner spinner-sm"></span>Creando</> : "Agregar"}
                 </button>
+              </div>
+              <div className="room-add-field" style={{ marginTop: "0.6rem" }}>
+                <label className="room-add-label">Ubicación (link de Google Maps) — opcional</label>
+                <input
+                  className="room-add-input"
+                  placeholder="https://maps.app.goo.gl/..."
+                  value={newRefugioUbicacion}
+                  onChange={e => setNewRefugioUbicacion(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleCreateRefugio()}
+                  disabled={!isOnline || creatingRefugio}
+                />
               </div>
             </div>
 

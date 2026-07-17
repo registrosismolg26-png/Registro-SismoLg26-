@@ -50,7 +50,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "El campamento ya existe" }, { status: 409 });
     }
 
-    const refugio = await prisma.refugio.create({ data: { nombre, tipo: normTipo(body?.tipo) } });
+    const ubicacion = body?.ubicacion ? (String(body.ubicacion).trim() || null) : null;
+    const refugio = await prisma.refugio.create({ data: { nombre, tipo: normTipo(body?.tipo), ubicacion } });
     return NextResponse.json({ success: true, refugio }, { status: 201 });
   } catch (error: any) {
     console.error("Error en POST /api/refugios:", error);
