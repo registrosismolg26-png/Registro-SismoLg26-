@@ -14,7 +14,13 @@ import { LOGO_GOB_PNG_BASE64 } from "@/lib/logoAsset";
 
 const user = (process.env.GMAIL_USER || "").trim();
 const pass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, ""); // las app passwords se muestran con espacios
-const fromDefault = process.env.MAIL_FROM || (user ? `Registro SismoLg26 <${user}>` : "");
+// Resend = proveedor PRIMARIO si hay API key + remitente de un dominio VERIFICADO en Resend
+// (p. ej. noreply@registrosismo.site). Si no, se usa Gmail (nodemailer) como respaldo.
+const resendKey = (process.env.RESEND_KEY || process.env.RESEND_API_KEY || "").trim();
+const mailFrom = (process.env.MAIL_FROM || "").trim();
+const appUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/+$/, "");
+const useResend = Boolean(resendKey && mailFrom);
+const fromDefault = useResend ? mailFrom : (mailFrom || (user ? `Registro SismoLg26 <${user}>` : ""));
 
 let transporter: nodemailer.Transporter | null = null;
 function getTransporter(): nodemailer.Transporter | null {
@@ -29,7 +35,7 @@ function getTransporter(): nodemailer.Transporter | null {
 }
 
 /** ¿Está configurado el correo? (para no ofrecer envíos si faltan credenciales). */
-export const mailerReady = (): boolean => Boolean(user && pass);
+export const mailerReady = (): boolean => useResend || Boolean(user && pass);
 
 /** Destinatarios de los AVISOS (traslado / usuario nuevo), de ALERT_EMAILS (CSV). */
 export const alertEmails = (): string[] =>
@@ -43,15 +49,55 @@ export interface MailInput {
   replyTo?: string;
 }
 
-/** Envía un correo. Devuelve true si se envió, false si no se pudo (no lanza). */
-export async function sendMail(input: MailInput): Promise<boolean> {
-  const t = getTransporter();
-  if (!t) {
-    console.warn("[mailer] GMAIL_USER/GMAIL_APP_PASSWORD no configurados; se omite el correo.");
+// Envío por Resend (HTTP API). El logo va por `cid:logogob` en la plantilla, que Resend
+// NO soporta inline → se reemplaza por la URL pública del propio sitio (/api/email-logo);
+// sin APP_URL se quita el <img> para no dejar una imagen rota.
+async function sendViaResend(toArr: string[], input: MailInput): Promise<boolean> {
+  let html = input.html;
+  if (html.includes("cid:logogob")) {
+    html = appUrl
+      ? html.replace(/cid:logogob/g, `${appUrl}/api/email-logo`)
+      : html.replace(/<img[^>]*cid:logogob[^>]*>/gi, "");
+  }
+  const text = input.text || html.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: fromDefault,
+        to: toArr,
+        subject: input.subject,
+        html,
+        text,
+        ...(input.replyTo ? { reply_to: input.replyTo } : {}),
+      }),
+    });
+    if (!res.ok) {
+      console.error("[mailer] Resend respondió", res.status, await res.text().catch(() => ""));
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[mailer] Error enviando por Resend:", err);
     return false;
   }
-  const to = Array.isArray(input.to) ? input.to.filter(Boolean).join(",") : input.to;
-  if (!to) return false;
+}
+
+/** Envía un correo. Devuelve true si se envió, false si no se pudo (no lanza). */
+export async function sendMail(input: MailInput): Promise<boolean> {
+  const toArr = (Array.isArray(input.to) ? input.to : [input.to]).filter(Boolean);
+  if (!toArr.length) return false;
+
+  // Proveedor primario: Resend (si está configurado); si no, Gmail (nodemailer).
+  if (useResend) return sendViaResend(toArr, input);
+
+  const t = getTransporter();
+  if (!t) {
+    console.warn("[mailer] Sin proveedor de correo (ni RESEND_KEY+MAIL_FROM ni GMAIL_*); se omite el correo.");
+    return false;
+  }
+  const to = toArr.join(",");
   // Logo inline (cid:logogob): se adjunta SOLO cuando la plantilla lo referencia
   // (renderEmail). Va embebido en base64 → no depende de un dominio ni del filesystem.
   const attachments = input.html.includes("cid:logogob")
