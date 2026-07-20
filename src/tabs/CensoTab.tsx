@@ -357,6 +357,12 @@ export default function CensoTab() {
       newErrors.cedula = cedulaDupMsg;
     }
 
+    // Carpa OBLIGATORIA en refugios Itinerante/Mixto (salvo Hogar Solidario, que no ocupa).
+    if (esCarpa && !hogarSolidario) {
+      if (!carpaTipo) newErrors.carpaTipo = "Seleccione el tipo de carpa";
+      if (!carpaNro.trim()) newErrors.carpaNro = "Indique el N.º / código de carpa";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1347,7 +1353,7 @@ export default function CensoTab() {
                         const checked = !hogarSolidario;
                         setHogarSolidario(checked);
                         // un retirado no ocupa habitación ni carpa
-                        if (checked) { setAsignCuartoCenso(""); setCarpaTipo(""); setCarpaNro(""); }
+                        if (checked) { setAsignCuartoCenso(""); setCarpaTipo(""); setCarpaNro(""); setErrors(prev => ({ ...prev, carpaTipo: "", carpaNro: "" })); }
                       }}
                     >
                       <span className="pill-check__box" aria-hidden>
@@ -1368,33 +1374,41 @@ export default function CensoTab() {
                       </div>
                       <div className="form-group">
                         <label>
-                          Tipo de carpa <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
+                          Tipo de carpa{!hogarSolidario && <span className="required-star">*</span>}
                         </label>
                         <StyledSelect
                           value={carpaTipo}
-                          onChange={setCarpaTipo}
+                          onChange={(v) => { setCarpaTipo(v); setErrors(prev => ({ ...prev, carpaTipo: "" })); }}
                           options={tiposCarpa.map(t => ({ value: t.nombre, label: t.nombre }))}
-                          placeholder="Sin carpa asignada"
+                          placeholder="Seleccione el tipo de carpa"
                           ariaLabel="Tipo de carpa"
                           disabled={hogarSolidario}
+                          error={!!err("carpaTipo")}
                         />
+                        <div className="error-container">
+                          {err("carpaTipo") && <span className="field-error-message">{err("carpaTipo")}</span>}
+                        </div>
                       </div>
                       <div className="form-group">
                         <label>
-                          N.º / código de carpa <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
+                          N.º / código de carpa{!hogarSolidario && <span className="required-star">*</span>}
                         </label>
                         <input
                           type="text"
                           placeholder="Ej: 1, A2, Sector B 3…"
                           value={carpaNro}
-                          onChange={(e) => setCarpaNro(e.target.value.replace(/[^\p{L}\p{N} ]/gu, "").toUpperCase())}
+                          onChange={(e) => { setCarpaNro(e.target.value.replace(/[^\p{L}\p{N} ]/gu, "").toUpperCase()); setErrors(prev => ({ ...prev, carpaNro: "" })); }}
                           disabled={hogarSolidario}
                           maxLength={25}
+                          className={err("carpaNro") ? "has-error" : ""}
                         />
-                        <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                        <div className="error-container">
+                          {err("carpaNro") && <span className="field-error-message">{err("carpaNro")}</span>}
+                        </div>
+                        <p style={{ margin: "0.35rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
                           {hogarSolidario
                             ? "Se retira a Hogar Solidario: no se le asigna carpa."
-                            : "Queda como “COMUNIDAD - TIPO DE CARPA - Nº”. Si dejas tipo o número vacío, queda sin carpa."}
+                            : "Queda como “COMUNIDAD - TIPO DE CARPA - Nº”."}
                         </p>
                       </div>
                     </>
