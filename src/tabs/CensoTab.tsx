@@ -643,8 +643,8 @@ export default function CensoTab() {
           cuarto: hogarSolidario
             ? undefined
             : esCarpa
-              ? (carpaTipo && carpaNro
-                  ? `${formData.comunidad} - ${carpaTipo} - ${/^\d+$/.test(carpaNro) ? carpaNro.padStart(2, "0") : carpaNro}`.toUpperCase()
+              ? (carpaTipo && carpaNro.trim()
+                  ? `${formData.comunidad} - ${carpaTipo} - ${/^\d+$/.test(carpaNro.trim()) ? carpaNro.trim().padStart(2, "0") : carpaNro.trim()}`.toUpperCase()
                   : undefined)
               : (asignCuartoCenso || undefined),
           intermitente: formData.intermitente || "NO",
@@ -1360,11 +1360,11 @@ export default function CensoTab() {
                         </label>
                         <input
                           type="text"
-                          placeholder="Ej: 1, A2, 12B…"
+                          placeholder="Ej: 1, A2, Sector B 3…"
                           value={carpaNro}
-                          onChange={(e) => setCarpaNro(e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase())}
+                          onChange={(e) => setCarpaNro(e.target.value.replace(/[^\p{L}\p{N} ]/gu, "").toUpperCase())}
                           disabled={hogarSolidario}
-                          maxLength={10}
+                          maxLength={25}
                         />
                         <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
                           {hogarSolidario
