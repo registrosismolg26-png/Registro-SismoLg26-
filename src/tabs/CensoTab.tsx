@@ -124,6 +124,19 @@ export default function CensoTab() {
     [comunidades, formData.parroquia]
   );
 
+  // Preselecciona la ubicación (parroquia/sector/comunidad/dirección) del ÚLTIMO registro
+  // guardado: el operador suele censar a varias personas del mismo lugar.
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("sismo_last_ubicacion") || "null");
+      if (u) dispatch({ type: "SET_MANY", patch: {
+        parroquia: u.parroquia || "", sector: u.sector || "",
+        comunidad: u.comunidad || "", direccionExacta: u.direccionExacta || "",
+      } });
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Medicamentos dinámicos (array independiente del reducer de strings)
   const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
   const removeMedicamento = (i: number) => setMedicamentos(p => p.filter((_, idx) => idx !== i));
@@ -658,7 +671,19 @@ export default function CensoTab() {
       await saveLocal(registroData);
       showToast("Registro guardado localmente.", "success");
 
+      // Recuerda la ubicación para el próximo registro (preselección).
+      try {
+        localStorage.setItem("sismo_last_ubicacion", JSON.stringify({
+          parroquia: formData.parroquia, sector: formData.sector,
+          comunidad: formData.comunidad, direccionExacta: formData.direccionExacta,
+        }));
+      } catch { /* noop */ }
       dispatch({ type: "RESET" });
+      // Re-aplica la ubicación recién usada (RESET la limpió) para el siguiente registro.
+      dispatch({ type: "SET_MANY", patch: {
+        parroquia: formData.parroquia, sector: formData.sector,
+        comunidad: formData.comunidad, direccionExacta: formData.direccionExacta,
+      } });
       setMedicamentos([]);
       setErrors({});
       setTouched({});

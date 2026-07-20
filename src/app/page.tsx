@@ -350,7 +350,17 @@ export default function Home() {
   const [coords, setCoords] = useState<{
     lat: number | null;
     lng: number | null;
-  }>({ lat: null, lng: null });
+  }>(() => {
+    // Arranca con el ÚLTIMO GPS cacheado: si no hay señal para refrescar, el registro
+    // igual sale con las coordenadas conocidas más recientes.
+    if (typeof window !== "undefined") {
+      try {
+        const c = JSON.parse(localStorage.getItem("sismo_last_gps") || "null");
+        if (c && typeof c.lat === "number" && typeof c.lng === "number") return c;
+      } catch { /* noop */ }
+    }
+    return { lat: null, lng: null };
+  });
 
   // Offline queue local records
   const [localRecords, setLocalRecords] = useState<LocalRegistro[]>([]);
@@ -946,10 +956,10 @@ export default function Home() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setCoords({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
+          const c = { lat: position.coords.latitude, lng: position.coords.longitude };
+          setCoords(c);
+          // Cachea el GPS bueno → respaldo cuando no haya señal para refrescar.
+          try { localStorage.setItem("sismo_last_gps", JSON.stringify(c)); } catch { /* noop */ }
         },
         (error) => {
           console.warn("Error al obtener coordenadas GPS:", error.message);
