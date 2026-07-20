@@ -43,5 +43,7 @@ ON CONFLICT ("nombre", "parroquia") DO NOTHING;
 INSERT INTO "TipoCarpa" ("id", "nombre") VALUES
   (gen_random_uuid(), 'Carpa Central 1'),
   (gen_random_uuid(), 'Carpa Familiar'),
-  (gen_random_uuid(), 'Carpa ONU 1')
+  (gen_random_uuid(), 'Carpa ONU 1'),
+  (gen_random_uuid(), 'Carpa en Estacionamiento'),
+  (gen_random_uuid(), 'Carpa a Pie de Calle')
 ON CONFLICT ("nombre") DO NOTHING;
