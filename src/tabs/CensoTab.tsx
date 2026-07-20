@@ -644,7 +644,7 @@ export default function CensoTab() {
             ? undefined
             : esCarpa
               ? (carpaTipo && carpaNro
-                  ? `${formData.comunidad} - ${carpaTipo} - ${String(carpaNro).padStart(2, "0")}`.toUpperCase()
+                  ? `${formData.comunidad} - ${carpaTipo} - ${/^\d+$/.test(carpaNro) ? carpaNro.padStart(2, "0") : carpaNro}`.toUpperCase()
                   : undefined)
               : (asignCuartoCenso || undefined),
           intermitente: formData.intermitente || "NO",
@@ -1356,16 +1356,15 @@ export default function CensoTab() {
                       </div>
                       <div className="form-group">
                         <label>
-                          N.º de carpa <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
+                          N.º / código de carpa <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
                         </label>
                         <input
-                          type="number"
-                          min="0"
-                          inputMode="numeric"
-                          placeholder="Ej: 1"
+                          type="text"
+                          placeholder="Ej: 1, A2, 12B…"
                           value={carpaNro}
-                          onChange={(e) => setCarpaNro(e.target.value.replace(/\D/g, ""))}
+                          onChange={(e) => setCarpaNro(e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase())}
                           disabled={hogarSolidario}
+                          maxLength={10}
                         />
                         <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
                           {hogarSolidario
