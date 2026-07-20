@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { sendPushToAdmins } from "@/lib/push";
 import { getAuthUser, canRegister, canActOnRefugio, isMaster, hasRefugio } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
-import { sendMail, renderEmail, alertEmails } from "@/lib/mailer";
 import { sendTelegram, sendTelegramGroup } from "@/lib/telegram";
 import { adminRecipients, createNotifications } from "@/lib/notify";
 
@@ -333,22 +332,14 @@ export async function POST(req: Request) {
       console.error("Error triggering push notifications to admins:", err);
     });
 
-    // Aviso de TRASLADO por correo (fire-and-forget). Solo si hubo traslado y hay
-    // destinatarios configurados (ALERT_EMAILS). Nunca rompe el registro.
+    // Aviso de TRASLADO (fire-and-forget): in-app (campana) + Telegram. YA NO por correo.
+    // Nunca rompe el registro.
     if (transferredFrom.length) {
       const resumen = `${nuevo.nombreApellido} (C.I. ${nuevo.cedula}): ${transferredFrom.join(", ")} → ${nuevo.refugio}`;
       // Aviso in-app (persistido) a Master/Admin del destino.
       const admins = await adminRecipients(nuevo.refugio).catch(() => []);
       await createNotifications(admins.map((a) => ({ userId: a.id, tipo: "TRASLADO", titulo: "Traslado de campamento", cuerpo: resumen, refugio: nuevo.refugio, entidadId: nuevo.id })));
-      // Envíos externos (best-effort, no bloquean): correo + Telegram (grupo + DM).
-      const avisoTo = alertEmails();
-      if (avisoTo.length) {
-        sendMail({
-          to: avisoTo,
-          subject: `Traslado de campamento: ${nuevo.nombreApellido}`,
-          html: renderEmail("Traslado entre campamentos", `<p><b>${nuevo.nombreApellido}</b> (C.I. ${nuevo.cedula}) fue trasladado(a):</p><ul style="margin:8px 0;padding-left:18px;color:#334155"><li>Desde: <b>${transferredFrom.join(", ")}</b></li><li>Hacia: <b>${nuevo.refugio}</b></li></ul>`),
-        }).catch(() => {});
-      }
+      // Envío externo: SOLO Telegram (grupo + DM). Los traslados YA NO envían correo.
       sendTelegramGroup(`🔀 <b>Traslado</b>\n${resumen}`).catch(() => {});
       admins.forEach((a) => { if (a.telegramChatId) sendTelegram(a.telegramChatId, `🔀 <b>Traslado</b>\n${resumen}`).catch(() => {}); });
     }
