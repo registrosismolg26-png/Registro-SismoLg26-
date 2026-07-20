@@ -153,7 +153,13 @@ export default function Home() {
   // Master puede cambiar el refugio que ve en TODO el sistema (dashboard,
   // registrados, salones, censo). Estado local; inicia con su refugio asignado.
   // El resto de usuarios siempre ve su propio refugio (no puede cambiarlo).
-  const [viewRefugio, setViewRefugio] = useState<string>("");
+  const [viewRefugio, setViewRefugio] = useState<string>(() => {
+    // Persiste entre recargas (F5): el Master mantiene el refugio que estaba viendo.
+    if (typeof window !== "undefined") {
+      try { return localStorage.getItem("sismo_view_refugio") || ""; } catch { /* noop */ }
+    }
+    return "";
+  });
   const [refugiosList, setRefugiosList] = useState<
     { id: string; nombre: string; ubicacion?: string | null; tipo?: string }[]
   >([]);
@@ -167,13 +173,20 @@ export default function Home() {
     effectiveRefugioRef.current = effectiveRefugio;
   }, [effectiveRefugio]);
 
-  // Inicializa el refugio de vista con el del usuario al iniciar sesión.
+  // Inicializa el refugio de vista con el del usuario al iniciar sesión (solo si no había
+  // uno persistido de una recarga anterior).
   useEffect(() => {
     if (currentUser?.campamentoTransitorio && !viewRefugio) {
       setViewRefugio(currentUser.campamentoTransitorio);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.campamentoTransitorio]);
+
+  // Persiste el refugio de vista para restaurarlo en cada recarga (F5).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try { if (viewRefugio) localStorage.setItem("sismo_view_refugio", viewRefugio); } catch { /* noop */ }
+  }, [viewRefugio]);
 
   // Carga la lista de refugios (con ubicación): la usa el selector del header
   // (Master) y el reporte de WhatsApp (ubicación del refugio activo). El GET es
@@ -1779,6 +1792,7 @@ export default function Home() {
     localStorage.removeItem("sismo_cached_comunidades_v1");
     localStorage.removeItem("sismo_cached_tipos_carpa_v1");
     localStorage.removeItem("sismo_cached_refugios_v1");
+    localStorage.removeItem("sismo_view_refugio");
     setViewRefugio("");
     setRefugiosList([]);
     prevEffRefugioRef.current = null;
