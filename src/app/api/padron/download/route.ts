@@ -17,15 +17,15 @@ export async function POST(req: Request) {
   // verificar que recibió todos los registros y reintentar si faltan.
   const total = await prisma.padron.count();
 
-  // Stream records as NDJSON in server-side batches of 500.
-  // The client writes each batch to IndexedDB as it arrives, so even on a
-  // 2G connection the padrón builds up progressively instead of waiting
-  // for the entire payload to download before anything is persisted.
-  const readable = new ReadableStream({
+  // Stream NDJSON paginando con KEYSET (cursor sobre `cedula`) en lotes — evita el O(n²)
+  // del skip/take en offsets profundos para 335k filas. El cliente escribe cada lote a
+  // IndexedDB conforme llega (progresivo incluso en 2G).
+  const readable = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        let skip = 0;
-        const BATCH = 500;
+        const BATCH = 1000;
+        // Keyset: arranca en "" (todas las cédulas son > "") y avanza por la última leída.
+        let lastCedula = "";
 
         while (true) {
           const batch = await prisma.padron.findMany({
@@ -37,9 +37,9 @@ export async function POST(req: Request) {
               fechaNacimiento: true,
               parroquia: true,
             },
-            skip,
             take: BATCH,
             orderBy: { cedula: "asc" },
+            where: { cedula: { gt: lastCedula } },
           });
 
           if (batch.length === 0) break;
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
             controller.enqueue(encoder.encode(line));
           }
 
-          skip += batch.length;
+          lastCedula = batch[batch.length - 1].cedula;
           if (batch.length < BATCH) break;
         }
 
@@ -68,14 +68,23 @@ export async function POST(req: Request) {
     },
   });
 
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "application/x-ndjson",
-      "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff",
-      // Total de registros para que el cliente verifique integridad
-      "X-Padron-Total": String(total),
-      "Access-Control-Expose-Headers": "X-Padron-Total",
-    },
-  });
+  // Comprime la respuesta con gzip: el navegador la descomprime SOLO por el header
+  // Content-Encoding → el cliente no cambia y sigue leyendo NDJSON. Fallback sin comprimir
+  // si el runtime no expone CompressionStream.
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-ndjson",
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    "X-Padron-Total": String(total),
+    "Access-Control-Expose-Headers": "X-Padron-Total",
+  };
+  let body: ReadableStream<Uint8Array> = readable;
+  try {
+    if (typeof CompressionStream !== "undefined") {
+      body = readable.pipeThrough(new CompressionStream("gzip") as any);
+      headers["Content-Encoding"] = "gzip";
+    }
+  } catch { /* runtime sin CompressionStream → se envía sin comprimir */ }
+
+  return new Response(body, { headers });
 }
