@@ -1675,26 +1675,41 @@ export default function Home() {
     setPadronBusy("exporting");
     try {
       const ndjson = await exportPadronNdjson();
-      // Comprime con gzip nativo del navegador (sin dependencias): ~21 MB → ~5-8 MB.
-      const gz = new Blob([ndjson]).stream().pipeThrough(new CompressionStream("gzip"));
-      const blob = await new Response(gz).blob();
-      const file = new File([blob], `padron-${count}.ndjson.gz`, { type: "application/gzip" });
-      // Abre el menú "Compartir" del sistema (Bluetooth/Nearby Share/WhatsApp); si no se
-      // puede, descarga el archivo para pasarlo por USB/tarjeta.
-      const nav = navigator as any;
-      if (nav.canShare?.({ files: [file] }) && nav.share) {
-        try { await nav.share({ files: [file], title: "Padrón electoral" }); }
-        catch (e: any) { if (e?.name !== "AbortError") throw e; }
+      // Comprime con gzip si el navegador lo soporta; si no (WebView viejo), exporta sin
+      // comprimir. El import acepta ambos (.gz o .ndjson).
+      let blob: Blob;
+      let ext = "ndjson";
+      if (typeof CompressionStream !== "undefined") {
+        try {
+          const gz = new Blob([ndjson]).stream().pipeThrough(new CompressionStream("gzip") as any);
+          blob = await new Response(gz).blob();
+          ext = "ndjson.gz";
+        } catch {
+          blob = new Blob([ndjson], { type: "application/x-ndjson" });
+        }
       } else {
+        blob = new Blob([ndjson], { type: "application/x-ndjson" });
+      }
+      const file = new File([blob], `padron-${count}.${ext}`, { type: blob.type || "application/octet-stream" });
+
+      // Intenta el menú "Compartir" del sistema (Bluetooth/Nearby Share/WhatsApp). Si no
+      // existe o falla por CUALQUIER razón, DESCARGA el archivo (fallback robusto).
+      const nav = navigator as any;
+      let shared = false;
+      if (nav.share && nav.canShare?.({ files: [file] })) {
+        try { await nav.share({ files: [file], title: "Padrón electoral" }); shared = true; }
+        catch (e: any) { if (e?.name === "AbortError") shared = true; /* otros → cae al download */ }
+      }
+      if (!shared) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
-        showToast("Archivo del padrón descargado. Pásalo al otro dispositivo (Bluetooth/USB) e impórtalo.", "info");
+        showToast("Padrón exportado como archivo. Pásalo al otro dispositivo (Bluetooth/USB) e impórtalo.", "info");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al exportar padrón:", err);
-      showToast("No se pudo exportar el padrón.", "error");
+      showToast(`No se pudo exportar el padrón: ${err?.message || err?.name || "error desconocido"}`, "error");
     } finally {
       setPadronBusy("");
     }
