@@ -110,6 +110,11 @@ export interface AppContextValue {
   downloadFullPadron: () => void;
   deletePadronLocal: () => void;
   refreshVotersCount: () => void;
+  // Export/Import del padrón por archivo (compartir dispositivo-a-dispositivo, sin internet).
+  exportPadron: () => void;
+  importPadron: (file: File) => void;
+  padronBusy: "" | "exporting" | "importing";
+  padronIoDone: number;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);

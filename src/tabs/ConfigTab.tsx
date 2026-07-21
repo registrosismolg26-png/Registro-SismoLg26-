@@ -54,6 +54,10 @@ export default function ConfigTab() {
     syncProgress,
     downloadFullPadron,
     deletePadronLocal,
+    exportPadron,
+    importPadron,
+    padronBusy,
+    padronIoDone,
   } = useAppContext();
 
   // (La gestión de catálogos médicos —patologías y medicamentos— se movió a la
@@ -758,6 +762,40 @@ export default function ConfigTab() {
           ) : (
             <div className="padron-missing">
               Padrón offline no instalado. El censo no autocompletará datos.
+            </div>
+          )}
+
+          {/* Compartir el padrón entre dispositivos (sin internet): export/import por archivo */}
+          {syncStatus === "idle" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.6rem" }}>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                {votersCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={exportPadron}
+                    disabled={!!padronBusy}
+                    className="btn-secondary btn-submit--sm"
+                    style={{ flex: "1 1 auto" }}
+                  >
+                    {padronBusy === "exporting" ? <><span className="spinner spinner-sm"></span>Preparando…</> : "Exportar / Compartir"}
+                  </button>
+                )}
+                <label
+                  className="btn-secondary btn-submit--sm"
+                  style={{ flex: "1 1 auto", cursor: padronBusy ? "default" : "pointer", opacity: padronBusy ? 0.6 : 1, pointerEvents: padronBusy ? "none" : "auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}
+                >
+                  {padronBusy === "importing" ? <><span className="spinner spinner-sm"></span>Importando {padronIoDone.toLocaleString()}…</> : "Importar archivo"}
+                  <input
+                    type="file"
+                    accept=".gz,.ndjson"
+                    style={{ display: "none" }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) importPadron(f); e.currentTarget.value = ""; }}
+                  />
+                </label>
+              </div>
+              <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", margin: 0 }}>
+                Pasa el padrón de un dispositivo a otro por <b>Bluetooth / Nearby Share / USB</b>, sin internet. Contiene datos personales: compártelo solo entre dispositivos autorizados.
+              </p>
             </div>
           )}
 

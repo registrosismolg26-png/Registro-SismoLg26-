@@ -9,6 +9,7 @@ import {
   clearLocalPadron,
   cargarPadronEnCliente,
   getLocalPadronCount,
+  exportPadronNdjson,
   markPermanentError,
   LocalRegistro,
   LocalConsulta,
@@ -128,6 +129,9 @@ export default function Home() {
   >("idle");
   const [syncProgress, setSyncProgress] = useState<number>(0);
   const [syncTotal, setSyncTotal] = useState<number>(0);
+  // Export / Import del padrón por archivo (compartir dispositivo-a-dispositivo).
+  const [padronBusy, setPadronBusy] = useState<"" | "exporting" | "importing">("");
+  const [padronIoDone, setPadronIoDone] = useState<number>(0);
 
   // Auth States
   const [currentUser, setCurrentUser] = useState<{
@@ -1663,6 +1667,73 @@ export default function Home() {
     }
   };
 
+  // ── Exportar el padrón a un archivo GZIP y compartirlo (Bluetooth/Nearby Share/…) ──
+  const exportPadron = async () => {
+    if (padronBusy) return;
+    const count = await getLocalPadronCount();
+    if (!count) { showToast("No hay padrón local para exportar.", "warning"); return; }
+    setPadronBusy("exporting");
+    try {
+      const ndjson = await exportPadronNdjson();
+      // Comprime con gzip nativo del navegador (sin dependencias): ~21 MB → ~5-8 MB.
+      const gz = new Blob([ndjson]).stream().pipeThrough(new CompressionStream("gzip"));
+      const blob = await new Response(gz).blob();
+      const file = new File([blob], `padron-${count}.ndjson.gz`, { type: "application/gzip" });
+      // Abre el menú "Compartir" del sistema (Bluetooth/Nearby Share/WhatsApp); si no se
+      // puede, descarga el archivo para pasarlo por USB/tarjeta.
+      const nav = navigator as any;
+      if (nav.canShare?.({ files: [file] }) && nav.share) {
+        try { await nav.share({ files: [file], title: "Padrón electoral" }); }
+        catch (e: any) { if (e?.name !== "AbortError") throw e; }
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        showToast("Archivo del padrón descargado. Pásalo al otro dispositivo (Bluetooth/USB) e impórtalo.", "info");
+      }
+    } catch (err) {
+      console.error("Error al exportar padrón:", err);
+      showToast("No se pudo exportar el padrón.", "error");
+    } finally {
+      setPadronBusy("");
+    }
+  };
+
+  // ── Importar el padrón desde un archivo (gzip o NDJSON) a IndexedDB, sin internet ──
+  const importPadron = async (file: File) => {
+    if (padronBusy || !file) return;
+    setPadronBusy("importing"); setPadronIoDone(0);
+    try {
+      const isGz = /\.gz$/i.test(file.name) || /gzip/i.test(file.type);
+      const stream = isGz ? file.stream().pipeThrough(new DecompressionStream("gzip")) : file.stream();
+      const text = await new Response(stream).text();
+      const lines = text.split("\n");
+      let batch: any[][] = [];
+      let processed = 0;
+      const flush = async () => {
+        if (!batch.length) return;
+        await cargarPadronEnCliente(batch, () => {});
+        processed += batch.length; setPadronIoDone(processed); batch = [];
+      };
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t) continue;
+        try { const arr = JSON.parse(t); if (Array.isArray(arr) && arr[0]) batch.push(arr); } catch { /* línea inválida */ }
+        if (batch.length >= 5000) await flush();
+      }
+      await flush();
+      await refreshVotersCount();
+      const total = await getLocalPadronCount();
+      showToast(`Padrón importado: ${total.toLocaleString()} cédulas locales.`, "success");
+    } catch (err) {
+      console.error("Error al importar padrón:", err);
+      showToast("No se pudo importar el archivo. ¿Es un padrón exportado por la app?", "error");
+    } finally {
+      setPadronBusy("");
+    }
+  };
+
   // Fetch consolidated dashboard stats from Supabase
   const fetchStats = async (force = false, silent = false) => {
     // Load from cache first for instant display
@@ -1901,6 +1972,10 @@ export default function Home() {
     downloadFullPadron,
     deletePadronLocal,
     refreshVotersCount,
+    exportPadron,
+    importPadron,
+    padronBusy,
+    padronIoDone,
   };
 
   const showBanner = !isOnline || pendingCount > 0 || isSyncing;

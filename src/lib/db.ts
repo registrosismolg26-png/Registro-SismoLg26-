@@ -413,6 +413,27 @@ export async function cargarPadronEnCliente(
   }
 }
 
+// Exporta TODO el padrón local como líneas NDJSON (un array posicional por línea) — MISMO
+// formato que /api/padron/download y que consume cargarPadronEnCliente. Listo para
+// comprimir (gzip) y compartir dispositivo-a-dispositivo.
+export async function exportPadronNdjson(): Promise<string> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PADRON_STORE, 'readonly');
+    const store = transaction.objectStore(PADRON_STORE);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const rows = (request.result as PadrónCiudadano[]) || [];
+      let out = "";
+      for (const c of rows) {
+        out += JSON.stringify([c.cedula, c.nacionalidad, c.nombreCompleto, c.sexo, c.fechaNacimiento, c.parroquia]) + "\n";
+      }
+      resolve(out);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function buscarCedulaEnCliente(cedula: string): Promise<PadrónCiudadano | null> {
   const db = await getDB();
   return new Promise((resolve, reject) => {
