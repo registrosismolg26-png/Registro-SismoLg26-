@@ -138,8 +138,12 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
       COUNT(*) FILTER (WHERE cnt =  1)::int AS individuos
     FROM (
       SELECT
-        CASE WHEN "jefeFamilia" = 'SI' THEN cedula
-             ELSE COALESCE(NULLIF("cedulaJefeFamilia", ''), cedula) END AS family_id,
+        -- Solo los DÍGITOS base (sin prefijo V-/E- ni sufijo -N) para que asocien igual.
+        regexp_replace(
+          CASE WHEN "jefeFamilia" = 'SI' THEN cedula
+               ELSE COALESCE(NULLIF("cedulaJefeFamilia", ''), cedula) END,
+          '^[VEve]?-?([0-9]+)(-[0-9]+)?$', '\\1'
+        ) AS family_id,
         COUNT(*) AS cnt
       FROM "Registro"
       ${activeSql}

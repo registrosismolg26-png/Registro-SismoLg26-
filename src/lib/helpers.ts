@@ -32,6 +32,17 @@ export function findRepresentante(
   return rep?.nombreApellido || null;
 }
 
+// Cédula "de familia" para COMPARAR/AGRUPAR familias: SOLO los dígitos base, sin prefijo
+// (V-/E-) ni sufijo de dependiente (-N). Así "V-26597356", "26597356" y "V-26597356-1"
+// comparan igual → "26597356". Úsala siempre que asocies familias por cédula.
+export function cedulaFamilia(cedula: string | null | undefined): string {
+  const t = String(cedula ?? "").trim();
+  const m = t.match(/^\s*[VE]?-?(\d+)(?:-\d+)?\s*$/i);
+  if (m) return m[1];
+  const d = t.match(/\d+/);
+  return d ? d[0] : "";
+}
+
 // ── Interpolación ID → nombre (modelo por-ID) ───────────────────────────────
 // Los registros/consultas guardan SOLO ids del catálogo; el nombre se resuelve
 // aquí para mostrar/exportar. Si el id no existe (ítem borrado del catálogo),

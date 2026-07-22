@@ -9,15 +9,16 @@ import { useState, useEffect, useMemo } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { getAllLocalCaracterizacion } from "@/lib/db";
-import { normalizeText } from "@/lib/helpers";
+import { normalizeText, cedulaFamilia } from "@/lib/helpers";
 import Pagination from "@/components/Pagination";
 import StyledSelect from "@/components/StyledSelect";
 import CaracterizacionCatalogos from "@/components/CaracterizacionCatalogos";
 import CaracterizacionFicha, { type Familia, type FamiliaMiembro } from "@/components/CaracterizacionFicha";
 
-// family_id = cédula del jefe (o la propia si es individuo/sin jefe).
+// family_id = cédula del jefe (o la propia si es individuo/sin jefe), comparada por DÍGITOS
+// base (sin prefijo V-/E- ni sufijo -N) para que "V-26597356" y "26597356" asocien igual.
 const familyIdOf = (r: any): string =>
-  r?.jefeFamilia === "SI" ? String(r?.cedula ?? "") : String(r?.cedulaJefeFamilia || r?.cedula || "");
+  cedulaFamilia(r?.jefeFamilia === "SI" ? r?.cedula : (r?.cedulaJefeFamilia || r?.cedula));
 
 export default function CaracterizacionTab() {
   const { registros, effectiveRefugio, currentUser } = useAppContext();
@@ -81,7 +82,7 @@ export default function CaracterizacionTab() {
     for (const [fid, miembrosRaw] of groups) {
       // Jefe: el marcado como jefe, o el que tiene la cédula = family_id, o el primero.
       const jefe = miembrosRaw.find((m) => m.jefeFamilia === "SI")
-        ?? miembrosRaw.find((m) => String(m.cedula) === fid)
+        ?? miembrosRaw.find((m) => cedulaFamilia(m.cedula) === fid)
         ?? miembrosRaw[0];
       const miembros: FamiliaMiembro[] = miembrosRaw.map((m) => ({
         registroId: m.id, cedula: m.cedula, nombreApellido: m.nombreApellido,
@@ -93,7 +94,7 @@ export default function CaracterizacionTab() {
         !hogarDone && personasDone === 0 ? "sin"
         : hogarDone && personasDone >= miembros.length ? "completa" : "parcial";
       out.push({
-        familiaCedula: fid, jefeRegistroId: jefe.id, jefeNombre: jefe.nombreApellido,
+        familiaCedula: jefe.cedula, jefeRegistroId: jefe.id, jefeNombre: jefe.nombreApellido,
         parroquia: jefe.parroquia, direccionExacta: jefe.direccionExacta,
         gpsLat: jefe.gpsLat ?? null, gpsLng: jefe.gpsLng ?? null,
         telefono: jefe.telefono ?? null, refugio: jefe.refugio,

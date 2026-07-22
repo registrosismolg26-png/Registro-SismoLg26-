@@ -29,6 +29,7 @@ import {
   medItemsText,
   normalizeText,
   findRepresentante,
+  cedulaFamilia,
 } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
 import { exportFamiliasExcel } from "@/lib/exportFamiliasExcel";
@@ -893,7 +894,7 @@ export default function AsignacionesTab() {
   const buildFamilyGroups = () => {
     const presentes = registros.filter((r: any) => r.retirado !== "SI");
     const familyId = (r: any) =>
-      r.jefeFamilia === "SI" ? r.cedula : r.cedulaJefeFamilia || r.cedula;
+      cedulaFamilia(r.jefeFamilia === "SI" ? r.cedula : (r.cedulaJefeFamilia || r.cedula));
     const groups = new Map<string, any[]>();
     presentes.forEach((r: any) => {
       const k = familyId(r) || r.id;
