@@ -361,6 +361,7 @@ export default function AsignacionesTab() {
   const [filterEstadoFisico, setFilterEstadoFisico] = useState("");
   const [filterCuarto, setFilterCuarto] = useState("");
   const [filterRetirado, setFilterRetirado] = useState("NO");
+  const [filterRegistrador, setFilterRegistrador] = useState(""); // operador que censó
   const [filterDesde, setFilterDesde] = useState(""); // yyyy-mm-dd (fecha de registro)
   const [filterHasta, setFilterHasta] = useState("");
   const [exportingXlsx, setExportingXlsx] = useState(false);
@@ -456,6 +457,11 @@ export default function AsignacionesTab() {
     if (filterRetirado) {
       result = result.filter((r) => (r.retirado || "NO") === filterRetirado);
     }
+    if (filterRegistrador) {
+      result = result.filter(
+        (r) => (r.registrador || "").trim() === filterRegistrador,
+      );
+    }
     // Rango de fechas de REGISTRO (createdAt), inclusivo.
     if (filterDesde)
       result = result.filter(
@@ -478,9 +484,65 @@ export default function AsignacionesTab() {
     filterEstadoFisico,
     filterCuarto,
     filterRetirado,
+    filterRegistrador,
     filterDesde,
     filterHasta,
   ]);
+
+  // Reordena la lista YA filtrada en bloques familiares: cada núcleo junto, con el
+  // JEFE primero y luego los integrantes (alfabético). Las familias conservan el
+  // orden de aparición (más reciente primero). Este orden se usa tanto en pantalla
+  // (paginado) como en el Excel de registrados → "JEFE / INTEGRANTE / INTEGRANTE".
+  const famKeyOf = (r: any) =>
+    cedulaFamilia(r.jefeFamilia === "SI" ? r.cedula : r.cedulaJefeFamilia || r.cedula) ||
+    r.id;
+  // Iniciales para el avatar (primer + último nombre); respaldo "?".
+  const initialsOf = (name: string) => {
+    const parts = String(name || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+  const orderedRegistros = useMemo(() => {
+    const groups = new Map<string, any[]>();
+    const order: string[] = [];
+    filteredRegistros.forEach((r: any) => {
+      const k = famKeyOf(r);
+      if (!groups.has(k)) {
+        groups.set(k, []);
+        order.push(k);
+      }
+      groups.get(k)!.push(r);
+    });
+    const flat: any[] = [];
+    order.forEach((k) => {
+      groups
+        .get(k)!
+        .slice()
+        .sort((a: any, b: any) => {
+          const aj = a.jefeFamilia === "SI" ? 0 : 1;
+          const bj = b.jefeFamilia === "SI" ? 0 : 1;
+          if (aj !== bj) return aj - bj;
+          return String(a.nombreApellido || "").localeCompare(
+            String(b.nombreApellido || ""),
+          );
+        })
+        .forEach((r) => flat.push(r));
+    });
+    return flat;
+  }, [filteredRegistros]);
+
+  // Lista de registradores distintos (para el filtro avanzado).
+  const registradoresList = useMemo(
+    () =>
+      [...new Set(registros.map((r: any) => (r.registrador || "").trim()).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [registros],
+  );
 
   // ── Paginación (del lado CLIENTE): pagina la lista ya filtrada, sin pedir páginas al
   // servidor → búsqueda/filtros/paginación siguen 100% offline sobre todo el censo. ──
@@ -499,6 +561,7 @@ export default function AsignacionesTab() {
     filterEstadoFisico,
     filterCuarto,
     filterRetirado,
+    filterRegistrador,
     filterDesde,
     filterHasta,
     regPageSize,
@@ -510,8 +573,8 @@ export default function AsignacionesTab() {
   }, [filteredRegistros.length, regPageSize, regPage]);
   const regOffset = (regPage - 1) * regPageSize;
   const pagedRegistros = useMemo(
-    () => filteredRegistros.slice(regOffset, regOffset + regPageSize),
-    [filteredRegistros, regOffset, regPageSize],
+    () => orderedRegistros.slice(regOffset, regOffset + regPageSize),
+    [orderedRegistros, regOffset, regPageSize],
   );
 
   const roomCounts = useMemo(() => {
@@ -853,10 +916,11 @@ export default function AsignacionesTab() {
         filtrosParts.push("Estatus: Egresados / Retirados");
       else if (filterRetirado === "")
         filtrosParts.push("Estatus: Todos (presentes y egresados)");
+      if (filterRegistrador) filtrosParts.push(`Registrador: ${filterRegistrador}`);
       if (filterDesde) filtrosParts.push(`Desde ${dmy(filterDesde)}`);
       if (filterHasta) filtrosParts.push(`Hasta ${dmy(filterHasta)}`);
       await exportRegistrosExcel({
-        registros: filteredRegistros,
+        registros: orderedRegistros,
         patologias,
         predefinedMedicamentos,
         refugio: effectiveRefugio || currentUser?.campamentoTransitorio || "",
@@ -1175,9 +1239,10 @@ export default function AsignacionesTab() {
                 </span>
               )}
             </div>
-            {/* Exportar: disponible para todos los roles (un Visualizador solo ve y exporta). */}
+            {/* Exportar: disponible para todos los roles (un Visualizador solo ve y exporta).
+                Botonera AGRUPADA (regla de tema visual): grupo segmentado. */}
             {
-              <div style={{ display: "flex", gap: "0.5rem" }}>
+              <div className="btn-seg-group">
                 <button
                   type="button"
                   className="toolbar-btn"
@@ -1294,6 +1359,7 @@ export default function AsignacionesTab() {
               filterEstadoFisico ||
               filterCuarto ||
               filterRetirado !== "NO" ||
+              filterRegistrador ||
               filterDesde ||
               filterHasta) && (
               <button
@@ -1308,6 +1374,7 @@ export default function AsignacionesTab() {
                   setFilterEstadoFisico("");
                   setFilterCuarto("");
                   setFilterRetirado("NO");
+                  setFilterRegistrador("");
                   setFilterDesde("");
                   setFilterHasta("");
                 }}
@@ -1443,6 +1510,19 @@ export default function AsignacionesTab() {
               </div>
 
               <div className="form-group">
+                <label>Registrador (quién censó)</label>
+                <StyledSelect
+                  value={filterRegistrador}
+                  onChange={setFilterRegistrador}
+                  ariaLabel="Registrador"
+                  options={[
+                    { value: "", label: "Todos" },
+                    ...registradoresList.map((n) => ({ value: n, label: n })),
+                  ]}
+                />
+              </div>
+
+              <div className="form-group">
                 <label>Registrados desde</label>
                 <DatePicker
                   value={filterDesde}
@@ -1468,13 +1548,12 @@ export default function AsignacionesTab() {
               <table className="registro-table">
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Nombre y Apellido</th>
-                    <th className="col-cedula">Cédula</th>
-                    <th className="col-parroquia">Parroquia</th>
-                    <th>Estado</th>
-                    <th>Cuarto</th>
-                    <th></th>
+                    <th className="col-num">#</th>
+                    <th>Persona</th>
+                    <th className="col-ubicacion">Ubicación</th>
+                    <th>Estatus</th>
+                    <th className="col-registrador">Registrador</th>
+                    <th className="col-action"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1486,22 +1565,36 @@ export default function AsignacionesTab() {
                           style={{ width: "18px", margin: "0 auto" }}
                         />
                       </td>
-                      <td className="col-nombre">
-                        <span
-                          className="skeleton-cell"
-                          style={{ width: `${55 + (i % 4) * 12}%` }}
-                        />
+                      <td className="col-persona">
+                        <div className="person-cell">
+                          <span
+                            className="skeleton-cell"
+                            style={{
+                              width: "38px",
+                              height: "38px",
+                              borderRadius: "50%",
+                              flexShrink: 0,
+                            }}
+                          />
+                          <div
+                            className="person-info"
+                            style={{ gap: "7px", flex: 1 }}
+                          >
+                            <span
+                              className="skeleton-cell"
+                              style={{ width: `${50 + (i % 4) * 12}%` }}
+                            />
+                            <span
+                              className="skeleton-cell"
+                              style={{ width: "95px", height: "9px" }}
+                            />
+                          </div>
+                        </div>
                       </td>
-                      <td className="col-cedula">
+                      <td className="col-ubicacion">
                         <span
-                          className="skeleton-cell"
-                          style={{ width: "72px" }}
-                        />
-                      </td>
-                      <td className="col-parroquia">
-                        <span
-                          className="skeleton-cell"
-                          style={{ width: "85px" }}
+                          className="skeleton-cell skeleton-cell--pill"
+                          style={{ width: "120px" }}
                         />
                       </td>
                       <td>
@@ -1510,10 +1603,10 @@ export default function AsignacionesTab() {
                           style={{ width: "58px" }}
                         />
                       </td>
-                      <td>
+                      <td className="col-registrador">
                         <span
-                          className="skeleton-cell skeleton-cell--pill"
-                          style={{ width: "68px" }}
+                          className="skeleton-cell"
+                          style={{ width: "82px" }}
                         />
                       </td>
                       <td className="col-action">
@@ -1570,80 +1663,121 @@ export default function AsignacionesTab() {
               <table className="registro-table">
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Nombre y Apellido</th>
-                    <th className="col-cedula">Cédula</th>
-                    <th className="col-parroquia">Parroquia</th>
-                    <th>Estado</th>
-                    <th>Cuarto</th>
-                    <th></th>
+                    <th className="col-num">#</th>
+                    <th>Persona</th>
+                    <th className="col-ubicacion">Ubicación</th>
+                    <th>Estatus</th>
+                    <th className="col-registrador">Registrador</th>
+                    <th className="col-action"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pagedRegistros.map((reg, i) => (
+                  {pagedRegistros.map((reg, i) => {
+                    const esJefe = reg.jefeFamilia === "SI";
+                    const prev = i > 0 ? pagedRegistros[i - 1] : null;
+                    const famStart =
+                      !!prev && famKeyOf(prev) !== famKeyOf(reg);
+                    const origen = [reg.parroquia, reg.comunidad || reg.sector]
+                      .map((s) => (s || "").trim())
+                      .filter(Boolean)
+                      .join(" · ");
+                    return (
                     <tr
                       key={reg.id}
-                      className="reg-row-enter"
+                      className={`reg-row-enter${famStart ? " reg-fam-start" : ""}`}
                       style={{ animationDelay: `${Math.min(i, 10) * 25}ms` }}
                     >
                       <td className="col-num">{regOffset + i + 1}</td>
-                      <td className="col-nombre" data-label="Nombre">
-                        {reg.nombreApellido}
+
+                      {/* PERSONA: avatar + nombre + rol · cédula · teléfono */}
+                      <td className="col-persona" data-label="Persona">
+                        <div className="person-cell">
+                          <span
+                            className={`person-avatar${esJefe ? " person-avatar--jefe" : ""}`}
+                            aria-hidden="true"
+                          >
+                            {initialsOf(reg.nombreApellido)}
+                          </span>
+                          <div className="person-info">
+                            <div className="person-top">
+                              <span className="person-name">
+                                {reg.nombreApellido}
+                              </span>
+                              <span
+                                className={`role-badge ${esJefe ? "role-badge--jefe" : "role-badge--integ"}`}
+                              >
+                                {esJefe ? "Jefe" : "Integrante"}
+                              </span>
+                            </div>
+                            <div className="person-sub">
+                              <span className="person-cedula">
+                                {reg.cedula}
+                              </span>
+                              {reg.telefono && (
+                                <span className="person-phone">
+                                  · {reg.telefono}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </td>
-                      <td className="col-cedula" data-label="Cédula">
-                        {reg.cedula}
+
+                      {/* UBICACIÓN: asignación (cuarto/carpa) + origen */}
+                      <td className="col-ubicacion" data-label="Ubicación">
+                        <div className="ubic-cell">
+                          {reg.cuarto ? (
+                            <span className="cuarto-badge cuarto-badge--assigned">
+                              {reg.cuarto}
+                            </span>
+                          ) : (
+                            <span className="cuarto-badge cuarto-badge--none">
+                              Sin asignar
+                            </span>
+                          )}
+                          {origen && (
+                            <span className="ubic-origin">{origen}</span>
+                          )}
+                        </div>
                       </td>
-                      <td className="col-parroquia" data-label="Parroquia">
-                        {reg.parroquia}
-                      </td>
-                      <td className="col-estado" data-label="Estado">
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "4px",
-                          }}
-                        >
+
+                      {/* ESTATUS: pills */}
+                      <td className="col-estado" data-label="Estatus">
+                        <div className="estado-stack">
                           <span
                             className={`estado-pill ${reg.estadoFisico === "LESIONADO" ? "estado-pill--danger" : "estado-pill--ok"}`}
                           >
                             {reg.estadoFisico}
                           </span>
                           {reg.retirado === "SI" && (
-                            <span
-                              className="estado-pill"
-                              style={{
-                                backgroundColor: "rgba(239, 68, 68, 0.2)",
-                                color: "#ef4444",
-                                border: "1px solid rgba(239, 68, 68, 0.4)",
-                              }}
-                            >
+                            <span className="estado-pill estado-pill--retirado">
                               RETIRADO
                             </span>
                           )}
                           {reg.intermitente === "SI" && (
-                            <span
-                              className="estado-pill"
-                              style={{
-                                backgroundColor: "rgba(245, 158, 11, 0.15)",
-                                color: "#f59e0b",
-                                border: "1px solid rgba(245, 158, 11, 0.4)",
-                              }}
-                            >
+                            <span className="estado-pill estado-pill--intermitente">
                               INTERMITENTE
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="col-cuarto" data-label="Cuarto">
-                        {reg.cuarto ? (
-                          <span className="cuarto-badge cuarto-badge--assigned">
-                            {reg.cuarto}
+
+                      {/* REGISTRADOR (quién censó) */}
+                      <td className="col-registrador" data-label="Registrador">
+                        {reg.registrador ? (
+                          <span className="registrador-chip">
+                            <span
+                              className="registrador-avatar"
+                              aria-hidden="true"
+                            >
+                              {initialsOf(reg.registrador)}
+                            </span>
+                            <span className="registrador-name">
+                              {reg.registrador}
+                            </span>
                           </span>
                         ) : (
-                          <span className="cuarto-badge cuarto-badge--none">
-                            Sin asignar
-                          </span>
+                          <span className="registrador-none">—</span>
                         )}
                       </td>
                       <td className="col-action">
@@ -1672,7 +1806,7 @@ export default function AsignacionesTab() {
                             </button>
                           )}
                           <button
-                            className="btn-ver"
+                            className="btn-ver btn-ver--view"
                             aria-label="Ver detalles"
                             data-tip="Ver"
                             onClick={() => {
@@ -1723,7 +1857,8 @@ export default function AsignacionesTab() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

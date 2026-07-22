@@ -321,6 +321,7 @@ export async function POST(req: Request) {
           retiradoFecha: retiradoFechaSave,
           intermitente: intermitenteVal,
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
+          registrador: (auth.nombre || auth.email || "").trim() || null,
           syncedAt: new Date(),
         },
       });

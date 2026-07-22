@@ -45,6 +45,7 @@ model Registro {
   intermitente         String    @default("NO") // "SI" or "NO"
   motivoIntermitente   String?   // Required when intermitente = "SI"
   refugio              String
+  registrador          String?   // Nombre del operador que registró (se setea al censar; backfill desde AuditLog)
 
   // Una persona puede tener UNA fila por campamento (retirada en el de origen,
   // activa en el destino tras un traslado). La cédula ya NO es única global.

@@ -50,6 +50,7 @@ const COLS: [string, number][] = [
   ["Intermitente", 16],
   ["Estatus", 12],
   ["Fecha de registro", 18],
+  ["Registrador", 22],
 ];
 
 export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
@@ -158,6 +159,7 @@ export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
       intermitente,
       retirado ? "Retirado" : "Presente",
       r.createdAt ? new Date(r.createdAt).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "",
+      r.registrador || "—",
     ];
     const row = ws.addRow(values);
     const zebra = idx % 2 === 1;

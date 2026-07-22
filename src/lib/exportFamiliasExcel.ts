@@ -130,7 +130,7 @@ export async function exportFamiliasExcel(opts: FamiliasExportOpts): Promise<voi
     familia.forEach((r, memberIdx) => {
       const esJefe = r.jefeFamilia === "SI" || memberIdx === 0;
       const values = [
-        memberIdx === 0 ? fIdx + 1 : "",                        // N° familia (solo en la 1ª fila)
+        fIdx + 1,                                               // N° familia (en TODAS las filas → se puede filtrar por familia sin desorganizar)
         esJefe ? "Jefe de familia" : "Integrante",
         r.cedula || "",
         r.nombreApellido || "",
