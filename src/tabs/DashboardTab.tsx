@@ -69,7 +69,7 @@ export default function DashboardTab() {
   const [showReportModal, setShowReportModal] = useState(false);
   // Tipo de reporte y campos libres del reporte detallado (persisten en
   // localStorage para no reescribirlos cada vez).
-  const [reportType, setReportType] = useState<"resumen" | "detallado">("resumen");
+  const [reportType, setReportType] = useState<"resumen" | "detallado" | "comunidad">("resumen");
   const [repOrganismo, setRepOrganismo] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("rep_organismo") || "" : ""));
 
   // Estado de "Compartir reporte por link público"
@@ -556,8 +556,57 @@ Hora: *${hhStr}:${minStr}* ${ampm}
 · EMBARAZADAS: ${embarazadas}`;
   };
 
+  // ── Reporte "CARACTERIZACIÓN POR COMUNIDAD" (refugios itinerante/mixto) ──
+  // Presentes (activos) agrupados por la comunidad del catálogo (campo `comunidad`).
+  const generateComunidadText = () => {
+    const now = new Date();
+    const cap1 = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+    const weekday = cap1(now.toLocaleDateString("es-VE", { weekday: "long" }));
+    const monthName = cap1(now.toLocaleDateString("es-VE", { month: "long" }));
+    const dd = String(now.getDate()).padStart(2, "0");
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const fechaStr = `${weekday} ${dd} de ${monthName} ${now.getFullYear()} · ${hh}:${mm} hrs`;
+
+    const refugioActivo = effectiveRefugio || currentUser?.campamentoTransitorio || "";
+    const tipoLabel = refugioTipo === "MIXTO" ? "Mixto" : "Itinerante";
+
+    const presentes = (registros || []).filter((r: any) => r.retirado !== "SI");
+    const counts: Record<string, number> = {};
+    let sinComunidad = 0;
+    presentes.forEach((r: any) => {
+      const com = String(r.comunidad || "").trim();
+      if (com) counts[com] = (counts[com] || 0) + 1;
+      else sinComunidad++;
+    });
+    const ordered = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const lineas = ordered.map(([com, n], i) => `${i + 1}. *${com}* — ${n}`).join("\n");
+    const familias = currentStats.nucleosFamiliares || 0;
+    const intermitentes = currentStats.intermitentes || 0;
+
+    const SEP = "━━━━━━━━━━━━━━━━━━━━";
+    return `🇻🇪 *CARACTERIZACIÓN POR COMUNIDAD* 🇻🇪
+${SEP}
+🏕️ *Campamento:* ${refugioActivo.toUpperCase()}
+🏷️ *Tipo:* ${tipoLabel}
+🗓️ *Reporte:* ${fechaStr}
+${SEP}
+
+👥 *Presentes por comunidad:*
+
+${lineas || "_Sin personas presentes registradas._"}${sinComunidad ? `\n\n_Sin comunidad asignada: ${sinComunidad}_` : ""}
+
+${SEP}
+📊 *Total presentes:* ${presentes.length}
+🏘️ *Comunidades:* ${ordered.length}
+👨‍👩‍👧 *Núcleos familiares:* ${familias}
+🔄 *Intermitentes:* ${intermitentes}
+${SEP}
+_Gobernación del Estado La Guaira · Campamentos Transitorios_`;
+  };
+
   const handleShareReport = () => {
-    const text = reportType === "detallado" ? generateDetalladoText() : generateReportText();
+    const text = (reportType === "comunidad" && esCarpa) ? generateComunidadText() : reportType === "detallado" ? generateDetalladoText() : generateReportText();
     if (reportType === "detallado" && typeof window !== "undefined") {
       // Recuerda el organismo para el próximo reporte (estado/municipio son fijos).
       localStorage.setItem("rep_organismo", repOrganismo.trim());
@@ -1066,6 +1115,9 @@ Hora: *${hhStr}:${minStr}* ${ampm}
                 <div className="report-type-toggle">
                   <button type="button" className={`report-type-btn ${reportType === "resumen" ? "report-type-btn--active" : ""}`} onClick={() => setReportType("resumen")}>Resumen</button>
                   <button type="button" className={`report-type-btn ${reportType === "detallado" ? "report-type-btn--active" : ""}`} onClick={() => setReportType("detallado")}>Detallado</button>
+                  {esCarpa && (
+                    <button type="button" className={`report-type-btn ${reportType === "comunidad" ? "report-type-btn--active" : ""}`} onClick={() => setReportType("comunidad")}>Por Comunidad</button>
+                  )}
                 </div>
               </div>
 
@@ -1081,7 +1133,7 @@ Hora: *${hhStr}:${minStr}* ${ampm}
               {/* Vista previa */}
               <div className="form-group">
                 <label>Vista previa del mensaje</label>
-                <pre className="report-preview">{reportType === "detallado" ? generateDetalladoText() : generateReportText()}</pre>
+                <pre className="report-preview">{(reportType === "comunidad" && esCarpa) ? generateComunidadText() : reportType === "detallado" ? generateDetalladoText() : generateReportText()}</pre>
               </div>
             </div>
 
