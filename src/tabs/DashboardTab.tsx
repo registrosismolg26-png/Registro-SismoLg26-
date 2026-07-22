@@ -389,6 +389,20 @@ export default function DashboardTab() {
     return counts;
   }, [registros, allCuartos]);
 
+  // Refugios ITINERANTE/MIXTO: la distribución es por TIPO DE CARPA (sin capacidad/límite),
+  // no por habitación. El tipo de carpa = segmento del medio del `cuarto` "COMUNIDAD - TIPO - Nº".
+  const refugioTipo = refugiosList.find((r: any) => r.nombre === effectiveRefugio)?.tipo || "TRANSITORIO";
+  const esCarpa = refugioTipo === "ITINERANTE" || refugioTipo === "MIXTO";
+  const carpaCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    registros.filter(r => r.retirado !== "SI" && r.cuarto).forEach(r => {
+      const parts = String(r.cuarto).split(" - ");
+      const tipo = parts.length >= 3 ? parts.slice(1, -1).join(" - ").trim() : String(r.cuarto).trim();
+      if (tipo) counts[tipo] = (counts[tipo] || 0) + 1;
+    });
+    return counts;
+  }, [registros]);
+
   // Helper to generate the WhatsApp report text
   const generateReportText = () => {
     const now = new Date();
@@ -977,36 +991,57 @@ Hora: *${hhStr}:${minStr}* ${ampm}
                 </div>
               </div>
 
-              {/* Distribución por Habitación / Salón */}
+              {/* Transitorio → por Habitación/Salón (con capacidad). Itinerante/Mixto → por Tipo de Carpa (sin límite). */}
               <div className="dashboard-section" style={{ gridColumn: "1 / -1", marginTop: "1rem" }}>
-                <div className="dash-sec-head" style={{ ["--accent" as any]: "#2563eb" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.bed}</span><h3 className="dashboard-section-title">Distribución por Habitación / Salón</h3></div>
-                <div className="dash-rooms">
-                  {dashboardRooms.map(room => {
-                    const count = roomCounts[room] || 0;
-                    const isDeleted = !allCuartos.includes(room);
-                    const cap = roomCapacities[room] ?? 18;
+                {esCarpa ? (
+                  <>
+                    <div className="dash-sec-head" style={{ ["--accent" as any]: "#2563eb" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.bed}</span><h3 className="dashboard-section-title">Distribución por Tipo de Carpa</h3></div>
+                    <div className="dash-rooms">
+                      {Object.entries(carpaCounts).sort((a, b) => b[1] - a[1]).map(([tipo, count]) => (
+                        <div key={tipo} className="dash-room dash-room--green">
+                          <span className="dash-room__name">{tipo}</span>
+                          <span className="dash-room__num">{count}</span>
+                        </div>
+                      ))}
+                      {Object.keys(carpaCounts).length === 0 && (
+                        <div style={{ gridColumn: "1 / -1", fontSize: "0.8rem", color: "var(--text-muted)", padding: "0.5rem" }}>
+                          Aún no hay personas asignadas a carpas.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="dash-sec-head" style={{ ["--accent" as any]: "#2563eb" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.bed}</span><h3 className="dashboard-section-title">Distribución por Habitación / Salón</h3></div>
+                    <div className="dash-rooms">
+                      {dashboardRooms.map(room => {
+                        const count = roomCounts[room] || 0;
+                        const isDeleted = !allCuartos.includes(room);
+                        const cap = roomCapacities[room] ?? 18;
 
-                    let level: "green" | "yellow" | "red" | "gray" = "green";
-                    if (isDeleted) {
-                      level = "gray";
-                    } else {
-                      const f = roomFillLevel(count, cap);
-                      level = f === "red" ? "red" : f === "yellow" ? "yellow" : "green";
-                    }
+                        let level: "green" | "yellow" | "red" | "gray" = "green";
+                        if (isDeleted) {
+                          level = "gray";
+                        } else {
+                          const f = roomFillLevel(count, cap);
+                          level = f === "red" ? "red" : f === "yellow" ? "yellow" : "green";
+                        }
 
-                    return (
-                      <div key={room} className={`dash-room dash-room--${level}`}>
-                        <span className="dash-room__name">
-                          {formatRoomLabel(room)}
-                          {isDeleted && <small>Inactiva</small>}
-                        </span>
-                        <span className="dash-room__num">
-                          {isDeleted ? `${count}` : `${count}/${cap}`}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                        return (
+                          <div key={room} className={`dash-room dash-room--${level}`}>
+                            <span className="dash-room__name">
+                              {formatRoomLabel(room)}
+                              {isDeleted && <small>Inactiva</small>}
+                            </span>
+                            <span className="dash-room__num">
+                              {isDeleted ? `${count}` : `${count}/${cap}`}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </>
