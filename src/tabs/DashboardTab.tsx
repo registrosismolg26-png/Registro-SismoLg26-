@@ -592,12 +592,12 @@ ${SEP}
 🗓️ *Reporte:* ${fechaStr}
 ${SEP}
 
-👥 *Presentes por comunidad:*
+👥 *Censados por comunidad:*
 
 ${lineas || "_Sin personas presentes registradas._"}${sinComunidad ? `\n\n_Sin comunidad asignada: ${sinComunidad}_` : ""}
 
 ${SEP}
-📊 *Total presentes:* ${presentes.length}
+📊 *Total censados:* ${presentes.length}
 🏘️ *Comunidades:* ${ordered.length}
 👨‍👩‍👧 *Núcleos familiares:* ${familias}
 🔄 *Intermitentes:* ${intermitentes}
