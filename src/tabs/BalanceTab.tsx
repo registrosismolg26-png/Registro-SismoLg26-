@@ -23,10 +23,26 @@ const edadFromISO = (iso?: string): number | null => {
   return age >= 0 ? age : null;
 };
 
-// Grupos de edad: Lactantes = 0–3 años (separados del resto de menores, que pasan a 4–17).
-type Bucket = "lactantes" | "menores" | "adultos" | "mayores";
+// Grupos de edad CLÍNICOS (demografía por categoría). Contiguos y sin huecos.
+const AGE_GROUPS = [
+  { key: "lactanteMenor", label: "Lactante Menor (<1)", color: "#06b6d4" },
+  { key: "lactanteMayor", label: "Lactante Mayor (1–2)", color: "#14b8a6" },
+  { key: "preescolar",    label: "Preescolar (3–5)",     color: "#10b981" },
+  { key: "escolar",       label: "Escolar (6–11)",       color: "#84cc16" },
+  { key: "adolescente",   label: "Adolescente (12–17)",  color: "#eab308" },
+  { key: "adulto",        label: "Adulto (18–59)",       color: "#f59e0b" },
+  { key: "adultoMayor",   label: "Adulto Mayor (60+)",   color: "#8b5cf6" },
+] as const;
+type Bucket = typeof AGE_GROUPS[number]["key"];
 const bucketOf = (edad: number | null): Bucket | null =>
-  edad == null ? null : edad <= 3 ? "lactantes" : edad < 18 ? "menores" : edad < 60 ? "adultos" : "mayores";
+  edad == null ? null
+  : edad < 1   ? "lactanteMenor"
+  : edad <= 2  ? "lactanteMayor"
+  : edad <= 5  ? "preescolar"
+  : edad <= 11 ? "escolar"
+  : edad <= 17 ? "adolescente"
+  : edad <= 59 ? "adulto"
+  : "adultoMayor";
 
 // ── Íconos (stroke, 24x24) ──────────────────────────────────────────────────
 const I = {
@@ -110,9 +126,9 @@ export default function BalanceTab() {
     }
 
     const gen = { FEMENINO: 0, MASCULINO: 0, OTRO: 0 };
-    const matrix = { lactantes: { FEMENINO: 0, MASCULINO: 0 }, menores: { FEMENINO: 0, MASCULINO: 0 }, adultos: { FEMENINO: 0, MASCULINO: 0 }, mayores: { FEMENINO: 0, MASCULINO: 0 } };
+    const matrix = Object.fromEntries(AGE_GROUPS.map((g) => [g.key, { FEMENINO: 0, MASCULINO: 0 }])) as Record<Bucket, { FEMENINO: number; MASCULINO: number }>;
     let sumEdad = 0, nEdad = 0, conPatCount = 0, embarazadasCount = 0;
-    const ageTot = { lactantes: 0, menores: 0, adultos: 0, mayores: 0, sinEdad: 0 };
+    const ageTot = { ...Object.fromEntries(AGE_GROUPS.map((g) => [g.key, 0])), sinEdad: 0 } as Record<Bucket | "sinEdad", number>;
 
     patients.forEach((p) => {
       const g = p.genero === "FEMENINO" ? "FEMENINO" : p.genero === "MASCULINO" ? "MASCULINO" : "OTRO";
@@ -158,10 +174,7 @@ export default function BalanceTab() {
     ...(B.gen.OTRO ? [{ label: "Otro / N.E.", count: B.gen.OTRO, color: "#94a3b8" }] : []),
   ];
   const ageSegs = [
-    { label: "Lactantes (0–3)", count: B.ageTot.lactantes, color: "#06b6d4" },
-    { label: "Menores (4–17)", count: B.ageTot.menores, color: "#10b981" },
-    { label: "Adultos (18–59)", count: B.ageTot.adultos, color: "#f59e0b" },
-    { label: "Mayores (≥60)", count: B.ageTot.mayores, color: "#8b5cf6" },
+    ...AGE_GROUPS.map((g) => ({ label: g.label, count: B.ageTot[g.key], color: g.color })),
     ...(B.ageTot.sinEdad ? [{ label: "Sin edad", count: B.ageTot.sinEdad, color: "#94a3b8" }] : []),
   ];
 
@@ -177,8 +190,8 @@ export default function BalanceTab() {
   });
 
   const maxTopPat = Math.max(1, ...B.topPatologias.map((p) => p.count));
-  const totFem = B.matrix.lactantes.FEMENINO + B.matrix.menores.FEMENINO + B.matrix.adultos.FEMENINO + B.matrix.mayores.FEMENINO;
-  const totMasc = B.matrix.lactantes.MASCULINO + B.matrix.menores.MASCULINO + B.matrix.adultos.MASCULINO + B.matrix.mayores.MASCULINO;
+  const totFem = AGE_GROUPS.reduce((s, g) => s + B.matrix[g.key].FEMENINO, 0);
+  const totMasc = AGE_GROUPS.reduce((s, g) => s + B.matrix[g.key].MASCULINO, 0);
 
   const SegBar = ({ segs, icon, title }: { segs: { label: string; count: number; color: string }[]; icon: ReactNode; title: string }) => {
     const total = segs.reduce((s, x) => s + x.count, 0) || 1;
@@ -210,7 +223,7 @@ export default function BalanceTab() {
   const matRow = (label: string, m: { FEMENINO: number; MASCULINO: number }) => {
     const tot = m.FEMENINO + m.MASCULINO;
     return (
-      <tr>
+      <tr key={label}>
         <td><strong>{label}</strong></td>
         <td className="bal-cell bal-cell--f" data-label="Femenino">{m.FEMENINO}</td>
         <td className="bal-cell bal-cell--m" data-label="Masculino">{m.MASCULINO}</td>
@@ -304,10 +317,7 @@ export default function BalanceTab() {
                   <tr><th>Grupo de edad</th><th>Femenino</th><th>Masculino</th><th>Total</th></tr>
                 </thead>
                 <tbody>
-                  {matRow("Lactantes (0–3)", B.matrix.lactantes)}
-                  {matRow("Menores (4–17)", B.matrix.menores)}
-                  {matRow("Adultos (18–59)", B.matrix.adultos)}
-                  {matRow("Mayores (≥60)", B.matrix.mayores)}
+                  {AGE_GROUPS.map((g) => matRow(g.label, B.matrix[g.key]))}
                   <tr className="bal-matrix__total">
                     <td><strong>Total</strong></td>
                     <td className="bal-cell bal-cell--f" data-label="Femenino"><strong>{totFem}</strong></td>
