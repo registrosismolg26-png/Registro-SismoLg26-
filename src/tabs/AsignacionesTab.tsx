@@ -64,7 +64,17 @@ export default function AsignacionesTab() {
     setPendingSelectId,
     patologias,
     predefinedMedicamentos,
+    comunidades,
+    tiposCarpa,
+    refugiosList,
   } = useAppContext();
+
+  // Congruencia con el CENSO: en campamentos ITINERANTE/MIXTO la comunidad sale del
+  // CATÁLOGO (filtrada por parroquia + campamento) y el alojamiento es Tipo + N.º de
+  // carpa (compone `cuarto` = "COMUNIDAD - TIPO - NN"), no "Habitación / Salón".
+  const refugioTipo = refugiosList.find((r: any) => r.nombre === effectiveRefugio)?.tipo || "TRANSITORIO";
+  const esCarpa = refugioTipo === "ITINERANTE" || refugioTipo === "MIXTO";
+  const activeRefugioId = refugiosList.find((r: any) => r.nombre === effectiveRefugio)?.id || "";
 
   const [registroSearch, setRegistroSearch] = useState("");
   const [selectedRegistro, setSelectedRegistro] = useState<any | null>(null);
@@ -98,6 +108,14 @@ export default function AsignacionesTab() {
   const editErr = (field: string): string => editErrors[field] || "";
   // Tooltip flotante (fixed) del cuarto truncado — escapa del contenedor con overflow.
   const [cuartoTip, setCuartoTip] = useState<{ text: string; x: number; y: number } | null>(null);
+  // Comunidades del catálogo para la EDICIÓN: mismo filtro que el censo (parroquia
+  // elegida + campamento activo), para que ambos flujos ofrezcan lo mismo.
+  const comunidadOptsEdit = useMemo(
+    () => (comunidades || [])
+      .filter((c: any) => c.parroquia === (editData.parroquia || "") && !!c.refugioId && c.refugioId === activeRefugioId)
+      .map((c: any) => ({ value: c.nombre, label: c.nombre })),
+    [comunidades, editData.parroquia, activeRefugioId],
+  );
   const [savingEdit, setSavingEdit] = useState(false);
   const [originalMedsCount, setOriginalMedsCount] = useState(0);
 
@@ -280,7 +298,14 @@ export default function AsignacionesTab() {
     } else if (jefeNum.startsWith("V") || jefeNum.startsWith("E")) {
       jefeNum = jefeNum.slice(1);
     }
+    // Itinerante/Mixto: el `cuarto` guardado es "COMUNIDAD - TIPO DE CARPA - Nº".
+    // Se descompone para editarlo con los MISMOS controles del censo.
+    const cuartoParts = String(reg.cuarto || "").split(" - ");
+    const carpaTipoIni = cuartoParts.length >= 3 ? cuartoParts.slice(1, -1).join(" - ").trim() : "";
+    const carpaNroIni = cuartoParts.length >= 3 ? cuartoParts[cuartoParts.length - 1].trim() : "";
     setEditData({
+      carpaTipo: carpaTipoIni,
+      carpaNro: carpaNroIni,
       nacionalidad: parsedCed.nac,
       cedula: parsedCed.digits,
       isChildDependent: parsedCed.isChild,
@@ -724,6 +749,11 @@ export default function AsignacionesTab() {
     }
     if (editData.intermitente === "SI" && !s(editData.motivoIntermitente).trim())
       e.motivoIntermitente = "El motivo es obligatorio para residentes intermitentes";
+    // Itinerante/Mixto: carpa OBLIGATORIA salvo que esté retirado (mismo criterio del censo).
+    if (esCarpa && editData.retirado !== "SI") {
+      if (!s(editData.carpaTipo).trim()) e.carpaTipo = "Seleccione el tipo de carpa";
+      if (!s(editData.carpaNro).trim()) e.carpaNro = "Indique el N.º / código de carpa";
+    }
     return e;
   };
 
@@ -816,6 +846,15 @@ export default function AsignacionesTab() {
       }
     }
 
+    // Itinerante/Mixto: el cuarto se COMPONE igual que en el censo →
+    // "COMUNIDAD - TIPO DE CARPA - NN" (NN a 2 dígitos solo si es numérico).
+    const carpaNroRaw = String(editData.carpaNro ?? "").trim();
+    const cuartoFinal = esCarpa
+      ? (editData.carpaTipo && carpaNroRaw
+          ? `${editData.comunidad ?? ""} - ${editData.carpaTipo} - ${/^\d+$/.test(carpaNroRaw) ? carpaNroRaw.padStart(2, "0") : carpaNroRaw}`.toUpperCase()
+          : undefined)
+      : (editData.cuarto || undefined);
+
     const updated = {
       ...selectedRegistro,
       ...editData,
@@ -823,6 +862,7 @@ export default function AsignacionesTab() {
       edad: finalEdad,
       cedula: finalCedula,
       cedulaJefeFamilia: finalJefeCedula,
+      cuarto: cuartoFinal,
       medicamentoIds: editMedicamentos,
     };
 
@@ -2892,16 +2932,20 @@ export default function AsignacionesTab() {
                   <div className="detail-section-title">Ubicación</div>
                   <div className="form-group">
                     <label>Parroquia</label>
-                    <input
-                      type="text"
+                    <StyledSelect
                       value={editData.parroquia || ""}
-                      onChange={(e) =>
+                      ariaLabel="Parroquia"
+                      placeholder="Seleccione una parroquia…"
+                      onChange={(v) =>
                         setEditData((prev) => ({
                           ...prev,
-                          parroquia: e.target.value,
+                          parroquia: v,
+                          // En carpa la comunidad se filtra por parroquia → se limpia al cambiarla.
+                          ...(esCarpa ? { comunidad: "" } : {}),
                         }))
                       }
-                      className={editErr("parroquia") ? "has-error" : ""}
+                      options={PARROQUIAS.map((p) => ({ value: p, label: p }))}
+                      error={!!editErr("parroquia")}
                     />
                   </div>
                   <div className="form-group">
@@ -2920,17 +2964,32 @@ export default function AsignacionesTab() {
                   </div>
                   <div className="form-group">
                     <label>Comunidad</label>
-                    <input
-                      type="text"
-                      value={editData.comunidad || ""}
-                      onChange={(e) =>
-                        setEditData((prev) => ({
-                          ...prev,
-                          comunidad: e.target.value,
-                        }))
-                      }
-                      className={editErr("comunidad") ? "has-error" : ""}
-                    />
+                    {esCarpa ? (
+                      <SearchableSingleSelect
+                        value={editData.comunidad || ""}
+                        onChange={(v) => setEditData((prev) => ({ ...prev, comunidad: v }))}
+                        options={comunidadOptsEdit}
+                        placeholder={editData.parroquia ? "Seleccione la comunidad…" : "Elija primero la parroquia"}
+                        searchPlaceholder="Buscar comunidad…"
+                        clearLabel=""
+                        emptyText={editData.parroquia ? "Sin comunidades en esta parroquia" : "Elija primero la parroquia"}
+                        ariaLabel="Comunidad"
+                        error={!!editErr("comunidad")}
+                        disabled={!editData.parroquia}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={editData.comunidad || ""}
+                        onChange={(e) =>
+                          setEditData((prev) => ({
+                            ...prev,
+                            comunidad: e.target.value,
+                          }))
+                        }
+                        className={editErr("comunidad") ? "has-error" : ""}
+                      />
+                    )}
                   </div>
                   <div className="form-group">
                     <label>Teléfono</label>
@@ -3184,24 +3243,71 @@ export default function AsignacionesTab() {
                     </div>
                   )}
                   <div className="detail-section-title">Alojamiento</div>
-                  <div className="form-group detail-field--full">
-                    <label>Habitación / Salón</label>
-                    <SearchableSingleSelect
-                      value={editData.cuarto || ""}
-                      onChange={(v) =>
-                        setEditData((prev) => ({ ...prev, cuarto: v }))
-                      }
-                      options={allCuartos.map((c) => ({
-                        value: c,
-                        label: roomLabel(c),
-                      }))}
-                      placeholder="Sin habitación asignada"
-                      searchPlaceholder="Buscar habitación…"
-                      clearLabel="— Sin habitación —"
-                      emptyText="Sin habitaciones configuradas"
-                      ariaLabel="Habitación / Salón"
-                    />
-                  </div>
+                  {esCarpa ? (
+                    <>
+                      <div className="form-group">
+                        <label>
+                          Tipo de carpa
+                          {editData.retirado !== "SI" && <span className="required-star">*</span>}
+                        </label>
+                        <StyledSelect
+                          value={editData.carpaTipo || ""}
+                          onChange={(v) => setEditData((prev) => ({ ...prev, carpaTipo: v }))}
+                          options={(tiposCarpa || []).map((t: any) => ({ value: t.nombre, label: t.nombre }))}
+                          placeholder="Seleccione el tipo de carpa"
+                          ariaLabel="Tipo de carpa"
+                          error={!!editErr("carpaTipo")}
+                        />
+                        <div className="error-container">
+                          {editErr("carpaTipo") && <span className="field-error-message">{editErr("carpaTipo")}</span>}
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>
+                          N.º / código de carpa
+                          {editData.retirado !== "SI" && <span className="required-star">*</span>}
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej: 1, A2, Sector B 3…"
+                          value={editData.carpaNro || ""}
+                          onChange={(e) =>
+                            setEditData((prev) => ({
+                              ...prev,
+                              carpaNro: e.target.value.replace(/[^\p{L}\p{N} ]/gu, "").toUpperCase(),
+                            }))
+                          }
+                          maxLength={25}
+                          className={editErr("carpaNro") ? "has-error" : ""}
+                        />
+                        <div className="error-container">
+                          {editErr("carpaNro") && <span className="field-error-message">{editErr("carpaNro")}</span>}
+                        </div>
+                        <p style={{ margin: "0.25rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                          Queda como “COMUNIDAD - TIPO DE CARPA - Nº”.
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="form-group detail-field--full">
+                      <label>Habitación / Salón</label>
+                      <SearchableSingleSelect
+                        value={editData.cuarto || ""}
+                        onChange={(v) =>
+                          setEditData((prev) => ({ ...prev, cuarto: v }))
+                        }
+                        options={allCuartos.map((c) => ({
+                          value: c,
+                          label: roomLabel(c),
+                        }))}
+                        placeholder="Sin habitación asignada"
+                        searchPlaceholder="Buscar habitación…"
+                        clearLabel="— Sin habitación —"
+                        emptyText="Sin habitaciones configuradas"
+                        ariaLabel="Habitación / Salón"
+                      />
+                    </div>
+                  )}
                   <div className="detail-section-title">Estatus</div>
                   <div className="detail-field--full">
                     <div className="reg-retiro__row">
