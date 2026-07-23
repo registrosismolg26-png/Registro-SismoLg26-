@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     const comunidades = await prisma.comunidad.findMany({
       orderBy: [{ parroquia: "asc" }, { nombre: "asc" }],
-      select: { id: true, nombre: true, parroquia: true },
+      select: { id: true, nombre: true, parroquia: true, refugioId: true },
     });
     // Catálogo global → cache en el navegador 120s (ver patologias/route.ts). Config
     // refetchea con cache:"reload" tras crear/editar/borrar.
@@ -37,13 +37,14 @@ export async function POST(req: Request) {
     const body = await req.json();
     const nombre = String(body?.nombre ?? "").replace(/\s+/g, " ").trim();
     const parroquia = normParroquia(body?.parroquia);
+    const refugioId = String(body?.refugioId ?? "").trim() || null;
     if (!nombre) return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
     if (!parroquia) return NextResponse.json({ error: "La parroquia es obligatoria" }, { status: 400 });
     if (!PARROQUIAS.includes(parroquia)) {
       return NextResponse.json({ error: "Parroquia no válida" }, { status: 400 });
     }
 
-    const comunidad = await prisma.comunidad.create({ data: { nombre, parroquia } });
+    const comunidad = await prisma.comunidad.create({ data: { nombre, parroquia, refugioId } });
     return NextResponse.json({ success: true, comunidad }, { status: 201 });
   } catch (error: any) {
     if (error?.code === "P2002") return NextResponse.json({ error: "Esa comunidad ya existe en esa parroquia" }, { status: 409 });
@@ -64,13 +65,19 @@ export async function PUT(req: Request) {
     const id = String(body?.id ?? "").trim();
     const nombre = String(body?.nombre ?? "").replace(/\s+/g, " ").trim();
     const parroquia = normParroquia(body?.parroquia);
+    // Si viene la clave `refugioId` se actualiza (incluye vaciarla → null); si NO viene, no se toca.
+    const hasRefugio = Object.prototype.hasOwnProperty.call(body ?? {}, "refugioId");
+    const refugioId = hasRefugio ? (String(body?.refugioId ?? "").trim() || null) : undefined;
     if (!id) return NextResponse.json({ error: "Falta el id" }, { status: 400 });
     if (!nombre) return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
     if (!parroquia || !PARROQUIAS.includes(parroquia)) {
       return NextResponse.json({ error: "Parroquia no válida" }, { status: 400 });
     }
 
-    const comunidad = await prisma.comunidad.update({ where: { id }, data: { nombre, parroquia } });
+    const comunidad = await prisma.comunidad.update({
+      where: { id },
+      data: { nombre, parroquia, ...(refugioId !== undefined ? { refugioId } : {}) },
+    });
     return NextResponse.json({ success: true, comunidad });
   } catch (error: any) {
     if (error?.code === "P2002") return NextResponse.json({ error: "Esa comunidad ya existe en esa parroquia" }, { status: 409 });

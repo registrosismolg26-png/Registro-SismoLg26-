@@ -117,10 +117,13 @@ model Comunidad {
   id        String   @id @default(uuid())
   nombre    String
   parroquia String
+  refugioId String?  // ID del Refugio dueño (scope por campamento, estable — no por nombre).
+  // El censo muestra SOLO las comunidades de su campamento en la parroquia elegida → no
+  // interfieren entre campamentos. NULL = sin asignar (no aparece en ningún desplegable).
   createdAt DateTime @default(now())
 
-  @@unique([nombre, parroquia])
-  @@index([parroquia])
+  @@unique([nombre, parroquia, refugioId])
+  @@index([refugioId, parroquia])
 }
 
 // Catálogo de TIPOS DE CARPA (refugios ITINERANTE/MIXTO). Administrable (Config, Master).

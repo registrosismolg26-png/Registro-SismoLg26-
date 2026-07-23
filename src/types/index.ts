@@ -15,8 +15,9 @@ export type Patologia = { id: string; nombre: string };
 // Catálogo de tipos de lesión/herida (administrable). Solo se guarda el id.
 export type TipoLesion = { id: string; nombre: string };
 
-// Catálogo de COMUNIDADES (refugios ITINERANTE/MIXTO): cada una pertenece a una parroquia.
-export type Comunidad = { id: string; nombre: string; parroquia: string };
+// Catálogo de COMUNIDADES (refugios ITINERANTE/MIXTO): cada una pertenece a una parroquia
+// Y a un campamento (`refugioId` = id del Refugio), para que no se mezclen entre campamentos.
+export type Comunidad = { id: string; nombre: string; parroquia: string; refugioId?: string | null };
 
 // Catálogo de TIPOS DE CARPA (refugios ITINERANTE/MIXTO).
 export type TipoCarpa = { id: string; nombre: string };

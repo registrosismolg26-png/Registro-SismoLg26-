@@ -116,11 +116,19 @@ export default function CensoTab() {
   const refugioTipo = refugiosList.find(r => r.nombre === effectiveRefugio)?.tipo || "TRANSITORIO";
   const esCarpa = refugioTipo === "ITINERANTE" || refugioTipo === "MIXTO";
   // Comunidades del catálogo filtradas por la parroquia elegida (para el select del paso 2).
+  // ID del campamento activo (se resuelve por nombre desde el MISMO catálogo de refugios →
+  // comparación de misma fuente, sin problemas de casing).
+  const activeRefugioId = useMemo(
+    () => refugiosList.find(r => r.nombre === effectiveRefugio)?.id || "",
+    [refugiosList, effectiveRefugio]
+  );
+  // Comunidades filtradas por parroquia Y por el ID del campamento activo → las comunidades
+  // de un campamento no aparecen en otro (no interfieren entre sí).
   const comunidadOpts = useMemo(
     () => comunidades
-      .filter(c => c.parroquia === formData.parroquia)
+      .filter(c => c.parroquia === formData.parroquia && !!c.refugioId && c.refugioId === activeRefugioId)
       .map(c => ({ value: c.nombre, label: c.nombre })),
-    [comunidades, formData.parroquia]
+    [comunidades, formData.parroquia, activeRefugioId]
   );
 
   // Preselecciona la ubicación (parroquia/sector/comunidad/dirección) del ÚLTIMO registro

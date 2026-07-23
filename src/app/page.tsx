@@ -1053,7 +1053,7 @@ export default function Home() {
   // online). Quedan disponibles OFFLINE en el censo desde el cache.
   const fetchComunidades = async (force = false) => {
     if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("sismo_cached_comunidades_v1");
+      const cached = localStorage.getItem("sismo_cached_comunidades_v2");
       if (cached) { try { setComunidades(JSON.parse(cached)); } catch (e) { console.error(e); } }
     }
     if (!navigator.onLine) return;
@@ -1063,7 +1063,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.comunidades) {
           setComunidades(data.comunidades);
-          localStorage.setItem("sismo_cached_comunidades_v1", JSON.stringify(data.comunidades));
+          localStorage.setItem("sismo_cached_comunidades_v2", JSON.stringify(data.comunidades));
         }
       }
     } catch (err) { console.error("Error al obtener comunidades:", err); }
@@ -1875,7 +1875,7 @@ export default function Home() {
     localStorage.removeItem("cached_consultas_v2");
     localStorage.removeItem("sismo_cached_predefined_medicamentos");
     localStorage.removeItem("sismo_cached_tipos_lesion_v1");
-    localStorage.removeItem("sismo_cached_comunidades_v1");
+    localStorage.removeItem("sismo_cached_comunidades_v2");
     localStorage.removeItem("sismo_cached_tipos_carpa_v1");
     localStorage.removeItem("sismo_cached_refugios_v1");
     localStorage.removeItem("sismo_view_refugio");
