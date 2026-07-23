@@ -7403,6 +7403,7 @@ h2.dashboard-section-title {
 .role-badge--jefe {
   background: var(--color-primary-light);
   color: var(--color-primary);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
 }
 .role-badge--integ {
   background: transparent;
@@ -7421,13 +7422,17 @@ h2.dashboard-section-title {
   min-width: 0;
 }
 .ubic-cell .cuarto-badge {
-  display: inline-block;
   max-width: 100%;
+  min-width: 0;
+  vertical-align: middle;
+}
+/* El texto se trunca en un span INTERNO para no recortar el ::after del tooltip
+   (que vive en el badge). El badge NO lleva overflow:hidden. */
+.ubic-cell .cuarto-badge__txt {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  vertical-align: middle;
 }
 .ubic-origin {
   font-size: 0.72rem;
@@ -7441,7 +7446,7 @@ h2.dashboard-section-title {
 /* Tooltip del cuarto (sistema `data-tip`) cuando el badge se trunca */
 .ubic-cell .cuarto-badge[data-tip] {
   position: relative;
-  cursor: help;
+  cursor: default;
 }
 .ubic-cell .cuarto-badge[data-tip]:hover::after {
   content: attr(data-tip);
@@ -7470,7 +7475,7 @@ h2.dashboard-section-title {
   .ubic-cell {
     max-width: none;
   }
-  .ubic-cell .cuarto-badge {
+  .ubic-cell .cuarto-badge__txt {
     white-space: normal;
     overflow: visible;
     text-overflow: clip;

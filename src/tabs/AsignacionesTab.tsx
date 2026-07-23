@@ -1797,7 +1797,9 @@ export default function AsignacionesTab() {
                               className="cuarto-badge cuarto-badge--assigned"
                               data-tip={reg.cuarto}
                             >
-                              {reg.cuarto}
+                              <span className="cuarto-badge__txt">
+                                {reg.cuarto}
+                              </span>
                             </span>
                           ) : (
                             <span className="cuarto-badge cuarto-badge--none">
