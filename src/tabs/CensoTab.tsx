@@ -192,10 +192,21 @@ export default function CensoTab() {
     if (!intg.genero) e.genero = "Seleccione el género";
     if (!intg.fechaNacimiento) e.fechaNacimiento = "La fecha de nacimiento es obligatoria";
     else if (intg.fechaNacimiento.length < 10) e.fechaNacimiento = "Complete el formato DD/MM/AAAA";
+    else {
+      const dp = intg.fechaNacimiento.split("/");
+      if (dp.length === 3) {
+        const d = parseInt(dp[0], 10), m = parseInt(dp[1], 10), y = parseInt(dp[2], 10);
+        const cy = new Date().getFullYear();
+        if (isNaN(d) || isNaN(m) || isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > cy)
+          e.fechaNacimiento = "Fecha inválida (use días 01-31, meses 01-12)";
+      }
+    }
     if (!intg.estadoFisico) e.estadoFisico = "Seleccione el estado físico";
     if (!intg.patologia) e.patologia = "Seleccione si posee patología";
     if (intg.patologia === "SI" && (!intg.patologiaIds || intg.patologiaIds.length === 0)) e.patologiaIds = "Seleccione al menos una patología";
     if (intg.intermitente === "SI" && !intg.motivoIntermitente.trim()) e.motivoIntermitente = "El motivo es obligatorio para residentes intermitentes";
+    // Teléfono OPCIONAL, pero si se ingresa debe tener 7 dígitos.
+    if (intg.telefonoNum && intg.telefonoNum.length < 7) e.telefonoNum = "El teléfono debe tener 7 dígitos";
     return e;
   };
 
@@ -365,63 +376,61 @@ export default function CensoTab() {
   };
 
   // Validate all fields
-  const validateForm = (): boolean => {
+  // Errores del formulario del JEFE (PURO, sin efectos). Lo reutilizan el submit y el
+  // paso a la carga familiar → así "Agregar Familiar" no salta al Paso 5 con el jefe
+  // incompleto (lo que dejaría errores invisibles en pasos ocultos).
+  const computeJefeErrors = (): Record<string, string> => {
     const newErrors: Record<string, string> = {};
     const requiredKeys = [
-      "parroquia",
-      "sector",
-      "comunidad",
-      "direccionExacta",
-      "nombreApellido",
-      "cedula",
-      "fechaNacimiento",
-      "telefonoNum"
+      "parroquia", "sector", "comunidad", "direccionExacta",
+      "nombreApellido", "cedula", "fechaNacimiento", "telefonoNum",
     ];
-
     requiredKeys.forEach(key => {
       const val = formData[key as keyof typeof formData] as string;
       const errMsg = validateField(key, val);
-      if (errMsg) {
-        newErrors[key] = errMsg;
-      }
+      if (errMsg) newErrors[key] = errMsg;
     });
-
-    // Conditional validations
     if (formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO") {
       const e = validateField("cedulaJefeFamilia", formData.cedulaJefeFamilia);
       if (e) newErrors.cedulaJefeFamilia = e;
     }
-
     if (formData.patologia === "SI" && (!formData.patologiaIds || formData.patologiaIds.length === 0)) {
       newErrors.patologiaIds = "Seleccione al menos una patología";
     }
-
     if (formData.intermitente === "SI") {
       const e = validateField("motivoIntermitente", formData.motivoIntermitente);
       if (e) newErrors.motivoIntermitente = e;
     }
-
-    // Required toggles
     if (!formData.genero) newErrors.genero = "Seleccione el género";
     if (!formData.jefeFamilia) newErrors.jefeFamilia = "Seleccione si es jefe de familia";
     if (!formData.perteneceNucleo) newErrors.perteneceNucleo = "Seleccione una opción";
     if (!formData.estadoFisico) newErrors.estadoFisico = "Seleccione el estado físico";
     if (!formData.patologia) newErrors.patologia = "Seleccione si posee patología";
-
-    // Duplicado (mismo cálculo que el chequeo en vivo)
-    if (!newErrors.cedula && cedulaDupInfo.dup) {
-      newErrors.cedula = cedulaDupMsg;
-    }
-
-    // Carpa OBLIGATORIA en refugios Itinerante/Mixto (salvo Hogar Solidario, que no ocupa).
+    if (!newErrors.cedula && cedulaDupInfo.dup) newErrors.cedula = cedulaDupMsg;
     if (esCarpa && !hogarSolidario) {
       if (!carpaTipo) newErrors.carpaTipo = "Seleccione el tipo de carpa";
       if (!carpaNro.trim()) newErrors.carpaNro = "Indique el N.º / código de carpa";
     }
-
+    return newErrors;
+  };
+  const validateForm = (): boolean => {
+    const newErrors = computeJefeErrors();
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  // Mapa campo→paso, para saltar al paso del PRIMER error (evita "errores invisibles"
+  // cuando se valida el jefe estando en el Paso 5).
+  const FIELD_STEP: Record<string, 1 | 2 | 3 | 4> = {
+    perteneceNucleo: 1, jefeFamilia: 1, cedulaJefeFamilia: 1,
+    parroquia: 2, sector: 2, comunidad: 2, direccionExacta: 2,
+    cedula: 3, nombreApellido: 3, genero: 3, fechaNacimiento: 3, telefonoNum: 3,
+    estadoFisico: 4, patologia: 4, patologiaIds: 4, motivoIntermitente: 4, carpaTipo: 4, carpaNro: 4,
+  };
+  const firstErrorStep = (errs: Record<string, string>): 1 | 2 | 3 | 4 =>
+    (Object.keys(errs).length
+      ? Math.min(...Object.keys(errs).map(k => FIELD_STEP[k] || 4))
+      : 4) as 1 | 2 | 3 | 4;
 
   // Input change handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -616,6 +625,30 @@ export default function CensoTab() {
     goToStep((step + 1) as 1|2|3|4|5);
   };
 
+  // Ir a la carga familiar (Paso 5): valida el jefe COMPLETO primero. Si falta algo,
+  // revela y salta al paso del error (visible) en vez de avanzar con el jefe a medias.
+  const goToCargaFamiliar = () => {
+    setTriedSubmit(true);
+    markTouched(
+      "parroquia", "sector", "comunidad", "direccionExacta", "nombreApellido",
+      "cedula", "fechaNacimiento", "telefonoNum", "genero", "jefeFamilia",
+      "perteneceNucleo", "estadoFisico", "patologia", "cedulaJefeFamilia",
+      "patologiaIds", "motivoIntermitente",
+    );
+    const errs = computeJefeErrors();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showToast("Completa los datos del jefe antes de agregar a la familia.", "warning");
+      setStep(firstErrorStep(errs));
+      setTimeout(() => {
+        const el = document.querySelector(".has-error");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 60);
+      return;
+    }
+    goToStep(5);
+  };
+
   // ── Fuente ÚNICA del objeto de cola (jefe e integrantes lo usan por igual) ──
   // `person` = campos por-persona (identidad + salud). `shared` = ubicación/geo/carpa/
   // refugio heredados. Garantiza que un integrante quede IDÉNTICO a uno individual.
@@ -714,8 +747,12 @@ export default function CensoTab() {
       "patologiaIds", "motivoIntermitente"
     );
 
-    if (!validateForm()) {
+    const jefeErrs = computeJefeErrors();
+    setErrors(jefeErrs);
+    if (Object.keys(jefeErrs).length > 0) {
       showToast("Faltan campos obligatorios o poseen formato inválido.", "warning");
+      // En el Paso 5 los campos del jefe están ocultos → salta al paso del 1.er error.
+      if (step === 5) setStep(firstErrorStep(jefeErrs));
       setTimeout(() => {
         const firstErrorEl = document.querySelector(".has-error");
         if (firstErrorEl) {
@@ -1702,7 +1739,7 @@ export default function CensoTab() {
                         <button
                           type="button"
                           className="btn-secondary btn-add-familiar"
-                          onClick={() => goToStep(5)}
+                          onClick={goToCargaFamiliar}
                         >
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                           <span className="btn-txt-collapsible">Agregar&nbsp;</span>Familiar

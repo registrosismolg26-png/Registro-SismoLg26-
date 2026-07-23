@@ -421,7 +421,11 @@ export default function IntegranteForm({
                   placeholder="7 dígitos"
                   value={value.telefonoNum}
                   onChange={(e) => patch({ telefonoNum: e.target.value.replace(/\D/g, "").slice(0, 7) })}
+                  className={showErr("telefonoNum") ? "has-error" : ""}
                 />
+              </div>
+              <div className="error-container">
+                {showErr("telefonoNum") && <span className="field-error-message">{showErr("telefonoNum")}</span>}
               </div>
             </div>
 
