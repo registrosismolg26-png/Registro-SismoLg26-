@@ -29,11 +29,11 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
   const comu: any[] = esCarpa && Array.isArray(S.byComunidad) ? S.byComunidad : [];
   const comuTot = comu.reduce(
     (a: any, r: any) => ({
-      total: a.total + (r.total || 0), fem: a.fem + (r.fem || 0), masc: a.masc + (r.masc || 0),
+      total: a.total + (r.total || 0), familias: a.familias + (r.familias || 0), solos: a.solos + (r.solos || 0), fem: a.fem + (r.fem || 0), masc: a.masc + (r.masc || 0),
       lactantes: a.lactantes + (r.lactantes || 0), menores: a.menores + (r.menores || 0),
       adultos: a.adultos + (r.adultos || 0), mayores: a.mayores + (r.mayores || 0),
     }),
-    { total: 0, fem: 0, masc: 0, lactantes: 0, menores: 0, adultos: 0, mayores: 0 },
+    { total: 0, familias: 0, solos: 0, fem: 0, masc: 0, lactantes: 0, menores: 0, adultos: 0, mayores: 0 },
   );
   const tot = S.total || 0;
   const pc = (n: number) => (tot > 0 ? `${((n / tot) * 100).toFixed(1)}%` : null);
@@ -220,10 +220,13 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
                 <tr>
                   <th className="dash-comu__th-name" rowSpan={2}>Comunidad</th>
                   <th className="dc-tot dc-sep" rowSpan={2}>Total</th>
+                  <th className="dc-fam dc-sep" colSpan={2}>Núcleos</th>
                   <th className="dc-sex dc-sep" colSpan={2}>Género</th>
                   <th className="dc-age dc-sep" colSpan={4}>Grupos de edad</th>
                 </tr>
                 <tr>
+                  <th className="dc-fam dc-sep">N.º Familias</th>
+                  <th className="dc-fam">Ind. solos</th>
                   <th className="dc-sex dc-sep">Fem.</th>
                   <th className="dc-sex">Masc.</th>
                   <th className="dc-age dc-sep">Lactantes<small>0–3</small></th>
@@ -237,6 +240,8 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
                   <tr key={c.name}>
                     <td className="dash-comu__name">{c.name}</td>
                     <td className="dc-tot dc-sep dash-comu__tot">{fmtMil(c.total)}</td>
+                    <td className="dc-fam dc-sep">{fmtMil(c.familias)}</td>
+                    <td className="dc-fam">{fmtMil(c.solos)}</td>
                     <td className="dc-sex dc-sep">{fmtMil(c.fem)}</td>
                     <td className="dc-sex">{fmtMil(c.masc)}</td>
                     <td className="dc-age dc-sep">{fmtMil(c.lactantes)}</td>
@@ -250,6 +255,8 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
                 <tr>
                   <td className="dash-comu__name">Total</td>
                   <td className="dc-tot dc-sep dash-comu__tot">{fmtMil(comuTot.total)}</td>
+                  <td className="dc-fam dc-sep">{fmtMil(comuTot.familias)}</td>
+                  <td className="dc-fam">{fmtMil(comuTot.solos)}</td>
                   <td className="dc-sex dc-sep">{fmtMil(comuTot.fem)}</td>
                   <td className="dc-sex">{fmtMil(comuTot.masc)}</td>
                   <td className="dc-age dc-sep">{fmtMil(comuTot.lactantes)}</td>

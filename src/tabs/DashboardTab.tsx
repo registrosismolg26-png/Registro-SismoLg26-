@@ -10,7 +10,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import PresentationView from "@/components/PresentationView";
-import { formatRoomLabel, roomFillLevel, fmtMil } from "@/lib/helpers";
+import { formatRoomLabel, roomFillLevel, fmtMil, cedulaFamilia } from "@/lib/helpers";
 import { apiFetch } from "@/lib/apiFetch";
 import { logActivity } from "@/lib/activityLog";
 import StyledSelect from "@/components/StyledSelect";
@@ -407,7 +407,8 @@ export default function DashboardTab() {
   // Itinerante/Mixto: desglose POR COMUNIDAD (total + género + grupos etarios), con los
   // MISMOS cortes de edad del resto del panel: 0–3 / 4–17 / 18–59 / ≥60. Solo presentes.
   type ComuRow = {
-    comunidad: string; total: number; fem: number; masc: number;
+    comunidad: string; total: number; familias: number; solos: number;
+    fem: number; masc: number;
     lactantes: number; menores: number; adultos: number; mayores: number;
   };
   const comunidadStats = useMemo<ComuRow[]>(() => {
@@ -419,19 +420,26 @@ export default function DashboardTab() {
     if (Array.isArray(srv) && srv.length > 0) {
       return srv.map((r: any) => ({
         comunidad: String(r.name ?? "Sin comunidad"),
-        total: Number(r.total ?? 0), fem: Number(r.fem ?? 0), masc: Number(r.masc ?? 0),
+        total: Number(r.total ?? 0), familias: Number(r.familias ?? 0), solos: Number(r.solos ?? 0),
+        fem: Number(r.fem ?? 0), masc: Number(r.masc ?? 0),
         lactantes: Number(r.lactantes ?? 0), menores: Number(r.menores ?? 0),
         adultos: Number(r.adultos ?? 0), mayores: Number(r.mayores ?? 0),
       }));
     }
     // OFFLINE: espejo desde el censo cacheado (aproximación, sin conexión).
     const map = new Map<string, ComuRow>();
+    const famMap = new Map<string, Map<string, number>>(); // comunidad → núcleo → personas
     registros.filter((r: any) => r.retirado !== "SI").forEach((r: any) => {
       const key = String(r.comunidad || "").trim() || "Sin comunidad";
       if (!map.has(key)) {
-        map.set(key, { comunidad: key, total: 0, fem: 0, masc: 0, lactantes: 0, menores: 0, adultos: 0, mayores: 0 });
+        map.set(key, { comunidad: key, total: 0, familias: 0, solos: 0, fem: 0, masc: 0, lactantes: 0, menores: 0, adultos: 0, mayores: 0 });
       }
       const row = map.get(key)!;
+      // Núcleo por dígitos de la cédula del jefe (mismo criterio que el resto).
+      const fid = cedulaFamilia(r.jefeFamilia === "SI" ? r.cedula : (r.cedulaJefeFamilia || r.cedula)) || String(r.id);
+      if (!famMap.has(key)) famMap.set(key, new Map());
+      const fm = famMap.get(key)!;
+      fm.set(fid, (fm.get(fid) || 0) + 1);
       row.total++;
       if (r.genero === "FEMENINO") row.fem++;
       else if (r.genero === "MASCULINO") row.masc++;
@@ -443,6 +451,12 @@ export default function DashboardTab() {
         else row.mayores++;
       }
     });
+    // Vuelca los núcleos: 2+ personas = familia; 1 persona = individuo solo.
+    map.forEach((row, key) => {
+      const cnts = [...(famMap.get(key)?.values() || [])];
+      row.familias = cnts.filter((c) => c >= 2).length;
+      row.solos = cnts.filter((c) => c === 1).length;
+    });
     return [...map.values()].sort(
       (a, b) => b.total - a.total || a.comunidad.localeCompare(b.comunidad),
     );
@@ -450,11 +464,13 @@ export default function DashboardTab() {
   const comunidadTotals = useMemo<ComuRow>(
     () => comunidadStats.reduce(
       (acc, r) => ({
-        comunidad: "TOTAL", total: acc.total + r.total, fem: acc.fem + r.fem, masc: acc.masc + r.masc,
+        comunidad: "TOTAL", total: acc.total + r.total,
+        familias: acc.familias + r.familias, solos: acc.solos + r.solos,
+        fem: acc.fem + r.fem, masc: acc.masc + r.masc,
         lactantes: acc.lactantes + r.lactantes, menores: acc.menores + r.menores,
         adultos: acc.adultos + r.adultos, mayores: acc.mayores + r.mayores,
       }),
-      { comunidad: "TOTAL", total: 0, fem: 0, masc: 0, lactantes: 0, menores: 0, adultos: 0, mayores: 0 },
+      { comunidad: "TOTAL", total: 0, familias: 0, solos: 0, fem: 0, masc: 0, lactantes: 0, menores: 0, adultos: 0, mayores: 0 },
     ),
     [comunidadStats],
   );
@@ -1165,10 +1181,13 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                           <tr>
                             <th className="dash-comu__th-name" rowSpan={2}>Comunidad</th>
                             <th className="dc-tot dc-sep" rowSpan={2}>Total</th>
+                            <th className="dc-fam dc-sep" colSpan={2}>Núcleos</th>
                             <th className="dc-sex dc-sep" colSpan={2}>Género</th>
                             <th className="dc-age dc-sep" colSpan={4}>Grupos de edad</th>
                           </tr>
                           <tr>
+                            <th className="dc-fam dc-sep">N.º Familias</th>
+                            <th className="dc-fam">Ind. solos</th>
                             <th className="dc-sex dc-sep">Fem.</th>
                             <th className="dc-sex">Masc.</th>
                             <th className="dc-age dc-sep">Lactantes<small>0–3</small></th>
@@ -1182,6 +1201,8 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                             <tr key={c.comunidad}>
                               <td className="dash-comu__name">{c.comunidad}</td>
                               <td className="dc-tot dc-sep dash-comu__tot">{fmtMil(c.total)}</td>
+                              <td className="dc-fam dc-sep">{fmtMil(c.familias)}</td>
+                              <td className="dc-fam">{fmtMil(c.solos)}</td>
                               <td className="dc-sex dc-sep">{fmtMil(c.fem)}</td>
                               <td className="dc-sex">{fmtMil(c.masc)}</td>
                               <td className="dc-age dc-sep">{fmtMil(c.lactantes)}</td>
@@ -1195,6 +1216,8 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                           <tr>
                             <td className="dash-comu__name">Total</td>
                             <td className="dc-tot dc-sep dash-comu__tot">{fmtMil(comunidadTotals.total)}</td>
+                            <td className="dc-fam dc-sep">{fmtMil(comunidadTotals.familias)}</td>
+                            <td className="dc-fam">{fmtMil(comunidadTotals.solos)}</td>
                             <td className="dc-sex dc-sep">{fmtMil(comunidadTotals.fem)}</td>
                             <td className="dc-sex">{fmtMil(comunidadTotals.masc)}</td>
                             <td className="dc-age dc-sep">{fmtMil(comunidadTotals.lactantes)}</td>

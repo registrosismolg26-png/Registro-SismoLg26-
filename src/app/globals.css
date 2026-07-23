@@ -11579,6 +11579,9 @@ select.morb-control {
 .dash-comu .dc-tot {
   background: color-mix(in srgb, var(--color-primary) 7%, transparent);
 }
+.dash-comu .dc-fam {
+  background: color-mix(in srgb, #7c3aed 7%, transparent);
+}
 .dash-comu .dc-sex {
   background: color-mix(in srgb, #db2777 7%, transparent);
 }
@@ -11588,6 +11591,10 @@ select.morb-control {
 /* En la cabecera el tinte va un punto más marcado, sobre el fondo del encabezado. */
 .dash-comu thead .dc-tot {
   background: color-mix(in srgb, var(--color-primary) 14%, var(--bg-primary));
+}
+.dash-comu thead .dc-fam {
+  background: color-mix(in srgb, #7c3aed 14%, var(--bg-primary));
+  color: color-mix(in srgb, #7c3aed 40%, var(--text-primary));
 }
 .dash-comu thead .dc-sex {
   background: color-mix(in srgb, #db2777 14%, var(--bg-primary));

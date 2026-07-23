@@ -38,7 +38,8 @@ export interface AggregateStats {
   // Desglose por COMUNIDAD (se usa en campamentos ITINERANTE/MIXTO): total + género +
   // grupos etarios, con los mismos cortes del panel (0–3 / 4–17 / 18–59 / ≥60).
   byComunidad: {
-    name: string; total: number; fem: number; masc: number;
+    name: string; total: number; familias: number; solos: number;
+    fem: number; masc: number;
     lactantes: number; menores: number; adultos: number; mayores: number;
   }[];
   byGenero: { name: string; count: number }[];
@@ -173,18 +174,45 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
   // Desglose por COMUNIDAD en UNA sola pasada de SQL (egress constante): total +
   // género + grupos etarios con los mismos cortes del panel (0–3 / 4–17 / 18–59 / ≥60).
   const comuRows = await prisma.$queryRaw<any[]>`
+    WITH base AS (
+      SELECT
+        COALESCE(NULLIF(TRIM(comunidad), ''), 'Sin comunidad') AS name,
+        genero,
+        edad,
+        -- Mismo criterio de núcleo que el total general: dígitos base de la cédula
+        -- del jefe (o la propia si es jefe), sin prefijo V-/E- ni sufijo -N.
+        regexp_replace(
+          CASE WHEN "jefeFamilia" = 'SI' THEN cedula
+               ELSE COALESCE(NULLIF("cedulaJefeFamilia", ''), cedula) END,
+          '^[VEve]?-?([0-9]+)(-[0-9]+)?$', '\\1'
+        ) AS family_id
+      FROM "Registro"
+      ${activeSql}
+    ),
+    fam AS (
+      SELECT name, family_id, COUNT(*) AS cnt FROM base GROUP BY 1, 2
+    ),
+    fam_agg AS (
+      SELECT
+        name,
+        COUNT(*) FILTER (WHERE cnt >= 2)::int AS familias,
+        COUNT(*) FILTER (WHERE cnt =  1)::int AS solos
+      FROM fam GROUP BY 1
+    )
     SELECT
-      COALESCE(NULLIF(TRIM(comunidad), ''), 'Sin comunidad')  AS name,
+      b.name                                                  AS name,
       COUNT(*)::int                                           AS total,
-      COUNT(*) FILTER (WHERE genero = 'FEMENINO')::int         AS fem,
-      COUNT(*) FILTER (WHERE genero = 'MASCULINO')::int        AS masc,
-      COUNT(*) FILTER (WHERE edad < 4)::int                    AS lactantes,
-      COUNT(*) FILTER (WHERE edad >= 4  AND edad < 18)::int    AS menores,
-      COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60)::int    AS adultos,
-      COUNT(*) FILTER (WHERE edad >= 60)::int                  AS mayores
-    FROM "Registro"
-    ${activeSql}
-    GROUP BY 1
+      COALESCE(f.familias, 0)                                 AS familias,
+      COALESCE(f.solos, 0)                                    AS solos,
+      COUNT(*) FILTER (WHERE b.genero = 'FEMENINO')::int       AS fem,
+      COUNT(*) FILTER (WHERE b.genero = 'MASCULINO')::int      AS masc,
+      COUNT(*) FILTER (WHERE b.edad < 4)::int                  AS lactantes,
+      COUNT(*) FILTER (WHERE b.edad >= 4  AND b.edad < 18)::int AS menores,
+      COUNT(*) FILTER (WHERE b.edad >= 18 AND b.edad < 60)::int AS adultos,
+      COUNT(*) FILTER (WHERE b.edad >= 60)::int                AS mayores
+    FROM base b
+    LEFT JOIN fam_agg f ON f.name = b.name
+    GROUP BY b.name, f.familias, f.solos
     ORDER BY total DESC, name ASC
   `;
 
@@ -258,6 +286,8 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     byComunidad: (comuRows || []).map((r: any) => ({
       name: String(r.name ?? ""),
       total: Number(r.total ?? 0),
+      familias: Number(r.familias ?? 0),
+      solos: Number(r.solos ?? 0),
       fem: Number(r.fem ?? 0),
       masc: Number(r.masc ?? 0),
       lactantes: Number(r.lactantes ?? 0),
