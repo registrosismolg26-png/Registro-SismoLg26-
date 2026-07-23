@@ -94,6 +94,8 @@ export default function AsignacionesTab() {
   useBodyScrollLock(!!selectedRegistro || !!assignRoomFor);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Record<string, any>>({});
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const editErr = (field: string): string => editErrors[field] || "";
   const [savingEdit, setSavingEdit] = useState(false);
   const [originalMedsCount, setOriginalMedsCount] = useState(0);
 
@@ -257,6 +259,7 @@ export default function AsignacionesTab() {
     setSelectedRegistro(reg);
     setAsignCuarto(reg.cuarto || "");
     setEditMode(true);
+    setEditErrors({});
     let formattedBirthDate = "";
     if (reg.fechaNacimiento) {
       const dObj = new Date(reg.fechaNacimiento);
@@ -676,8 +679,70 @@ export default function AsignacionesTab() {
     }
   };
 
+  // Validación del formulario de EDICIÓN (espeja las reglas del censo). Antes NO se
+  // validaba nada salvo el duplicado → se podía guardar un registro roto que luego
+  // fallaba en silencio al sincronizar (400 → error permanente). Devuelve el mapa de
+  // errores por campo (vacío = válido).
+  const validateEdit = (): Record<string, string> => {
+    const e: Record<string, string> = {};
+    const s = (v: any) => (v == null ? "" : String(v));
+    const cedDigits = s(editData.cedula).replace(/\D/g, "");
+    if (!cedDigits) e.cedula = editData.isChildDependent ? "La cédula del representante es obligatoria" : "La cédula es obligatoria";
+    else if (cedDigits.length < 5) e.cedula = "La cédula debe tener al menos 5 dígitos";
+    const nombre = s(editData.nombreApellido).trim();
+    if (!nombre) e.nombreApellido = "El nombre y apellido son obligatorios";
+    else if (nombre.split(/\s+/).length < 2) e.nombreApellido = "Ingrese al menos un nombre y un apellido";
+    if (!editData.genero) e.genero = "Seleccione el género";
+    const fnac = s(editData.fechaNacimiento);
+    if (!fnac) e.fechaNacimiento = "La fecha de nacimiento es obligatoria";
+    else {
+      const dp = fnac.split("/");
+      if (dp.length !== 3 || fnac.length < 10) e.fechaNacimiento = "Complete el formato DD/MM/AAAA";
+      else {
+        const d = parseInt(dp[0], 10), m = parseInt(dp[1], 10), y = parseInt(dp[2], 10);
+        const cy = new Date().getFullYear();
+        if (isNaN(d) || isNaN(m) || isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > cy)
+          e.fechaNacimiento = "Fecha inválida (use días 01-31, meses 01-12)";
+      }
+    }
+    if (!s(editData.parroquia).trim()) e.parroquia = "La parroquia es obligatoria";
+    if (!s(editData.sector).trim()) e.sector = "El sector es obligatorio";
+    if (!s(editData.comunidad).trim()) e.comunidad = "La comunidad es obligatoria";
+    if (!s(editData.direccionExacta).trim()) e.direccionExacta = "La dirección exacta es obligatoria";
+    if (!s(editData.telefono).trim()) e.telefono = "El teléfono es obligatorio";
+    else if (s(editData.telefono).replace(/\D/g, "").length < 7) e.telefono = "El teléfono debe tener al menos 7 dígitos";
+    if (!editData.estadoFisico) e.estadoFisico = "Seleccione el estado físico";
+    if (!editData.patologia) e.patologia = "Seleccione si posee patología";
+    if (editData.patologia === "SI" && !(Array.isArray(editData.patologiaIds) && editData.patologiaIds.length > 0))
+      e.patologiaIds = "Seleccione al menos una patología";
+    if (editData.perteneceNucleo === "SI" && editData.jefeFamilia === "NO") {
+      const j = s(editData.cedulaJefeFamilia).replace(/\D/g, "");
+      if (!j) e.cedulaJefeFamilia = "La cédula del jefe de familia es obligatoria";
+      else if (j.length < 5) e.cedulaJefeFamilia = "La cédula debe tener al menos 5 dígitos";
+    }
+    if (editData.intermitente === "SI" && !s(editData.motivoIntermitente).trim())
+      e.motivoIntermitente = "El motivo es obligatorio para residentes intermitentes";
+    return e;
+  };
+
   const handleSaveEdit = async () => {
     if (!selectedRegistro) return;
+
+    // Valida ANTES de guardar (bloquea el guardado de un registro incompleto/roto).
+    const editErrs = validateEdit();
+    setEditErrors(editErrs);
+    if (Object.keys(editErrs).length > 0) {
+      const msgs = Object.values(editErrs);
+      showToast(
+        msgs.length > 1 ? `${msgs[0]}  (y ${msgs.length - 1} campo(s) más marcados)` : msgs[0],
+        "warning",
+      );
+      setTimeout(() => {
+        const el = document.querySelector(".modal-overlay .has-error");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+      return;
+    }
     setSavingEdit(true);
 
     const nac =
@@ -769,6 +834,7 @@ export default function AsignacionesTab() {
     });
     setSelectedRegistro(updated);
     setEditMode(false);
+    setEditErrors({});
 
     // 2. Queue in IndexedDB in the background
     try {
@@ -2489,6 +2555,7 @@ export default function AsignacionesTab() {
                                 }));
                                 lookupEditCedulaPadron(clean);
                               }}
+                              className={editErr("cedula") ? "has-error" : ""}
                               style={{ width: "100%", paddingRight: "2.4rem" }}
                             />
                             <button
@@ -2604,6 +2671,7 @@ export default function AsignacionesTab() {
                           nombreApellido: e.target.value,
                         }))
                       }
+                      className={editErr("nombreApellido") ? "has-error" : ""}
                     />
                   </div>
                   <div className="form-group">
@@ -2625,6 +2693,7 @@ export default function AsignacionesTab() {
                         }));
                       }}
                       placeholder="Seleccione la fecha…"
+                      error={!!editErr("fechaNacimiento")}
                     />
                   </div>
                   <div className="form-group">
@@ -2680,6 +2749,7 @@ export default function AsignacionesTab() {
                         { value: "MASCULINO", label: "Masculino" },
                         { value: "FEMENINO", label: "Femenino" },
                       ]}
+                      error={!!editErr("genero")}
                     />
                   </div>
                   <div className="detail-section-title">Grupo Familiar</div>
@@ -2727,6 +2797,7 @@ export default function AsignacionesTab() {
                             lookupJefeEdit(clean);
                           }}
                           placeholder="Ingrese la cédula del jefe de familia"
+                          className={editErr("cedulaJefeFamilia") ? "has-error" : ""}
                         />
                         {jefeEditLookup?.found && (
                           <span
@@ -2801,6 +2872,7 @@ export default function AsignacionesTab() {
                           parroquia: e.target.value,
                         }))
                       }
+                      className={editErr("parroquia") ? "has-error" : ""}
                     />
                   </div>
                   <div className="form-group">
@@ -2814,6 +2886,7 @@ export default function AsignacionesTab() {
                           sector: e.target.value,
                         }))
                       }
+                      className={editErr("sector") ? "has-error" : ""}
                     />
                   </div>
                   <div className="form-group">
@@ -2827,6 +2900,7 @@ export default function AsignacionesTab() {
                           comunidad: e.target.value,
                         }))
                       }
+                      className={editErr("comunidad") ? "has-error" : ""}
                     />
                   </div>
                   <div className="form-group">
@@ -2840,6 +2914,7 @@ export default function AsignacionesTab() {
                           telefono: e.target.value,
                         }))
                       }
+                      className={editErr("telefono") ? "has-error" : ""}
                     />
                   </div>
                   <div className="form-group detail-field--full">
@@ -2853,6 +2928,7 @@ export default function AsignacionesTab() {
                           direccionExacta: e.target.value,
                         }))
                       }
+                      className={editErr("direccionExacta") ? "has-error" : ""}
                     />
                   </div>
                   <div className="detail-section-title">Salud</div>
@@ -2869,6 +2945,7 @@ export default function AsignacionesTab() {
                         { value: "ILESO", label: "Ileso" },
                         { value: "LESIONADO", label: "Lesionado" },
                       ]}
+                      error={!!editErr("estadoFisico")}
                     />
                   </div>
                   {editData.genero === "FEMENINO" && (
@@ -2889,9 +2966,9 @@ export default function AsignacionesTab() {
                     </div>
                   )}
                   {(() => {
-                    const isPrivileged =
-                      currentUser?.role === "MASTER" ||
-                      currentUser?.role === "ADMIN";
+                    // Registradores editan TODO (patología incluida). Lo único que NO
+                    // pueden hacer es ELIMINAR el registro (gated por canDeleteRegistro).
+                    const isPrivileged = true;
                     return (
                       <>
                         <div className="form-group">
@@ -2908,6 +2985,7 @@ export default function AsignacionesTab() {
                               { value: "NO", label: "No" },
                               { value: "SI", label: "Sí" },
                             ]}
+                            error={!!editErr("patologia")}
                           />
                         </div>
                         {editData.patologia === "SI" && (
@@ -2938,6 +3016,7 @@ export default function AsignacionesTab() {
                                     label: p.nombre,
                                   }))}
                                 onSelect={addEditPatologia}
+                                error={!!editErr("patologiaIds")}
                               />
                             </div>
                             <div className="pathology-pills-grid">
@@ -3015,9 +3094,10 @@ export default function AsignacionesTab() {
                         ) : (
                           <div className="med-items">
                             {editMedicamentos.map((m, i) => {
-                              const isPrivileged =
-                                currentUser?.role === "MASTER" ||
-                                currentUser?.role === "ADMIN";
+                              // Registradores editan TODO: también los medicamentos
+                              // existentes (editar/quitar). Solo el borrado del registro
+                              // está gated (canDeleteRegistro).
+                              const isPrivileged = true;
                               const isExisting = i < originalMedsCount;
                               const isMedReadOnly = !isPrivileged && isExisting;
                               return (
