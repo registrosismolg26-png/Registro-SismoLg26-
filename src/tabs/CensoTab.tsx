@@ -185,10 +185,8 @@ export default function CensoTab() {
   // Validación de un integrante (espeja las reglas por-persona del jefe).
   const validateIntegrante = (intg: IntegranteDraft): Record<string, string> => {
     const e: Record<string, string> = {};
-    if (!intg.menorSinCedula) {
-      if (!intg.cedula) e.cedula = "La cédula es obligatoria";
-      else if (intg.cedula.length < 5) e.cedula = "La cédula debe tener al menos 5 dígitos";
-    }
+    if (!intg.cedula) e.cedula = intg.menorSinCedula ? "La cédula del representante es obligatoria" : "La cédula es obligatoria";
+    else if (intg.cedula.length < 5) e.cedula = "La cédula debe tener al menos 5 dígitos";
     if (!intg.nombreApellido.trim()) e.nombreApellido = "El nombre y apellido son obligatorios";
     else if (intg.nombreApellido.trim().split(/\s+/).length < 2) e.nombreApellido = "Ingrese al menos un nombre y un apellido";
     if (!intg.genero) e.genero = "Seleccione el género";
@@ -740,7 +738,7 @@ export default function CensoTab() {
       const validated = integrantes.map((intg) => {
         const errs = validateIntegrante(intg);
         const key = intg.menorSinCedula
-          ? `${jefeDigits}-${intg.dependentNumber}`
+          ? `${intg.cedula.replace(/\D/g, "")}-${intg.dependentNumber}`
           : intg.cedula.replace(/\D/g, "");
         if (key && !errs.cedula) {
           if (seen.has(key)) {
@@ -772,7 +770,6 @@ export default function CensoTab() {
     }
 
     try {
-      const jefeDigits = formData.cedula.replace(/\D/g, "");
       // Carpa/cuarto del jefe = asignación COMPARTIDA por toda la familia.
       const jefeCuarto = hogarSolidario
         ? undefined
@@ -818,7 +815,7 @@ export default function CensoTab() {
         buildRegistroData(
           {
             nacionalidad: intg.nacionalidad,
-            cedula: intg.menorSinCedula ? jefeDigits : intg.cedula,
+            cedula: intg.cedula,
             isChildDependent: intg.menorSinCedula, dependentNumber: intg.dependentNumber,
             nombreApellido: intg.nombreApellido, genero: intg.genero,
             fechaNacimiento: intg.fechaNacimiento, edad: intg.edad,
@@ -1648,8 +1645,11 @@ export default function CensoTab() {
                           open={openIntg.has(intg.key)}
                           showErrors={triedSubmit}
                           jefeCedulaDigits={formData.cedula.replace(/\D/g, "")}
+                          jefeNombre={formData.nombreApellido}
+                          registros={registros}
                           patologias={patologias}
                           predefinedMedicamentos={predefinedMedicamentos}
+                          showToast={showToast}
                           onToggle={() => toggleIntg(intg.key)}
                           onChange={(patch) => updateIntegrante(intg.key, patch)}
                           onRemove={() => removeIntegrante(intg.key)}

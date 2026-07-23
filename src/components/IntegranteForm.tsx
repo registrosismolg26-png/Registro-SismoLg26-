@@ -7,12 +7,15 @@
 // INDEPENDIENTE → el objeto final se arma con el MISMO buildRegistroData del jefe,
 // garantizando que un integrante quede idéntico a uno cargado individual.
 
-import type { IntegranteDraft, Patologia, MedicamentoPredefinido } from "@/types";
+import { useState, useRef } from "react";
+import type { IntegranteDraft, Patologia, MedicamentoPredefinido, ToastType } from "@/types";
 import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
 import SearchableSelect from "@/components/SearchableSelect";
 import { TELEFONO_CODIGOS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS } from "@/lib/constants";
-import { patologiaNombre, medLabel } from "@/lib/helpers";
+import { patologiaNombre, medLabel, findRepresentante } from "@/lib/helpers";
+import { buscarCedulaEnCliente } from "@/lib/db";
+import { fetchCedulaExterna } from "@/lib/cedulaApi";
 
 // Conversores de fecha (DatePicker usa yyyy-mm-dd; el borrador guarda dd/mm/aaaa).
 const dmyToYmd = (dmy: string): string => {
@@ -42,8 +45,11 @@ interface Props {
   open: boolean;
   showErrors: boolean;
   jefeCedulaDigits: string;
+  jefeNombre: string;
+  registros: any[];
   patologias: Patologia[];
   predefinedMedicamentos: MedicamentoPredefinido[];
+  showToast: (message: string, type: ToastType) => void;
   onToggle: () => void;
   onChange: (patch: Partial<IntegranteDraft>) => void;
   onRemove: () => void;
@@ -55,12 +61,17 @@ export default function IntegranteForm({
   open,
   showErrors,
   jefeCedulaDigits,
+  jefeNombre,
+  registros,
   patologias,
   predefinedMedicamentos,
+  showToast,
   onToggle,
   onChange,
   onRemove,
 }: Props) {
+  const [lookupStatus, setLookupStatus] = useState<"idle" | "searching" | "found" | "not-found">("idle");
+  const lookupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Aplica un cambio y limpia el error de los campos tocados (feedback en vivo).
   const patch = (p: Partial<IntegranteDraft>) => {
     const errors = { ...value.errors };
@@ -99,9 +110,76 @@ export default function IntegranteForm({
   const removeMed = (i: number) =>
     patch({ medicamentos: value.medicamentos.filter((_, idx) => idx !== i) });
 
+  // Autocompletar por cédula (censo ya cargado → padrón local → API externa), IGUAL
+  // que el registro normal. Solo para NO-menores: en un menor la cédula es la del
+  // REPRESENTANTE (devolvería al representante, no al niño), así que no se autocompleta.
+  const triggerIntgLookup = (cedulaVal: string) => {
+    const clean = cedulaVal.replace(/\D/g, "");
+    if (lookupTimeoutRef.current) clearTimeout(lookupTimeoutRef.current);
+    if (clean.length >= 5) {
+      const enCenso = registros.find((r: any) => (r.cedula || "").replace(/\D/g, "") === clean);
+      if (enCenso) {
+        const ymd = String(enCenso.fechaNacimiento || "").slice(0, 10);
+        onChange({
+          nombreApellido: enCenso.nombreApellido || value.nombreApellido,
+          genero: enCenso.genero || value.genero,
+          ...(ymd ? { fechaNacimiento: ymdToDmy(ymd), edad: calcEdad(ymd) } : {}),
+        });
+        setLookupStatus("found");
+        return;
+      }
+    }
+    if (clean.length < 7) { setLookupStatus("idle"); return; }
+    setLookupStatus("searching");
+    lookupTimeoutRef.current = setTimeout(async () => {
+      try {
+        const citizen = await buscarCedulaEnCliente(clean);
+        if (citizen) {
+          let g = "";
+          if (citizen.sexo === "F" || citizen.sexo === "FEMENINO") g = "FEMENINO";
+          else if (citizen.sexo === "M" || citizen.sexo === "MASCULINO") g = "MASCULINO";
+          const p = String(citizen.fechaNacimiento || "").split("-");
+          const fdmy = p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : "";
+          onChange({
+            nombreApellido: citizen.nombreCompleto,
+            genero: g,
+            ...(fdmy ? { fechaNacimiento: fdmy, edad: calcEdad(String(citizen.fechaNacimiento || "").slice(0, 10)) } : {}),
+          });
+          setLookupStatus("found");
+          showToast("Identidad verificada en padrón local.", "info");
+        } else {
+          const ext = await fetchCedulaExterna(value.nacionalidad, clean);
+          if (ext) {
+            const pe = String(ext.fechaNacimiento || "").split("-");
+            const efdmy = pe.length === 3 ? `${pe[2]}/${pe[1]}/${pe[0]}` : "";
+            onChange({
+              ...(ext.nombreApellido ? { nombreApellido: ext.nombreApellido } : {}),
+              ...(ext.genero ? { genero: ext.genero } : {}),
+              ...(efdmy ? { fechaNacimiento: efdmy, edad: calcEdad(String(ext.fechaNacimiento).slice(0, 10)) } : {}),
+            });
+            setLookupStatus("found");
+            showToast("Identidad verificada en línea (api.cedula.com.ve).", "info");
+          } else {
+            setLookupStatus("not-found");
+          }
+        }
+      } catch { setLookupStatus("not-found"); }
+    }, 250);
+  };
+
+  // Nombre del representante (menor): si su cédula es la del jefe → el nombre del jefe
+  // (que se está registrando ahora); si no (nieto/abuelo con otro representante) → se
+  // busca en el censo. La cédula del representante es EDITABLE.
+  const repDigits = value.cedula.replace(/\D/g, "");
+  const repNombre = value.menorSinCedula && repDigits.length >= 6
+    ? (repDigits === jefeCedulaDigits && jefeNombre.trim()
+        ? jefeNombre.trim()
+        : findRepresentante(value.cedula, registros) || "")
+    : "";
+
   const cedulaPreview = value.menorSinCedula
-    ? jefeCedulaDigits
-      ? `V-${jefeCedulaDigits}-${value.dependentNumber}`
+    ? value.cedula
+      ? `${value.nacionalidad}-${value.cedula}-${value.dependentNumber}`
       : "—"
     : value.cedula
       ? `${value.nacionalidad}-${value.cedula}`
@@ -186,57 +264,93 @@ export default function IntegranteForm({
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </span>
-                <span className="pill-check__label">Menor de edad sin cédula (asociar al jefe)</span>
+                <span className="pill-check__label">Menor de edad sin cédula (asociar a un representante)</span>
               </button>
             </div>
 
-            {/* Cédula (o correlativo de menor) */}
-            {value.menorSinCedula ? (
-              <div className="form-group">
-                <label>Número correlativo de hijo/dependiente</label>
-                <StyledSelect
-                  value={value.dependentNumber}
-                  onChange={(v) => patch({ dependentNumber: v })}
-                  options={DEPENDENT_NUMBER_OPTIONS}
-                  ariaLabel="Número correlativo de hijo/dependiente"
+            {/* Cédula propia, o del REPRESENTANTE (editable; no siempre es el jefe:
+                nietos, abuelos, etc.). En no-menores autocompleta como el flujo normal. */}
+            <div className="form-group">
+              <label>
+                {value.menorSinCedula ? "Cédula del Representante" : "Cédula de Identidad"}
+                <span className="required-star">*</span>
+              </label>
+              <div className="field-row-cedula">
+                <div className="nat-toggle">
+                  <button
+                    type="button"
+                    className={`nat-btn ${value.nacionalidad === "V" ? "active" : ""}`}
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={() => patch({ nacionalidad: "V" })}
+                  >V</button>
+                  <button
+                    type="button"
+                    className={`nat-btn ${value.nacionalidad === "E" ? "active" : ""}`}
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={() => patch({ nacionalidad: "E" })}
+                  >E</button>
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder={value.menorSinCedula ? "Cédula del representante" : "Solo números (ej: 12345678)"}
+                  value={value.cedula}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    patch({ cedula: digits });
+                    if (!value.menorSinCedula) triggerIntgLookup(digits);
+                  }}
+                  className={showErr("cedula") ? "has-error" : ""}
                 />
-                <p style={{ margin: "0.35rem 0 0", fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                  Cédula asignada: <strong>{cedulaPreview}</strong> (del jefe de familia).
-                </p>
               </div>
-            ) : (
-              <div className="form-group">
-                <label>Cédula de Identidad<span className="required-star">*</span></label>
-                <div className="field-row-cedula">
-                  <div className="nat-toggle">
-                    <button
-                      type="button"
-                      className={`nat-btn ${value.nacionalidad === "V" ? "active" : ""}`}
-                      onPointerDown={(e) => e.preventDefault()}
-                      onClick={() => patch({ nacionalidad: "V" })}
-                    >V</button>
-                    <button
-                      type="button"
-                      className={`nat-btn ${value.nacionalidad === "E" ? "active" : ""}`}
-                      onPointerDown={(e) => e.preventDefault()}
-                      onClick={() => patch({ nacionalidad: "E" })}
-                    >E</button>
-                  </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    placeholder="Solo números (ej: 12345678)"
-                    value={value.cedula}
-                    onChange={(e) => patch({ cedula: e.target.value.replace(/\D/g, "") })}
-                    className={showErr("cedula") ? "has-error" : ""}
+
+              {/* Menor: nombre del representante (buscado en el censo) */}
+              {value.menorSinCedula && repDigits.length >= 6 && (
+                repNombre ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--color-success)", fontSize: "0.75rem", fontWeight: 700, marginTop: "0.4rem" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    Representante: {repNombre}
+                  </span>
+                ) : (
+                  <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--color-warning)", fontSize: "0.75rem", fontWeight: 700, marginTop: "0.4rem" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Representante no está registrado en el censo
+                  </span>
+                )
+              )}
+
+              {/* Menor: correlativo + cédula compuesta */}
+              {value.menorSinCedula && (
+                <div className="form-group" style={{ marginTop: "0.75rem", marginBottom: "0.25rem" }}>
+                  <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Número correlativo de hijo/dependiente</label>
+                  <StyledSelect
+                    value={value.dependentNumber}
+                    onChange={(v) => patch({ dependentNumber: v })}
+                    options={DEPENDENT_NUMBER_OPTIONS}
+                    ariaLabel="Número correlativo de hijo/dependiente"
                   />
+                  <p style={{ margin: "0.35rem 0 0", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                    Cédula asignada: <strong>{cedulaPreview}</strong>
+                  </p>
                 </div>
-                <div className="error-container">
-                  {showErr("cedula") && <span className="field-error-message">{showErr("cedula")}</span>}
+              )}
+
+              {/* No-menor: estado del lookup (padrón/API), igual que el registro normal */}
+              {!value.menorSinCedula && lookupStatus !== "idle" && (
+                <div className="helper-box">
+                  <span className={`helper-text active ${lookupStatus}`}>
+                    {lookupStatus === "searching" && "Buscando cédula en padrón local..."}
+                    {lookupStatus === "found" && "Ciudadano verificado. Datos autocompletados."}
+                    {lookupStatus === "not-found" && "Cédula no registrada localmente. Ingrese manual."}
+                  </span>
                 </div>
+              )}
+
+              <div className="error-container">
+                {showErr("cedula") && <span className="field-error-message">{showErr("cedula")}</span>}
               </div>
-            )}
+            </div>
 
             {/* Nombre */}
             <div className="form-group">
