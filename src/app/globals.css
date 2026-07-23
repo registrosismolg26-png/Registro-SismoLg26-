@@ -11266,6 +11266,9 @@ select.morb-control {
   color: var(--color-primary);
   font-weight: 700;
   font-size: 0.76rem;
+  /* Mismo criterio que .sismo-daybadge para que ambos pills queden a la misma altura. */
+  vertical-align: middle;
+  line-height: 1.5;
 }
 
 /* Cards con badge de ícono a color */
@@ -12342,6 +12345,10 @@ select.morb-control {
   font-size: 0.76rem;
   font-weight: 700;
   white-space: nowrap;
+  /* Alinear por el MEDIO: el SVG interno corre la línea base del inline-flex y
+     desalineaba este pill respecto al del campamento. */
+  vertical-align: middle;
+  line-height: 1.5;
 }
 .sismo-daybadge svg {
   flex: none;
