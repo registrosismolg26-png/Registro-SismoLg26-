@@ -403,6 +403,9 @@ export default function DashboardTab() {
     return counts;
   }, [registros]);
 
+  // Miles con punto (es-VE): 1862 → "1.862".
+  const fmtMil = (n: number) => Number(n || 0).toLocaleString("es-VE");
+
   // Itinerante/Mixto: desglose POR COMUNIDAD (total + género + grupos etarios), con los
   // MISMOS cortes de edad del resto del panel: 0–3 / 4–17 / 18–59 / ≥60. Solo presentes.
   type ComuRow = {
@@ -1166,26 +1169,26 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                           {comunidadStats.map((c) => (
                             <tr key={c.comunidad}>
                               <td className="dash-comu__name">{c.comunidad}</td>
-                              <td className="dc-tot dc-sep dash-comu__tot">{c.total}</td>
-                              <td className="dc-sex dc-sep">{c.fem}</td>
-                              <td className="dc-sex">{c.masc}</td>
-                              <td className="dc-age dc-sep">{c.lactantes}</td>
-                              <td className="dc-age">{c.menores}</td>
-                              <td className="dc-age">{c.adultos}</td>
-                              <td className="dc-age">{c.mayores}</td>
+                              <td className="dc-tot dc-sep dash-comu__tot">{fmtMil(c.total)}</td>
+                              <td className="dc-sex dc-sep">{fmtMil(c.fem)}</td>
+                              <td className="dc-sex">{fmtMil(c.masc)}</td>
+                              <td className="dc-age dc-sep">{fmtMil(c.lactantes)}</td>
+                              <td className="dc-age">{fmtMil(c.menores)}</td>
+                              <td className="dc-age">{fmtMil(c.adultos)}</td>
+                              <td className="dc-age">{fmtMil(c.mayores)}</td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
                           <tr>
                             <td className="dash-comu__name">Total</td>
-                            <td className="dc-tot dc-sep dash-comu__tot">{comunidadTotals.total}</td>
-                            <td className="dc-sex dc-sep">{comunidadTotals.fem}</td>
-                            <td className="dc-sex">{comunidadTotals.masc}</td>
-                            <td className="dc-age dc-sep">{comunidadTotals.lactantes}</td>
-                            <td className="dc-age">{comunidadTotals.menores}</td>
-                            <td className="dc-age">{comunidadTotals.adultos}</td>
-                            <td className="dc-age">{comunidadTotals.mayores}</td>
+                            <td className="dc-tot dc-sep dash-comu__tot">{fmtMil(comunidadTotals.total)}</td>
+                            <td className="dc-sex dc-sep">{fmtMil(comunidadTotals.fem)}</td>
+                            <td className="dc-sex">{fmtMil(comunidadTotals.masc)}</td>
+                            <td className="dc-age dc-sep">{fmtMil(comunidadTotals.lactantes)}</td>
+                            <td className="dc-age">{fmtMil(comunidadTotals.menores)}</td>
+                            <td className="dc-age">{fmtMil(comunidadTotals.adultos)}</td>
+                            <td className="dc-age">{fmtMil(comunidadTotals.mayores)}</td>
                           </tr>
                         </tfoot>
                       </table>
