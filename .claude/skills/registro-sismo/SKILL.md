@@ -18,6 +18,7 @@ Antes de tocar código en este proyecto, lee la guía completa: **`docs/ARCHITEC
 - **Refugio obligatorio:** sin refugio asignado no se puede censar (`/api/register` → 403) ni crear/editar usuarios (`/api/auth/users` → 400). Guarda `hasRefugio` (backend en `auth.ts` + espejo en `permissions.ts` para la UX).
 
 - **Offline:** `src/lib/db.ts` (IndexedDB + cola con backoff y error permanente vs temporal), `triggerSync` en page.tsx. **Usa `apiFetch`, nunca `fetch` directo** para `/api/`.
+- **Censo con carga familiar (Paso 5):** el asistente de censo tiene un 5.º paso OPCIONAL (rama, solo si el registrado es Jefe y no va a Hogar Solidario) que carga al resto de la familia en un acordeón (`IntegranteForm`) y **encola N registros INDEPENDIENTES** (jefe + integrantes), heredando ubicación/carpa del jefe y asociados por `cedulaJefeFamilia`. Jefe e integrantes usan el MISMO `buildRegistroData` → un integrante queda **idéntico** a uno cargado individual. **Sin cambios de BD/API** (la cola/`/api/register` ya crean 1×POST idempotente). El registro individual no cambia (termina en el Paso 4). Detalle en `docs/ARCHITECTURE.md`.
 
 ## Reglas de trabajo
 
