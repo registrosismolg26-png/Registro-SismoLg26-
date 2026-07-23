@@ -35,6 +35,12 @@ export interface AggregateStats {
   embarazadas: number;
   sinCuarto: number;
   byParroquia: { name: string; count: number }[];
+  // Desglose por COMUNIDAD (se usa en campamentos ITINERANTE/MIXTO): total + género +
+  // grupos etarios, con los mismos cortes del panel (0–3 / 4–17 / 18–59 / ≥60).
+  byComunidad: {
+    name: string; total: number; fem: number; masc: number;
+    lactantes: number; menores: number; adultos: number; mayores: number;
+  }[];
   byGenero: { name: string; count: number }[];
   byEstadoFisico: { name: string; count: number }[];
   byPatologia: { name: string; count: number }[];
@@ -69,6 +75,7 @@ const emptyStats = (totalRetirados = 0): AggregateStats => ({
   embarazadas: 0,
   sinCuarto: 0,
   byParroquia: [],
+  byComunidad: [],
   byGenero: [],
   byEstadoFisico: [],
   byPatologia: [],
@@ -163,6 +170,24 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     prisma.registro.groupBy({ where: activeFilter, by: ["patologia"], _count: { _all: true } }),
   ]);
 
+  // Desglose por COMUNIDAD en UNA sola pasada de SQL (egress constante): total +
+  // género + grupos etarios con los mismos cortes del panel (0–3 / 4–17 / 18–59 / ≥60).
+  const comuRows = await prisma.$queryRaw<any[]>`
+    SELECT
+      COALESCE(NULLIF(TRIM(comunidad), ''), 'Sin comunidad')  AS name,
+      COUNT(*)::int                                           AS total,
+      COUNT(*) FILTER (WHERE genero = 'FEMENINO')::int         AS fem,
+      COUNT(*) FILTER (WHERE genero = 'MASCULINO')::int        AS masc,
+      COUNT(*) FILTER (WHERE edad < 4)::int                    AS lactantes,
+      COUNT(*) FILTER (WHERE edad >= 4  AND edad < 18)::int    AS menores,
+      COUNT(*) FILTER (WHERE edad >= 18 AND edad < 60)::int    AS adultos,
+      COUNT(*) FILTER (WHERE edad >= 60)::int                  AS mayores
+    FROM "Registro"
+    ${activeSql}
+    GROUP BY 1
+    ORDER BY total DESC, name ASC
+  `;
+
   // Top-8 patologías del censo (por ID-nativo dentro del JSON `patologiaIds`), EN SQL:
   // se "desanidan" los ids del array jsonb y se cuentan. `jsonb_typeof = 'array'` replica
   // el `Array.isArray(...) ? ... : []` de JS (si el valor no es array → se ignora); y
@@ -230,6 +255,16 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     embarazadas,
     sinCuarto: n(aggregates.sin_cuarto),
     byParroquia: parroquiaGroup.map((g: any) => ({ name: g.parroquia, count: g._count._all })),
+    byComunidad: (comuRows || []).map((r: any) => ({
+      name: String(r.name ?? ""),
+      total: Number(r.total ?? 0),
+      fem: Number(r.fem ?? 0),
+      masc: Number(r.masc ?? 0),
+      lactantes: Number(r.lactantes ?? 0),
+      menores: Number(r.menores ?? 0),
+      adultos: Number(r.adultos ?? 0),
+      mayores: Number(r.mayores ?? 0),
+    })),
     byGenero: generoGroup.map((g: any) => ({ name: g.genero, count: g._count._all })),
     byEstadoFisico: estadoFisicoGroup.map((g: any) => ({ name: g.estadoFisico, count: g._count._all })),
     byPatologia: patologiaGroup.map((g: any) => ({ name: g.patologia, count: g._count._all })),

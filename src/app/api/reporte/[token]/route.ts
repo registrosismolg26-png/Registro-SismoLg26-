@@ -20,12 +20,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
     // Ubicación (Google Maps) del refugio, si está registrada — solo para contexto.
     let ubicacionRefugio: string | null = null;
+    // Tipo del campamento: define si el reporte muestra el desglose POR COMUNIDAD
+    // (solo ITINERANTE/MIXTO, igual que en el panel de Estadísticas).
+    let refugioTipo: string | null = null;
     if (reporte.refugio) {
       const ref = await prisma.refugio.findUnique({
         where: { nombre: reporte.refugio },
-        select: { ubicacion: true },
+        select: { ubicacion: true, tipo: true },
       });
       ubicacionRefugio = ref?.ubicacion ?? null;
+      refugioTipo = ref?.tipo ?? null;
     }
 
     const stats = await computeAggregateStats(reporte.refugio);
@@ -34,6 +38,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       success: true,
       refugio: reporte.refugio,
       refugioLabel: reporte.refugio || "Todos los campamentos",
+      refugioTipo,
       creadoPorNombre: reporte.creadoPorNombre,
       ubicacionRefugio,
       stats,

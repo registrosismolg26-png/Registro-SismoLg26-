@@ -10,7 +10,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import PresentationView from "@/components/PresentationView";
-import { formatRoomLabel, roomFillLevel } from "@/lib/helpers";
+import { formatRoomLabel, roomFillLevel, fmtMil } from "@/lib/helpers";
 import { apiFetch } from "@/lib/apiFetch";
 import { logActivity } from "@/lib/activityLog";
 import StyledSelect from "@/components/StyledSelect";
@@ -403,8 +403,6 @@ export default function DashboardTab() {
     return counts;
   }, [registros]);
 
-  // Miles con punto (es-VE): 1862 → "1.862".
-  const fmtMil = (n: number) => Number(n || 0).toLocaleString("es-VE");
 
   // Itinerante/Mixto: desglose POR COMUNIDAD (total + género + grupos etarios), con los
   // MISMOS cortes de edad del resto del panel: 0–3 / 4–17 / 18–59 / ≥60. Solo presentes.
@@ -801,7 +799,7 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                     {statCards.map((c) => (
                       <div key={c.label} className="bal-card" style={{ ["--accent" as any]: c.accent } as React.CSSProperties}>
                         <span className="bal-card__icon">{c.icon}</span>
-                        <span key={c.value} className="bal-card__value stat-card-value-animate">{c.value}{c.suffix && <em>{c.suffix}</em>}</span>
+                        <span key={c.value} className="bal-card__value stat-card-value-animate">{fmtMil(c.value)}{c.suffix && <em>{c.suffix}</em>}</span>
                         <span className="bal-card__label">{c.label}{c.sub && <span className="bal-card__sub"> · {c.sub}</span>}</span>
                       </div>
                     ))}
@@ -844,7 +842,7 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                             {segs.map((s, i) => (
                               <span key={i} className="bal-legend__item">
                                 <span className="bal-legend__dot" style={{ background: s.color }} />
-                                {s.label} <strong>{s.count}</strong>
+                                {s.label} <strong>{fmtMil(s.count)}</strong>
                               </span>
                             ))}
                           </div>
@@ -889,14 +887,14 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                             <circle key={i} cx="60" cy="60" r={RADIUS} fill="none" stroke={a.color} strokeWidth="14"
                               strokeDasharray={`${a.dash} ${C - a.dash}`} transform={`rotate(${a.rot} 60 60)`} strokeLinecap="round" />
                           ))}
-                          <text x="60" y="56" textAnchor="middle" className="bal-donut__num">{currentStats.total || 0}</text>
+                          <text x="60" y="56" textAnchor="middle" className="bal-donut__num">{fmtMil(currentStats.total || 0)}</text>
                           <text x="60" y="72" textAnchor="middle" className="bal-donut__cap">personas</text>
                         </svg>
                         <div className="bal-legend bal-legend--col">
                           {segs.map((s, i) => (
                             <span key={i} className="bal-legend__item">
                               <span className="bal-legend__dot" style={{ background: s.color }} />
-                              {s.label} <strong>{s.count}</strong>
+                              {s.label} <strong>{fmtMil(s.count)}</strong>
                               <span className="bal-legend__pct">{((s.count / genTotal) * 100).toFixed(0)}%</span>
                             </span>
                           ))}
@@ -949,33 +947,33 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                         <tbody>
                           <tr>
                             <td><strong>Lactantes (0–3)</strong></td>
-                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(lac.femenino)}>{lac.femenino}</td>
-                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(lac.masculino)}>{lac.masculino}</td>
-                            <td className="bal-cell--tot" data-label="Total"><strong>{tLac}</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(lac.femenino)}>{fmtMil(lac.femenino)}</td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(lac.masculino)}>{fmtMil(lac.masculino)}</td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{fmtMil(tLac)}</strong></td>
                           </tr>
                           <tr>
                             <td><strong>Menores (4–17)</strong></td>
-                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(men4.femenino)}>{men4.femenino}</td>
-                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(men4.masculino)}>{men4.masculino}</td>
-                            <td className="bal-cell--tot" data-label="Total"><strong>{tMen4}</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(men4.femenino)}>{fmtMil(men4.femenino)}</td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(men4.masculino)}>{fmtMil(men4.masculino)}</td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{fmtMil(tMen4)}</strong></td>
                           </tr>
                           <tr>
                             <td><strong>Adultos (18-59)</strong></td>
-                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(mx.adultos.femenino)}>{mx.adultos.femenino}</td>
-                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(mx.adultos.masculino)}>{mx.adultos.masculino}</td>
-                            <td className="bal-cell--tot" data-label="Total"><strong>{tAd}</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(mx.adultos.femenino)}>{fmtMil(mx.adultos.femenino)}</td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(mx.adultos.masculino)}>{fmtMil(mx.adultos.masculino)}</td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{fmtMil(tAd)}</strong></td>
                           </tr>
                           <tr>
                             <td><strong>Mayores (60+)</strong></td>
-                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(mx.mayores.femenino)}>{mx.mayores.femenino}</td>
-                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(mx.mayores.masculino)}>{mx.mayores.masculino}</td>
-                            <td className="bal-cell--tot" data-label="Total"><strong>{tMay}</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino" style={hFem(mx.mayores.femenino)}>{fmtMil(mx.mayores.femenino)}</td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino" style={hMasc(mx.mayores.masculino)}>{fmtMil(mx.mayores.masculino)}</td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{fmtMil(tMay)}</strong></td>
                           </tr>
                           <tr className="bal-matrix__total">
                             <td><strong>Total General</strong></td>
-                            <td className="bal-cell bal-cell--f" data-label="Femenino"><strong>{tFem}</strong></td>
-                            <td className="bal-cell bal-cell--m" data-label="Masculino"><strong>{tMasc}</strong></td>
-                            <td className="bal-cell--tot" data-label="Total"><strong>{currentStats.total}</strong></td>
+                            <td className="bal-cell bal-cell--f" data-label="Femenino"><strong>{fmtMil(tFem)}</strong></td>
+                            <td className="bal-cell bal-cell--m" data-label="Masculino"><strong>{fmtMil(tMasc)}</strong></td>
+                            <td className="bal-cell--tot" data-label="Total"><strong>{fmtMil(currentStats.total)}</strong></td>
                           </tr>
                         </tbody>
                       </table>
@@ -1001,7 +999,7 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                           <span className={`bal-rank__pos ${i < 3 ? `bal-rank__pos--${i + 1}` : ""}`}>{i + 1}</span>
                           <span className="bal-rank__label" title={p.name}>{p.name}</span>
                           <span className="bal-rank__track"><span className="bal-rank__fill" style={{ width: `${Math.round((p.count / maxP) * 100)}%` }} /></span>
-                          <span className="bal-rank__count">{p.count}</span>
+                          <span className="bal-rank__count">{fmtMil(p.count)}</span>
                         </div>
                       ))}
                     </div>
@@ -1093,7 +1091,7 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                       {Object.entries(carpaCounts).sort((a, b) => b[1] - a[1]).map(([tipo, count]) => (
                         <div key={tipo} className="dash-room dash-room--green">
                           <span className="dash-room__name">{tipo}</span>
-                          <span className="dash-room__num">{count}</span>
+                          <span className="dash-room__num">{fmtMil(count)}</span>
                         </div>
                       ))}
                       {Object.keys(carpaCounts).length === 0 && (

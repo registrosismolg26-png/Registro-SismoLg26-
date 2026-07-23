@@ -137,3 +137,8 @@ export function roomFillLevel(count: number, capacity: number): "green" | "yello
   if (ratio >= 0.7) return "yellow";   // 70–89% → llenándose
   return "green";                       // < 70% → espacio disponible
 }
+
+// Separador de miles (es-VE): 1862 → "1.862". Fuente única para Estadísticas,
+// reporte público y presentación, para que TODO dato numérico se vea igual.
+export const fmtMil = (n: number | null | undefined): string =>
+  Number(n ?? 0).toLocaleString("es-VE");

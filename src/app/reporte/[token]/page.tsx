@@ -12,7 +12,7 @@ import PublicReportView from "@/components/PublicReportView";
 
 type Phase = "loading" | "notfound" | "ready" | "error";
 
-interface Meta { refugioLabel: string; creadoPorNombre: string; ubicacionRefugio: string | null; }
+interface Meta { refugioLabel: string; creadoPorNombre: string; ubicacionRefugio: string | null; refugioTipo: string | null; }
 interface Stats { [k: string]: any; }
 
 export default function ReportePublicoPage() {
@@ -71,7 +71,7 @@ export default function ReportePublicoPage() {
         if (r.status === 404) { setPhase("notfound"); return; }
         if (!r.ok) { setPhase("error"); return; }
         const d = await r.json();
-        setMeta({ refugioLabel: d.refugioLabel, creadoPorNombre: d.creadoPorNombre, ubicacionRefugio: d.ubicacionRefugio });
+        setMeta({ refugioLabel: d.refugioLabel, creadoPorNombre: d.creadoPorNombre, ubicacionRefugio: d.ubicacionRefugio, refugioTipo: d.refugioTipo ?? null });
         setRefugioLabel(d.refugioLabel);
         setStats(d.stats || null);
         setPhase("ready");
@@ -92,7 +92,7 @@ export default function ReportePublicoPage() {
   } else {
     screen = (
       <div className="rep-page rep-page--report">
-        <PublicReportView stats={stats!} refugioLabel={refugioLabel} sharedBy={meta?.creadoPorNombre || ""} ubicacion={meta?.ubicacionRefugio || null} />
+        <PublicReportView stats={stats!} refugioLabel={refugioLabel} sharedBy={meta?.creadoPorNombre || ""} ubicacion={meta?.ubicacionRefugio || null} refugioTipo={meta?.refugioTipo || null} />
       </div>
     );
   }

@@ -10,6 +10,7 @@
 
 import { type ReactNode, type CSSProperties } from "react";
 import SismoDayBadge from "@/components/SismoDayBadge";
+import { fmtMil } from "@/lib/helpers";
 
 const pct = (n: number, total: number) => (total > 0 ? (n / total) * 100 : 0);
 
@@ -18,10 +19,22 @@ export interface PublicReportProps {
   refugioLabel: string;
   sharedBy: string;
   ubicacion: string | null;
+  refugioTipo?: string | null;
 }
 
-export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicacion }: PublicReportProps) {
+export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicacion, refugioTipo }: PublicReportProps) {
   const S = stats || {};
+  // Solo los campamentos ITINERANTE/MIXTO muestran el desglose por comunidad.
+  const esCarpa = refugioTipo === "ITINERANTE" || refugioTipo === "MIXTO";
+  const comu: any[] = esCarpa && Array.isArray(S.byComunidad) ? S.byComunidad : [];
+  const comuTot = comu.reduce(
+    (a: any, r: any) => ({
+      total: a.total + (r.total || 0), fem: a.fem + (r.fem || 0), masc: a.masc + (r.masc || 0),
+      lactantes: a.lactantes + (r.lactantes || 0), menores: a.menores + (r.menores || 0),
+      adultos: a.adultos + (r.adultos || 0), mayores: a.mayores + (r.mayores || 0),
+    }),
+    { total: 0, fem: 0, masc: 0, lactantes: 0, menores: 0, adultos: 0, mayores: 0 },
+  );
   const tot = S.total || 0;
   const pc = (n: number) => (tot > 0 ? `${((n / tot) * 100).toFixed(1)}%` : null);
   const menores417 = Math.max(0, (S.menores || 0) - (S.lactantes || 0));
@@ -83,9 +96,9 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
   const matRow = (label: string, row: any) => (
     <tr>
       <td><strong>{label}</strong></td>
-      <td className="bal-cell bal-cell--f" data-label="Femenino">{row?.femenino || 0}</td>
-      <td className="bal-cell bal-cell--m" data-label="Masculino">{row?.masculino || 0}</td>
-      <td className="bal-cell--tot" data-label="Total"><strong>{(row?.femenino || 0) + (row?.masculino || 0) + (row?.otro || 0)}</strong></td>
+      <td className="bal-cell bal-cell--f" data-label="Femenino">{fmtMil(row?.femenino || 0)}</td>
+      <td className="bal-cell bal-cell--m" data-label="Masculino">{fmtMil(row?.masculino || 0)}</td>
+      <td className="bal-cell--tot" data-label="Total"><strong>{fmtMil((row?.femenino || 0) + (row?.masculino || 0) + (row?.otro || 0))}</strong></td>
     </tr>
   );
 
@@ -114,7 +127,7 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
         {cards.map((c) => (
           <div key={c.label} className="bal-card" style={{ ["--accent" as any]: c.accent } as CSSProperties}>
             <span className="bal-card__icon">{c.icon}</span>
-            <span className="bal-card__value">{c.value}{c.suffix && <em>{c.suffix}</em>}</span>
+            <span className="bal-card__value">{fmtMil(c.value)}{c.suffix && <em>{c.suffix}</em>}</span>
             <span className="bal-card__label">{c.label}{c.sub && <span className="bal-card__sub" style={{ ["--accent" as any]: c.accent } as CSSProperties}> · {c.sub}</span>}</span>
           </div>
         ))}
@@ -129,14 +142,14 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
               {arcs.map((a, i) => (
                 <circle key={i} cx="60" cy="60" r={R} fill="none" stroke={a.color} strokeWidth="14" strokeDasharray={`${a.dash} ${C - a.dash}`} transform={`rotate(${a.rot} 60 60)`} strokeLinecap="round" />
               ))}
-              <text x="60" y="56" textAnchor="middle" className="bal-donut__num">{genTotal}</text>
+              <text x="60" y="56" textAnchor="middle" className="bal-donut__num">{fmtMil(genTotal)}</text>
               <text x="60" y="72" textAnchor="middle" className="bal-donut__cap">personas</text>
             </svg>
             <div className="bal-legend bal-legend--col">
               {genSegs.map((s, i) => (
                 <span key={i} className="bal-legend__item">
                   <span className="bal-legend__dot" style={{ background: s.color }} />
-                  {s.label} <strong>{s.count}</strong>
+                  {s.label} <strong>{fmtMil(s.count)}</strong>
                   <span className="bal-legend__pct">{pct(s.count, genTotal).toFixed(0)}%</span>
                 </span>
               ))}
@@ -154,7 +167,7 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
           </div>
           <div className="bal-legend">
             {ageSegs.map((s, i) => (
-              <span key={i} className="bal-legend__item"><span className="bal-legend__dot" style={{ background: s.color }} />{s.label} <strong>{s.count}</strong></span>
+              <span key={i} className="bal-legend__item"><span className="bal-legend__dot" style={{ background: s.color }} />{s.label} <strong>{fmtMil(s.count)}</strong></span>
             ))}
           </div>
         </div>
@@ -172,9 +185,9 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
               {matRow("Mayores (≥60)", mx.mayores)}
               <tr className="bal-matrix__total">
                 <td><strong>Total</strong></td>
-                <td className="bal-cell bal-cell--f" data-label="Femenino"><strong>{tFem}</strong></td>
-                <td className="bal-cell bal-cell--m" data-label="Masculino"><strong>{tMasc}</strong></td>
-                <td className="bal-cell--tot" data-label="Total"><strong>{tot}</strong></td>
+                <td className="bal-cell bal-cell--f" data-label="Femenino"><strong>{fmtMil(tFem)}</strong></td>
+                <td className="bal-cell bal-cell--m" data-label="Masculino"><strong>{fmtMil(tMasc)}</strong></td>
+                <td className="bal-cell--tot" data-label="Total"><strong>{fmtMil(tot)}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -190,9 +203,62 @@ export default function PublicReportView({ stats, refugioLabel, sharedBy, ubicac
                 <span className={`bal-rank__pos ${i < 3 ? `bal-rank__pos--${i + 1}` : ""}`}>{i + 1}</span>
                 <span className="bal-rank__label" title={p.name}>{p.name}</span>
                 <span className="bal-rank__track"><span className="bal-rank__fill" style={{ width: `${Math.round((p.count / maxParr) * 100)}%` }} /></span>
-                <span className="bal-rank__count">{p.count}</span>
+                <span className="bal-rank__count">{fmtMil(p.count)}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Itinerante/Mixto: desglose POR COMUNIDAD (mismo cuadro del panel) */}
+      {comu.length > 0 && (
+        <div className="bal-panel">
+          <div className="bal-panel__head"><span className="bal-panel__ico">{IC.map}</span><h3>Población por comunidad</h3></div>
+          <div className="dash-comu-wrap">
+            <table className="dash-comu">
+              <thead>
+                <tr>
+                  <th className="dash-comu__th-name" rowSpan={2}>Comunidad</th>
+                  <th className="dc-tot dc-sep" rowSpan={2}>Total</th>
+                  <th className="dc-sex dc-sep" colSpan={2}>Género</th>
+                  <th className="dc-age dc-sep" colSpan={4}>Grupos de edad</th>
+                </tr>
+                <tr>
+                  <th className="dc-sex dc-sep">Fem.</th>
+                  <th className="dc-sex">Masc.</th>
+                  <th className="dc-age dc-sep">Lactantes<small>0–3</small></th>
+                  <th className="dc-age">Menores<small>4–17</small></th>
+                  <th className="dc-age">Adultos<small>18–59</small></th>
+                  <th className="dc-age">Mayores<small>≥60</small></th>
+                </tr>
+              </thead>
+              <tbody>
+                {comu.map((c: any) => (
+                  <tr key={c.name}>
+                    <td className="dash-comu__name">{c.name}</td>
+                    <td className="dc-tot dc-sep dash-comu__tot">{fmtMil(c.total)}</td>
+                    <td className="dc-sex dc-sep">{fmtMil(c.fem)}</td>
+                    <td className="dc-sex">{fmtMil(c.masc)}</td>
+                    <td className="dc-age dc-sep">{fmtMil(c.lactantes)}</td>
+                    <td className="dc-age">{fmtMil(c.menores)}</td>
+                    <td className="dc-age">{fmtMil(c.adultos)}</td>
+                    <td className="dc-age">{fmtMil(c.mayores)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td className="dash-comu__name">Total</td>
+                  <td className="dc-tot dc-sep dash-comu__tot">{fmtMil(comuTot.total)}</td>
+                  <td className="dc-sex dc-sep">{fmtMil(comuTot.fem)}</td>
+                  <td className="dc-sex">{fmtMil(comuTot.masc)}</td>
+                  <td className="dc-age dc-sep">{fmtMil(comuTot.lactantes)}</td>
+                  <td className="dc-age">{fmtMil(comuTot.menores)}</td>
+                  <td className="dc-age">{fmtMil(comuTot.adultos)}</td>
+                  <td className="dc-age">{fmtMil(comuTot.mayores)}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       )}
