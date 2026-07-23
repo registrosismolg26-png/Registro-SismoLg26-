@@ -411,6 +411,20 @@ export default function DashboardTab() {
     lactantes: number; menores: number; adultos: number; mayores: number;
   };
   const comunidadStats = useMemo<ComuRow[]>(() => {
+    // ONLINE: usa el agregado del SERVIDOR (mismo criterio exacto que la tarjeta de
+    // "Presentes": retirado = 'NO'). Antes se calculaba aquí con `retirado !== "SI"`,
+    // que además cuenta los registros con `retirado` nulo/vacío → la suma del cuadro
+    // no cuadraba con la tarjeta. Ahora ambos salen de la MISMA fuente.
+    const srv = (currentStats as any)?.byComunidad;
+    if (Array.isArray(srv) && srv.length > 0) {
+      return srv.map((r: any) => ({
+        comunidad: String(r.name ?? "Sin comunidad"),
+        total: Number(r.total ?? 0), fem: Number(r.fem ?? 0), masc: Number(r.masc ?? 0),
+        lactantes: Number(r.lactantes ?? 0), menores: Number(r.menores ?? 0),
+        adultos: Number(r.adultos ?? 0), mayores: Number(r.mayores ?? 0),
+      }));
+    }
+    // OFFLINE: espejo desde el censo cacheado (aproximación, sin conexión).
     const map = new Map<string, ComuRow>();
     registros.filter((r: any) => r.retirado !== "SI").forEach((r: any) => {
       const key = String(r.comunidad || "").trim() || "Sin comunidad";
@@ -432,7 +446,7 @@ export default function DashboardTab() {
     return [...map.values()].sort(
       (a, b) => b.total - a.total || a.comunidad.localeCompare(b.comunidad),
     );
-  }, [registros]);
+  }, [registros, currentStats]);
   const comunidadTotals = useMemo<ComuRow>(
     () => comunidadStats.reduce(
       (acc, r) => ({
