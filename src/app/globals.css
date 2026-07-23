@@ -7443,31 +7443,27 @@ h2.dashboard-section-title {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Tooltip del cuarto (sistema `data-tip`) cuando el badge se trunca */
-.ubic-cell .cuarto-badge[data-tip] {
-  position: relative;
+/* Cursor normal en el badge del cuarto (no es clicable). */
+.ubic-cell .cuarto-badge {
   cursor: default;
 }
-.ubic-cell .cuarto-badge[data-tip]:hover::after {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
+/* Tooltip del cuarto: elemento position:FIXED posicionado por JS con las coordenadas
+   del badge → escapa del contenedor con overflow y de la cabecera sticky (nunca se corta). */
+.cuarto-tip {
+  position: fixed;
+  transform: translateY(-100%) translateY(-8px);
   background: var(--text-primary);
   color: var(--bg-secondary);
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 500;
   line-height: 1.35;
-  letter-spacing: normal;
-  text-transform: none;
-  padding: 0.35rem 0.55rem;
-  border-radius: 7px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
   white-space: normal;
-  width: max-content;
-  max-width: 260px;
-  z-index: 30;
+  max-width: 280px;
+  z-index: 6000;
   pointer-events: none;
-  box-shadow: 0 6px 18px -4px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 22px -6px rgba(0, 0, 0, 0.35);
 }
 /* En tarjeta (móvil) hay espacio vertical y no hay hover → el cuarto ENVUELVE
    (muestra el texto completo) en vez de truncarse. */

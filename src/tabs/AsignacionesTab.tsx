@@ -96,6 +96,8 @@ export default function AsignacionesTab() {
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const editErr = (field: string): string => editErrors[field] || "";
+  // Tooltip flotante (fixed) del cuarto truncado — escapa del contenedor con overflow.
+  const [cuartoTip, setCuartoTip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [originalMedsCount, setOriginalMedsCount] = useState(0);
 
@@ -1795,7 +1797,16 @@ export default function AsignacionesTab() {
                           {reg.cuarto ? (
                             <span
                               className="cuarto-badge cuarto-badge--assigned"
-                              data-tip={reg.cuarto}
+                              onMouseEnter={(e) => {
+                                const txt = e.currentTarget.querySelector(
+                                  ".cuarto-badge__txt",
+                                ) as HTMLElement | null;
+                                if (txt && txt.scrollWidth > txt.clientWidth + 1) {
+                                  const r = e.currentTarget.getBoundingClientRect();
+                                  setCuartoTip({ text: reg.cuarto, x: r.left, y: r.top });
+                                }
+                              }}
+                              onMouseLeave={() => setCuartoTip(null)}
                             >
                               <span className="cuarto-badge__txt">
                                 {reg.cuarto}
@@ -1948,6 +1959,17 @@ export default function AsignacionesTab() {
           )}
         </div>
       </div>
+
+      {/* Tooltip flotante del cuarto truncado (fixed → no lo corta el contenedor
+          con overflow ni la cabecera sticky). */}
+      {cuartoTip && (
+        <div
+          className="cuarto-tip"
+          style={{ left: cuartoTip.x, top: cuartoTip.y }}
+        >
+          {cuartoTip.text}
+        </div>
+      )}
 
       {/* Registro Detail & Edit & Asignación Modal */}
       {selectedRegistro && (
