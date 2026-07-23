@@ -403,6 +403,47 @@ export default function DashboardTab() {
     return counts;
   }, [registros]);
 
+  // Itinerante/Mixto: desglose POR COMUNIDAD (total + género + grupos etarios), con los
+  // MISMOS cortes de edad del resto del panel: 0–3 / 4–17 / 18–59 / ≥60. Solo presentes.
+  type ComuRow = {
+    comunidad: string; total: number; fem: number; masc: number;
+    lactantes: number; menores: number; adultos: number; mayores: number;
+  };
+  const comunidadStats = useMemo<ComuRow[]>(() => {
+    const map = new Map<string, ComuRow>();
+    registros.filter((r: any) => r.retirado !== "SI").forEach((r: any) => {
+      const key = String(r.comunidad || "").trim() || "Sin comunidad";
+      if (!map.has(key)) {
+        map.set(key, { comunidad: key, total: 0, fem: 0, masc: 0, lactantes: 0, menores: 0, adultos: 0, mayores: 0 });
+      }
+      const row = map.get(key)!;
+      row.total++;
+      if (r.genero === "FEMENINO") row.fem++;
+      else if (r.genero === "MASCULINO") row.masc++;
+      const e = Number(r.edad);
+      if (Number.isFinite(e)) {
+        if (e < 4) row.lactantes++;
+        else if (e < 18) row.menores++;
+        else if (e < 60) row.adultos++;
+        else row.mayores++;
+      }
+    });
+    return [...map.values()].sort(
+      (a, b) => b.total - a.total || a.comunidad.localeCompare(b.comunidad),
+    );
+  }, [registros]);
+  const comunidadTotals = useMemo<ComuRow>(
+    () => comunidadStats.reduce(
+      (acc, r) => ({
+        comunidad: "TOTAL", total: acc.total + r.total, fem: acc.fem + r.fem, masc: acc.masc + r.masc,
+        lactantes: acc.lactantes + r.lactantes, menores: acc.menores + r.menores,
+        adultos: acc.adultos + r.adultos, mayores: acc.mayores + r.mayores,
+      }),
+      { comunidad: "TOTAL", total: 0, fem: 0, masc: 0, lactantes: 0, menores: 0, adultos: 0, mayores: 0 },
+    ),
+    [comunidadStats],
+  );
+
   // Helper to generate the WhatsApp report text
   const generateReportText = () => {
     const now = new Date();
@@ -1092,6 +1133,62 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                   </>
                 )}
               </div>
+
+              {/* Itinerante/Mixto: desglose POR COMUNIDAD (total + género + grupos etarios) */}
+              {esCarpa && (
+                <div className="dashboard-section" style={{ gridColumn: "1 / -1", marginTop: "1rem" }}>
+                  <div className="dash-sec-head" style={{ ["--accent" as any]: "#0d9488" } as React.CSSProperties}>
+                    <span className="dash-sec-head__ico">{DASH_ICONS.map}</span>
+                    <h3 className="dashboard-section-title">Población por Comunidad</h3>
+                  </div>
+                  {comunidadStats.length === 0 ? (
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "0.5rem 0" }}>Sin datos</p>
+                  ) : (
+                    <div className="dash-comu-wrap">
+                      <table className="dash-comu">
+                        <thead>
+                          <tr>
+                            <th className="dash-comu__th-name">Comunidad</th>
+                            <th>Total</th>
+                            <th>Fem.</th>
+                            <th>Masc.</th>
+                            <th>Lactantes<small>0–3</small></th>
+                            <th>Menores<small>4–17</small></th>
+                            <th>Adultos<small>18–59</small></th>
+                            <th>Mayores<small>≥60</small></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {comunidadStats.map((c) => (
+                            <tr key={c.comunidad}>
+                              <td className="dash-comu__name">{c.comunidad}</td>
+                              <td className="dash-comu__tot">{c.total}</td>
+                              <td>{c.fem}</td>
+                              <td>{c.masc}</td>
+                              <td>{c.lactantes}</td>
+                              <td>{c.menores}</td>
+                              <td>{c.adultos}</td>
+                              <td>{c.mayores}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td className="dash-comu__name">Total</td>
+                            <td className="dash-comu__tot">{comunidadTotals.total}</td>
+                            <td>{comunidadTotals.fem}</td>
+                            <td>{comunidadTotals.masc}</td>
+                            <td>{comunidadTotals.lactantes}</td>
+                            <td>{comunidadTotals.menores}</td>
+                            <td>{comunidadTotals.adultos}</td>
+                            <td>{comunidadTotals.mayores}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}
