@@ -44,6 +44,10 @@ export const DEPENDENT_NUMBER_OPTIONS = DEP_ORDINALES.map((ord, i) => ({
 }));
 
 
+// Códigos de área telefónicos (Venezuela). Fuente única para el censo del jefe y
+// el sub-formulario de integrantes (carga familiar).
+export const TELEFONO_CODIGOS = ["0424", "0414", "0416", "0426", "0412", "0422", "0212"];
+
 // Tiempo de expiración de sesión por inactividad (1 hora)
 export const INACTIVITY_MS = 60 * 60 * 1000;
 

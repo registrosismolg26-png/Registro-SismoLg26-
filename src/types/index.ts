@@ -52,6 +52,32 @@ export type FormAction =
   | { type: "SET_MANY"; patch: Partial<FormData> }
   | { type: "RESET" };
 
+// Borrador de un INTEGRANTE de la carga familiar (Paso 5 del censo). Cada integrante
+// se registra como un Registro INDEPENDIENTE asociado al jefe: comparte los mismos
+// campos por-persona del formulario del jefe (identidad + salud completa). La
+// ubicación/geo/carpa/refugio se HEREDA del jefe al encolar (no se guarda aquí).
+export type IntegranteDraft = {
+  key: string;                 // id estable para React (crypto.randomUUID)
+  menorSinCedula: boolean;     // menor sin cédula → cédula = V-<cédula del jefe>-N
+  dependentNumber: string;     // correlativo del menor (cuando menorSinCedula)
+  nacionalidad: string;        // "V" | "E"
+  cedula: string;              // solo dígitos
+  nombreApellido: string;
+  genero: string;
+  fechaNacimiento: string;     // dd/mm/aaaa
+  edad: string;                // calculada desde fechaNacimiento
+  telefonoCod: string;
+  telefonoNum: string;         // OPCIONAL para integrantes
+  estadoFisico: string;
+  embarazo: string;
+  patologia: string;
+  patologiaIds: string[];
+  medicamentos: Medicamento[];
+  intermitente: string;
+  motivoIntermitente: string;
+  errors: Record<string, string>;
+};
+
 // Tipos de notificación toast
 export type ToastType = "success" | "error" | "info" | "warning";
 

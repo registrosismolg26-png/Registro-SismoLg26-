@@ -4418,6 +4418,197 @@ h2.dashboard-section-title {
 .wizard-nav .btn-submit {
   flex: 1;
 }
+.wizard-nav .btn-secondary {
+  flex: 1;
+  width: auto;
+}
+
+/* ── Carga Familiar (Paso 5): resumen del jefe + acordeón de integrantes ── */
+.intg-jefe-card {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 14px;
+  background: var(--color-primary-light);
+  border: 1px solid var(--border-color);
+  margin-bottom: 0.75rem;
+}
+.intg-jefe-card__icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--color-primary);
+  color: #fff;
+}
+.intg-jefe-card__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.intg-jefe-card__name {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+.intg-jefe-card__meta {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.intg-help {
+  margin: 0 0 0.85rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.intg-empty {
+  padding: 1.1rem 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+}
+.intg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+}
+
+/* Acordeón de un integrante */
+.intg-acc {
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+.intg-acc[data-open="true"] {
+  border-color: color-mix(in srgb, var(--color-primary) 42%, var(--border-color));
+}
+.intg-acc__head {
+  display: flex;
+  align-items: stretch;
+}
+.intg-acc__toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem 0.9rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.intg-acc__num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.intg-acc__titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.intg-acc__name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.intg-acc__meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.intg-acc__chev {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+.intg-acc[data-open="true"] .intg-acc__chev {
+  transform: rotate(180deg);
+}
+.intg-acc__remove {
+  flex-shrink: 0;
+  width: 44px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border-color);
+  color: var(--color-danger);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.intg-acc__remove:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+.intg-acc__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.intg-acc[data-open="true"] .intg-acc__panel {
+  grid-template-rows: 1fr;
+}
+.intg-acc__inner {
+  overflow: hidden;
+  min-height: 0;
+}
+.intg-acc__body {
+  padding: 0.4rem 0.9rem 0.9rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Botón "Agregar Familiar" (colapsa a "＋ Familiar" en pantallas angostas) */
+.intg-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  height: var(--element-height);
+  border: 1.5px dashed var(--color-primary);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--color-primary);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.intg-add-btn:hover {
+  background: var(--color-primary-light);
+}
 
 /* --- GPS / coordinates status line --- */
 .gps-status {

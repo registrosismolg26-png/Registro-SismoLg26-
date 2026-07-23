@@ -20,8 +20,8 @@
 import { useState, useRef, useReducer, useMemo, useEffect } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
-import type { Medicamento, FormData } from "@/types";
-import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS } from "@/lib/constants";
+import type { Medicamento, FormData, IntegranteDraft } from "@/types";
+import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, TELEFONO_CODIGOS } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
@@ -30,8 +30,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
-
-const TELEFONO_CODIGOS = ["0424", "0414", "0416", "0426", "0412", "0422", "0212"];
+import IntegranteForm from "@/components/IntegranteForm";
 
 export default function CensoTab() {
   const {
@@ -53,7 +52,7 @@ export default function CensoTab() {
     tiposCarpa
   } = useAppContext();
 
-  const [step, setStep] = useState<1|2|3|4>(1);
+  const [step, setStep] = useState<1|2|3|4|5>(1);
 
   // Patologías por-ID: se guarda un array de ids del catálogo.
   const addPatologia = (id: string) => {
@@ -142,6 +141,65 @@ export default function CensoTab() {
   const removeMedicamento = (i: number) => setMedicamentos(p => p.filter((_, idx) => idx !== i));
   const updateMedicamento = (i: number, field: "dosis" | "periodo", val: string) =>
     setMedicamentos(p => p.map((m, idx) => idx === i ? { ...m, [field]: val } : m));
+
+  // ── Carga familiar (Paso 5): integrantes que se registran como registros
+  // INDEPENDIENTES asociados al jefe. Solo aplica si el registrado ES el jefe y no
+  // se retira a Hogar Solidario. Cada integrante se arma con el MISMO
+  // buildRegistroData del jefe → queda idéntico a uno cargado individual. ──
+  const puedeCargaFamiliar = formData.jefeFamilia === "SI" && !hogarSolidario;
+  const [integrantes, setIntegrantes] = useState<IntegranteDraft[]>([]);
+  const [openIntg, setOpenIntg] = useState<Set<string>>(new Set());
+  const newIntegrante = (): IntegranteDraft => ({
+    key: crypto.randomUUID(),
+    menorSinCedula: false, dependentNumber: "1",
+    nacionalidad: "V", cedula: "", nombreApellido: "", genero: "",
+    fechaNacimiento: "", edad: "", telefonoCod: "0412", telefonoNum: "",
+    estadoFisico: "", embarazo: "NO", patologia: "", patologiaIds: [],
+    medicamentos: [], intermitente: "NO", motivoIntermitente: "", errors: {},
+  });
+  const addIntegrante = () => {
+    const nuevo = newIntegrante();
+    setIntegrantes(prev => [...prev, nuevo]);
+    setOpenIntg(prev => new Set(prev).add(nuevo.key));
+  };
+  const removeIntegrante = (key: string) => {
+    setIntegrantes(prev => prev.filter(i => i.key !== key));
+    setOpenIntg(prev => { const n = new Set(prev); n.delete(key); return n; });
+  };
+  const updateIntegrante = (key: string, p: Partial<IntegranteDraft>) =>
+    setIntegrantes(prev => prev.map(i => i.key === key ? { ...i, ...p } : i));
+  const toggleIntg = (key: string) =>
+    setOpenIntg(prev => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  // Si el registrado deja de ser jefe (o se retira a Hogar Solidario), la carga
+  // familiar deja de aplicar: se limpia y se vuelve al Paso 4.
+  useEffect(() => {
+    if (!puedeCargaFamiliar && integrantes.length > 0) {
+      setIntegrantes([]);
+      setOpenIntg(new Set());
+      showToast("La carga familiar se limpió porque cambió la condición del jefe.", "info");
+    }
+    if (!puedeCargaFamiliar && step === 5) setStep(4);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeCargaFamiliar]);
+
+  // Validación de un integrante (espeja las reglas por-persona del jefe).
+  const validateIntegrante = (intg: IntegranteDraft): Record<string, string> => {
+    const e: Record<string, string> = {};
+    if (!intg.menorSinCedula) {
+      if (!intg.cedula) e.cedula = "La cédula es obligatoria";
+      else if (intg.cedula.length < 5) e.cedula = "La cédula debe tener al menos 5 dígitos";
+    }
+    if (!intg.nombreApellido.trim()) e.nombreApellido = "El nombre y apellido son obligatorios";
+    else if (intg.nombreApellido.trim().split(/\s+/).length < 2) e.nombreApellido = "Ingrese al menos un nombre y un apellido";
+    if (!intg.genero) e.genero = "Seleccione el género";
+    if (!intg.fechaNacimiento) e.fechaNacimiento = "La fecha de nacimiento es obligatoria";
+    else if (intg.fechaNacimiento.length < 10) e.fechaNacimiento = "Complete el formato DD/MM/AAAA";
+    if (!intg.estadoFisico) e.estadoFisico = "Seleccione el estado físico";
+    if (!intg.patologia) e.patologia = "Seleccione si posee patología";
+    if (intg.patologia === "SI" && (!intg.patologiaIds || intg.patologiaIds.length === 0)) e.patologiaIds = "Seleccione al menos una patología";
+    if (intg.intermitente === "SI" && !intg.motivoIntermitente.trim()) e.motivoIntermitente = "El motivo es obligatorio para residentes intermitentes";
+    return e;
+  };
 
   // Client Validation State
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -517,7 +575,7 @@ export default function CensoTab() {
   // Navega a un paso dejando SIN touched / SIN error los campos del paso DESTINO,
   // para que al llegar NUNCA aparezcan en rojo antes de tocar nada (bulletproof:
   // no importa cómo se hubieran marcado antes).
-  const goToStep = (next: 1 | 2 | 3 | 4) => {
+  const goToStep = (next: 1 | 2 | 3 | 4 | 5) => {
     const clearFields = [...(STEP_FIELDS[next] || []), ...(STEP_EXTRA[next] || [])];
     setTouched(prev => {
       const n = { ...prev };
@@ -557,7 +615,78 @@ export default function CensoTab() {
     }
     setErrors(prev => ({ ...prev, ...newErrors }));
     if (Object.keys(newErrors).length > 0) return;
-    goToStep((step + 1) as 1|2|3|4);
+    goToStep((step + 1) as 1|2|3|4|5);
+  };
+
+  // ── Fuente ÚNICA del objeto de cola (jefe e integrantes lo usan por igual) ──
+  // `person` = campos por-persona (identidad + salud). `shared` = ubicación/geo/carpa/
+  // refugio heredados. Garantiza que un integrante quede IDÉNTICO a uno individual.
+  type PersonInput = {
+    nacionalidad: string; cedula: string; isChildDependent?: boolean; dependentNumber?: string;
+    nombreApellido: string; genero: string; fechaNacimiento: string; edad: string;
+    telefonoCod: string; telefonoNum: string;
+    jefeFamilia: string; perteneceNucleo: string; cedulaJefeFamilia?: string;
+    estadoFisico: string; embarazo: string; patologia: string; patologiaIds: string[];
+    medicamentos: Medicamento[]; intermitente: string; motivoIntermitente: string;
+  };
+  type SharedInput = {
+    refugio: string; userId?: string;
+    parroquia: string; sector: string; comunidad: string; direccionExacta: string;
+    gpsLat?: number; gpsLng?: number; cuarto?: string;
+    retirado?: string; retiradoRazon?: string;
+  };
+  const buildRegistroData = (p: PersonInput, shared: SharedInput) => {
+    let rawCedula = (p.cedula || "").trim();
+    if (p.isChildDependent) rawCedula = `${rawCedula}-${p.dependentNumber || "1"}`;
+    const cleanCed = rawCedula.toUpperCase();
+    const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-"))
+      ? cleanCed : `${p.nacionalidad}-${cleanCed}`;
+    const rawJefeCed = (p.perteneceNucleo === "SI" && p.jefeFamilia === "NO")
+      ? (p.cedulaJefeFamilia || "").trim().toUpperCase() : "";
+    const finalJefeCedula = rawJefeCed
+      ? ((rawJefeCed.startsWith("V-") || rawJefeCed.startsWith("E-")) ? rawJefeCed : `V-${rawJefeCed}`)
+      : undefined;
+    const finalTelefono = p.telefonoNum ? `${p.telefonoCod}-${p.telefonoNum}` : null;
+    let finalFechaNac = new Date();
+    const dp = (p.fechaNacimiento || "").split("/");
+    if (dp.length === 3) {
+      const d = parseInt(dp[0], 10), m = parseInt(dp[1], 10), y = parseInt(dp[2], 10);
+      finalFechaNac = new Date(y, m - 1, d);
+    }
+    return {
+      id: crypto.randomUUID(),
+      type: 'new' as const,
+      refugio: shared.refugio,
+      userId: shared.userId,
+      data: {
+        parroquia: shared.parroquia,
+        sector: shared.sector,
+        comunidad: shared.comunidad,
+        direccionExacta: shared.direccionExacta,
+        nombreApellido: p.nombreApellido.toUpperCase().trim(),
+        cedula: finalCedula,
+        jefeFamilia: p.jefeFamilia,
+        genero: p.genero,
+        fechaNacimiento: finalFechaNac.toISOString(),
+        edad: parseInt(p.edad, 10),
+        perteneceNucleo: p.perteneceNucleo,
+        cedulaJefeFamilia: finalJefeCedula,
+        estadoFisico: p.estadoFisico,
+        embarazo: p.genero === "FEMENINO" ? (p.embarazo === "SI" ? "SI" : "NO") : "NO",
+        patologia: p.patologia,
+        patologiaIds: p.patologia === "SI" ? (p.patologiaIds || []) : [],
+        gpsLat: shared.gpsLat,
+        gpsLng: shared.gpsLng,
+        telefono: finalTelefono !== null ? finalTelefono : undefined,
+        medicamentoIds: p.medicamentos.filter(m => m.id),
+        cuarto: shared.cuarto,
+        intermitente: p.intermitente || "NO",
+        motivoIntermitente: p.intermitente === "SI" ? p.motivoIntermitente.trim() : undefined,
+        retirado: shared.retirado || "NO",
+        retiradoRazon: shared.retiradoRazon,
+        refugio: shared.refugio,
+      },
+    };
   };
 
   // Submit Handler: Saves to IndexedDB first, then triggers sync
@@ -565,8 +694,8 @@ export default function CensoTab() {
     e.preventDefault();
     // Enter en un input de un paso previo dispara submit: NO debe enviar ni marcar
     // todo el form como tocado (eso pintaba en rojo los radios del paso 4 al llegar).
-    // El envío real solo procede desde el último paso.
-    if (step !== 4) return;
+    // El envío real solo procede desde el Paso 4 (individual) o el Paso 5 (con carga familiar).
+    if (step !== 4 && step !== 5) return;
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -602,80 +731,116 @@ export default function CensoTab() {
       return;
     }
 
+    // Valida la CARGA FAMILIAR (si aplica): cada integrante completo y sin cédula
+    // repetida (ni con el jefe ni entre sí). Bloquea si alguno falla.
+    if (puedeCargaFamiliar && integrantes.length > 0) {
+      const jefeDigits = formData.cedula.replace(/\D/g, "");
+      const seen = new Set<string>([jefeDigits]);
+      let anyInvalid = false;
+      const validated = integrantes.map((intg) => {
+        const errs = validateIntegrante(intg);
+        const key = intg.menorSinCedula
+          ? `${jefeDigits}-${intg.dependentNumber}`
+          : intg.cedula.replace(/\D/g, "");
+        if (key && !errs.cedula) {
+          if (seen.has(key)) {
+            errs.cedula = intg.menorSinCedula
+              ? "Correlativo de menor repetido; elige otro"
+              : "Cédula repetida en esta carga familiar";
+          } else {
+            seen.add(key);
+          }
+        }
+        if (Object.keys(errs).length > 0) anyInvalid = true;
+        return { ...intg, errors: errs };
+      });
+      setIntegrantes(validated);
+      if (anyInvalid) {
+        setOpenIntg((prev) => {
+          const n = new Set(prev);
+          validated.forEach((v) => { if (Object.keys(v.errors).length) n.add(v.key); });
+          return n;
+        });
+        showToast("Revisa los datos de la carga familiar.", "warning");
+        setTimeout(() => {
+          const el = document.querySelector(".has-error");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 50);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     try {
-      let rawCedula = formData.cedula.trim();
-      if (formData.isChildDependent) {
-        rawCedula = `${rawCedula}-${formData.dependentNumber}`;
-      }
-      const cleanCed = rawCedula.toUpperCase();
-      const finalCedula = (cleanCed.startsWith("V-") || cleanCed.startsWith("E-"))
-        ? cleanCed
-        : `${formData.nacionalidad}-${cleanCed}`;
-
-      const rawJefeCed = (formData.perteneceNucleo === "SI" && formData.jefeFamilia === "NO")
-        ? formData.cedulaJefeFamilia.trim().toUpperCase()
-        : "";
-      const finalJefeCedula = rawJefeCed
-        ? ((rawJefeCed.startsWith("V-") || rawJefeCed.startsWith("E-")) ? rawJefeCed : `V-${rawJefeCed}`)
-        : undefined;
-
-      const finalTelefono = formData.telefonoNum ? `${formData.telefonoCod}-${formData.telefonoNum}` : null;
-
-      let finalFechaNac = new Date();
-      const dateParts = formData.fechaNacimiento.split("/");
-      if (dateParts.length === 3) {
-        const d = parseInt(dateParts[0], 10);
-        const m = parseInt(dateParts[1], 10);
-        const y = parseInt(dateParts[2], 10);
-        finalFechaNac = new Date(y, m - 1, d);
-      }
-
-      const recordId = crypto.randomUUID();
-      const registroData = {
-        id: recordId,
-        type: 'new' as const,   // creación → re-enviarla no debe tocar un registro ya creado
+      const jefeDigits = formData.cedula.replace(/\D/g, "");
+      // Carpa/cuarto del jefe = asignación COMPARTIDA por toda la familia.
+      const jefeCuarto = hogarSolidario
+        ? undefined
+        : esCarpa
+          ? (carpaTipo && carpaNro.trim()
+              ? `${formData.comunidad} - ${carpaTipo} - ${/^\d+$/.test(carpaNro.trim()) ? carpaNro.trim().padStart(2, "0") : carpaNro.trim()}`.toUpperCase()
+              : undefined)
+          : (asignCuartoCenso || undefined);
+      // Bloque HEREDADO por toda la familia (ubicación/geo/carpa/refugio).
+      const sharedBase: SharedInput = {
         refugio: effectiveRefugio,
         userId: currentUser?.id,
-        data: {
-          parroquia: formData.parroquia,
-          sector: formData.sector,
-          comunidad: formData.comunidad,
-          direccionExacta: formData.direccionExacta,
-          nombreApellido: formData.nombreApellido.toUpperCase().trim(),
-          cedula: finalCedula,
-          jefeFamilia: formData.jefeFamilia,
-          genero: formData.genero,
-          fechaNacimiento: finalFechaNac.toISOString(),
-          edad: parseInt(formData.edad, 10),
-          perteneceNucleo: formData.perteneceNucleo,
-          cedulaJefeFamilia: finalJefeCedula,
-          estadoFisico: formData.estadoFisico,
-          embarazo: formData.genero === "FEMENINO" ? (formData.embarazo === "SI" ? "SI" : "NO") : "NO",
-          patologia: formData.patologia,
-          patologiaIds: formData.patologia === "SI" ? (formData.patologiaIds || []) : [],
-          gpsLat: coords.lat !== null ? coords.lat : undefined,
-          gpsLng: coords.lng !== null ? coords.lng : undefined,
-          telefono: finalTelefono !== null ? finalTelefono : undefined,
-          medicamentoIds: medicamentos.filter(m => m.id),
-          // En Itinerante/Mixto el cuarto se compone "COMUNIDAD - TIPO DE CARPA - NN" (la
-          // comunidad viene del paso 2); en Transitorio es la habitación elegida.
-          cuarto: hogarSolidario
-            ? undefined
-            : esCarpa
-              ? (carpaTipo && carpaNro.trim()
-                  ? `${formData.comunidad} - ${carpaTipo} - ${/^\d+$/.test(carpaNro.trim()) ? carpaNro.trim().padStart(2, "0") : carpaNro.trim()}`.toUpperCase()
-                  : undefined)
-              : (asignCuartoCenso || undefined),
-          intermitente: formData.intermitente || "NO",
-          motivoIntermitente: formData.intermitente === "SI" ? formData.motivoIntermitente.trim() : undefined,
-          retirado: hogarSolidario ? "SI" : "NO",
-          retiradoRazon: hogarSolidario ? "HOGAR SOLIDARIO" : undefined,
-          refugio: effectiveRefugio
-        }
+        parroquia: formData.parroquia,
+        sector: formData.sector,
+        comunidad: formData.comunidad,
+        direccionExacta: formData.direccionExacta,
+        gpsLat: coords.lat !== null ? coords.lat : undefined,
+        gpsLng: coords.lng !== null ? coords.lng : undefined,
+        cuarto: jefeCuarto,
       };
 
-      await saveLocal(registroData);
-      showToast("Registro guardado localmente.", "success");
+      // Registro del jefe (o de la persona individual). MISMO builder para ambos.
+      const jefeRecord = buildRegistroData(
+        {
+          nacionalidad: formData.nacionalidad, cedula: formData.cedula,
+          isChildDependent: formData.isChildDependent, dependentNumber: formData.dependentNumber,
+          nombreApellido: formData.nombreApellido, genero: formData.genero,
+          fechaNacimiento: formData.fechaNacimiento, edad: formData.edad,
+          telefonoCod: formData.telefonoCod, telefonoNum: formData.telefonoNum,
+          jefeFamilia: formData.jefeFamilia, perteneceNucleo: formData.perteneceNucleo,
+          cedulaJefeFamilia: formData.cedulaJefeFamilia,
+          estadoFisico: formData.estadoFisico, embarazo: formData.embarazo,
+          patologia: formData.patologia, patologiaIds: formData.patologiaIds,
+          medicamentos, intermitente: formData.intermitente, motivoIntermitente: formData.motivoIntermitente,
+        },
+        { ...sharedBase, retirado: hogarSolidario ? "SI" : "NO", retiradoRazon: hogarSolidario ? "HOGAR SOLIDARIO" : undefined },
+      );
+
+      // Integrantes → registros INDEPENDIENTES asociados a la cédula del jefe,
+      // heredando su ubicación/geo/carpa. Un menor toma la cédula del jefe + su
+      // correlativo (V-<jefe>-N), igual que en el censo individual.
+      const integranteRecords = (puedeCargaFamiliar ? integrantes : []).map((intg) =>
+        buildRegistroData(
+          {
+            nacionalidad: intg.nacionalidad,
+            cedula: intg.menorSinCedula ? jefeDigits : intg.cedula,
+            isChildDependent: intg.menorSinCedula, dependentNumber: intg.dependentNumber,
+            nombreApellido: intg.nombreApellido, genero: intg.genero,
+            fechaNacimiento: intg.fechaNacimiento, edad: intg.edad,
+            telefonoCod: intg.telefonoCod, telefonoNum: intg.telefonoNum,
+            jefeFamilia: "NO", perteneceNucleo: "SI",
+            cedulaJefeFamilia: jefeRecord.data.cedula,
+            estadoFisico: intg.estadoFisico, embarazo: intg.embarazo,
+            patologia: intg.patologia, patologiaIds: intg.patologiaIds,
+            medicamentos: intg.medicamentos, intermitente: intg.intermitente, motivoIntermitente: intg.motivoIntermitente,
+          },
+          { ...sharedBase, retirado: "NO", retiradoRazon: undefined },
+        ),
+      );
+
+      await saveLocal(jefeRecord);
+      for (const rec of integranteRecords) await saveLocal(rec);
+      showToast(
+        integranteRecords.length > 0
+          ? `Registrados: jefe + ${integranteRecords.length} familiar${integranteRecords.length === 1 ? "" : "es"} (sincronizando…).`
+          : "Registro guardado localmente.",
+        "success",
+      );
 
       // Recuerda la ubicación para el próximo registro (preselección).
       try {
@@ -700,6 +865,8 @@ export default function CensoTab() {
       setCarpaTipo("");
       setCarpaNro("");
       setHogarSolidario(false);
+      setIntegrantes([]);
+      setOpenIntg(new Set());
       setStep(1);
 
       await refreshLocalRecords();
@@ -718,6 +885,11 @@ export default function CensoTab() {
   // Guarda de tipos: este tab solo se monta autenticado (activeTab === "censo").
   if (!currentUser) return null;
 
+  // El 5.º paso (Carga Familiar) es una RAMA opcional: el stepper solo lo muestra
+  // al entrar en él, para no sugerir un paso obligatorio en el registro individual.
+  const totalSteps: 4 | 5 = step === 5 ? 5 : 4;
+  const wizardDots = step === 5 ? [1, 2, 3, 4, 5] : [1, 2, 3, 4];
+
   return (
     <>
         <div className="tab-enter">
@@ -733,14 +905,14 @@ export default function CensoTab() {
             <form onSubmit={handleSubmit} className="form-card censo-form">
               {/* Wizard Progress Bar */}
               <div className="wizard-progress">
-                {([1, 2, 3, 4] as const).map((s) => (
+                {wizardDots.map((s) => (
                   <div key={s} className="wizard-step-wrapper">
                     <div className={`wizard-step-dot ${step === s ? "active" : step > s ? "done" : ""}`}>
                       {step > s ? (
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       ) : s}
                     </div>
-                    {s < 4 && <div className={`wizard-step-line ${step > s ? "done" : ""}`} />}
+                    {s < totalSteps && <div className={`wizard-step-line ${step > s ? "done" : ""}`} />}
                   </div>
                 ))}
               </div>
@@ -749,6 +921,7 @@ export default function CensoTab() {
                 {step === 2 && "Paso 2 — Ubicación Geográfica"}
                 {step === 3 && "Paso 3 — Identificación Personal"}
                 {step === 4 && "Paso 4 — Estado de Salud"}
+                {step === 5 && "Paso 5 — Carga Familiar"}
               </div>
 
               {/* PASO 1: Grupo Familiar */}
@@ -1438,6 +1611,60 @@ export default function CensoTab() {
                 </div>
               )}
 
+              {/* PASO 5: Carga Familiar (rama opcional; solo si el registrado es jefe) */}
+              {step === 5 && (
+                <div className="form-section form-step-content" key="step-5">
+                  {/* Resumen del jefe: a quién se asocia la carga familiar */}
+                  <div className="intg-jefe-card">
+                    <span className="intg-jefe-card__icon" aria-hidden>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    <span className="intg-jefe-card__info">
+                      <span className="intg-jefe-card__name">{formData.nombreApellido?.trim() || "Jefe de familia"}</span>
+                      <span className="intg-jefe-card__meta">
+                        {[
+                          formData.cedula ? `${formData.nacionalidad}-${formData.cedula}` : "",
+                          formData.parroquia,
+                          esCarpa ? formData.comunidad : formData.sector,
+                        ].filter(Boolean).join(" · ") || "Jefe de familia"}
+                      </span>
+                    </span>
+                  </div>
+                  <p className="intg-help">
+                    Agrega al resto de la familia. Cada integrante <strong>hereda la ubicación y la carpa del jefe</strong> y se registra como una ficha independiente asociada a él (idéntico a cargarlo individual).
+                  </p>
+
+                  {integrantes.length === 0 ? (
+                    <div className="intg-empty">
+                      Sin integrantes aún. Toca <strong>Agregar Familiar</strong> para sumar a la carga familiar; puedes registrar solo al jefe si no hay más.
+                    </div>
+                  ) : (
+                    <div className="intg-list">
+                      {integrantes.map((intg, i) => (
+                        <IntegranteForm
+                          key={intg.key}
+                          value={intg}
+                          index={i}
+                          open={openIntg.has(intg.key)}
+                          showErrors={triedSubmit}
+                          jefeCedulaDigits={formData.cedula.replace(/\D/g, "")}
+                          patologias={patologias}
+                          predefinedMedicamentos={predefinedMedicamentos}
+                          onToggle={() => toggleIntg(intg.key)}
+                          onChange={(patch) => updateIntegrante(intg.key, patch)}
+                          onRemove={() => removeIntegrante(intg.key)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <button type="button" className="intg-add-btn" onClick={addIntegrante}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span className="btn-txt-collapsible">Agregar&nbsp;</span>Familiar
+                  </button>
+                </div>
+              )}
+
               {/* Navegación del asistente */}
               <div className="form-section-submit">
                 {step === 2 && (
@@ -1453,13 +1680,13 @@ export default function CensoTab() {
                     <button
                       type="button"
                       className="btn-back"
-                      onClick={() => goToStep((step - 1) as 1 | 2 | 3 | 4)}
+                      onClick={() => goToStep((step - 1) as 1 | 2 | 3 | 4 | 5)}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                       Atrás
                     </button>
                   )}
-                  {step < 4 ? (
+                  {step <= 3 && (
                     <button
                       type="button"
                       className="btn-submit"
@@ -1468,13 +1695,35 @@ export default function CensoTab() {
                       Continuar
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
-                  ) : (
+                  )}
+                  {step === 4 && (
+                    <>
+                      {puedeCargaFamiliar && (
+                        <button
+                          type="button"
+                          className="btn-secondary btn-add-familiar"
+                          onClick={() => goToStep(5)}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                          <span className="btn-txt-collapsible">Agregar&nbsp;</span>Familiar
+                        </button>
+                      )}
+                      <button
+                        type="submit"
+                        className="btn-submit"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? "Guardando..." : "Registrar Afectado"}
+                      </button>
+                    </>
+                  )}
+                  {step === 5 && (
                     <button
                       type="submit"
                       className="btn-submit"
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? "Guardando..." : "Registrar Afectado"}
+                      {isSubmitting ? "Guardando..." : `Registrar familia (${integrantes.length + 1})`}
                     </button>
                   )}
                 </div>
