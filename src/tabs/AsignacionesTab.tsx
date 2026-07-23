@@ -1793,7 +1793,10 @@ export default function AsignacionesTab() {
                       <td className="col-ubicacion" data-label="Ubicación">
                         <div className="ubic-cell">
                           {reg.cuarto ? (
-                            <span className="cuarto-badge cuarto-badge--assigned">
+                            <span
+                              className="cuarto-badge cuarto-badge--assigned"
+                              data-tip={reg.cuarto}
+                            >
                               {reg.cuarto}
                             </span>
                           ) : (
@@ -1802,7 +1805,9 @@ export default function AsignacionesTab() {
                             </span>
                           )}
                           {origen && (
-                            <span className="ubic-origin">{origen}</span>
+                            <span className="ubic-origin" title={origen}>
+                              {origen}
+                            </span>
                           )}
                         </div>
                       </td>

@@ -7373,8 +7373,9 @@ h2.dashboard-section-title {
 }
 .person-name {
   font-weight: 600;
+  font-size: 0.75rem;
   color: var(--text-primary);
-  line-height: 1.2;
+  line-height: 1.15;
 }
 .person-sub {
   display: flex;
@@ -7409,17 +7410,76 @@ h2.dashboard-section-title {
   border: 1px solid var(--border-color);
 }
 
-/* UBICACIÓN: asignación (cuarto/carpa) arriba + origen (parroquia · comunidad) */
+/* UBICACIÓN: asignación (cuarto/carpa) arriba + origen (parroquia · comunidad).
+   Se ACOTA el ancho y se trunca el cuarto/origen para no forzar scroll horizontal. */
 .ubic-cell {
   display: flex;
   flex-direction: column;
   gap: 4px;
   align-items: flex-start;
+  max-width: 20rem;
+  min-width: 0;
+}
+.ubic-cell .cuarto-badge {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 .ubic-origin {
   font-size: 0.72rem;
   color: var(--text-muted);
   line-height: 1.25;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Tooltip del cuarto (sistema `data-tip`) cuando el badge se trunca */
+.ubic-cell .cuarto-badge[data-tip] {
+  position: relative;
+  cursor: help;
+}
+.ubic-cell .cuarto-badge[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: var(--text-primary);
+  color: var(--bg-secondary);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 0.35rem 0.55rem;
+  border-radius: 7px;
+  white-space: normal;
+  width: max-content;
+  max-width: 260px;
+  z-index: 30;
+  pointer-events: none;
+  box-shadow: 0 6px 18px -4px rgba(0, 0, 0, 0.28);
+}
+/* En tarjeta (móvil) hay espacio vertical y no hay hover → el cuarto ENVUELVE
+   (muestra el texto completo) en vez de truncarse. */
+@media (max-width: 1023px) {
+  .ubic-cell {
+    max-width: none;
+  }
+  .ubic-cell .cuarto-badge {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .ubic-origin {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
 }
 
 /* ESTATUS: pills apiladas */
