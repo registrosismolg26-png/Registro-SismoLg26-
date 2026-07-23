@@ -1148,40 +1148,44 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                       <table className="dash-comu">
                         <thead>
                           <tr>
-                            <th className="dash-comu__th-name">Comunidad</th>
-                            <th>Total</th>
-                            <th>Fem.</th>
-                            <th>Masc.</th>
-                            <th>Lactantes<small>0–3</small></th>
-                            <th>Menores<small>4–17</small></th>
-                            <th>Adultos<small>18–59</small></th>
-                            <th>Mayores<small>≥60</small></th>
+                            <th className="dash-comu__th-name" rowSpan={2}>Comunidad</th>
+                            <th className="dc-tot dc-sep" rowSpan={2}>Total</th>
+                            <th className="dc-sex dc-sep" colSpan={2}>Género</th>
+                            <th className="dc-age dc-sep" colSpan={4}>Grupos de edad</th>
+                          </tr>
+                          <tr>
+                            <th className="dc-sex dc-sep">Fem.</th>
+                            <th className="dc-sex">Masc.</th>
+                            <th className="dc-age dc-sep">Lactantes<small>0–3</small></th>
+                            <th className="dc-age">Menores<small>4–17</small></th>
+                            <th className="dc-age">Adultos<small>18–59</small></th>
+                            <th className="dc-age">Mayores<small>≥60</small></th>
                           </tr>
                         </thead>
                         <tbody>
                           {comunidadStats.map((c) => (
                             <tr key={c.comunidad}>
                               <td className="dash-comu__name">{c.comunidad}</td>
-                              <td className="dash-comu__tot">{c.total}</td>
-                              <td>{c.fem}</td>
-                              <td>{c.masc}</td>
-                              <td>{c.lactantes}</td>
-                              <td>{c.menores}</td>
-                              <td>{c.adultos}</td>
-                              <td>{c.mayores}</td>
+                              <td className="dc-tot dc-sep dash-comu__tot">{c.total}</td>
+                              <td className="dc-sex dc-sep">{c.fem}</td>
+                              <td className="dc-sex">{c.masc}</td>
+                              <td className="dc-age dc-sep">{c.lactantes}</td>
+                              <td className="dc-age">{c.menores}</td>
+                              <td className="dc-age">{c.adultos}</td>
+                              <td className="dc-age">{c.mayores}</td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
                           <tr>
                             <td className="dash-comu__name">Total</td>
-                            <td className="dash-comu__tot">{comunidadTotals.total}</td>
-                            <td>{comunidadTotals.fem}</td>
-                            <td>{comunidadTotals.masc}</td>
-                            <td>{comunidadTotals.lactantes}</td>
-                            <td>{comunidadTotals.menores}</td>
-                            <td>{comunidadTotals.adultos}</td>
-                            <td>{comunidadTotals.mayores}</td>
+                            <td className="dc-tot dc-sep dash-comu__tot">{comunidadTotals.total}</td>
+                            <td className="dc-sex dc-sep">{comunidadTotals.fem}</td>
+                            <td className="dc-sex">{comunidadTotals.masc}</td>
+                            <td className="dc-age dc-sep">{comunidadTotals.lactantes}</td>
+                            <td className="dc-age">{comunidadTotals.menores}</td>
+                            <td className="dc-age">{comunidadTotals.adultos}</td>
+                            <td className="dc-age">{comunidadTotals.mayores}</td>
                           </tr>
                         </tfoot>
                       </table>
