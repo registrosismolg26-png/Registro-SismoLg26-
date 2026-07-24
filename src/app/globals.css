@@ -8726,6 +8726,63 @@ h2.dashboard-section-title {
     font-size: 0.85rem !important;
   }
 
+  /* ── Saltos de página ────────────────────────────────────────────────────
+     El panel usa el lenguaje .bal-* / .dash-*; sin estas reglas las tarjetas,
+     paneles y tablas se PARTÍAN entre páginas al imprimir. */
+  .bal-card,
+  .bal-hero,
+  .bal-panel,
+  .dash-room,
+  .bal-rank__row,
+  .bal-seg,
+  .bal-legend,
+  .bal-donut,
+  .dash-comu-wrap,
+  .bal-matrix-wrap,
+  .dash-comu tr,
+  .bal-matrix tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Un título nunca se queda solo al pie de la página */
+  .dash-sec-head,
+  .bal-panel__head,
+  .dashboard-section-title,
+  .detail-section-title {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Separación entre bloques (antes quedaban pegados) */
+  .bal-panel,
+  .dashboard-section {
+    margin-bottom: 12px !important;
+  }
+  .bal-cards {
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* Contenedores con scroll: al imprimir no hay scroll → si se deja `auto` la
+     tabla sale RECORTADA. Se muestran completos y con letra un punto menor. */
+  .dash-comu-wrap,
+  .bal-matrix-wrap,
+  .registro-table-wrapper {
+    overflow: visible !important;
+  }
+  .dash-comu {
+    font-size: 0.66rem !important;
+  }
+  /* La cabecera de la tabla se repite en cada página */
+  .dash-comu thead,
+  .bal-matrix thead {
+    display: table-header-group;
+  }
+  .dash-comu tfoot {
+    display: table-footer-group;
+  }
+
   /* Force system color adjustments */
   * {
     -webkit-print-color-adjust: exact !important;
