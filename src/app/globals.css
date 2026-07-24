@@ -8755,13 +8755,15 @@ h2.dashboard-section-title {
   }
 
   /* Separación entre bloques (antes quedaban pegados) */
+  .bal-hero,
+  .dashboard-header-card,
   .bal-panel,
   .dashboard-section {
-    margin-bottom: 12px !important;
+    margin-bottom: 14px !important;
   }
   .bal-cards {
     gap: 8px !important;
-    margin-bottom: 12px !important;
+    margin-bottom: 14px !important;
   }
 
   /* Contenedores con scroll: al imprimir no hay scroll → si se deja `auto` la
