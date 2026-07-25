@@ -7,8 +7,8 @@
 //      presentación) con la cantidad de personas y de indicaciones.
 // Mismo lenguaje visual que exportRegistrosExcel (membrete + marca). exceljs perezoso.
 
-import { formatRoomLabel } from "@/lib/helpers";
-import type { MedicamentoPredefinido, Medicamento } from "@/types";
+import { formatRoomLabel, patologiaNombres } from "@/lib/helpers";
+import type { MedicamentoPredefinido, Medicamento, Patologia } from "@/types";
 
 const BRAND = "1E3A8A";
 const BRAND_LIGHT = "E8EDF7";
@@ -17,6 +17,7 @@ const ZEBRA = "F1F5F9";
 interface ExportOpts {
   registros: any[];                        // lista (filtrada) de registros del censo
   predefinedMedicamentos: MedicamentoPredefinido[];
+  patologias: Patologia[];
   refugio: string;
   generadoEn: string;
   filtros?: string;
@@ -25,7 +26,7 @@ interface ExportOpts {
 const medCat = (id: string, cat: MedicamentoPredefinido[]) => cat.find((m) => m.id === id);
 
 export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
-  const { registros, predefinedMedicamentos, refugio, generadoEn, filtros } = opts;
+  const { registros, predefinedMedicamentos, patologias, refugio, generadoEn, filtros } = opts;
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "Registro-SismoLg26";
@@ -102,8 +103,9 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
   // ══ HOJA 1: Medicamentos por persona ═══════════════════════════════════════
   const COLS1: [string, number][] = [
     ["N°", 5], ["Cédula", 14], ["Nombre y Apellido", 26], ["Género", 10], ["Edad", 6],
-    ["Parroquia", 15], ["Sector", 15], ["Comunidad", 16], ["Dirección exacta", 26],
-    ["Teléfono", 13], ["Habitación / Carpa", 24], ["Medicamentos", 46],
+    ["Parroquia", 15], ["Sector", 15], ["Comunidad", 16], ["Dirección exacta", 24],
+    ["Teléfono", 13], ["Habitación / Carpa", 22], ["Estado físico", 12], ["Patologías", 26],
+    ["Medicamentos", 44],
   ];
   const ws1 = wb.addWorksheet("Medicamentos por persona", {
     views: [{ state: "frozen", ySplit: 6 }],
@@ -116,16 +118,22 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
 
   conMeds.forEach((r, idx) => {
     const g = (r.genero || "").toUpperCase();
-    // Lista de medicamentos con viñetas, una por línea (wrapText).
+    // Lista de medicamentos con viñetas, una por línea (wrapText). La concentración/dosis
+    // va junto al nombre; el paréntesis lleva el PERÍODO (posología de toma).
     const listaMeds = r.meds
       .map((m: Medicamento) => {
         const cat = medCat(m.id, predefinedMedicamentos);
         const nombre = cat ? [cat.nombre, cat.concentracion].filter(Boolean).join(" ") : "(no disponible)";
         const pres = cat?.presentacion ? ` · ${cat.presentacion}` : "";
-        const poso = [m.dosis, m.periodo].map((s) => (s || "").trim()).filter(Boolean).join(" · ");
-        return `•  ${nombre}${pres}${poso ? `  (${poso})` : ""}`;
+        const periodo = (m.periodo || "").trim();
+        return `•  ${nombre}${pres}${periodo ? `  (${periodo})` : ""}`;
       })
       .join("\n");
+
+    const ef = (r.estadoFisico || "").toUpperCase();
+    const patTxt = r.patologia === "SI"
+      ? (patologiaNombres(r.patologiaIds, patologias).join(", ") || "Sí (sin detalle)")
+      : "No";
 
     const values = [
       idx + 1,
@@ -139,13 +147,17 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
       r.direccionExacta || "",
       r.telefono || "",
       r.cuarto ? formatRoomLabel(r.cuarto) : "Sin asignar",
+      ef === "LESIONADO" ? "Lesionado" : ef === "ILESO" ? "Ileso" : (r.estadoFisico || ""),
+      patTxt,
       listaMeds,
     ];
     const row = ws1.addRow(values);
     const zebra = idx % 2 === 1;
     row.eachCell((cell: any, col: number) => {
       cell.font = { name: "Arial", size: 9, color: { argb: "1F2937" } };
-      cell.alignment = { vertical: "top", horizontal: col === 1 || col === 5 ? "center" : "left", wrapText: true };
+      cell.alignment = { vertical: "top", horizontal: col === 1 || col === 5 || col === 12 ? "center" : "left", wrapText: true };
+      // Lesionado en rojo, para que resalte.
+      if (col === 12 && ef === "LESIONADO") cell.font = { name: "Arial", size: 9, bold: true, color: { argb: "DC2626" } };
       cell.border = {
         top: { style: "hair", color: { argb: "D1D5DB" } }, bottom: { style: "hair", color: { argb: "D1D5DB" } },
         left: { style: "hair", color: { argb: "E5E7EB" } }, right: { style: "hair", color: { argb: "E5E7EB" } },
@@ -158,20 +170,21 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
   ws1.autoFilter = { from: { row: 6, column: 1 }, to: { row: 6, column: COLS1.length } };
 
   // ══ HOJA 2: Resumen de medicamentos ════════════════════════════════════════
-  // Agrupado por (medicamento + concentración, posología/dosis, presentación).
-  type Grp = { nombre: string; concentracion: string; presentacion: string; dosis: string; periodo: string; personas: number; indicaciones: number };
+  // Agrupado por (medicamento, concentración/dosis, presentación). NOTA: dosis,
+  // posología y concentración son el mismo dato → una sola columna. El PERÍODO NO
+  // discrimina (no forma parte de la clave).
+  type Grp = { nombre: string; concentracion: string; presentacion: string; personas: number; indicaciones: number };
   const grupos = new Map<string, Grp>();
   conMeds.forEach((r) => {
     const vistosPorPersona = new Set<string>();
     r.meds.forEach((m: Medicamento) => {
       const cat = medCat(m.id, predefinedMedicamentos);
       const nombre = cat?.nombre || "(no disponible)";
-      const concentracion = cat?.concentracion || "";
+      // Concentración/dosis: la del catálogo; si falta, la de la indicación.
+      const concentracion = (cat?.concentracion || m.dosis || "").trim();
       const presentacion = cat?.presentacion || "";
-      const dosis = (m.dosis || "").trim();
-      const periodo = (m.periodo || "").trim();
-      const key = [nombre, concentracion, presentacion, dosis, periodo].join("¬").toUpperCase();
-      if (!grupos.has(key)) grupos.set(key, { nombre, concentracion, presentacion, dosis, periodo, personas: 0, indicaciones: 0 });
+      const key = [nombre, concentracion, presentacion].join("¬").toUpperCase();
+      if (!grupos.has(key)) grupos.set(key, { nombre, concentracion, presentacion, personas: 0, indicaciones: 0 });
       const grp = grupos.get(key)!;
       grp.indicaciones++;
       if (!vistosPorPersona.has(key)) { grp.personas++; vistosPorPersona.add(key); }
@@ -182,8 +195,8 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
   );
 
   const COLS2: [string, number][] = [
-    ["N°", 5], ["Medicamento", 30], ["Concentración", 16], ["Presentación", 18],
-    ["Dosis / Posología", 20], ["Período", 18], ["N.º personas", 12], ["N.º indicaciones", 14],
+    ["N°", 5], ["Medicamento", 30], ["Concentración / Dosis", 20], ["Presentación", 18],
+    ["N.º personas", 13],
   ];
   const ws2 = wb.addWorksheet("Resumen de medicamentos", {
     views: [{ state: "frozen", ySplit: 6 }],
@@ -195,25 +208,25 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
   headerRow(ws2, COLS2);
 
   filas.forEach((g, idx) => {
-    const values = [idx + 1, g.nombre, g.concentracion, g.presentacion, g.dosis || "—", g.periodo || "—", g.personas, g.indicaciones];
+    const values = [idx + 1, g.nombre, g.concentracion || "—", g.presentacion, g.personas];
     const row = ws2.addRow(values);
     const zebra = idx % 2 === 1;
     row.eachCell((cell: any, col: number) => {
       cell.font = { name: "Arial", size: 9, color: { argb: "1F2937" } };
-      cell.alignment = { vertical: "middle", horizontal: col === 1 || col >= 7 ? "center" : "left", wrapText: true };
+      cell.alignment = { vertical: "middle", horizontal: col === 1 || col >= 5 ? "center" : "left", wrapText: true };
       cell.border = {
         top: { style: "hair", color: { argb: "D1D5DB" } }, bottom: { style: "hair", color: { argb: "D1D5DB" } },
         left: { style: "hair", color: { argb: "E5E7EB" } }, right: { style: "hair", color: { argb: "E5E7EB" } },
       };
       if (zebra) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } };
-      if (col >= 7) cell.font = { name: "Arial", size: 9, bold: true, color: { argb: BRAND } };
+      if (col >= 5) cell.font = { name: "Arial", size: 9, bold: true, color: { argb: BRAND } };
     });
   });
-  // Fila TOTAL de indicaciones/personas.
-  const totalRow = ws2.addRow(["", "TOTAL", "", "", "", "", filas.reduce((s, g) => s + g.personas, 0), filas.reduce((s, g) => s + g.indicaciones, 0)]);
+  // Fila TOTAL de personas.
+  const totalRow = ws2.addRow(["", "TOTAL", "", "", filas.reduce((s, g) => s + g.personas, 0)]);
   totalRow.eachCell((cell: any, col: number) => {
     cell.font = { name: "Arial", size: 9, bold: true, color: { argb: "111827" } };
-    cell.alignment = { vertical: "middle", horizontal: col === 1 || col >= 7 ? "center" : "left" };
+    cell.alignment = { vertical: "middle", horizontal: col === 1 || col >= 5 ? "center" : "left" };
     cell.border = { top: { style: "medium", color: { argb: BRAND } } };
   });
   ws2.autoFilter = { from: { row: 6, column: 1 }, to: { row: 6, column: COLS2.length } };

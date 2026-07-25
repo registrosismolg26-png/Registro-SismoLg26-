@@ -1180,6 +1180,7 @@ export default function AsignacionesTab() {
       await exportMedicamentosExcel({
         registros: filteredRegistros,
         predefinedMedicamentos,
+        patologias,
         refugio: refugioActual(),
         generadoEn: generadoEnStr(),
         filtros: exportFiltrosResumen(),
