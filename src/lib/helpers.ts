@@ -142,3 +142,10 @@ export function roomFillLevel(count: number, capacity: number): "green" | "yello
 // reporte público y presentación, para que TODO dato numérico se vea igual.
 export const fmtMil = (n: number | null | undefined): string =>
   Number(n ?? 0).toLocaleString("es-VE");
+
+// Comparador NATURAL/alfanumérico para nombres de cuartos: "Piso 2" va antes que
+// "Piso 10" (numeric:true), insensible a mayúsculas/acentos. Fuente única para
+// ordenar habitaciones/salones en el dashboard, el selector y el PDF de presentes.
+export function compareCuarto(a?: string | null, b?: string | null): number {
+  return String(a ?? "").localeCompare(String(b ?? ""), "es", { numeric: true, sensitivity: "base" });
+}

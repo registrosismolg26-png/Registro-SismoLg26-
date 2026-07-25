@@ -30,6 +30,7 @@ import {
   normalizeText,
   findRepresentante,
   cedulaFamilia,
+  compareCuarto,
 } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
 import { exportFamiliasExcel } from "@/lib/exportFamiliasExcel";
@@ -1233,12 +1234,13 @@ export default function AsignacionesTab() {
     const campamentoActivo =
       effectiveRefugio || currentUser?.campamentoTransitorio || "";
 
+    // Orden NATURAL por cuarto (Piso 1, 2, 3… no 1, 10, 2); sin cuarto va al final.
     const sorted = [...present].sort((a, b) => {
       const roomA = a.cuarto || "ZZZ";
       const roomB = b.cuarto || "ZZZ";
       return (
-        roomA.localeCompare(roomB) ||
-        a.nombreApellido.localeCompare(b.nombreApellido)
+        compareCuarto(roomA, roomB) ||
+        String(a.nombreApellido || "").localeCompare(String(b.nombreApellido || ""))
       );
     });
 

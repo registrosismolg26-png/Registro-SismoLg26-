@@ -69,6 +69,7 @@ import {
   useModalOverlayScrollLock,
   useModalOutsideClickGuard,
 } from "@/components/useBodyScrollLock";
+import { compareCuarto } from "@/lib/helpers";
 import dynamic from "next/dynamic";
 
 // MapaTab carga Leaflet; se importa PEREZOSAMENTE (solo cuando Master abre la pestaña)
@@ -293,7 +294,9 @@ export default function Home() {
   }, [currentUser]);
 
   const allCuartos = useMemo(() => {
-    return [...CUARTOS, ...customCuartos]; // Orden del DB: createdAt ASC (viejos→nuevos), estable
+    // Orden NATURAL alfanumérico: "Piso 2" antes que "Piso 10". Así el selector, el
+    // dashboard y los reportes muestran los cuartos ordenados por número, no por createdAt.
+    return [...CUARTOS, ...customCuartos].sort(compareCuarto);
   }, [customCuartos]);
 
   const sortedCustomCuartos = useMemo(() => {
@@ -337,7 +340,8 @@ export default function Home() {
 
   // All rooms including deleted-but-still-assigned ones for graphic stats display
   const dashboardRooms = useMemo(() => {
-    const activeRooms = [...CUARTOS, ...customCuartos];
+    // Cuartos ACTIVOS en orden natural (Piso 1, 2, 3… no 1, 10, 2).
+    const activeRooms = [...CUARTOS, ...customCuartos].sort(compareCuarto);
     const activeSet = new Set(activeRooms);
 
     // Find unique assigned rooms that are not currently in the DB
@@ -348,9 +352,8 @@ export default function Home() {
       }
     });
 
-    const uniqueMissing = Array.from(new Set(missingRooms)).sort((a, b) =>
-      b.localeCompare(a),
-    );
+    // Los eliminados-pero-aún-asignados van al final, también en orden natural.
+    const uniqueMissing = Array.from(new Set(missingRooms)).sort(compareCuarto);
     return [...activeRooms, ...uniqueMissing];
   }, [customCuartos, registros]);
 
