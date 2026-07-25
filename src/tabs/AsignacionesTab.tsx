@@ -33,6 +33,7 @@ import {
 } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
 import { exportFamiliasExcel } from "@/lib/exportFamiliasExcel";
+import { exportMedicamentosExcel } from "@/lib/exportMedicamentosExcel";
 import { logActivity } from "@/lib/activityLog";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
@@ -981,6 +982,33 @@ export default function AsignacionesTab() {
 
   // Exporta a un XLSX con membrete/colores lo que se ve (registros FILTRADOS): si hay
   // filtros/búsqueda aplicados, solo esos; si no, todos.
+  // Resumen legible de los filtros activos (para el membrete de cualquier Excel).
+  const exportFiltrosParts = (): string[] => {
+    const dmy = (s: string) => s.split("-").reverse().join("/");
+    const edadLbl: Record<string, string> = {
+      menores: "Menores de 18",
+      adultos: "Adultos (18–59)",
+      mayores: "Adultos mayores (60+)",
+    };
+    const parts: string[] = [];
+    if (registroSearch.trim()) parts.push(`Búsqueda "${registroSearch.trim()}"`);
+    if (filterGenero) parts.push(`Género: ${filterGenero === "FEMENINO" ? "Femenino" : "Masculino"}`);
+    if (filterEdad) parts.push(edadLbl[filterEdad] || filterEdad);
+    if (filterEdadMin && filterEdadMax) parts.push(`Edad ${filterEdadMin}–${filterEdadMax} años`);
+    else if (filterEdadMin) parts.push(`Edad ≥ ${filterEdadMin} años`);
+    else if (filterEdadMax) parts.push(`Edad ≤ ${filterEdadMax} años`);
+    if (filterParroquia) parts.push(`Parroquia: ${filterParroquia}`);
+    if (filterEstadoFisico) parts.push(`Estado: ${filterEstadoFisico === "LESIONADO" ? "Lesionado" : "Ileso"}`);
+    if (filterCuarto) parts.push(`Habitación: ${filterCuarto === "sin_asignar" ? "Sin asignar" : formatRoomLabel(filterCuarto)}`);
+    if (filterRetirado === "SI") parts.push("Estatus: Egresados / Retirados");
+    else if (filterRetirado === "") parts.push("Estatus: Todos (presentes y egresados)");
+    if (filterRegistrador) parts.push(`Registrador: ${filterRegistrador}`);
+    if (filterDesde) parts.push(`Desde ${dmy(filterDesde)}`);
+    if (filterHasta) parts.push(`Hasta ${dmy(filterHasta)}`);
+    return parts;
+  };
+  const exportFiltrosResumen = (): string => exportFiltrosParts().join("   ·   ");
+
   const handleExportExcel = async () => {
     if (filteredRegistros.length === 0) {
       showToast(
@@ -991,42 +1019,7 @@ export default function AsignacionesTab() {
     }
     setExportingXlsx(true);
     try {
-      // Resumen legible de los filtros activos (para el membrete del Excel).
-      const dmy = (s: string) => s.split("-").reverse().join("/");
-      const edadLbl: Record<string, string> = {
-        menores: "Menores de 18",
-        adultos: "Adultos (18–59)",
-        mayores: "Adultos mayores (60+)",
-      };
-      const filtrosParts: string[] = [];
-      if (registroSearch.trim())
-        filtrosParts.push(`Búsqueda "${registroSearch.trim()}"`);
-      if (filterGenero)
-        filtrosParts.push(
-          `Género: ${filterGenero === "FEMENINO" ? "Femenino" : "Masculino"}`,
-        );
-      if (filterEdad) filtrosParts.push(edadLbl[filterEdad] || filterEdad);
-      if (filterEdadMin && filterEdadMax)
-        filtrosParts.push(`Edad ${filterEdadMin}–${filterEdadMax} años`);
-      else if (filterEdadMin) filtrosParts.push(`Edad ≥ ${filterEdadMin} años`);
-      else if (filterEdadMax) filtrosParts.push(`Edad ≤ ${filterEdadMax} años`);
-      if (filterParroquia) filtrosParts.push(`Parroquia: ${filterParroquia}`);
-      if (filterEstadoFisico)
-        filtrosParts.push(
-          `Estado: ${filterEstadoFisico === "LESIONADO" ? "Lesionado" : "Ileso"}`,
-        );
-      if (filterCuarto)
-        filtrosParts.push(
-          `Habitación: ${filterCuarto === "sin_asignar" ? "Sin asignar" : formatRoomLabel(filterCuarto)}`,
-        );
-      // "NO" (solo presentes) es el valor por defecto; solo se menciona si cambió.
-      if (filterRetirado === "SI")
-        filtrosParts.push("Estatus: Egresados / Retirados");
-      else if (filterRetirado === "")
-        filtrosParts.push("Estatus: Todos (presentes y egresados)");
-      if (filterRegistrador) filtrosParts.push(`Registrador: ${filterRegistrador}`);
-      if (filterDesde) filtrosParts.push(`Desde ${dmy(filterDesde)}`);
-      if (filterHasta) filtrosParts.push(`Hasta ${dmy(filterHasta)}`);
+      const filtrosParts = exportFiltrosParts();
       await exportRegistrosExcel({
         registros: orderedRegistros,
         patologias,
@@ -1167,6 +1160,43 @@ export default function AsignacionesTab() {
     } catch (e) {
       console.error(e);
       showToast("No se pudo generar el Excel de individuos.", "error");
+    } finally {
+      setExportingXlsx(false);
+    }
+  };
+
+  // Excel de MEDICAMENTOS: usa la lista YA FILTRADA (respeta los filtros activos, como
+  // el Excel general). Solo cuenta presentes con al menos un medicamento (lo filtra el export).
+  const handleExportMedicamentos = async () => {
+    const conMeds = filteredRegistros.filter(
+      (r: any) => r.retirado !== "SI" && Array.isArray(r.medicamentoIds) && r.medicamentoIds.some((m: any) => m && m.id),
+    );
+    if (conMeds.length === 0) {
+      showToast("No hay personas con medicamentos para exportar (con los filtros actuales).", "info");
+      return;
+    }
+    setExportingXlsx(true);
+    try {
+      await exportMedicamentosExcel({
+        registros: filteredRegistros,
+        predefinedMedicamentos,
+        refugio: refugioActual(),
+        generadoEn: generadoEnStr(),
+        filtros: exportFiltrosResumen(),
+      });
+      showToast("Excel de medicamentos descargado.", "success");
+      logActivity({
+        accion: "EXPORT",
+        recurso: "Medicamentos",
+        formato: "Excel",
+        refugio: refugioActual() || undefined,
+        filtros: exportFiltrosResumen() || undefined,
+        total: conMeds.length,
+      });
+      setShowExportModal(false);
+    } catch (e) {
+      console.error(e);
+      showToast("No se pudo generar el Excel de medicamentos.", "error");
     } finally {
       setExportingXlsx(false);
     }
@@ -3705,6 +3735,33 @@ export default function AsignacionesTab() {
                   <strong>Excel de Individuos Solos</strong>
                   <small>
                     Personas sin núcleo familiar. <b>Sin filtros.</b>
+                  </small>
+                </span>
+              </button>
+              <button
+                type="button"
+                className="export-option"
+                onClick={handleExportMedicamentos}
+                disabled={exportingXlsx}
+              >
+                <span className="export-option__icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+                    <path d="m8.5 8.5 7 7" />
+                  </svg>
+                </span>
+                <span className="export-option__text">
+                  <strong>Excel de Medicamentos</strong>
+                  <small>
+                    2 hojas: por persona (con viñetas) y resumen por medicamento y
+                    posología. <b>Respeta los filtros activos.</b>
                   </small>
                 </span>
               </button>
