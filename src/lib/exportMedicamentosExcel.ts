@@ -131,8 +131,10 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
       .join("\n");
 
     const ef = (r.estadoFisico || "").toUpperCase();
+    // Patologías en lista con viñetas, una por línea (igual que los medicamentos).
+    const patNombres = r.patologia === "SI" ? patologiaNombres(r.patologiaIds, patologias) : [];
     const patTxt = r.patologia === "SI"
-      ? (patologiaNombres(r.patologiaIds, patologias).join(", ") || "Sí (sin detalle)")
+      ? (patNombres.length ? patNombres.map((p: string) => `•  ${p}`).join("\n") : "Sí (sin detalle)")
       : "No";
 
     const values = [
@@ -164,8 +166,9 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
       };
       if (zebra) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } };
     });
-    // Alto de fila según la cantidad de medicamentos (para que la viñeta se vea completa).
-    row.height = Math.max(16, r.meds.length * 13);
+    // Alto de fila según lo más largo (medicamentos o patologías) para que las viñetas
+    // se vean completas.
+    row.height = Math.max(16, r.meds.length * 13, patNombres.length * 13);
   });
   ws1.autoFilter = { from: { row: 6, column: 1 }, to: { row: 6, column: COLS1.length } };
 
