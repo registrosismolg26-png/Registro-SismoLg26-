@@ -13,6 +13,14 @@ import type { MedicamentoPredefinido, Medicamento, Patologia } from "@/types";
 const BRAND = "1E3A8A";
 const BRAND_LIGHT = "E8EDF7";
 const ZEBRA = "F1F5F9";
+// Borde de celda sutil pero visible (rejilla clara en todo el listado).
+const LINE = "C7D0DA";
+const CELL_BORDER = {
+  top: { style: "thin" as const, color: { argb: LINE } },
+  bottom: { style: "thin" as const, color: { argb: LINE } },
+  left: { style: "thin" as const, color: { argb: LINE } },
+  right: { style: "thin" as const, color: { argb: LINE } },
+};
 
 interface ExportOpts {
   registros: any[];                        // lista (filtrada) de registros del censo
@@ -103,9 +111,9 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
   // ══ HOJA 1: Medicamentos por persona ═══════════════════════════════════════
   const COLS1: [string, number][] = [
     ["N°", 5], ["Cédula", 14], ["Nombre y Apellido", 26], ["Género", 10], ["Edad", 6],
-    ["Parroquia", 15], ["Sector", 15], ["Comunidad", 16], ["Dirección exacta", 24],
-    ["Teléfono", 13], ["Habitación / Carpa", 22], ["Estado físico", 12], ["Patologías", 26],
-    ["Medicamentos", 44],
+    ["Parroquia", 20], ["Sector", 16], ["Comunidad", 18], ["Dirección exacta", 26],
+    ["Teléfono", 13], ["Habitación / Carpa", 24], ["Estado físico", 12], ["Patologías", 38],
+    ["Medicamentos", 56],
   ];
   const ws1 = wb.addWorksheet("Medicamentos por persona", {
     views: [{ state: "frozen", ySplit: 6 }],
@@ -160,15 +168,22 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
       cell.alignment = { vertical: "top", horizontal: col === 1 || col === 5 || col === 12 ? "center" : "left", wrapText: true };
       // Lesionado en rojo, para que resalte.
       if (col === 12 && ef === "LESIONADO") cell.font = { name: "Arial", size: 9, bold: true, color: { argb: "DC2626" } };
-      cell.border = {
-        top: { style: "hair", color: { argb: "D1D5DB" } }, bottom: { style: "hair", color: { argb: "D1D5DB" } },
-        left: { style: "hair", color: { argb: "E5E7EB" } }, right: { style: "hair", color: { argb: "E5E7EB" } },
-      };
+      cell.border = CELL_BORDER;
       if (zebra) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } };
     });
-    // Alto de fila según lo más largo (medicamentos o patologías) para que las viñetas
-    // se vean completas.
-    row.height = Math.max(16, r.meds.length * 13, patNombres.length * 13);
+    // Alto de fila = la celda que ocupe MÁS líneas (contando el ajuste de texto real de
+    // cada columna con su ancho). Así ninguna celda con wrapText queda recortada.
+    const wrapLines = (text: string, colWidth: number) =>
+      String(text || "").split("\n").reduce((n, ln) => n + Math.max(1, Math.ceil(ln.length / Math.max(1, colWidth - 1))), 0);
+    const maxLineas = Math.max(
+      1,
+      wrapLines(listaMeds, 56),                                 // Medicamentos (w=56)
+      wrapLines(patTxt, 38),                                    // Patologías (w=38)
+      wrapLines(r.direccionExacta, 26),                         // Dirección exacta (w=26)
+      wrapLines(r.cuarto ? formatRoomLabel(r.cuarto) : "", 24), // Habitación / Carpa (w=24)
+      wrapLines(r.parroquia, 20),                               // Parroquia (w=20)
+    );
+    row.height = Math.max(16, maxLineas * 13);
   });
   ws1.autoFilter = { from: { row: 6, column: 1 }, to: { row: 6, column: COLS1.length } };
 
@@ -217,10 +232,7 @@ export async function exportMedicamentosExcel(opts: ExportOpts): Promise<void> {
     row.eachCell((cell: any, col: number) => {
       cell.font = { name: "Arial", size: 9, color: { argb: "1F2937" } };
       cell.alignment = { vertical: "middle", horizontal: col === 1 || col >= 5 ? "center" : "left", wrapText: true };
-      cell.border = {
-        top: { style: "hair", color: { argb: "D1D5DB" } }, bottom: { style: "hair", color: { argb: "D1D5DB" } },
-        left: { style: "hair", color: { argb: "E5E7EB" } }, right: { style: "hair", color: { argb: "E5E7EB" } },
-      };
+      cell.border = CELL_BORDER;
       if (zebra) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } };
       if (col >= 5) cell.font = { name: "Arial", size: 9, bold: true, color: { argb: BRAND } };
     });
