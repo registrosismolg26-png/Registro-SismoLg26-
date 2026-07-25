@@ -48,6 +48,19 @@ export const DEPENDENT_NUMBER_OPTIONS = DEP_ORDINALES.map((ord, i) => ({
 // el sub-formulario de integrantes (carga familiar).
 export const TELEFONO_CODIGOS = ["0424", "0414", "0416", "0426", "0412", "0422", "0212"];
 
+// Razones de retiro/egreso (desplegable). A cada una se le puede añadir una
+// especificación opcional; se guarda "Tipo" o "Tipo: especificación" en
+// Registro.retiradoRazon. Fuente ÚNICA (censo, edición, filtro, stats, reportes).
+// El orden y los nombres son canónicos; el filtrado empareja por este TIPO base.
+export const RAZONES_RETIRO = [
+  "Hogar Solidario",
+  "Retiro Voluntario",
+  "Retiro Forzado",
+  "Traslado",
+  "Emergencia Médica",
+  "Otra",
+] as const;
+
 // Tiempo de expiración de sesión por inactividad (1 hora)
 export const INACTIVITY_MS = 60 * 60 * 1000;
 

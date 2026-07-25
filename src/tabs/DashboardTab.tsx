@@ -10,7 +10,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import PresentationView from "@/components/PresentationView";
-import { formatRoomLabel, roomFillLevel, fmtMil, cedulaFamilia } from "@/lib/helpers";
+import { formatRoomLabel, roomFillLevel, fmtMil, cedulaFamilia, razonRetiroBase } from "@/lib/helpers";
 import { apiFetch } from "@/lib/apiFetch";
 import { logActivity } from "@/lib/activityLog";
 import StyledSelect from "@/components/StyledSelect";
@@ -193,7 +193,7 @@ export default function DashboardTab() {
 
     const total = activeRecords.length;
     const totalRetirados = retiredRecords.length;
-    const hogarSolidario = retiredRecords.filter(r => String((r.data as any).retiradoRazon || "").trim().toUpperCase() === "HOGAR SOLIDARIO").length;
+    const hogarSolidario = retiredRecords.filter(r => razonRetiroBase((r.data as any).retiradoRazon) === "Hogar Solidario").length;
     const totalRegistrados = total + totalRetirados;
 
     // Calculate families

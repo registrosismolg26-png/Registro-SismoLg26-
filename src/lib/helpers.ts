@@ -149,3 +149,45 @@ export const fmtMil = (n: number | null | undefined): string =>
 export function compareCuarto(a?: string | null, b?: string | null): number {
   return String(a ?? "").localeCompare(String(b ?? ""), "es", { numeric: true, sensitivity: "base" });
 }
+
+// ── Razón de retiro: tipo base + especificación ─────────────────────────────
+// Se guarda "Tipo" o "Tipo: especificación" en Registro.retiradoRazon. Estas
+// funciones son la fuente única para leer/armar/filtrar por el TIPO base, e
+// incluyen compatibilidad con datos legados (HOGAR SOLIDARIO, "Trasladado al…").
+const RAZONES_RETIRO_LIST = [
+  "Hogar Solidario", "Retiro Voluntario", "Retiro Forzado", "Traslado", "Emergencia Médica", "Otra",
+];
+
+// Tipo base canónico de una razón (lo de antes del primer ":"), mapeando legado.
+export function razonRetiroBase(razon?: string | null): string {
+  const s = String(razon ?? "").trim();
+  if (!s) return "";
+  const base = (s.split(":")[0] || "").trim();
+  const up = base.toUpperCase();
+  if (up.startsWith("TRASLAD")) return "Traslado";          // "Trasladado al campamento X"
+  const canon = RAZONES_RETIRO_LIST.find((r) => r.toUpperCase() === up);
+  return canon || base;                                     // no listada → se devuelve tal cual
+}
+
+// Especificación (lo de después del primer ":"), si la hay.
+export function razonRetiroSpec(razon?: string | null): string {
+  const s = String(razon ?? "");
+  const i = s.indexOf(":");
+  return i >= 0 ? s.slice(i + 1).trim() : "";
+}
+
+// Arma el valor a guardar: "Tipo" o "Tipo: especificación".
+export function composeRazonRetiro(base?: string | null, spec?: string | null): string {
+  const b = String(base ?? "").trim();
+  const sp = String(spec ?? "").trim();
+  if (!b) return "";
+  return sp ? `${b}: ${sp}` : b;
+}
+
+// ¿La razón base cae en "Otra" para efectos de filtro? (no es ninguna de las 5 nombradas)
+export function esRazonOtra(razon?: string | null): boolean {
+  const base = razonRetiroBase(razon);
+  if (!base) return false;
+  const named = RAZONES_RETIRO_LIST.slice(0, 5); // las 5 con nombre propio (sin "Otra")
+  return !named.some((r) => r.toUpperCase() === base.toUpperCase());
+}

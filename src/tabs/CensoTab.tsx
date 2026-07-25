@@ -21,11 +21,11 @@ import { useState, useRef, useReducer, useMemo, useEffect } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import type { Medicamento, FormData, IntegranteDraft } from "@/types";
-import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, TELEFONO_CODIGOS } from "@/lib/constants";
+import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, TELEFONO_CODIGOS, RAZONES_RETIRO } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
-import { roomFillLevel, patologiaNombre, medLabel, findRepresentante } from "@/lib/helpers";
+import { roomFillLevel, patologiaNombre, medLabel, findRepresentante, composeRazonRetiro } from "@/lib/helpers";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
@@ -82,7 +82,11 @@ export default function CensoTab() {
   const [asignCuartoCenso, setAsignCuartoCenso] = useState("");
   // Check del paso final: la persona se retira a Hogar Solidario → marca
   // retirado=SI + razón "HOGAR SOLIDARIO". Un retirado no ocupa habitación.
-  const [hogarSolidario, setHogarSolidario] = useState(false);
+  // ¿La persona se RETIRA del campamento al momento de censarla? Si sí, se elige la
+  // razón (desplegable) + una especificación opcional (se guarda "Tipo: detalle").
+  const [seRetira, setSeRetira] = useState(false);
+  const [retiroRazon, setRetiroRazon] = useState<string>("Hogar Solidario");
+  const [retiroSpec, setRetiroSpec] = useState("");
   // Asignación por CARPA (refugios Itinerante/Mixto): tipo de carpa + Nº. La comunidad
   // viene del paso 2 (formData.comunidad); el cuarto se compone "COMUNIDAD - TIPO - NN".
   const [carpaTipo, setCarpaTipo] = useState("");
@@ -154,7 +158,7 @@ export default function CensoTab() {
   // INDEPENDIENTES asociados al jefe. Solo aplica si el registrado ES el jefe y no
   // se retira a Hogar Solidario. Cada integrante se arma con el MISMO
   // buildRegistroData del jefe → queda idéntico a uno cargado individual. ──
-  const puedeCargaFamiliar = formData.jefeFamilia === "SI" && !hogarSolidario;
+  const puedeCargaFamiliar = formData.jefeFamilia === "SI" && !seRetira;
   const [integrantes, setIntegrantes] = useState<IntegranteDraft[]>([]);
   const [openIntg, setOpenIntg] = useState<Set<string>>(new Set());
   const newIntegrante = (): IntegranteDraft => ({
@@ -415,7 +419,7 @@ export default function CensoTab() {
     if (!formData.estadoFisico) newErrors.estadoFisico = "Seleccione el estado físico";
     if (!formData.patologia) newErrors.patologia = "Seleccione si posee patología";
     if (!newErrors.cedula && cedulaDupInfo.dup) newErrors.cedula = cedulaDupMsg;
-    if (esCarpa && !hogarSolidario) {
+    if (esCarpa && !seRetira) {
       if (!carpaTipo) newErrors.carpaTipo = "Seleccione el tipo de carpa";
       if (!carpaNro.trim()) newErrors.carpaNro = "Indique el N.º / código de carpa";
     }
@@ -816,7 +820,7 @@ export default function CensoTab() {
 
     try {
       // Carpa/cuarto del jefe = asignación COMPARTIDA por toda la familia.
-      const jefeCuarto = hogarSolidario
+      const jefeCuarto = seRetira
         ? undefined
         : esCarpa
           ? (carpaTipo && carpaNro.trim()
@@ -850,7 +854,7 @@ export default function CensoTab() {
           patologia: formData.patologia, patologiaIds: formData.patologiaIds,
           medicamentos, intermitente: formData.intermitente, motivoIntermitente: formData.motivoIntermitente,
         },
-        { ...sharedBase, retirado: hogarSolidario ? "SI" : "NO", retiradoRazon: hogarSolidario ? "HOGAR SOLIDARIO" : undefined },
+        { ...sharedBase, retirado: seRetira ? "SI" : "NO", retiradoRazon: seRetira ? (composeRazonRetiro(retiroRazon, retiroSpec) || undefined) : undefined },
       );
 
       // Integrantes → registros INDEPENDIENTES asociados a la cédula del jefe,
@@ -906,7 +910,9 @@ export default function CensoTab() {
       setAsignCuartoCenso("");
       setCarpaTipo("");
       setCarpaNro("");
-      setHogarSolidario(false);
+      setSeRetira(false);
+      setRetiroRazon("Hogar Solidario");
+      setRetiroSpec("");
       setIntegrantes([]);
       setOpenIntg(new Set());
       setStep(1);
@@ -1562,11 +1568,11 @@ export default function CensoTab() {
                   <div className="form-group" style={{ marginBottom: "1rem" }}>
                     <button
                       type="button"
-                      className={`pill-check pill-check--wrap${hogarSolidario ? " is-on" : ""}`}
-                      aria-pressed={hogarSolidario}
+                      className={`pill-check pill-check--wrap${seRetira ? " is-on" : ""}`}
+                      aria-pressed={seRetira}
                       onClick={() => {
-                        const checked = !hogarSolidario;
-                        setHogarSolidario(checked);
+                        const checked = !seRetira;
+                        setSeRetira(checked);
                         // un retirado no ocupa habitación ni carpa
                         if (checked) { setAsignCuartoCenso(""); setCarpaTipo(""); setCarpaNro(""); setErrors(prev => ({ ...prev, carpaTipo: "", carpaNro: "" })); }
                       }}
@@ -1574,8 +1580,36 @@ export default function CensoTab() {
                       <span className="pill-check__box" aria-hidden>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                       </span>
-                      <span className="pill-check__label">Se retira a Hogar Solidario</span>
+                      <span className="pill-check__label">Se retira del campamento (egreso)</span>
                     </button>
+                  </div>
+
+                  {/* Razón del retiro + especificación opcional (se guarda "Tipo: detalle"). */}
+                  <div className={`conditional-wrapper ${seRetira ? "open" : ""}`}>
+                    <div className="conditional-inner">
+                      <div className="form-group">
+                        <label>Razón del retiro<span className="required-star">*</span></label>
+                        <StyledSelect
+                          value={retiroRazon}
+                          onChange={setRetiroRazon}
+                          options={RAZONES_RETIRO.map(r => ({ value: r, label: r }))}
+                          ariaLabel="Razón del retiro"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Especificación <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span></label>
+                        <input
+                          type="text"
+                          placeholder="Ej: Se fue a casa de su papá"
+                          value={retiroSpec}
+                          onChange={(e) => setRetiroSpec(e.target.value)}
+                          maxLength={200}
+                        />
+                        <p style={{ margin: "0.35rem 0 0", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                          Se guarda como “<strong>{composeRazonRetiro(retiroRazon, retiroSpec) || "Razón"}</strong>”.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {esCarpa ? (
@@ -1589,7 +1623,7 @@ export default function CensoTab() {
                       </div>
                       <div className="form-group">
                         <label>
-                          Tipo de carpa{!hogarSolidario && <span className="required-star">*</span>}
+                          Tipo de carpa{!seRetira && <span className="required-star">*</span>}
                         </label>
                         <StyledSelect
                           value={carpaTipo}
@@ -1597,7 +1631,7 @@ export default function CensoTab() {
                           options={tiposCarpa.map(t => ({ value: t.nombre, label: t.nombre }))}
                           placeholder="Seleccione el tipo de carpa"
                           ariaLabel="Tipo de carpa"
-                          disabled={hogarSolidario}
+                          disabled={seRetira}
                           error={!!err("carpaTipo")}
                         />
                         <div className="error-container">
@@ -1606,14 +1640,14 @@ export default function CensoTab() {
                       </div>
                       <div className="form-group">
                         <label>
-                          N.º / código de carpa{!hogarSolidario && <span className="required-star">*</span>}
+                          N.º / código de carpa{!seRetira && <span className="required-star">*</span>}
                         </label>
                         <input
                           type="text"
                           placeholder="Ej: 1, A2, Sector B 3…"
                           value={carpaNro}
                           onChange={(e) => { setCarpaNro(e.target.value.replace(/[^\p{L}\p{N} ]/gu, "").toUpperCase()); setErrors(prev => ({ ...prev, carpaNro: "" })); }}
-                          disabled={hogarSolidario}
+                          disabled={seRetira}
                           maxLength={25}
                           className={err("carpaNro") ? "has-error" : ""}
                         />
@@ -1621,8 +1655,8 @@ export default function CensoTab() {
                           {err("carpaNro") && <span className="field-error-message">{err("carpaNro")}</span>}
                         </div>
                         <p style={{ margin: "0.35rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                          {hogarSolidario
-                            ? "Se retira a Hogar Solidario: no se le asigna carpa."
+                          {seRetira
+                            ? "Se retira del campamento: no se le asigna carpa."
                             : "Queda como “COMUNIDAD - TIPO DE CARPA - Nº”."}
                         </p>
                       </div>
@@ -1641,11 +1675,11 @@ export default function CensoTab() {
                         clearLabel="— Sin habitación asignada —"
                         emptyText="Sin habitaciones configuradas"
                         ariaLabel="Habitación / Salón"
-                        disabled={hogarSolidario}
+                        disabled={seRetira}
                       />
                       <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                        {hogarSolidario
-                          ? "Se retira a Hogar Solidario: no se le asigna habitación."
+                        {seRetira
+                          ? "Se retira del campamento: no se le asigna habitación."
                           : "Si lo dejas vacío, la persona queda registrada sin habitación asignada."}
                       </p>
                     </div>

@@ -19,7 +19,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import Reveal from "@/components/Reveal";
-import { PARROQUIAS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS } from "@/lib/constants";
+import { PARROQUIAS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, RAZONES_RETIRO } from "@/lib/constants";
 import {
   formatRoomLabel,
   roomFillLevel,
@@ -31,6 +31,10 @@ import {
   findRepresentante,
   cedulaFamilia,
   compareCuarto,
+  razonRetiroBase,
+  razonRetiroSpec,
+  composeRazonRetiro,
+  esRazonOtra,
 } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
 import { exportFamiliasExcel } from "@/lib/exportFamiliasExcel";
@@ -305,6 +309,17 @@ export default function AsignacionesTab() {
     const cuartoParts = String(reg.cuarto || "").split(" - ");
     const carpaTipoIni = cuartoParts.length >= 3 ? cuartoParts.slice(1, -1).join(" - ").trim() : "";
     const carpaNroIni = cuartoParts.length >= 3 ? cuartoParts[cuartoParts.length - 1].trim() : "";
+    // Razón de retiro: se separa en TIPO base (desplegable) + especificación. Si el
+    // valor guardado no coincide con un tipo canónico (texto libre heredado), se
+    // mapea a "Otra" y el texto original queda como especificación (no se pierde).
+    const razonBaseIni = razonRetiroBase(reg.retiradoRazon);
+    const enListaRetiro = RAZONES_RETIRO.some((r) => r.toUpperCase() === razonBaseIni.toUpperCase());
+    const retiroRazonIni = reg.retiradoRazon
+      ? (enListaRetiro ? razonBaseIni : "Otra")
+      : "Hogar Solidario";
+    const retiroSpecIni = reg.retiradoRazon
+      ? (enListaRetiro ? razonRetiroSpec(reg.retiradoRazon) : String(reg.retiradoRazon))
+      : "";
     setEditData({
       carpaTipo: carpaTipoIni,
       carpaNro: carpaNroIni,
@@ -325,6 +340,8 @@ export default function AsignacionesTab() {
       telefono: reg.telefono || "",
       retirado: reg.retirado || "NO",
       retiradoRazon: reg.retiradoRazon || "",
+      retiroRazon: retiroRazonIni,
+      retiroSpec: retiroSpecIni,
       fechaNacimiento: formattedBirthDate,
       jefeFamilia: reg.jefeFamilia || "NO",
       perteneceNucleo: reg.perteneceNucleo || "NO",
@@ -393,6 +410,7 @@ export default function AsignacionesTab() {
   const [filterEstadoFisico, setFilterEstadoFisico] = useState("");
   const [filterCuarto, setFilterCuarto] = useState("");
   const [filterRetirado, setFilterRetirado] = useState("NO");
+  const [filterRazon, setFilterRazon] = useState(""); // tipo base de la razón de retiro (solo aplica a egresados)
   const [filterRegistrador, setFilterRegistrador] = useState(""); // operador que censó
   const [filterDesde, setFilterDesde] = useState(""); // yyyy-mm-dd (fecha de registro)
   const [filterHasta, setFilterHasta] = useState("");
@@ -489,6 +507,17 @@ export default function AsignacionesTab() {
     if (filterRetirado) {
       result = result.filter((r) => (r.retirado || "NO") === filterRetirado);
     }
+    // Razón de retiro: empareja por el TIPO base (ignora la especificación), así el
+    // filtro sigue siendo "inteligente" aunque cada egreso tenga su propio texto.
+    // "Otra" agrupa todo lo que no cae en un tipo canónico (incluye texto libre viejo).
+    if (filterRazon) {
+      result = result.filter((r) => {
+        if (r.retirado !== "SI") return false;
+        return filterRazon === "Otra"
+          ? esRazonOtra(r.retiradoRazon)
+          : razonRetiroBase(r.retiradoRazon) === filterRazon;
+      });
+    }
     if (filterRegistrador) {
       result = result.filter(
         (r) => (r.registrador || "").trim() === filterRegistrador,
@@ -516,6 +545,7 @@ export default function AsignacionesTab() {
     filterEstadoFisico,
     filterCuarto,
     filterRetirado,
+    filterRazon,
     filterRegistrador,
     filterDesde,
     filterHasta,
@@ -593,6 +623,7 @@ export default function AsignacionesTab() {
     filterEstadoFisico,
     filterCuarto,
     filterRetirado,
+    filterRazon,
     filterRegistrador,
     filterDesde,
     filterHasta,
@@ -857,6 +888,13 @@ export default function AsignacionesTab() {
           : undefined)
       : (editData.cuarto || undefined);
 
+    // Razón de retiro: se recompone desde el TIPO base + especificación → "Tipo"
+    // o "Tipo: especificación". Solo aplica si el registro queda retirado.
+    const retiradoRazonFinal =
+      editData.retirado === "SI"
+        ? composeRazonRetiro(editData.retiroRazon || "Hogar Solidario", editData.retiroSpec) || undefined
+        : undefined;
+
     const updated = {
       ...selectedRegistro,
       ...editData,
@@ -866,6 +904,7 @@ export default function AsignacionesTab() {
       cedulaJefeFamilia: finalJefeCedula,
       cuarto: cuartoFinal,
       medicamentoIds: editMedicamentos,
+      retiradoRazon: retiradoRazonFinal,
     };
 
     // 1. Optimistic UI update
@@ -1003,6 +1042,7 @@ export default function AsignacionesTab() {
     if (filterCuarto) parts.push(`Habitación: ${filterCuarto === "sin_asignar" ? "Sin asignar" : formatRoomLabel(filterCuarto)}`);
     if (filterRetirado === "SI") parts.push("Estatus: Egresados / Retirados");
     else if (filterRetirado === "") parts.push("Estatus: Todos (presentes y egresados)");
+    if (filterRazon) parts.push(`Razón de retiro: ${filterRazon}`);
     if (filterRegistrador) parts.push(`Registrador: ${filterRegistrador}`);
     if (filterDesde) parts.push(`Desde ${dmy(filterDesde)}`);
     if (filterHasta) parts.push(`Hasta ${dmy(filterHasta)}`);
@@ -1500,6 +1540,7 @@ export default function AsignacionesTab() {
               filterEstadoFisico ||
               filterCuarto ||
               filterRetirado !== "NO" ||
+              filterRazon ||
               filterRegistrador ||
               filterDesde ||
               filterHasta) && (
@@ -1515,6 +1556,7 @@ export default function AsignacionesTab() {
                   setFilterEstadoFisico("");
                   setFilterCuarto("");
                   setFilterRetirado("NO");
+                  setFilterRazon("");
                   setFilterRegistrador("");
                   setFilterDesde("");
                   setFilterHasta("");
@@ -1640,7 +1682,10 @@ export default function AsignacionesTab() {
                 <label>Estatus de Permanencia</label>
                 <StyledSelect
                   value={filterRetirado}
-                  onChange={setFilterRetirado}
+                  onChange={(v) => {
+                    setFilterRetirado(v);
+                    if (v === "NO") setFilterRazon(""); // sin egresados, la razón no aplica
+                  }}
                   ariaLabel="Estatus de Permanencia"
                   options={[
                     { value: "", label: "Todos (Presentes y Egresados)" },
@@ -1649,6 +1694,21 @@ export default function AsignacionesTab() {
                   ]}
                 />
               </div>
+
+              {filterRetirado !== "NO" && (
+                <div className="form-group">
+                  <label>Razón de Retiro</label>
+                  <StyledSelect
+                    value={filterRazon}
+                    onChange={setFilterRazon}
+                    ariaLabel="Razón de Retiro"
+                    options={[
+                      { value: "", label: "Todas las razones" },
+                      ...RAZONES_RETIRO.map((r) => ({ value: r, label: r })),
+                    ]}
+                  />
+                </div>
+              )}
 
               <div className="form-group">
                 <label>Registrador (quién censó)</label>
@@ -3363,40 +3423,6 @@ export default function AsignacionesTab() {
                           ]}
                         />
                       </div>
-                      <Reveal open={editData.retirado === "SI"} inline>
-                        <button
-                          type="button"
-                          className={`pill-check${editData.retiradoRazon === "HOGAR SOLIDARIO" ? " is-on" : ""}`}
-                          aria-pressed={
-                            editData.retiradoRazon === "HOGAR SOLIDARIO"
-                          }
-                          onClick={() =>
-                            setEditData((prev) => ({
-                              ...prev,
-                              retiradoRazon:
-                                prev.retiradoRazon === "HOGAR SOLIDARIO"
-                                  ? ""
-                                  : "HOGAR SOLIDARIO",
-                            }))
-                          }
-                        >
-                          <span className="pill-check__box" aria-hidden>
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="3.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          </span>
-                          <span className="pill-check__label">
-                            Hogar solidario
-                          </span>
-                        </button>
-                      </Reveal>
                     </div>
                     <Reveal open={editData.retirado === "SI"}>
                       <div
@@ -3404,20 +3430,25 @@ export default function AsignacionesTab() {
                         style={{ marginTop: "0.6rem" }}
                       >
                         <label>Razón de Retiro</label>
+                        <StyledSelect
+                          value={editData.retiroRazon || "Hogar Solidario"}
+                          onChange={(v) => setEditData((prev) => ({ ...prev, retiroRazon: v }))}
+                          options={RAZONES_RETIRO.map((r) => ({ value: r, label: r }))}
+                          ariaLabel="Razón de retiro"
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginTop: "0.5rem" }}>
+                        <label>Especificación <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span></label>
                         <input
                           type="text"
-                          placeholder="ej: Retornado a vivienda, alta médica, etc."
-                          value={editData.retiradoRazon || ""}
-                          disabled={
-                            editData.retiradoRazon === "HOGAR SOLIDARIO"
-                          }
-                          onChange={(e) =>
-                            setEditData((prev) => ({
-                              ...prev,
-                              retiradoRazon: e.target.value,
-                            }))
-                          }
+                          placeholder="Ej: Se fue a casa de su papá"
+                          value={editData.retiroSpec || ""}
+                          maxLength={200}
+                          onChange={(e) => setEditData((prev) => ({ ...prev, retiroSpec: e.target.value }))}
                         />
+                        <p style={{ margin: "0.3rem 0 0", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                          Se guarda como “<strong>{composeRazonRetiro(editData.retiroRazon || "Hogar Solidario", editData.retiroSpec) || "Razón"}</strong>”.
+                        </p>
                       </div>
                     </Reveal>
                   </div>

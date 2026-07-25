@@ -116,7 +116,7 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
       COUNT(*) FILTER (WHERE edad >= 60 AND genero = 'MASCULINO' AND retirado = 'NO') AS may_masc,
       COUNT(*) FILTER (WHERE edad >= 60 AND genero NOT IN ('FEMENINO','MASCULINO') AND retirado = 'NO') AS may_otro,
       COUNT(*) FILTER (WHERE retirado = 'SI')                                         AS total_retirados,
-      COUNT(*) FILTER (WHERE retirado = 'SI' AND UPPER(TRIM("retiradoRazon")) = 'HOGAR SOLIDARIO') AS hogar_solidario,
+      COUNT(*) FILTER (WHERE retirado = 'SI' AND UPPER(TRIM(SPLIT_PART("retiradoRazon", ':', 1))) = 'HOGAR SOLIDARIO') AS hogar_solidario,
       COUNT(*) FILTER (WHERE intermitente = 'SI' AND retirado = 'NO')                  AS intermitentes,
       COUNT(*) FILTER (WHERE "estadoFisico" = 'LESIONADO' AND retirado = 'NO')         AS lesionados,
       COUNT(*) FILTER (WHERE patologia = 'SI' AND retirado = 'NO')                     AS con_patologia,
