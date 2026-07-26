@@ -11562,6 +11562,27 @@ select.morb-control {
   font-size: 1rem;
   font-variant-numeric: tabular-nums;
   flex: none;
+  white-space: nowrap; /* el número y su sufijo "personas" nunca se parten */
+}
+/* Sufijo de unidad ("personas") junto al conteo de cada carpa. Se lee como
+   etiqueta: más pequeño, mayúsculas y atenuado, sin competir con el número. */
+.dash-room__unit {
+  margin-left: 0.35em;
+  font-family: var(--font-body);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+/* Distribución por TIPO DE CARPA (itinerante/mixto): columnas más anchas que la
+   de habitaciones para que el nombre de la carpa + "NNN personas" quepan en UNA
+   línea. 340px cubre el nombre real más largo ("CARPA EN ESTACIONAMIENTO") +
+   conteo + sufijo en la fuente Poppins/Montserrat, en todos los anchos de panel
+   (auto-fill garantiza card ≥ min). Un nombre aún más largo lo parte
+   `overflow-wrap` con gracia. */
+.dash-rooms--carpa {
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
 }
 
 /* ── Estadísticas: "Población por Comunidad" (refugios itinerante/mixto) ──

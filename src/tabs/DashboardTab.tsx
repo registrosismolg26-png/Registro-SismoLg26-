@@ -1117,11 +1117,11 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                 {esCarpa ? (
                   <>
                     <div className="dash-sec-head" style={{ ["--accent" as any]: "#2563eb" } as React.CSSProperties}><span className="dash-sec-head__ico">{DASH_ICONS.bed}</span><h3 className="dashboard-section-title">Distribución por Tipo de Carpa</h3></div>
-                    <div className="dash-rooms">
+                    <div className="dash-rooms dash-rooms--carpa">
                       {Object.entries(carpaCounts).sort((a, b) => b[1] - a[1]).map(([tipo, count]) => (
                         <div key={tipo} className="dash-room dash-room--green">
                           <span className="dash-room__name">{tipo}</span>
-                          <span className="dash-room__num">{fmtMil(count)}</span>
+                          <span className="dash-room__num">{fmtMil(count)}<small className="dash-room__unit">personas</small></span>
                         </div>
                       ))}
                       {Object.keys(carpaCounts).length === 0 && (
