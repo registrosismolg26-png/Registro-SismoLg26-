@@ -11582,7 +11582,11 @@ select.morb-control {
    (auto-fill garantiza card ≥ min). Un nombre aún más largo lo parte
    `overflow-wrap` con gracia. */
 .dash-rooms--carpa {
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  /* `min(100%, 340px)`: en pantallas anchas la pista es ≥340px (nombre + "NNN
+     personas" en una línea); en teléfonos angostos (contenedor <340px) colapsa a
+     1 columna al 100% del ancho, SIN desbordar la página (nada de scroll
+     horizontal). En ese caso extremo el nombre se parte con `overflow-wrap`. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
 }
 
 /* ── Estadísticas: "Población por Comunidad" (refugios itinerante/mixto) ──
