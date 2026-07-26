@@ -108,7 +108,7 @@ export default function ConfigTab() {
   const closeRefugioRename = () => {
     if (refugioRenameClosing) return;
     setRefugioRenameClosing(true);
-    setTimeout(() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); setRefugioRenameClosing(false); }, 220);
+    setTimeout(() => { setRefugioToRename(null); setRefugioRenameValue(""); setRefugioUbicacionValue(""); setRefugioPoblacionBaseValue(""); setRefugioRenameClosing(false); }, 220);
   };
   useBodyScrollLock(showAccount); // bloquea el scroll de fondo mientras el modal esté abierto
 
@@ -173,7 +173,7 @@ export default function ConfigTab() {
   };
 
   // ── Gestión de Refugios (solo MASTER) ──
-  interface Refugio { id: string; nombre: string; ubicacion?: string | null; tipo?: string; createdAt?: string }
+  interface Refugio { id: string; nombre: string; ubicacion?: string | null; tipo?: string; poblacionBase?: number | null; createdAt?: string }
   const [refugios, setRefugios] = useState<Refugio[]>([]);
   const [loadingRefugios, setLoadingRefugios] = useState(false);
   const [newRefugio, setNewRefugio] = useState("");
@@ -185,6 +185,7 @@ export default function ConfigTab() {
   const [savingRefugioRename, setSavingRefugioRename] = useState(false);
   const [refugioUbicacionValue, setRefugioUbicacionValue] = useState("");
   const [refugioTipoValue, setRefugioTipoValue] = useState("TRANSITORIO");
+  const [refugioPoblacionBaseValue, setRefugioPoblacionBaseValue] = useState(""); // total de referencia (vacío = no aplica)
   const [refugioToDelete, setRefugioToDelete] = useState<Refugio | null>(null);
   const [deletingRefugio, setDeletingRefugio] = useState(false);
 
@@ -305,7 +306,7 @@ export default function ConfigTab() {
       const res = await apiFetch("/api/refugios", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: refugioToRename.id, nombre, ubicacion: refugioUbicacionValue.trim(), tipo: refugioTipoValue })
+        body: JSON.stringify({ id: refugioToRename.id, nombre, ubicacion: refugioUbicacionValue.trim(), tipo: refugioTipoValue, poblacionBase: refugioPoblacionBaseValue.trim() === "" ? null : refugioPoblacionBaseValue.trim() })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -316,6 +317,7 @@ export default function ConfigTab() {
       setRefugioToRename(null);
       setRefugioRenameValue("");
       setRefugioUbicacionValue("");
+      setRefugioPoblacionBaseValue("");
       await fetchRefugios(true);
     } catch (err) {
       console.error("Error al editar refugio:", err);
@@ -1216,7 +1218,7 @@ export default function ConfigTab() {
                           className="dash-icon-btn"
                           data-tip="Renombrar"
                           disabled={!isOnline}
-                          onClick={() => { setRefugioToRename(rf); setRefugioRenameValue(rf.nombre); setRefugioUbicacionValue(rf.ubicacion || ""); setRefugioTipoValue(rf.tipo || "TRANSITORIO"); }}
+                          onClick={() => { setRefugioToRename(rf); setRefugioRenameValue(rf.nombre); setRefugioUbicacionValue(rf.ubicacion || ""); setRefugioTipoValue(rf.tipo || "TRANSITORIO"); setRefugioPoblacionBaseValue(rf.poblacionBase != null ? String(rf.poblacionBase) : ""); }}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
@@ -1528,6 +1530,27 @@ export default function ConfigTab() {
                   Transitorio asigna habitaciones. Itinerante/Mixto asignan comunidad + tipo de carpa + Nº.
                 </p>
               </div>
+
+              <div className="form-group">
+                <label htmlFor="refugio-poblacion-base-input">Total de referencia (población base)</label>
+                <input
+                  className="morb-control"
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  id="refugio-poblacion-base-input"
+                  placeholder="Ej: 2199 (opcional)"
+                  value={refugioPoblacionBaseValue}
+                  onChange={e => setRefugioPoblacionBaseValue(e.target.value.replace(/[^0-9]/g, ""))}
+                  onKeyDown={e => e.key === "Enter" && handleRenameRefugioConfirmed()}
+                />
+                <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", margin: "0.3rem 0 0" }}>
+                  Total conocido de personas que pasaron por el campamento. Si lo pones,
+                  los <strong>Retirados = Total de referencia − Presentes</strong> y el
+                  <strong> Total = referencia</strong> en la card de Estadísticas, el link
+                  público y los reportes. Vacío o 0 = se cuenta como hoy (retirados reales).
+                </p>
+              </div>
             </div>
 
             <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
@@ -1539,7 +1562,7 @@ export default function ConfigTab() {
                 className="btn-submit"
                 style={{ flex: 1 }}
                 onClick={handleRenameRefugioConfirmed}
-                disabled={!refugioRenameValue.trim() || savingRefugioRename || (refugioRenameValue.trim() === refugioToRename.nombre && refugioUbicacionValue.trim() === (refugioToRename.ubicacion || "") && refugioTipoValue === (refugioToRename.tipo || "TRANSITORIO"))}
+                disabled={!refugioRenameValue.trim() || savingRefugioRename || (refugioRenameValue.trim() === refugioToRename.nombre && refugioUbicacionValue.trim() === (refugioToRename.ubicacion || "") && refugioTipoValue === (refugioToRename.tipo || "TRANSITORIO") && refugioPoblacionBaseValue.trim() === (refugioToRename.poblacionBase != null ? String(refugioToRename.poblacionBase) : ""))}
               >
                 {savingRefugioRename ? <><span className="spinner spinner-sm"></span>Guardando</> : "Guardar Cambios"}
               </button>

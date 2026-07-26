@@ -84,6 +84,11 @@ export async function PUT(req: Request) {
     const tipo = body?.tipo !== undefined && TIPOS_REFUGIO.includes(String(body.tipo).trim().toUpperCase())
       ? String(body.tipo).trim().toUpperCase()
       : undefined;
+    // poblacionBase opcional: total de referencia. Si viene, se guarda solo si es
+    // un entero > 0; cualquier otra cosa (vacío, 0, no numérico) → null (no aplica).
+    const poblacionBase = body?.poblacionBase !== undefined
+      ? (() => { const nb = parseInt(String(body.poblacionBase), 10); return Number.isFinite(nb) && nb > 0 ? nb : null; })()
+      : undefined;
 
     const current = await prisma.refugio.findUnique({ where: { id } });
     if (!current) {
@@ -94,10 +99,11 @@ export async function PUT(req: Request) {
     const nameChanged = oldName !== nombre;
 
     if (!nameChanged) {
-      // Solo se edita la ubicación y/o el tipo (o nada cambió).
-      const data: { ubicacion?: string | null; tipo?: string } = {};
+      // Solo se edita la ubicación, el tipo y/o la población base (o nada cambió).
+      const data: { ubicacion?: string | null; tipo?: string; poblacionBase?: number | null } = {};
       if (ubicacion !== undefined) data.ubicacion = ubicacion;
       if (tipo !== undefined) data.tipo = tipo;
+      if (poblacionBase !== undefined) data.poblacionBase = poblacionBase;
       const refugio = Object.keys(data).length
         ? await prisma.refugio.update({ where: { id }, data })
         : current;
@@ -115,7 +121,7 @@ export async function PUT(req: Request) {
     const [refugio] = await prisma.$transaction([
       prisma.refugio.update({
         where: { id },
-        data: { nombre, ...(ubicacion !== undefined ? { ubicacion } : {}), ...(tipo !== undefined ? { tipo } : {}) },
+        data: { nombre, ...(ubicacion !== undefined ? { ubicacion } : {}), ...(tipo !== undefined ? { tipo } : {}), ...(poblacionBase !== undefined ? { poblacionBase } : {}) },
       }),
       prisma.user.updateMany({
         where: { campamentoTransitorio: oldName },

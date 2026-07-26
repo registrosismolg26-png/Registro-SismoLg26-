@@ -107,6 +107,12 @@ model Refugio {
   // Tipo de campamento: TRANSITORIO (asignación por habitación/cuarto, como hoy) |
   // ITINERANTE | MIXTO (asignación por Comunidad + Tipo de carpa + Nº, compuesta EN `cuarto`).
   tipo      String   @default("TRANSITORIO")
+  // Población base / total de referencia del campamento (opcional). Cuando es un
+  // número > 0, las CIFRAS DE RESUMEN (card de Estadísticas, link público, reportes)
+  // muestran RETIRADOS = max(0, poblacionBase − presentes) y TOTAL = poblacionBase,
+  // para cuadrar un total conocido cuando no todos los egresos se marcaron uno a uno.
+  // NULL/0 → NO aplica el ajuste; se cuenta como hoy (retirados reales registrados).
+  poblacionBase Int?
   createdAt DateTime @default(now())
 }
 

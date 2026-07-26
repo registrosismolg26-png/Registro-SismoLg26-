@@ -192,7 +192,12 @@ export default function DashboardTab() {
     const retiredRecords = localRecords.filter(r => (r.data as any).retirado === "SI");
 
     const total = activeRecords.length;
-    const totalRetirados = retiredRecords.length;
+    // Override "población base" (mismo criterio que el servidor): si el refugio
+    // activo tiene poblacionBase > 0, retirados = max(0, base − presentes); si no,
+    // retirados reales. Solo afecta las cifras de resumen (card/reportes), offline.
+    const activeRef = effectiveRefugio || currentUser?.campamentoTransitorio || "";
+    const baseRef = Number((refugiosList as any[]).find((r) => r.nombre === activeRef)?.poblacionBase) || 0;
+    const totalRetirados = baseRef > 0 ? Math.max(0, baseRef - total) : retiredRecords.length;
     const hogarSolidario = retiredRecords.filter(r => razonRetiroBase((r.data as any).retiradoRazon) === "Hogar Solidario").length;
     const totalRegistrados = total + totalRetirados;
 

@@ -128,6 +128,39 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
   const total = Number(aggregates?.total ?? 0);
   const totalRetirados = Number(aggregates?.total_retirados ?? 0);
 
+  // ── Override "población base" (Refugio.poblacionBase) ─────────────────────
+  // Si un refugio tiene poblacionBase > 0, sus RETIRADOS mostrados =
+  // max(0, base − presentesDeEseRefugio), y su TOTAL = presentes + esos retirados
+  // (= base cuando base ≥ presentes). Sirve para cuadrar un total conocido cuando
+  // no se marcó cada egreso uno a uno. NULL/0 → NO aplica (retirados reales).
+  // Funciona con scope de 1 refugio y en el agregado global (Master), ajustando
+  // refugio por refugio. Solo altera las CIFRAS DE RESUMEN (no la lista/Excel).
+  let displayRetirados = totalRetirados;
+  const basedRefugios = await prisma.refugio.findMany({
+    where: { poblacionBase: { gt: 0 }, ...(scopeRefugio ? { nombre: scopeRefugio } : {}) },
+    select: { nombre: true, poblacionBase: true },
+  });
+  if (basedRefugios.length) {
+    const rows = await prisma.$queryRaw<any[]>`
+      SELECT refugio,
+        COUNT(*) FILTER (WHERE retirado = 'NO') AS presentes,
+        COUNT(*) FILTER (WHERE retirado = 'SI') AS retirados
+      FROM "Registro"
+      WHERE refugio IN (${Prisma.join(basedRefugios.map((r) => r.nombre))})
+      GROUP BY refugio
+    `;
+    const byName = new Map(
+      rows.map((x) => [x.refugio, { p: Number(x.presentes ?? 0), ret: Number(x.retirados ?? 0) }]),
+    );
+    let delta = 0;
+    for (const r of basedRefugios) {
+      const cur = byName.get(r.nombre) || { p: 0, ret: 0 };
+      const overridden = Math.max(0, (r.poblacionBase || 0) - cur.p); // retirados "cuadrados"
+      delta += overridden - cur.ret; // sustituye los retirados reales por los del override
+    }
+    displayRetirados = Math.max(0, totalRetirados + delta);
+  }
+
   // Filtro "activos" (retirado='NO' + refugio) para las consultas SQL de familias y
   // patologías. ANTES se traían TODAS las filas activas al servidor para contarlas en
   // JS; ahora se cuenta EN SQL (egress constante de unos KB, no proporcional al censo).
@@ -161,7 +194,7 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
   const nucleosFamiliares = Number(fam?.nucleos ?? 0);
   const individuosSolos = Number(fam?.individuos ?? 0);
 
-  if (total === 0) return { ...emptyStats(totalRetirados), hogarSolidario: Number(aggregates?.hogar_solidario ?? 0), nucleosFamiliares: 0, individuosSolos: 0 };
+  if (total === 0) return { ...emptyStats(displayRetirados), hogarSolidario: Number(aggregates?.hogar_solidario ?? 0), nucleosFamiliares: 0, individuosSolos: 0 };
 
   const activeFilter = { retirado: "NO", ...refugioFilter };
   const [parroquiaGroup, generoGroup, estadoFisicoGroup, patologiaGroup] = await Promise.all([
@@ -257,8 +290,8 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
 
   return {
     total,
-    totalRegistrados: total + totalRetirados,
-    totalRetirados,
+    totalRegistrados: total + displayRetirados,
+    totalRetirados: displayRetirados,
     hogarSolidario: n(aggregates.hogar_solidario),
     nucleosFamiliares,
     individuosSolos,
