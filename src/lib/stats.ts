@@ -155,7 +155,10 @@ export async function computeAggregateStats(scopeRefugio: string | null): Promis
     let delta = 0;
     for (const r of basedRefugios) {
       const cur = byName.get(r.nombre) || { p: 0, ret: 0 };
-      const overridden = Math.max(0, (r.poblacionBase || 0) - cur.p); // retirados "cuadrados"
+      // Blindaje: nunca mostrar MENOS retirados que los reales confirmados. Si la
+      // realidad supera la base, gana el número real (la base se queda corta y se
+      // ignora); así no se esconden egresos ni Hogar Solidario > Retirados.
+      const overridden = Math.max(cur.ret, (r.poblacionBase || 0) - cur.p);
       delta += overridden - cur.ret; // sustituye los retirados reales por los del override
     }
     displayRetirados = Math.max(0, totalRetirados + delta);

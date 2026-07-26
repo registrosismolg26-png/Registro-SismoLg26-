@@ -197,7 +197,9 @@ export default function DashboardTab() {
     // retirados reales. Solo afecta las cifras de resumen (card/reportes), offline.
     const activeRef = effectiveRefugio || currentUser?.campamentoTransitorio || "";
     const baseRef = Number((refugiosList as any[]).find((r) => r.nombre === activeRef)?.poblacionBase) || 0;
-    const totalRetirados = baseRef > 0 ? Math.max(0, baseRef - total) : retiredRecords.length;
+    // Blindaje: nunca menos que los retirados reales (si la realidad supera la base, gana lo real).
+    const realRetirados = retiredRecords.length;
+    const totalRetirados = baseRef > 0 ? Math.max(realRetirados, baseRef - total) : realRetirados;
     const hogarSolidario = retiredRecords.filter(r => razonRetiroBase((r.data as any).retiradoRazon) === "Hogar Solidario").length;
     const totalRegistrados = total + totalRetirados;
 
