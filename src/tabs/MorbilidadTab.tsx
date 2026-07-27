@@ -83,6 +83,24 @@ const ymdFromISO = (iso?: string): string => {
   return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
 };
 
+/**
+ * Formatea una cédula para mostrar al usuario.
+ * Si ya trae prefijo (V-/E-) la devuelve tal cual.
+ * Si no, busca el registro vinculado para obtener el prefijo real;
+ * si no lo encuentra, usa "V-" por defecto.
+ */
+const formatCedulaDisplay = (rawCed: string, registros: any[]): string => {
+  if (!rawCed) return "";
+  const up = rawCed.trim().toUpperCase();
+  // Ya tiene prefijo
+  if (/^[VE]-/.test(up)) return up;
+  // Buscar en los registros del censo
+  const digits = up.replace(/\D/g, "");
+  const reg = registros.find((r: any) => (r.cedula || "").replace(/\D/g, "") === digits);
+  const prefix = reg ? (reg.cedula || "").replace(/^([VE])-.*/i, "$1") || "V" : "V";
+  return `${prefix}-${digits}`;
+};
+
 export default function MorbilidadTab() {
   const {
     currentUser,
@@ -1253,7 +1271,7 @@ export default function MorbilidadTab() {
                               )}
                             </div>
                             <div className="person-sub">
-                              <span className="person-cedula">{c.data.cedula}</span>
+                              <span className="person-cedula">{formatCedulaDisplay(c.data.cedula, registros)}</span>
                             </div>
                           </div>
                         </div>
