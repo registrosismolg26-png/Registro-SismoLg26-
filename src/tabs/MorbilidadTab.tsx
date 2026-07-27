@@ -1212,58 +1212,112 @@ export default function MorbilidadTab() {
             <table className="matrix-table" style={{ fontSize: "0.8rem", minWidth: "700px" }}>
               <thead>
                 <tr>
-                  <th>Fecha</th><th>Cédula</th><th>Paciente</th><th>Diagnóstico</th><th>Notas del Dr.</th><th></th>
+                  <th>Fecha</th>
+                  <th>Paciente</th>
+                  <th>Diagnóstico</th>
+                  <th>Notas del Dr.</th>
+                  <th style={{ textAlign: "center" }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {pagedConsultas.map((c) => {
-                  const dateStr = new Date(c.data.fechaConsulta || c.createdAt).toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                  const dt = new Date(c.data.fechaConsulta || c.createdAt);
+                  const dateStr = dt.toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" });
+                  const timeStr = dt.toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" });
                   const diagPatIds: string[] = Array.isArray(c.data.diagnosticoPatologiaIds) ? c.data.diagnosticoPatologiaIds : [];
                   const diagMeds: Medicamento[] = Array.isArray(c.data.diagnosticoMedicamentoIds) ? c.data.diagnosticoMedicamentoIds : [];
                   const lesionesC: Lesion[] = Array.isArray(c.data.lesiones) ? c.data.lesiones : [];
+                  const initials = (c.data.nombreApellido || "?").split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
                   return (
                     <tr key={c.id}>
-                      <td data-label="Fecha" style={{ whiteSpace: "nowrap" }}>{dateStr}</td>
-                      <td data-label="Cédula" style={{ fontWeight: "700" }}>{c.data.cedula}</td>
+
+                      {/* FECHA apilada: día encima, hora debajo */}
+                      <td data-label="Fecha" style={{ whiteSpace: "nowrap" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ fontWeight: "700" }}>{dateStr}</span>
+                          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{timeStr}</span>
+                        </div>
+                      </td>
+
+                      {/* PACIENTE apilado: avatar + nombre + cédula + tipo-badge */}
                       <td data-label="Paciente">
-                        {c.data.nombreApellido}
-                        {c.data.tipoPaciente && c.data.tipoPaciente !== "REFUGIADO" && (
-                          <span className={`morb-tipo-badge morb-tipo-badge--${c.data.tipoPaciente.toLowerCase()}`} title={c.data.tipoNota || ""}>
-                            {TIPO_PACIENTE_LABELS[c.data.tipoPaciente] || c.data.tipoPaciente}
-                          </span>
-                        )}
-                      </td>
-                      <td data-label="Diagnóstico">
-                        {diagPatIds.length > 0 ? (
-                          <span style={{ color: "var(--color-success)", fontWeight: "600" }}>{diagPatIds.map((id) => patologiaNombre(id, patologias)).join(", ")}</span>
-                        ) : (
-                          <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Ninguno</span>
-                        )}
-                        {diagMeds.length > 0 && (
-                          <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)", marginTop: "4px" }}>R: {medItemsText(diagMeds, predefinedMedicamentos)}</div>
-                        )}
-                        {lesionesC.length > 0 && (
-                          <div style={{ fontSize: "0.7rem", color: "var(--color-warning, #b45309)", marginTop: "4px" }}>
-                            Lesiones: {lesionesC.map((l) => {
-                              const est = ESTADO_LESION_LABELS[l.estado] ? ` – ${ESTADO_LESION_LABELS[l.estado]}` : "";
-                              return tipoLesionNombre(l.tipoId, tiposLesion) + (l.zona ? ` (${l.zona})` : "") + est;
-                            }).join(", ")}
+                        <div className="person-cell">
+                          <span className="person-avatar" aria-hidden="true">{initials}</span>
+                          <div className="person-info">
+                            <div className="person-top">
+                              <span className="person-name">{c.data.nombreApellido}</span>
+                              {c.data.tipoPaciente && c.data.tipoPaciente !== "REFUGIADO" && (
+                                <span className={`morb-tipo-badge morb-tipo-badge--${c.data.tipoPaciente.toLowerCase()}`} title={c.data.tipoNota || ""}>
+                                  {TIPO_PACIENTE_LABELS[c.data.tipoPaciente] || c.data.tipoPaciente}
+                                </span>
+                              )}
+                            </div>
+                            <div className="person-sub">
+                              <span className="person-cedula">{c.data.cedula}</span>
+                            </div>
                           </div>
-                        )}
+                        </div>
                       </td>
+
+                      {/* DIAGNÓSTICO apilado */}
+                      <td data-label="Diagnóstico">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                          {diagPatIds.length > 0 ? (
+                            <span style={{ color: "var(--color-success)", fontWeight: "600" }}>
+                              {diagPatIds.map((id) => patologiaNombre(id, patologias)).join(", ")}
+                            </span>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Sin diagnóstico</span>
+                          )}
+                          {diagMeds.length > 0 && (
+                            <span style={{ fontSize: "0.7rem", color: "var(--text-secondary)" }}>
+                              R: {medItemsText(diagMeds, predefinedMedicamentos)}
+                            </span>
+                          )}
+                          {lesionesC.length > 0 && (
+                            <span style={{ fontSize: "0.7rem", color: "var(--color-warning, #b45309)" }}>
+                              Lesiones: {lesionesC.map((l) => {
+                                const est = ESTADO_LESION_LABELS[l.estado] ? ` – ${ESTADO_LESION_LABELS[l.estado]}` : "";
+                                return tipoLesionNombre(l.tipoId, tiposLesion) + (l.zona ? ` (${l.zona})` : "") + est;
+                              }).join(", ")}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
                       <td data-label="Notas del Dr." className="morb-hist__notas" title={c.data.notasDoctor}>{c.data.notasDoctor || "-"}</td>
-                      <td data-label="" className="morb-hist__actioncell">
+
+                      {/* ACCIONES: grupo segmentado con tooltips */}
+                      <td data-label="Acciones" className="morb-hist__actioncell">
                         <div className="morb-row-actions">
-                          <button type="button" className="morb-row-actions__btn morb-row-actions__btn--hist" onClick={() => verHistorial(c.data.cedula)} title="Ver historial clínico del paciente">
+                          <button
+                            type="button"
+                            className="morb-row-actions__btn morb-row-actions__btn--hist"
+                            data-tip="Ver historial"
+                            aria-label="Ver historial clínico del paciente"
+                            onClick={() => verHistorial(c.data.cedula)}
+                          >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M8 14h2l1-2 2 4 1-2h2"/></svg>
                             <span className="morb-row-actions__txt">Historial</span>
                           </button>
-                          <button type="button" className="morb-row-actions__btn morb-row-actions__btn--edit" onClick={() => openEdit(c)} title="Editar consulta">
+                          <button
+                            type="button"
+                            className="morb-row-actions__btn morb-row-actions__btn--edit"
+                            data-tip="Editar consulta"
+                            aria-label="Editar consulta"
+                            onClick={() => openEdit(c)}
+                          >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             <span className="morb-row-actions__txt">Editar</span>
                           </button>
                           {canDelete && (
-                            <button type="button" className="morb-row-actions__btn morb-row-actions__btn--delete" onClick={() => setDeleteTarget(c)} title="Eliminar consulta">
+                            <button
+                              type="button"
+                              className="morb-row-actions__btn morb-row-actions__btn--delete"
+                              data-tip="Eliminar consulta"
+                              aria-label="Eliminar consulta"
+                              onClick={() => setDeleteTarget(c)}
+                            >
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                               <span className="morb-row-actions__txt">Eliminar</span>
                             </button>
@@ -1276,6 +1330,7 @@ export default function MorbilidadTab() {
                 })}
               </tbody>
             </table>
+
           </div>
         )}
         {filteredConsultas.length > 0 && (

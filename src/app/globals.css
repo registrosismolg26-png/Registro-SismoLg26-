@@ -10348,7 +10348,43 @@ select.morb-control {
   background: color-mix(in srgb, var(--color-danger) 11%, transparent);
 }
 
-/* Texto colapsable: en PC (tabla) solo ícono; en card (móvil) con texto */
+/* ── Tooltip via data-tip (mismo sistema que btn-ver) ── */
+.morb-row-actions__btn {
+  position: relative;
+}
+.morb-row-actions__btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: var(--bg-secondary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 20;
+}
+.morb-row-actions__btn:hover::after {
+  opacity: 1;
+}
+/* Ocultar tooltip en vista card (ya tiene el texto visible) */
+@media (max-width: 1023px) {
+  .morb-row-actions__btn::after {
+    display: none;
+  }
+}
+
+/* Centrar columna Acciones en el th */
+.morb-history__scroll .matrix-table th:last-child {
+  text-align: center;
+}
+
 .morb-row-actions__txt {
   display: none; /* oculto por defecto (PC / tabla) */
 }
