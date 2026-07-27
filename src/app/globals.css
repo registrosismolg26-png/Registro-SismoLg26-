@@ -10271,62 +10271,102 @@ select.morb-control {
    el de las demás celdas → líneas desalineadas). Se mantiene como table-cell centrado
    y los botones (inline-flex) se separan con margin. En móvil, la regla de td de
    `.morb-history__scroll` lo vuelve flex igualmente. */
+/* ── Grupo segmentado Material Expressive (Historial · Editar · Eliminar) ── */
+.morb-row-actions {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-secondary);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  transition: box-shadow 0.18s ease;
+}
+.morb-row-actions:hover {
+  box-shadow: 0 3px 8px rgba(0,0,0,.10);
+}
+
+/* Divisor entre segmentos */
+.morb-row-actions__btn + .morb-row-actions__btn {
+  border-left: 1.5px solid var(--border-color);
+}
+
+/* Base de cada segmento */
+.morb-row-actions__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  height: 30px;
+  padding: 0 0.7rem;
+  background: transparent;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease,
+    transform 0.1s ease;
+  white-space: nowrap;
+  /* Para que el primer y último botón hereden el pill del contenedor */
+}
+.morb-row-actions__btn:active {
+  transform: scale(0.94);
+}
+.morb-row-actions__btn svg {
+  flex: none;
+  transition: transform 0.14s ease;
+}
+.morb-row-actions__btn:hover svg {
+  transform: scale(1.15);
+}
+
+/* ── Variantes semánticas ── */
+
+/* Historial → teal */
+.morb-row-actions__btn--hist {
+  color: #0d9488;
+}
+.morb-row-actions__btn--hist:hover {
+  background: color-mix(in srgb, #0d9488 13%, transparent);
+}
+
+/* Editar → azul */
+.morb-row-actions__btn--edit {
+  color: var(--color-primary);
+}
+.morb-row-actions__btn--edit:hover {
+  background: var(--color-primary-light);
+}
+
+/* Eliminar → rojo */
+.morb-row-actions__btn--delete {
+  color: var(--color-danger);
+}
+.morb-row-actions__btn--delete:hover {
+  background: color-mix(in srgb, var(--color-danger) 11%, transparent);
+}
+
+/* Texto colapsable en pantallas pequeñas */
+.morb-row-actions__txt {
+  display: inline;
+}
+@media (max-width: 560px) {
+  .morb-row-actions__txt {
+    display: none;
+  }
+  .morb-row-actions__btn {
+    padding: 0 0.55rem;
+  }
+}
+
+/* Mantener compatibilidad con las clases antiguas por si se referencian en otros lados */
 .morb-hist__actioncell {
   white-space: nowrap;
   vertical-align: middle;
 }
-.morb-hist__actioncell button + button {
-  margin-left: 0.35rem;
-}
-.morb-hist__hist,
-.morb-hist__edit,
-.morb-hist__delete {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  height: 32px;
-  padding: 0 0.75rem;
-  border-radius: 999px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  color: var(--color-primary);
-  font-size: 0.74rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
-}
-.morb-hist__edit:hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-}
-.morb-hist__hist svg,
-.morb-hist__edit svg,
-.morb-hist__delete svg {
-  flex: none;
-}
-/* "Ver historial": distinto (teal) para diferenciarlo de Editar (azul) y Eliminar (rojo). */
-.morb-hist__hist {
-  color: #0d9488;
-  border-color: color-mix(in srgb, #0d9488 32%, var(--border-color));
-}
-.morb-hist__hist:hover {
-  border-color: #0d9488;
-  background: color-mix(in srgb, #0d9488 12%, transparent);
-}
-.morb-hist__delete {
-  color: var(--color-danger);
-  border-color: color-mix(
-    in srgb,
-    var(--color-danger) 32%,
-    var(--border-color)
-  );
-}
-.morb-hist__delete:hover {
-  border-color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-}
+
 
 /* Cabecera del historial: título + contador (estilo censo). */
 .morb-hist__head {

@@ -1253,21 +1253,24 @@ export default function MorbilidadTab() {
                       </td>
                       <td data-label="Notas del Dr." className="morb-hist__notas" title={c.data.notasDoctor}>{c.data.notasDoctor || "-"}</td>
                       <td data-label="" className="morb-hist__actioncell">
-                        <button type="button" className="morb-hist__hist" onClick={() => verHistorial(c.data.cedula)} title="Ver historial clínico del paciente">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M8 14h2l1-2 2 4 1-2h2"/></svg>
-                          <span className="morb-hist__edit-txt">Historial</span>
-                        </button>
-                        <button type="button" className="morb-hist__edit" onClick={() => openEdit(c)} title="Editar consulta">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                          <span className="morb-hist__edit-txt">Editar</span>
-                        </button>
-                        {canDelete && (
-                          <button type="button" className="morb-hist__delete" onClick={() => setDeleteTarget(c)} title="Eliminar consulta">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                            <span className="morb-hist__edit-txt">Eliminar</span>
+                        <div className="morb-row-actions">
+                          <button type="button" className="morb-row-actions__btn morb-row-actions__btn--hist" onClick={() => verHistorial(c.data.cedula)} title="Ver historial clínico del paciente">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M8 14h2l1-2 2 4 1-2h2"/></svg>
+                            <span className="morb-row-actions__txt">Historial</span>
                           </button>
-                        )}
+                          <button type="button" className="morb-row-actions__btn morb-row-actions__btn--edit" onClick={() => openEdit(c)} title="Editar consulta">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            <span className="morb-row-actions__txt">Editar</span>
+                          </button>
+                          {canDelete && (
+                            <button type="button" className="morb-row-actions__btn morb-row-actions__btn--delete" onClick={() => setDeleteTarget(c)} title="Eliminar consulta">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                              <span className="morb-row-actions__txt">Eliminar</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
+
                     </tr>
                   );
                 })}
