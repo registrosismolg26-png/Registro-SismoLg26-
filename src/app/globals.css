@@ -10324,6 +10324,14 @@ select.morb-control {
 
 /* ── Variantes semánticas ── */
 
+/* Ver detalle → índigo */
+.morb-row-actions__btn--view {
+  color: #6366f1;
+}
+.morb-row-actions__btn--view:hover {
+  background: color-mix(in srgb, #6366f1 13%, transparent);
+}
+
 /* Historial → teal */
 .morb-row-actions__btn--hist {
   color: #0d9488;
