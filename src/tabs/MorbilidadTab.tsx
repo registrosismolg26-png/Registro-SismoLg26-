@@ -1505,197 +1505,207 @@ export default function MorbilidadTab() {
         </div>
       )}
 
-      {/* Modal: VER DETALLE de consulta en solo lectura */}
+      {/* Modal: VER DETALLE de consulta en solo lectura (mismo ancho y layout que crear/editar) */}
       {viewConsulta && (
         <div className={`modal-overlay${viewClosing ? " modal-overlay--closing" : ""}`} onClick={closeView}>
-          <div className={`modal-content modal-content--detail pill-form${viewClosing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "600px", width: "94%" }}>
-            {/* ── Header ── */}
+          <div className={`modal-content modal-content--morb${viewClosing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
-                <div className="modal-avatar">
-                  {initialsOf(viewConsulta.data?.nombreApellido)}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <span className="modal-title">Detalle de Consulta Médica</span>
-                  <div className="modal-subtitle" style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", alignItems: "center" }}>
-                    <strong>{viewConsulta.data?.nombreApellido}</strong> · <span>C.I. {formatCedulaDisplay(viewConsulta.data?.cedula, registros)}</span>
-                  </div>
-                </div>
-              </div>
+              <span className="modal-title">Detalle de consulta</span>
               <button className="modal-close" onClick={closeView} aria-label="Cerrar">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
-            {/* ── Grid de Detalle ── */}
-            <div className="detail-grid" style={{ maxHeight: "calc(80vh - 120px)", overflowY: "auto", paddingRight: "0.3rem" }}>
-              <div className="detail-section-title">Datos Básicos</div>
-              <div className="detail-field">
-                <span className="detail-label">Fecha y Hora</span>
-                <span className="detail-value">{new Date(viewConsulta.data?.fechaConsulta || viewConsulta.createdAt).toLocaleString("es-VE")}</span>
-              </div>
-              <div className="detail-field">
-                <span className="detail-label">Tipo de Atención</span>
-                <span className="detail-value">
-                  {TIPO_PACIENTE_LABELS[viewConsulta.data?.tipoPaciente] || viewConsulta.data?.tipoPaciente || "Refugiado"}
-                  {viewConsulta.data?.tipoNota ? ` (${viewConsulta.data.tipoNota})` : ""}
-                </span>
-              </div>
-              <div className="detail-field">
-                <span className="detail-label">Género</span>
-                <span className="detail-value">{viewConsulta.data?.genero || "—"}</span>
-              </div>
-              <div className="detail-field">
-                <span className="detail-label">Edad / Nacimiento</span>
-                <span className="detail-value">
-                  {(() => {
-                    let fn = viewConsulta.data?.fechaNacimiento || "";
-                    if (!fn) {
-                      const ced = String(viewConsulta.data?.cedula || "").replace(/\D/g, "");
-                      const reg = registros.find((r: any) => (viewConsulta.data?.registroId && r.id === viewConsulta.data.registroId) || (r.cedula || "").replace(/\D/g, "") === ced);
-                      if (reg) fn = ymdFromISO(reg.fechaNacimiento);
-                    }
-                    const edad = fn ? computeEdad(fn) : viewConsulta.data?.edad != null ? String(viewConsulta.data.edad) : "—";
-                    return `${edad !== "—" ? `${edad} años` : "—"}${fn ? ` (${new Date(fn + "T00:00:00").toLocaleDateString("es-VE")})` : ""}`;
-                  })()}
-                </span>
-              </div>
-              <div className="detail-field">
-                <span className="detail-label">Estado Físico</span>
-                <span className="detail-value" style={{ color: viewConsulta.data?.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)", fontWeight: "700" }}>
-                  {viewConsulta.data?.estadoFisico || "ILESO"}
-                </span>
-              </div>
-              {viewConsulta.data?.genero === "FEMENINO" && (
-                <div className="detail-field">
-                  <span className="detail-label">Embarazo</span>
-                  <span className="detail-value" style={{ color: viewConsulta.data?.embarazo === "SI" ? "#db2777" : "inherit", fontWeight: viewConsulta.data?.embarazo === "SI" ? "700" : "normal" }}>
-                    {viewConsulta.data?.embarazo === "SI" ? "Sí (Embarazada)" : "No"}
-                  </span>
+            <div className="morb pill-form morb-editbody">
+              {/* Datos Básicos */}
+              <div className="morb-card morb-card--primary">
+                <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
+                <div className="morb-tipo">
+                  <div className="morb-field">
+                    <label className="morb-field__label">Tipo de atención</label>
+                    <input className="morb-control" type="text" value={TIPO_PACIENTE_LABELS[viewConsulta.data?.tipoPaciente] || viewConsulta.data?.tipoPaciente || "Refugiado"} disabled />
+                  </div>
+                  {viewConsulta.data?.tipoPaciente !== "REFUGIADO" && (
+                    <div className="morb-field">
+                      <label className="morb-field__label">Nota del apoyo</label>
+                      <input className="morb-control" type="text" value={viewConsulta.data?.tipoNota || "—"} disabled />
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className="detail-field detail-field--full">
-                <span className="detail-label">Campamento Transitorio</span>
-                <span className="detail-value">{viewConsulta.data?.refugio || "—"}</span>
-              </div>
 
-              {/* Antecedentes Clínicos */}
-              {((Array.isArray(viewConsulta.data?.antecedentesPatologiaIds) && viewConsulta.data.antecedentesPatologiaIds.length > 0) || (Array.isArray(viewConsulta.data?.antecedentesMedicamentoIds) && viewConsulta.data.antecedentesMedicamentoIds.length > 0)) && (
-                <>
-                  <div className="detail-section-title">Antecedentes Clínicos (Censo)</div>
-                  {Array.isArray(viewConsulta.data?.antecedentesPatologiaIds) && viewConsulta.data.antecedentesPatologiaIds.length > 0 && (
-                    <div className="detail-field detail-field--full">
-                      <span className="detail-label">Patologías Previas</span>
-                      <span className="detail-value" style={{ color: "var(--color-primary)", fontWeight: "600" }}>
-                        {viewConsulta.data.antecedentesPatologiaIds.map((id: string) => patologiaNombre(id, patologias)).join(", ")}
+                <div className="morb-basic">
+                  <div className="morb-field f-cedula">
+                    <label className="morb-field__label">Cédula</label>
+                    <input className="morb-control" type="text" value={formatCedulaDisplay(viewConsulta.data?.cedula, registros)} disabled />
+                  </div>
+                  <div className="morb-field f-nombre">
+                    <label className="morb-field__label">Nombre y Apellido</label>
+                    <input className="morb-control" type="text" value={viewConsulta.data?.nombreApellido || "—"} disabled />
+                  </div>
+                  <div className="morb-field f-genero">
+                    <label className="morb-field__label">Género</label>
+                    <input className="morb-control" type="text" value={viewConsulta.data?.genero || "—"} disabled />
+                  </div>
+                  <div className="morb-field f-fecha">
+                    <label className="morb-field__label">Fecha y hora de consulta</label>
+                    <input className="morb-control" type="text" value={new Date(viewConsulta.data?.fechaConsulta || viewConsulta.createdAt).toLocaleString("es-VE")} disabled />
+                  </div>
+                  <div className="morb-field f-edad">
+                    <label className="morb-field__label">Edad (años)</label>
+                    <input className="morb-control" type="text" value={(() => {
+                      let fn = viewConsulta.data?.fechaNacimiento || "";
+                      if (!fn) {
+                        const ced = String(viewConsulta.data?.cedula || "").replace(/\D/g, "");
+                        const reg = registros.find((r: any) => (viewConsulta.data?.registroId && r.id === viewConsulta.data.registroId) || (r.cedula || "").replace(/\D/g, "") === ced);
+                        if (reg) fn = ymdFromISO(reg.fechaNacimiento);
+                      }
+                      return fn ? computeEdad(fn) : viewConsulta.data?.edad != null ? String(viewConsulta.data.edad) : "—";
+                    })()} disabled />
+                  </div>
+                  <div className="morb-field f-refugio">
+                    <label className="morb-field__label">Campamento Transitorio (Refugio)</label>
+                    <input className="morb-control" type="text" value={viewConsulta.data?.refugio || "—"} disabled />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginTop: "0.8rem", paddingTop: "0.8rem", borderTop: "1px solid var(--border-color)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span className="morb-field__label" style={{ margin: 0 }}>Estado Físico:</span>
+                    <span style={{ fontWeight: "700", color: viewConsulta.data?.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
+                      {viewConsulta.data?.estadoFisico || "ILESO"}
+                    </span>
+                  </div>
+                  {viewConsulta.data?.genero === "FEMENINO" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span className="morb-field__label" style={{ margin: 0 }}>Embarazo:</span>
+                      <span style={{ fontWeight: viewConsulta.data?.embarazo === "SI" ? "700" : "normal", color: viewConsulta.data?.embarazo === "SI" ? "#db2777" : "inherit" }}>
+                        {viewConsulta.data?.embarazo === "SI" ? "Sí (Embarazada)" : "No"}
                       </span>
                     </div>
                   )}
-                  {Array.isArray(viewConsulta.data?.antecedentesMedicamentoIds) && viewConsulta.data.antecedentesMedicamentoIds.length > 0 && (
-                    <div className="detail-field detail-field--full">
-                      <span className="detail-label">Medicamentos Previos</span>
-                      <div className="med-items" style={{ marginTop: "0.3rem" }}>
-                        {viewConsulta.data.antecedentesMedicamentoIds.map((m: Medicamento, i: number) => (
-                          <div key={i} className="med-item">
-                            <div className="med-item__head">
-                              <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
-                            </div>
-                            {(m.dosis || m.periodo) && (
-                              <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                                {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                </div>
+              </div>
+
+              {/* Antecedentes | Diagnóstico en 2 columnas: morb-duo */}
+              <div className="morb-duo">
+                <div className="morb-card morb-card--primary">
+                  <h3 className="morb-card__title">Antecedentes Clínicos (Censo)</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Patologías del paciente</label>
+                      {Array.isArray(viewConsulta.data?.antecedentesPatologiaIds) && viewConsulta.data.antecedentesPatologiaIds.length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.3rem" }}>
+                          {viewConsulta.data.antecedentesPatologiaIds.map((id: string) => (
+                            <span key={id} style={{ padding: "0.35rem 0.75rem", background: "var(--color-primary-light, rgba(37,99,235,0.12))", color: "var(--color-primary, #2563eb)", borderRadius: "100px", fontSize: "0.82rem", fontWeight: "600" }}>
+                              {patologiaNombre(id, patologias)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin patologías previas registradas" disabled />
+                      )}
                     </div>
-                  )}
-                </>
-              )}
-
-              {/* Diagnóstico y Receta */}
-              <div className="detail-section-title">Diagnóstico de Consulta</div>
-              <div className="detail-field detail-field--full">
-                <span className="detail-label">Patologías Diagnosticadas</span>
-                <span className="detail-value">
-                  {Array.isArray(viewConsulta.data?.diagnosticoPatologiaIds) && viewConsulta.data.diagnosticoPatologiaIds.length > 0 ? (
-                    <span style={{ color: "var(--color-success)", fontWeight: "700" }}>
-                      {viewConsulta.data.diagnosticoPatologiaIds.map((id: string) => patologiaNombre(id, patologias)).join(", ")}
-                    </span>
-                  ) : (
-                    <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Ninguna</span>
-                  )}
-                </span>
-              </div>
-
-              {Array.isArray(viewConsulta.data?.lesiones) && viewConsulta.data.lesiones.length > 0 && (
-                <div className="detail-field detail-field--full">
-                  <span className="detail-label">Lesiones / Heridas</span>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", marginTop: "0.25rem" }}>
-                    {viewConsulta.data.lesiones.map((l: Lesion, idx: number) => (
-                      <div key={idx} style={{ padding: "0.4rem 0.6rem", background: "var(--bg-primary)", borderRadius: "6px", borderLeft: "3px solid var(--color-warning)" }}>
-                        <div style={{ fontWeight: "700", color: "var(--color-warning, #b45309)", fontSize: "0.8rem" }}>
-                          {tipoLesionNombre(l.tipoId, tiposLesion)} {l.zona ? `· (${l.zona})` : ""}
+                    <div className="morb-field">
+                      <label className="morb-field__label">Medicamentos del paciente</label>
+                      {Array.isArray(viewConsulta.data?.antecedentesMedicamentoIds) && viewConsulta.data.antecedentesMedicamentoIds.length > 0 ? (
+                        <div className="med-items" style={{ marginTop: "0.3rem" }}>
+                          {viewConsulta.data.antecedentesMedicamentoIds.map((m: Medicamento, i: number) => (
+                            <div key={i} className="med-item">
+                              <div className="med-item__head">
+                                <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
+                              </div>
+                              {(m.dosis || m.periodo) && (
+                                <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                  {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                        {l.estado && <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>Estado: {ESTADO_LESION_LABELS[l.estado] || l.estado}</div>}
-                        {l.cura && <div style={{ fontSize: "0.72rem", color: "var(--text-primary)", marginTop: "2px" }}>Cura / Tratamiento: {l.cura}</div>}
-                      </div>
-                    ))}
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin medicamentos previos registrados" disabled />
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
 
-              {Array.isArray(viewConsulta.data?.diagnosticoMedicamentoIds) && viewConsulta.data.diagnosticoMedicamentoIds.length > 0 && (
-                <div className="detail-field detail-field--full">
-                  <span className="detail-label">Receta Médica (Medicamentos Diagnosticados)</span>
-                  <div className="med-items" style={{ marginTop: "0.3rem" }}>
-                    {viewConsulta.data.diagnosticoMedicamentoIds.map((m: Medicamento, i: number) => (
-                      <div key={i} className="med-item" style={{ borderLeft: "3px solid var(--color-success)" }}>
-                        <div className="med-item__head">
-                          <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
+                <div className="morb-card morb-card--success">
+                  <h3 className="morb-card__title">Diagnóstico de Consulta</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Patologías Diagnósticas</label>
+                      {Array.isArray(viewConsulta.data?.diagnosticoPatologiaIds) && viewConsulta.data.diagnosticoPatologiaIds.length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.3rem" }}>
+                          {viewConsulta.data.diagnosticoPatologiaIds.map((id: string) => (
+                            <span key={id} style={{ padding: "0.35rem 0.75rem", background: "rgba(22,163,74,0.14)", color: "var(--color-success, #16a34a)", borderRadius: "100px", fontSize: "0.82rem", fontWeight: "600" }}>
+                              {patologiaNombre(id, patologias)}
+                            </span>
+                          ))}
                         </div>
-                        {(m.dosis || m.periodo) && (
-                          <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                            {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin patologías diagnosticadas" disabled />
+                      )}
+                    </div>
+
+                    <div className="morb-field">
+                      <label className="morb-field__label">Lesiones / Heridas</label>
+                      {Array.isArray(viewConsulta.data?.lesiones) && viewConsulta.data.lesiones.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", marginTop: "0.3rem" }}>
+                          {viewConsulta.data.lesiones.map((l: Lesion, idx: number) => (
+                            <div key={idx} style={{ padding: "0.5rem 0.75rem", background: "var(--bg-primary)", borderRadius: "8px", borderLeft: "3px solid var(--color-warning)" }}>
+                              <div style={{ fontWeight: "700", color: "var(--color-warning, #b45309)", fontSize: "0.82rem" }}>
+                                {tipoLesionNombre(l.tipoId, tiposLesion)} {l.zona ? `· (${l.zona})` : ""}
+                              </div>
+                              {l.estado && <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Estado: {ESTADO_LESION_LABELS[l.estado] || l.estado}</div>}
+                              {l.cura && <div style={{ fontSize: "0.75rem", color: "var(--text-primary)", marginTop: "2px" }}>Cura / Tratamiento: {l.cura}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin lesiones o heridas" disabled />
+                      )}
+                    </div>
+
+                    <div className="morb-field">
+                      <label className="morb-field__label">Medicamentos Diagnosticados (Receta)</label>
+                      {Array.isArray(viewConsulta.data?.diagnosticoMedicamentoIds) && viewConsulta.data.diagnosticoMedicamentoIds.length > 0 ? (
+                        <div className="med-items" style={{ marginTop: "0.3rem" }}>
+                          {viewConsulta.data.diagnosticoMedicamentoIds.map((m: Medicamento, i: number) => (
+                            <div key={i} className="med-item" style={{ borderLeft: "3px solid var(--color-success)" }}>
+                              <div className="med-item__head">
+                                <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
+                              </div>
+                              {(m.dosis || m.periodo) && (
+                                <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                  {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin medicamentos en receta" disabled />
+                      )}
+                    </div>
+
+                    <div className="morb-field">
+                      <label className="morb-field__label">Notas Médicas / Observaciones</label>
+                      <textarea className="morb-control" value={viewConsulta.data?.notasDoctor || ""} disabled placeholder="Sin notas u observaciones" style={{ minHeight: "60px", resize: "none" }} />
+                    </div>
                   </div>
                 </div>
-              )}
-
-              <div className="detail-field detail-field--full">
-                <span className="detail-label">Notas Médicas / Observaciones</span>
-                <div className="detail-value" style={{ whiteSpace: "pre-wrap", background: "var(--bg-primary)", padding: "0.6rem 0.75rem", borderRadius: "8px", border: "1px solid var(--border-color)", marginTop: "0.25rem", minHeight: "45px" }}>
-                  {viewConsulta.data?.notasDoctor || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Sin notas u observaciones</span>}
-                </div>
               </div>
-            </div>
 
-            {/* ── Footer ── */}
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1.25rem", width: "100%" }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ flex: 1, margin: 0 }}
-                onClick={closeView}
-              >
-                Cerrar
-              </button>
-              <button
-                type="button"
-                className="btn-submit"
-                style={{ flex: 1, margin: 0 }}
-                onClick={() => {
+              <div className="morb-actions">
+                <button type="button" className="morb-btn morb-btn--ghost" onClick={closeView}>Cerrar</button>
+                <button type="button" className="morb-btn morb-btn--primary" style={{ minWidth: "160px" }} onClick={() => {
                   const currentCons = viewConsulta;
                   closeView();
                   setTimeout(() => openEdit(currentCons), 250);
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Editar Consulta
-              </button>
+                }}>
+                  Editar consulta
+                </button>
+              </div>
             </div>
           </div>
         </div>
