@@ -115,11 +115,12 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
 
   // Logo (best-effort; si falla, se omite y el archivo se genera igual).
   let logoImgId: any = null;
+  let logoBuf: ArrayBuffer | null = null;
   try {
     const res = await fetch("/logo_gob_push.png");
     if (res.ok) {
-      const buf = await res.arrayBuffer();
-      logoImgId = wb.addImage({ buffer: buf as any, extension: "png" });
+      logoBuf = await res.arrayBuffer();
+      logoImgId = wb.addImage({ buffer: logoBuf as any, extension: "png" });
       ws.addImage(logoImgId, { tl: { col: 0.25, row: 0.2 } as any, ext: { width: 92, height: 60 } });
     }
   } catch { /* sin logo */ }
@@ -198,11 +199,11 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     { width: 28 }, // D: Total / Referencia / Leyenda
   ];
 
-  // Membrete Hoja 2 (filas 1-4). Logo en A1:A4, Textos en B1:D4 para evitar corte por la derecha.
-  ws2.mergeCells("B1:D1");
-  ws2.mergeCells("B2:D2");
-  ws2.mergeCells("B3:D3");
-  ws2.mergeCells("B4:D4");
+  // Membrete Hoja 2 (filas 1-4). Combinamos hasta columna F para darle un lienzo de membrete súper ancho y libre de cortes.
+  ws2.mergeCells("B1:F1");
+  ws2.mergeCells("B2:F2");
+  ws2.mergeCells("B3:F3");
+  ws2.mergeCells("B4:F4");
   ws2.mergeCells("A1:A4");
 
   const t1_2 = ws2.getCell("B1");
@@ -215,31 +216,38 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
   t2_2.font = { name: "Arial", size: 11, bold: true, color: { argb: "374151" } };
   t2_2.alignment = { vertical: "middle", horizontal: "left" };
 
+  // Información limpia, concisa y directa: sin horas ni datos repetidos que causen cortes
   const t3_2 = ws2.getCell("B3");
-  t3_2.value = `Campamento: ${refugio || "—"}   ·   Generado: ${generadoEn}   ·   Muestra: ${consultas.length} consultas`;
+  t3_2.value = `Refugio / Campamento: ${refugio || "—"}   ·   Muestra evaluada: ${consultas.length} consultas`;
   t3_2.font = { name: "Arial", size: 9, color: { argb: "6B7280" } };
   t3_2.alignment = { vertical: "middle", horizontal: "left" };
 
   const t4_2 = ws2.getCell("B4");
-  t4_2.value = filtrosTxt
-    ? { richText: [
-        { text: "Alcance y Filtros:  ", font: { name: "Arial", size: 9, bold: true, color: { argb: BRAND } } },
-        { text: `${alcance ? `${alcance}   ·   ` : ""}${filtrosTxt}`, font: { name: "Arial", size: 9, color: { argb: "374151" } } },
-      ] }
-    : { richText: [{ text: `Reporte estadístico — ${alcance || "Historial completo"}`, font: { name: "Arial", size: 9, italic: true, color: { argb: "9CA3AF" } } }] };
+  const filtroLimpio = filtrosTxt || alcance || "Historial general completo";
+  t4_2.value = {
+    richText: [
+      { text: "Período / Filtro:  ", font: { name: "Arial", size: 9, bold: true, color: { argb: BRAND } } },
+      { text: filtroLimpio, font: { name: "Arial", size: 9, color: { argb: "374151" } } },
+    ]
+  };
   t4_2.alignment = { vertical: "middle", horizontal: "left" };
 
   for (let r = 1; r <= 4; r++) {
     ws2.getRow(r).height = r === 1 ? 24 : r === 4 ? 16 : 18;
-    for (let c = 1; c <= 4; c++) {
+    for (let c = 1; c <= 6; c++) {
       const cell = ws2.getRow(r).getCell(c);
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND_LIGHT } };
       if (r === 4) cell.border = { bottom: { style: "medium", color: { argb: BRAND } } };
     }
   }
 
-  if (logoImgId) {
-    try { ws2.addImage(logoImgId, { tl: { col: 0.35, row: 0.28 } as any, ext: { width: 92, height: 60 } }); } catch {}
+  // En ExcelJS, para garantizar que una imagen aparezca en una segunda hoja sin fallos de XML,
+  // se debe registrar con un ID propio en el workbook usando el mismo buffer.
+  if (logoBuf) {
+    try {
+      const logoImgId2 = wb.addImage({ buffer: logoBuf as any, extension: "png" });
+      ws2.addImage(logoImgId2, { tl: { col: 0.35, row: 0.28 } as any, ext: { width: 92, height: 60 } });
+    } catch {}
   }
 
   // Estilos de borde negros/grises nítidos e innegociables para definir cada cuadro y celda
