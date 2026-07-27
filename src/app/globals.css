@@ -3767,7 +3767,7 @@ html[data-theme="dark"] .sb-org {
   color: var(--color-primary);
   transform: scale(1.1);
 }
-.dash-icon-btn::after {
+.dash-icon-btn[data-tip]:not([data-tip=""])::after {
   content: attr(data-tip);
   position: absolute;
   top: calc(100% + 7px);
@@ -7583,7 +7583,7 @@ h2.dashboard-section-title {
 .btn-ver:hover {
   transform: translateY(-1px);
 }
-.btn-ver::after {
+.btn-ver[data-tip]:not([data-tip=""])::after {
   content: attr(data-tip);
   position: absolute;
   top: calc(100% + 6px);
@@ -8334,7 +8334,7 @@ h2.dashboard-section-title {
   color: #ffffff;
   transform: scale(1.08);
 }
-.btn-edit-user::after {
+.btn-edit-user[data-tip]:not([data-tip=""])::after {
   content: attr(data-tip);
   position: absolute;
   top: calc(100% + 6px);
@@ -10360,7 +10360,7 @@ select.morb-control {
 .morb-row-actions__btn {
   position: relative;
 }
-.morb-row-actions__btn::after {
+.morb-row-actions__btn[data-tip]:not([data-tip=""])::after {
   content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 7px);
