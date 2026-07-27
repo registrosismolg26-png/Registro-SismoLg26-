@@ -374,28 +374,54 @@ export default function MorbilidadTab() {
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [exportingMinSalud, setExportingMinSalud] = useState(false);
   const [minSaludDia, setMinSaludDia] = useState(""); // yyyy-mm-dd del reporte diario oficial
+  const [excelModo, setExcelModo] = useState<"completo" | "dia">("completo");
+  const [excelDia, setExcelDia] = useState("");
+
   const handleExportExcel = async () => {
-    if (filteredConsultas.length === 0) { showToast("No hay consultas para exportar.", "warning"); return; }
+    let exportItems = filteredConsultas;
+    const dmy = (s: string) => s.split("-").reverse().join("/");
+    const filtrosParts: string[] = [];
+    if (histSearch.trim()) filtrosParts.push(`Búsqueda "${histSearch.trim()}"`);
+    if (fTipo) filtrosParts.push(`Atención: ${TIPO_PACIENTE_LABELS[fTipo] || fTipo}`);
+    if (fDiag) filtrosParts.push(fDiag === "con" ? "Con diagnóstico" : "Sin diagnóstico");
+    if (fEstado) filtrosParts.push(`Estado: ${fEstado === "LESIONADO" ? "Lesionado" : "Ileso"}`);
+    if (fDesde) filtrosParts.push(`Desde ${dmy(fDesde)}`);
+    if (fHasta) filtrosParts.push(`Hasta ${dmy(fHasta)}`);
+
+    let filtrosTxt = filtrosParts.join("   ·   ");
+    let alcanceTxt = "Reporte Completo (según filtros en pantalla)";
+    let diaExp: string | undefined = undefined;
+
+    if (excelModo === "dia") {
+      if (!excelDia) { showToast("Elige el día que deseas exportar.", "warning"); return; }
+      const ymdOf = (iso: any) => {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        const p = (n: number) => String(n).padStart(2, "0");
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      };
+      exportItems = allConsultas.filter((c) => ymdOf(c.data?.fechaConsulta || c.createdAt) === excelDia);
+      if (exportItems.length === 0) { showToast(`No hay consultas registradas el día ${dmy(excelDia)}.`, "info"); return; }
+      filtrosTxt = `Reporte del Día: ${dmy(excelDia)}`;
+      alcanceTxt = `Reporte Diario (${dmy(excelDia)})`;
+      diaExp = excelDia;
+    } else {
+      if (exportItems.length === 0) { showToast("No hay consultas en la lista para exportar.", "warning"); return; }
+    }
+
     setExporting(true);
     try {
-      // Resumen legible de los filtros activos (para el membrete del Excel).
-      const dmy = (s: string) => s.split("-").reverse().join("/");
-      const filtrosParts: string[] = [];
-      if (histSearch.trim()) filtrosParts.push(`Búsqueda "${histSearch.trim()}"`);
-      if (fTipo) filtrosParts.push(`Atención: ${TIPO_PACIENTE_LABELS[fTipo] || fTipo}`);
-      if (fDiag) filtrosParts.push(fDiag === "con" ? "Con diagnóstico" : "Sin diagnóstico");
-      if (fEstado) filtrosParts.push(`Estado: ${fEstado === "LESIONADO" ? "Lesionado" : "Ileso"}`);
-      if (fDesde) filtrosParts.push(`Desde ${dmy(fDesde)}`);
-      if (fHasta) filtrosParts.push(`Hasta ${dmy(fHasta)}`);
       await exportMorbilidadExcel({
-        consultas: filteredConsultas,
+        consultas: exportItems,
         patologias, predefinedMedicamentos, tiposLesion,
         refugio: effectiveRefugio || currentUser?.campamentoTransitorio || "",
         generadoEn: new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-        filtros: filtrosParts.join("   ·   "),
+        filtros: filtrosTxt,
+        alcance: alcanceTxt,
+        diaExport: diaExp,
       });
-      showToast("Excel descargado.", "success");
-      logActivity({ accion: "EXPORT", recurso: "Morbilidad", formato: "Excel", refugio: effectiveRefugio || currentUser?.campamentoTransitorio || undefined, filtros: filtrosParts.join("   ·   ") || undefined, total: filteredConsultas.length });
+      showToast("Excel descargado exitosamente.", "success");
+      logActivity({ accion: "EXPORT", recurso: "Morbilidad", formato: "Excel", refugio: effectiveRefugio || currentUser?.campamentoTransitorio || undefined, filtros: filtrosTxt || undefined, total: exportItems.length });
       setShowExcelModal(false);
     } catch (e) {
       console.error(e);
@@ -1747,15 +1773,47 @@ export default function MorbilidadTab() {
             </div>
             <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "0 0 1rem" }}>Elige qué exportar:</p>
             <div className="export-options">
-              <button type="button" className="export-option" onClick={handleExportExcel} disabled={exporting || exportingMinSalud}>
+              <div className="export-option export-option--form">
                 <span className="export-option__icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                 </span>
-                <span className="export-option__text">
-                  <strong>Excel General</strong>
-                  <small>El historial con los <b>filtros aplicados</b> ahora ({filteredConsultas.length}).</small>
+                <span className="export-option__text" style={{ width: "100%" }}>
+                  <strong>Excel General (con Resumen Estadístico)</strong>
+                  <small>Incluye listado clínico y una <b>segunda hoja</b> con estadísticas y distribución demográfica por edad y género.</small>
+                  
+                  <div className="pill-form" style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button 
+                        type="button" 
+                        className={`btn-seg ${excelModo === "completo" ? "btn-seg--active" : ""}`} 
+                        onClick={() => setExcelModo("completo")}
+                        style={{ flex: 1, padding: "0.45rem", fontSize: "0.8rem", borderRadius: "100px", border: "1px solid var(--border-color)", background: excelModo === "completo" ? "var(--color-primary)" : "var(--bg-secondary)", color: excelModo === "completo" ? "#fff" : "var(--text-primary)", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+                      >
+                        Completo ({filteredConsultas.length})
+                      </button>
+                      <button 
+                        type="button" 
+                        className={`btn-seg ${excelModo === "dia" ? "btn-seg--active" : ""}`} 
+                        onClick={() => setExcelModo("dia")}
+                        style={{ flex: 1, padding: "0.45rem", fontSize: "0.8rem", borderRadius: "100px", border: "1px solid var(--border-color)", background: excelModo === "dia" ? "var(--color-primary)" : "var(--bg-secondary)", color: excelModo === "dia" ? "#fff" : "var(--text-primary)", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+                      >
+                        Por Día específico
+                      </button>
+                    </div>
+
+                    {excelModo === "dia" && (
+                      <div className="form-group">
+                        <label>Día a descargar</label>
+                        <DatePicker value={excelDia} onChange={setExcelDia} placeholder="Elegir día…" defaultToday />
+                      </div>
+                    )}
+
+                    <button type="button" className="btn-submit" onClick={handleExportExcel} disabled={exporting || exportingMinSalud}>
+                      {exporting ? <span className="spinner spinner-sm" /> : `Descargar Excel ${excelModo === "dia" ? (excelDia ? `del ${excelDia.split("-").reverse().join("/")}` : "por día") : "Completo"}`}
+                    </button>
+                  </div>
                 </span>
-              </button>
+              </div>
 
               <div className="export-option export-option--form">
                 <span className="export-option__icon">
