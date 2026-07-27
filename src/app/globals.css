@@ -10348,18 +10348,24 @@ select.morb-control {
   background: color-mix(in srgb, var(--color-danger) 11%, transparent);
 }
 
-/* Texto colapsable en pantallas pequeñas */
+/* Texto colapsable: en PC (tabla) solo ícono; en card (móvil) con texto */
 .morb-row-actions__txt {
-  display: inline;
+  display: none; /* oculto por defecto (PC / tabla) */
 }
-@media (max-width: 560px) {
+
+/* En card (<1024px): mostrar texto y centrar el grupo en la fila */
+@media (max-width: 1023px) {
   .morb-row-actions__txt {
-    display: none;
+    display: inline;
   }
-  .morb-row-actions__btn {
-    padding: 0 0.55rem;
+  .morb-hist__actioncell {
+    justify-content: center !important;
+  }
+  .morb-row-actions {
+    margin: 0 auto;
   }
 }
+
 
 /* Mantener compatibilidad con las clases antiguas por si se referencian en otros lados */
 .morb-hist__actioncell {
@@ -10540,6 +10546,16 @@ select.morb-control {
   .morb-hist__notas {
     max-width: none;
     white-space: normal;
+  }
+  /* Celda de acciones en modo card: sin etiqueta, centrada */
+  .morb-hist__actioncell {
+    justify-content: center !important;
+    border-bottom: none !important;
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
+  }
+  .morb-hist__actioncell::before {
+    display: none !important;
   }
 }
 
