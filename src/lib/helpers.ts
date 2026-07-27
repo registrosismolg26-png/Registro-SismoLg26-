@@ -191,3 +191,25 @@ export function esRazonOtra(razon?: string | null): boolean {
   const named = RAZONES_RETIRO_LIST.slice(0, 5); // las 5 con nombre propio (sin "Otra")
   return !named.some((r) => r.toUpperCase() === base.toUpperCase());
 }
+
+// Formatea una cédula para mostrar al usuario con prefijo V-/E-.
+export function formatCedulaDisplay(rawCed: string | null | undefined, registros: Array<{ cedula?: string | null }>): string {
+  if (!rawCed) return "";
+  const up = String(rawCed).trim().toUpperCase();
+  if (/^[VE]-/.test(up)) return up;
+  const digits = up.replace(/\D/g, "");
+  const reg = registros.find((r) => (r.cedula || "").replace(/\D/g, "") === digits);
+  const prefix = reg ? (reg.cedula || "").replace(/^([VE])-.*/i, "$1") || "V" : "V";
+  return `${prefix}-${digits}`;
+}
+
+export function initialsOf(name?: string | null): string {
+  return (name || "?")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w: string) => w[0] || "")
+    .join("")
+    .toUpperCase() || "?";
+}

@@ -11,9 +11,10 @@
 
 import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { patologiaNombre, medLabel, tipoLesionNombre } from "@/lib/helpers";
+import { patologiaNombre, medLabel, tipoLesionNombre, formatCedulaDisplay, initialsOf } from "@/lib/helpers";
 import { ESTADO_LESION_LABELS } from "@/lib/constants";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
+import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import type { Medicamento, Lesion } from "@/types";
 
 const onlyDigits = (s: string) => (s || "").replace(/\D/g, "");
@@ -53,6 +54,17 @@ interface PacienteEntry {
 export default function HistorialClinicoTab() {
   const { consultas, localConsultas, registros, patologias, tiposLesion, predefinedMedicamentos, effectiveRefugio, pendingHistorialCedula, setPendingHistorialCedula } = useAppContext();
   const [sel, setSel] = useState(""); // cédula (dígitos) del paciente elegido
+
+  // Ver detalle de una consulta en modal de solo lectura
+  const [viewConsulta, setViewConsulta] = useState<any | null>(null);
+  const [viewClosing, setViewClosing] = useState(false);
+  useBodyScrollLock(!!viewConsulta);
+
+  const closeView = () => {
+    if (viewClosing || !viewConsulta) return;
+    setViewClosing(true);
+    setTimeout(() => { setViewConsulta(null); setViewClosing(false); }, 220);
+  };
 
   // Navegación desde Morbilidad ("Ver historial"): abre directamente ese paciente.
   useEffect(() => {
@@ -229,6 +241,16 @@ export default function HistorialClinicoTab() {
                         <span className="hc-tl__date">{fmtFecha(when)} · {fmtHora(when)}</span>
                         {i === 0 && <span className="hc-tl__badge hc-tl__badge--last">Más reciente</span>}
                         {tipo !== "REFUGIADO" && <span className={`hc-chip hc-chip--tipo hc-chip--${tipo.toLowerCase()}`}>{TIPO_LABEL[tipo] || tipo}</span>}
+                        <button
+                          type="button"
+                          className="morb-row-actions__btn morb-row-actions__btn--view"
+                          style={{ marginLeft: "auto", padding: "0.3rem 0.75rem", borderRadius: "100px", border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.1)", color: "#6366f1", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.78rem", cursor: "pointer" }}
+                          onClick={() => setViewConsulta({ ...c, data: c })}
+                          title="Ver detalle de la consulta"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          <span>Ver</span>
+                        </button>
                       </div>
                       <div className="hc-tl__body">
                         <HcField label="Diagnóstico" tone="diag" items={diag.map((id) => patologiaNombre(id, patologias))} />
@@ -268,6 +290,200 @@ export default function HistorialClinicoTab() {
             </ol>
           </div>
         </>
+      )}
+
+      {/* Modal: VER DETALLE de consulta en solo lectura (consistente con Morbilidad) */}
+      {viewConsulta && (
+        <div className={`modal-overlay${viewClosing ? " modal-overlay--closing" : ""}`} onClick={closeView}>
+          <div className={`modal-content modal-content--morb${viewClosing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">Detalle de consulta</span>
+              <button className="modal-close" onClick={closeView} aria-label="Cerrar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div className="morb pill-form morb-editbody">
+              {/* Datos Básicos */}
+              <div className="morb-card morb-card--primary">
+                <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
+                <div className="morb-tipo">
+                  <div className="morb-field">
+                    <label className="morb-field__label">Tipo de atención</label>
+                    <input className="morb-control" type="text" value={TIPO_LABEL[viewConsulta.data?.tipoPaciente] || viewConsulta.data?.tipoPaciente || "Refugiado"} disabled />
+                  </div>
+                  {viewConsulta.data?.tipoPaciente !== "REFUGIADO" && (
+                    <div className="morb-field">
+                      <label className="morb-field__label">Nota del apoyo</label>
+                      <input className="morb-control" type="text" value={viewConsulta.data?.tipoNota || "—"} disabled />
+                    </div>
+                  )}
+                </div>
+
+                <div className="morb-basic">
+                  <div className="morb-field f-cedula">
+                    <label className="morb-field__label">Cédula</label>
+                    <input className="morb-control" type="text" value={formatCedulaDisplay(viewConsulta.data?.cedula, registros)} disabled />
+                  </div>
+                  <div className="morb-field f-nombre">
+                    <label className="morb-field__label">Nombre y Apellido</label>
+                    <input className="morb-control" type="text" value={viewConsulta.data?.nombreApellido || "—"} disabled />
+                  </div>
+                  <div className="morb-field f-genero">
+                    <label className="morb-field__label">Género</label>
+                    <input className="morb-control" type="text" value={viewConsulta.data?.genero || "—"} disabled />
+                  </div>
+                  <div className="morb-field f-fecha">
+                    <label className="morb-field__label">Fecha y hora de consulta</label>
+                    <input className="morb-control" type="text" value={new Date(viewConsulta.data?.fechaConsulta || viewConsulta.createdAt).toLocaleString("es-VE")} disabled />
+                  </div>
+                  <div className="morb-field f-edad">
+                    <label className="morb-field__label">Edad (años)</label>
+                    <input className="morb-control" type="text" value={(() => {
+                      const ed = viewConsulta.data?.edad ?? edadFromISO(viewConsulta.data?.fechaNacimiento);
+                      return ed != null ? `${ed} años` : "—";
+                    })()} disabled />
+                  </div>
+                  <div className="morb-field f-refugio">
+                    <label className="morb-field__label">Campamento Transitorio (Refugio)</label>
+                    <input className="morb-control" type="text" value={viewConsulta.data?.refugio || "—"} disabled />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginTop: "0.8rem", paddingTop: "0.8rem", borderTop: "1px solid var(--border-color)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span className="morb-field__label" style={{ margin: 0 }}>Estado Físico:</span>
+                    <span style={{ fontWeight: "700", color: viewConsulta.data?.estadoFisico === "LESIONADO" ? "var(--color-danger)" : "var(--color-success)" }}>
+                      {viewConsulta.data?.estadoFisico || "ILESO"}
+                    </span>
+                  </div>
+                  {viewConsulta.data?.genero === "FEMENINO" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span className="morb-field__label" style={{ margin: 0 }}>Embarazo:</span>
+                      <span style={{ fontWeight: viewConsulta.data?.embarazo === "SI" ? "700" : "normal", color: viewConsulta.data?.embarazo === "SI" ? "#db2777" : "inherit" }}>
+                        {viewConsulta.data?.embarazo === "SI" ? "Sí (Embarazada)" : "No"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Antecedentes | Diagnóstico en 2 columnas: morb-duo */}
+              <div className="morb-duo">
+                <div className="morb-card morb-card--primary">
+                  <h3 className="morb-card__title">Antecedentes Clínicos (Censo)</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Patologías del paciente</label>
+                      {Array.isArray(viewConsulta.data?.antecedentesPatologiaIds) && viewConsulta.data.antecedentesPatologiaIds.length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.3rem" }}>
+                          {viewConsulta.data.antecedentesPatologiaIds.map((id: string) => (
+                            <span key={id} style={{ padding: "0.35rem 0.75rem", background: "var(--color-primary-light, rgba(37,99,235,0.12))", color: "var(--color-primary, #2563eb)", borderRadius: "100px", fontSize: "0.82rem", fontWeight: "600" }}>
+                              {patologiaNombre(id, patologias)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin patologías previas registradas" disabled />
+                      )}
+                    </div>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Medicamentos del paciente</label>
+                      {Array.isArray(viewConsulta.data?.antecedentesMedicamentoIds) && viewConsulta.data.antecedentesMedicamentoIds.length > 0 ? (
+                        <div className="med-items" style={{ marginTop: "0.3rem" }}>
+                          {viewConsulta.data.antecedentesMedicamentoIds.map((m: Medicamento, i: number) => (
+                            <div key={i} className="med-item">
+                              <div className="med-item__head">
+                                <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
+                              </div>
+                              {(m.dosis || m.periodo) && (
+                                <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                  {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin medicamentos previos registrados" disabled />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="morb-card morb-card--success">
+                  <h3 className="morb-card__title">Diagnóstico de Consulta</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+                    <div className="morb-field">
+                      <label className="morb-field__label">Patologías Diagnósticas</label>
+                      {Array.isArray(viewConsulta.data?.diagnosticoPatologiaIds) && viewConsulta.data.diagnosticoPatologiaIds.length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.3rem" }}>
+                          {viewConsulta.data.diagnosticoPatologiaIds.map((id: string) => (
+                            <span key={id} style={{ padding: "0.35rem 0.75rem", background: "rgba(22,163,74,0.14)", color: "var(--color-success, #16a34a)", borderRadius: "100px", fontSize: "0.82rem", fontWeight: "600" }}>
+                              {patologiaNombre(id, patologias)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin patologías diagnosticadas" disabled />
+                      )}
+                    </div>
+
+                    <div className="morb-field">
+                      <label className="morb-field__label">Lesiones / Heridas</label>
+                      {Array.isArray(viewConsulta.data?.lesiones) && viewConsulta.data.lesiones.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", marginTop: "0.3rem" }}>
+                          {viewConsulta.data.lesiones.map((l: Lesion, idx: number) => (
+                            <div key={idx} style={{ padding: "0.5rem 0.75rem", background: "var(--bg-primary)", borderRadius: "8px", borderLeft: "3px solid var(--color-warning)" }}>
+                              <div style={{ fontWeight: "700", color: "var(--color-warning, #b45309)", fontSize: "0.82rem" }}>
+                                {tipoLesionNombre(l.tipoId, tiposLesion)} {l.zona ? `· (${l.zona})` : ""}
+                              </div>
+                              {l.estado && <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Estado: {ESTADO_LESION_LABELS[l.estado] || l.estado}</div>}
+                              {l.cura && <div style={{ fontSize: "0.75rem", color: "var(--text-primary)", marginTop: "2px" }}>Cura / Tratamiento: {l.cura}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin lesiones o heridas" disabled />
+                      )}
+                    </div>
+
+                    <div className="morb-field">
+                      <label className="morb-field__label">Medicamentos Diagnosticados (Receta)</label>
+                      {Array.isArray(viewConsulta.data?.diagnosticoMedicamentoIds) && viewConsulta.data.diagnosticoMedicamentoIds.length > 0 ? (
+                        <div className="med-items" style={{ marginTop: "0.3rem" }}>
+                          {viewConsulta.data.diagnosticoMedicamentoIds.map((m: Medicamento, i: number) => (
+                            <div key={i} className="med-item" style={{ borderLeft: "3px solid var(--color-success)" }}>
+                              <div className="med-item__head">
+                                <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
+                              </div>
+                              {(m.dosis || m.periodo) && (
+                                <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                  {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <input className="morb-control" type="text" value="Sin medicamentos en receta" disabled />
+                      )}
+                    </div>
+
+                    <div className="morb-field">
+                      <label className="morb-field__label">Notas Médicas / Observaciones</label>
+                      <textarea className="morb-control" value={viewConsulta.data?.notasDoctor || ""} disabled placeholder="Sin notas u observaciones" style={{ minHeight: "60px", resize: "none" }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="morb-actions">
+                <button type="button" className="morb-btn morb-btn--ghost" onClick={closeView}>Cerrar</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
