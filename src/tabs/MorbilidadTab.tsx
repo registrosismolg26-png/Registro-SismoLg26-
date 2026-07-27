@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useAppContext } from "@/context/AppContext";
 import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
@@ -1506,7 +1507,7 @@ export default function MorbilidadTab() {
       )}
 
       {/* Modal: VER DETALLE de consulta en solo lectura (mismo ancho y layout que crear/editar) */}
-      {viewConsulta && (
+      {viewConsulta && typeof window !== "undefined" && createPortal(
         <div className={`modal-overlay${viewClosing ? " modal-overlay--closing" : ""}`} onClick={closeView}>
           <div className={`modal-content modal-content--morb${viewClosing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1554,10 +1555,10 @@ export default function MorbilidadTab() {
                     <label className="morb-field__label">Edad (años)</label>
                     <input className="morb-control" type="text" value={(() => {
                       let fn = viewConsulta.data?.fechaNacimiento || "";
-                      if (!fn) {
+                      if (!fn && registros) {
                         const ced = String(viewConsulta.data?.cedula || "").replace(/\D/g, "");
                         const reg = registros.find((r: any) => (viewConsulta.data?.registroId && r.id === viewConsulta.data.registroId) || (r.cedula || "").replace(/\D/g, "") === ced);
-                        if (reg) fn = ymdFromISO(reg.fechaNacimiento);
+                        if (reg && reg.fechaNacimiento) fn = reg.fechaNacimiento;
                       }
                       return fn ? computeEdad(fn) : viewConsulta.data?.edad != null ? String(viewConsulta.data.edad) : "—";
                     })()} disabled />
@@ -1708,7 +1709,8 @@ export default function MorbilidadTab() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal: CONFIRMAR eliminación de consulta (solo AdminMedico + Master) */}

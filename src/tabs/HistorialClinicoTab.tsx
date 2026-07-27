@@ -10,6 +10,7 @@
 // cruzando con el censo (registros) cuando falta demografía. 100% pill/responsive.
 
 import { useMemo, useState, useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useAppContext } from "@/context/AppContext";
 import { patologiaNombre, medLabel, tipoLesionNombre, formatCedulaDisplay, initialsOf } from "@/lib/helpers";
 import { ESTADO_LESION_LABELS } from "@/lib/constants";
@@ -293,7 +294,7 @@ export default function HistorialClinicoTab() {
       )}
 
       {/* Modal: VER DETALLE de consulta en solo lectura (consistente con Morbilidad) */}
-      {viewConsulta && (
+      {viewConsulta && typeof window !== "undefined" && createPortal(
         <div className={`modal-overlay${viewClosing ? " modal-overlay--closing" : ""}`} onClick={closeView}>
           <div className={`modal-content modal-content--morb${viewClosing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -483,7 +484,8 @@ export default function HistorialClinicoTab() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
