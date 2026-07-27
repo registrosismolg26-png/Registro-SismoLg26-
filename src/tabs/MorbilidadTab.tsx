@@ -413,7 +413,7 @@ export default function MorbilidadTab() {
     try {
       await exportMorbilidadExcel({
         consultas: exportItems,
-        patologias, predefinedMedicamentos, tiposLesion,
+        patologias, predefinedMedicamentos, tiposLesion, registros,
         refugio: effectiveRefugio || currentUser?.campamentoTransitorio || "",
         generadoEn: new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
         filtros: filtrosTxt,

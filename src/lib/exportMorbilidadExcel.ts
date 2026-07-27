@@ -31,6 +31,7 @@ interface ExportOpts {
   patologias: Patologia[];
   predefinedMedicamentos: MedicamentoPredefinido[];
   tiposLesion: TipoLesion[];
+  registros?: any[];  // censo local del campamento para cruce demográfico
   refugio: string;
   generadoEn: string; // fecha-hora legible (se pasa desde el componente)
   filtros?: string;   // descripción legible de los filtros activos (vacío = sin filtros)
@@ -189,34 +190,37 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     pageSetup: { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
-  // Anchos calculados para que el contenido quepa cómodamente en las celdas sin desbordar
+  // 4 Columnas simétricas y anchas para que los textos, nombres médicos y números quepan perfectamente sin cortar
   ws2.columns = [
-    { width: 34 }, // A: Indicadores / Grupos de edad / Patologías / Medicamentos
-    { width: 18 }, // B: Femenino / Casos / Cantidad
-    { width: 18 }, // C: Masculino / Casos / Detalle
-    { width: 18 }, // D: Total / Porcentaje
-    { width: 18 }, // E: % del total / Detalle
+    { width: 42 }, // A: Indicador / Grupo de edad / Tipo de atención / Diagnóstico registrado / Medicamento prescrito
+    { width: 22 }, // B: Femenino / Cantidad / Casos / Prescripciones
+    { width: 22 }, // C: Masculino / Detalle / % del total
+    { width: 24 }, // D: Total / Referencia / Leyenda
   ];
 
-  // Membrete Hoja 2 (filas 1-4)
-  ws2.mergeCells("C1:E1");
-  ws2.mergeCells("C2:E2");
-  ws2.mergeCells("C3:E3");
-  ws2.mergeCells("C4:E4");
-  ws2.mergeCells("A1:B4");
-  const t1_2 = ws2.getCell("C1");
+  // Membrete Hoja 2 (filas 1-4). Logo en A1:A4, Textos en B1:D4 para evitar corte por la derecha.
+  ws2.mergeCells("B1:D1");
+  ws2.mergeCells("B2:D2");
+  ws2.mergeCells("B3:D3");
+  ws2.mergeCells("B4:D4");
+  ws2.mergeCells("A1:A4");
+
+  const t1_2 = ws2.getCell("B1");
   t1_2.value = "GOBERNACIÓN DEL ESTADO LA GUAIRA";
   t1_2.font = { name: "Arial", size: 15, bold: true, color: { argb: BRAND } };
   t1_2.alignment = { vertical: "middle", horizontal: "left" };
-  const t2_2 = ws2.getCell("C2");
+
+  const t2_2 = ws2.getCell("B2");
   t2_2.value = "Campamentos Transitorios 2026 · Resumen de Balance de Salud";
   t2_2.font = { name: "Arial", size: 11, bold: true, color: { argb: "374151" } };
   t2_2.alignment = { vertical: "middle", horizontal: "left" };
-  const t3_2 = ws2.getCell("C3");
+
+  const t3_2 = ws2.getCell("B3");
   t3_2.value = `Campamento: ${refugio || "—"}   ·   Generado: ${generadoEn}   ·   Muestra: ${consultas.length} consultas`;
   t3_2.font = { name: "Arial", size: 9, color: { argb: "6B7280" } };
   t3_2.alignment = { vertical: "middle", horizontal: "left" };
-  const t4_2 = ws2.getCell("C4");
+
+  const t4_2 = ws2.getCell("B4");
   t4_2.value = filtrosTxt
     ? { richText: [
         { text: "Alcance y Filtros:  ", font: { name: "Arial", size: 9, bold: true, color: { argb: BRAND } } },
@@ -227,7 +231,7 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
 
   for (let r = 1; r <= 4; r++) {
     ws2.getRow(r).height = r === 1 ? 24 : r === 4 ? 16 : 18;
-    for (let c = 1; c <= 5; c++) {
+    for (let c = 1; c <= 4; c++) {
       const cell = ws2.getRow(r).getCell(c);
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND_LIGHT } };
       if (r === 4) cell.border = { bottom: { style: "medium", color: { argb: BRAND } } };
@@ -235,56 +239,78 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
   }
 
   if (logoImgId) {
-    try { ws2.addImage(logoImgId, { tl: { col: 0.25, row: 0.2 } as any, ext: { width: 92, height: 60 } }); } catch {}
+    try { ws2.addImage(logoImgId, { tl: { col: 0.15, row: 0.2 } as any, ext: { width: 92, height: 60 } }); } catch {}
   }
 
-  const BORDER_ALL = {
-    top: { style: "thin" as const, color: { argb: "CBD5E1" } },
-    bottom: { style: "thin" as const, color: { argb: "CBD5E1" } },
-    left: { style: "thin" as const, color: { argb: "CBD5E1" } },
-    right: { style: "thin" as const, color: { argb: "CBD5E1" } },
-  };
-  const BORDER_HEAD = {
-    top: { style: "thin" as const, color: { argb: "94A3B8" } },
-    bottom: { style: "medium" as const, color: { argb: "64748B" } },
-    left: { style: "thin" as const, color: { argb: "CBD5E1" } },
-    right: { style: "thin" as const, color: { argb: "CBD5E1" } },
-  };
-  const BORDER_TOTAL = {
+  // Estilos de borde negros/grises nítidos e innegociables para definir cada cuadro y celda
+  const BORDER_BOX = {
     top: { style: "thin" as const, color: { argb: "64748B" } },
-    bottom: { style: "double" as const, color: { argb: "1E293B" } },
-    left: { style: "thin" as const, color: { argb: "CBD5E1" } },
-    right: { style: "thin" as const, color: { argb: "CBD5E1" } },
+    bottom: { style: "thin" as const, color: { argb: "64748B" } },
+    left: { style: "thin" as const, color: { argb: "64748B" } },
+    right: { style: "thin" as const, color: { argb: "64748B" } },
+  };
+  const BORDER_HEAD_BOX = {
+    top: { style: "medium" as const, color: { argb: "475569" } },
+    bottom: { style: "medium" as const, color: { argb: "1E3A8A" } },
+    left: { style: "thin" as const, color: { argb: "64748B" } },
+    right: { style: "thin" as const, color: { argb: "64748B" } },
+  };
+  const BORDER_TOTAL_BOX = {
+    top: { style: "thin" as const, color: { argb: "64748B" } },
+    bottom: { style: "double" as const, color: { argb: "0F172A" } },
+    left: { style: "thin" as const, color: { argb: "64748B" } },
+    right: { style: "thin" as const, color: { argb: "64748B" } },
+  };
+  const BORDER_SECTION = {
+    top: { style: "medium" as const, color: { argb: "1E3A8A" } },
+    bottom: { style: "medium" as const, color: { argb: "1E3A8A" } },
+    left: { style: "medium" as const, color: { argb: "1E3A8A" } },
+    right: { style: "medium" as const, color: { argb: "1E3A8A" } },
   };
 
   const styleRowCells = (r: any, fill: string, border: any) => {
-    for (let c = 1; c <= 5; c++) {
+    for (let c = 1; c <= 4; c++) {
       const cell = r.getCell(c);
       if (fill) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
       if (border) cell.border = border;
     }
   };
 
-  // Cálculo de métricas del Balance de Salud para la muestra exportada
-  const patients = new Map<string, { genero: string; edad: number | null; conPat: boolean; embarazada: boolean }>();
-  let totalMedsRecetados = 0;
-  const patCount = new Map<string, number>();
-  const medMap = new Map<string, number>();
-  const tipoCount: Record<string, number> = { REFUGIADO: 0, APOYO_INSTITUCIONAL: 0, APOYO_COMUNITARIO: 0, EMERGENCIA: 0 };
+  // Cruce de datos con el censo local del campamento para fidelidad 100% con BalanceTab.tsx
+  const onlyDigits = (s: string) => (s || "").replace(/\D/g, "");
+  const edadFromISO = (iso?: string): number | null => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    const t = new Date();
+    let age = t.getFullYear() - d.getFullYear();
+    const m = t.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
+    return age >= 0 ? age : null;
+  };
+
+  const regByCedula = new Map<string, any>();
+  (opts.registros || []).forEach((r: any) => regByCedula.set(onlyDigits(r.cedula), r));
 
   const embarazoIds = new Set(
     patologias.filter((p: any) => (p.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes("embarazo")).map((p: any) => p.id)
   );
   const hasEmbarazo = (ids: any) => Array.isArray(ids) && ids.some((id: string) => embarazoIds.has(id));
 
+  const patients = new Map<string, { genero: string; edad: number | null; conPat: boolean; embarazada: boolean }>();
+  let totalMedsPrescritos = 0;
+  const patCount = new Map<string, number>();
+  const medMap = new Map<string, number>();
+  const tipoCount: Record<string, number> = { REFUGIADO: 0, APOYO_INSTITUCIONAL: 0, APOYO_COMUNITARIO: 0, EMERGENCIA: 0 };
+
   consultas.forEach((c) => {
     const d = c.data || {};
-    const ced = (d.cedula || d.registroId || String(c.id)).replace(/\D/g, "") || String(c.id);
+    const ced = onlyDigits(d.cedula || d.registroId || String(c.id)) || String(c.id);
     const diagPat: string[] = Array.isArray(d.diagnosticoPatologiaIds) ? d.diagnosticoPatologiaIds : [];
     const antPat: string[] = Array.isArray(d.antecedentesPatologiaIds) ? d.antecedentesPatologiaIds : [];
     const diagMeds: any[] = Array.isArray(d.diagnosticoMedicamentoIds) ? d.diagnosticoMedicamentoIds : [];
 
-    totalMedsRecetados += diagMeds.length;
+    totalMedsPrescritos += diagMeds.length;
     diagPat.forEach((id: string) => {
       const p = patologias.find((item) => item.id === id);
       const nombre = p ? p.nombre : "Otra patología";
@@ -306,11 +332,14 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     const tp = d.tipoPaciente || "REFUGIADO";
     tipoCount[tp] = (tipoCount[tp] ?? 0) + 1;
 
-    const genero = (d.genero || "").toUpperCase();
+    const reg = regByCedula.get(ced);
+    const genero = (d.genero || reg?.genero || "").toUpperCase();
     let edad: number | null = d.edad != null && d.edad !== "" ? Number(d.edad) : null;
     if (isNaN(edad as any)) edad = null;
-    const conPat = diagPat.length > 0 || antPat.length > 0;
-    const embarazada = d.embarazo === "SI" || hasEmbarazo(antPat) || hasEmbarazo(diagPat);
+    if (edad == null && reg) edad = reg.edad ?? edadFromISO(reg.fechaNacimiento);
+
+    const conPat = diagPat.length > 0 || antPat.length > 0 || (reg && Array.isArray(reg.patologiaIds) && reg.patologiaIds.length > 0);
+    const embarazada = d.embarazo === "SI" || reg?.embarazo === "SI" || hasEmbarazo(antPat) || hasEmbarazo(diagPat) || (reg && hasEmbarazo(reg.patologiaIds));
 
     if (!patients.has(ced)) patients.set(ced, { genero, edad, conPat, embarazada });
     else {
@@ -334,41 +363,41 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
   let currRow = 6;
 
   // ── SECCIÓN 1: INDICADORES DE MORBILIDAD (BALANCE DE SALUD) ──
-  ws2.mergeCells(`A${currRow}:E${currRow}`);
+  ws2.mergeCells(`A${currRow}:D${currRow}`);
   const sec1 = ws2.getCell(`A${currRow}`);
   sec1.value = "1. INDICADORES DE MORBILIDAD";
   sec1.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
-  sec1.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
   sec1.alignment = { vertical: "middle", horizontal: "left" };
+  styleRowCells(ws2.getRow(currRow), BRAND, BORDER_SECTION);
   ws2.getRow(currRow).height = 26;
   currRow++;
 
   const rKpiHead = ws2.getRow(currRow);
-  ws2.mergeCells(`C${currRow}:E${currRow}`);
-  rKpiHead.getCell(1).value = "INDICADOR DE MORBILIDAD";
-  rKpiHead.getCell(2).value = "CANTIDAD";
-  rKpiHead.getCell(3).value = "DETALLE / PORCENTAJE";
+  ws2.mergeCells(`C${currRow}:D${currRow}`);
+  rKpiHead.getCell(1).value = "INDICADOR GENERAL";
+  rKpiHead.getCell(2).value = "VALOR";
+  rKpiHead.getCell(3).value = "DETALLE / REFERENCIA";
   rKpiHead.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
   rKpiHead.getCell(2).alignment = { vertical: "middle", horizontal: "center" };
   rKpiHead.getCell(3).alignment = { vertical: "middle", horizontal: "left" };
   rKpiHead.font = { name: "Arial", size: 9, bold: true, color: { argb: "1E3A8A" } };
-  styleRowCells(rKpiHead, "E2E8F0", BORDER_HEAD);
+  styleRowCells(rKpiHead, "E2E8F0", BORDER_HEAD_BOX);
   rKpiHead.height = 22;
   currRow++;
 
   const kpisData = [
-    ["Consultas registradas", consultas.length, "100.0% de las atenciones exportadas"],
-    ["Pacientes atendidos", patients.size, `${((patients.size / totalCons) * 100).toFixed(1)}% (cédulas o pacientes únicos)`],
-    ["Pacientes con patología", conPatCount, `${((conPatCount / (patients.size || 1)) * 100).toFixed(1)}% del total de pacientes`],
+    ["Consultas registradas", consultas.length, "100.0% de las atenciones en la muestra"],
+    ["Pacientes atendidos", patients.size, `${((patients.size / totalCons) * 100).toFixed(1)}% (pacientes únicos por cédula/registro)`],
+    ["Pacientes con patología", conPatCount, `${((conPatCount / (patients.size || 1)) * 100).toFixed(1)}% del total de pacientes atendidos`],
     ["Mujeres embarazadas", embarazadasCount, `${((embarazadasCount / totalCons) * 100).toFixed(1)}% de consultas (control prenatal)`],
-    ["Medicamentos recetados", totalMedsRecetados, "Total de fórmulas farmacológicas prescritas"],
-    ["Patologías distintas", patCount.size, "Variedad de diagnósticos registrados"],
+    ["Medicamentos prescritos en fórmulas", totalMedsPrescritos, "Total de prescripciones farmacológicas en las consultas"],
+    ["Patologías distintas", patCount.size, "Variedad de diagnósticos médicos registrados"],
     ["Edad promedio", promedioEdad ? `${promedioEdad} años` : "—", "Promedio general de edad de los pacientes"],
   ];
 
   kpisData.forEach(([label, val, det], idx) => {
     const r = ws2.getRow(currRow);
-    ws2.mergeCells(`C${currRow}:E${currRow}`);
+    ws2.mergeCells(`C${currRow}:D${currRow}`);
     r.getCell(1).value = label;
     r.getCell(2).value = val;
     r.getCell(3).value = det;
@@ -376,24 +405,24 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     r.getCell(2).alignment = { vertical: "middle", horizontal: "center" };
     r.getCell(3).alignment = { vertical: "middle", horizontal: "left" };
     r.font = { name: "Arial", size: 9, bold: idx === 0 || idx === 1, color: { argb: idx === 3 && embarazadasCount > 0 ? "DB2777" : "1F2937" } };
-    styleRowCells(r, idx % 2 === 1 ? ZEBRA : "FFFFFF", BORDER_ALL);
+    styleRowCells(r, idx % 2 === 1 ? ZEBRA : "FFFFFF", BORDER_BOX);
     r.height = 20;
     currRow++;
   });
 
   currRow++; // espaciador
 
-  // ── SECCIÓN 2: DISTRIBUCIÓN POR EDAD Y GÉNERO (ADJUNTO 1) ──
-  ws2.mergeCells(`A${currRow}:E${currRow}`);
+  // ── SECCIÓN 2: DISTRIBUCIÓN POR EDAD Y GÉNERO (TABLA EXACTA ADJUNTO 1 - 4 COLUMNAS) ──
+  ws2.mergeCells(`A${currRow}:D${currRow}`);
   const sec2 = ws2.getCell(`A${currRow}`);
   sec2.value = "2. DISTRIBUCIÓN POR EDAD Y GÉNERO";
   sec2.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
-  sec2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
   sec2.alignment = { vertical: "middle", horizontal: "left" };
+  styleRowCells(ws2.getRow(currRow), BRAND, BORDER_SECTION);
   ws2.getRow(currRow).height = 26;
   currRow++;
 
-  const demoHeaders = ["GRUPO DE EDAD", "FEMENINO", "MASCULINO", "TOTAL", "% DEL TOTAL"];
+  const demoHeaders = ["GRUPO DE EDAD", "FEMENINO", "MASCULINO", "TOTAL"];
   const rDemoHead = ws2.getRow(currRow);
   demoHeaders.forEach((h, idx) => {
     const c = rDemoHead.getCell(idx + 1);
@@ -401,7 +430,7 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     c.alignment = { vertical: "middle", horizontal: idx === 0 ? "left" : "center" };
   });
   rDemoHead.font = { name: "Arial", size: 9, bold: true, color: { argb: "1E3A8A" } };
-  styleRowCells(rDemoHead, "E2E8F0", BORDER_HEAD);
+  styleRowCells(rDemoHead, "E2E8F0", BORDER_HEAD_BOX);
   rDemoHead.height = 24;
   currRow++;
 
@@ -415,39 +444,32 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     "Adulto Mayor (60+)",
   ];
 
-  const getGrupoIdx = (c: any): number => {
-    const d = c.data || {};
-    let ageNum = -1;
-    if (d.fechaNacimiento) {
-      const fn = new Date(d.fechaNacimiento.length === 10 ? d.fechaNacimiento + "T00:00:00" : d.fechaNacimiento);
-      if (!isNaN(fn.getTime())) {
-        const t = new Date(d.fechaConsulta || c.createdAt || Date.now());
-        ageNum = t.getFullYear() - fn.getFullYear();
-        const m = t.getMonth() - fn.getMonth();
-        if (m < 0 || (m === 0 && t.getDate() < fn.getDate())) ageNum--;
-      }
-    }
-    if (ageNum < 0 && d.edad !== undefined && d.edad !== null && d.edad !== "") {
-      const s = String(d.edad).trim();
-      if (s.toLowerCase().includes("mes") || s === "<1" || s === "0") return 0;
-      const n = parseInt(s, 10);
-      if (!isNaN(n)) ageNum = n;
-    }
-    if (ageNum < 0) return 5; // fallback Adulto
-    if (ageNum < 1) return 0;
-    if (ageNum <= 2) return 1;
-    if (ageNum <= 5) return 2;
-    if (ageNum <= 11) return 3;
-    if (ageNum <= 17) return 4;
+  const getGrupoIdx = (edadNum: number | null): number => {
+    if (edadNum == null || isNaN(edadNum)) return -1;
+    if (edadNum < 1) return 0;
+    if (edadNum <= 2) return 1;
+    if (edadNum <= 5) return 2;
+    if (edadNum <= 11) return 3;
+    if (edadNum <= 17) return 4;
+    if (edadNum <= 59) return 5;
     return 6;
   };
 
   const matrix = Array.from({ length: 7 }, () => [0, 0]); // [fem, masc]
+  let sinEdadFem = 0, sinEdadMasc = 0;
+
   consultas.forEach((c) => {
-    const gen = (c.data?.genero || "").toUpperCase();
-    const gIdx = gen === "FEMENINO" ? 0 : 1;
-    const eIdx = getGrupoIdx(c);
-    matrix[eIdx][gIdx]++;
+    const d = c.data || {};
+    const ced = onlyDigits(d.cedula || d.registroId || String(c.id)) || String(c.id);
+    const p = patients.get(ced);
+    const gen = (p?.genero || d.genero || "").toUpperCase();
+    const gIdx = gen === "FEMENINO" ? 0 : gen === "MASCULINO" ? 1 : -1;
+    if (gIdx !== -1) {
+      const eIdx = getGrupoIdx(p?.edad ?? null);
+      if (eIdx !== -1) matrix[eIdx][gIdx]++;
+      else if (gIdx === 0) sinEdadFem++;
+      else sinEdadMasc++;
+    }
   });
 
   let totalFem = 0;
@@ -459,89 +481,105 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     const tot = fem + masc;
     totalFem += fem;
     totalMasc += masc;
-    const pct = `${((tot / totalCons) * 100).toFixed(1)}%`;
 
     const r = ws2.getRow(currRow);
     r.getCell(1).value = grupoLabel;
     r.getCell(2).value = fem;
     r.getCell(3).value = masc;
     r.getCell(4).value = tot;
-    r.getCell(5).value = pct;
 
     r.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
     r.getCell(2).alignment = { vertical: "middle", horizontal: "center" };
     r.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
     r.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
-    r.getCell(5).alignment = { vertical: "middle", horizontal: "center" };
 
     r.getCell(1).font = { name: "Arial", size: 9, bold: true, color: { argb: "1F2937" } };
     r.getCell(2).font = { name: "Arial", size: 9, bold: fem > 0, color: { argb: fem > 0 ? "831843" : "9CA3AF" } };
     r.getCell(3).font = { name: "Arial", size: 9, bold: masc > 0, color: { argb: masc > 0 ? "1E3A8A" : "9CA3AF" } };
     r.getCell(4).font = { name: "Arial", size: 9, bold: true, color: { argb: tot > 0 ? "0F172A" : "9CA3AF" } };
-    r.getCell(5).font = { name: "Arial", size: 9, color: { argb: "475569" } };
 
     r.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFF" } };
-    r.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: fem > 0 ? "FCE7F3" : "FDF2F8" } };
-    r.getCell(3).fill = { type: "pattern", pattern: "solid", fgColor: { argb: masc > 0 ? "DBEAFE" : "EFF6FF" } };
-    r.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F1F5F9" } };
-    r.getCell(5).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFF" } };
+    r.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2F8" } }; // Rosado pastel suave Adjunto 1
+    r.getCell(3).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF6FF" } }; // Azul celeste pastel Adjunto 1
+    r.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } }; // Gris perla Total
 
-    for (let c = 1; c <= 5; c++) r.getCell(c).border = BORDER_ALL;
+    for (let c = 1; c <= 4; c++) r.getCell(c).border = BORDER_BOX;
     r.height = 22;
     currRow++;
   });
 
-  // Fila Total de la tabla demográfica
+  // Si hay casos sin edad definida, los mostramos para que sumen el total exacto del campamento
+  if (sinEdadFem > 0 || sinEdadMasc > 0) {
+    const totSin = sinEdadFem + sinEdadMasc;
+    totalFem += sinEdadFem;
+    totalMasc += sinEdadMasc;
+    const rSin = ws2.getRow(currRow);
+    rSin.getCell(1).value = "Sin edad registrada";
+    rSin.getCell(2).value = sinEdadFem;
+    rSin.getCell(3).value = sinEdadMasc;
+    rSin.getCell(4).value = totSin;
+    rSin.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
+    rSin.getCell(2).alignment = { vertical: "middle", horizontal: "center" };
+    rSin.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
+    rSin.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
+    rSin.getCell(1).font = { name: "Arial", size: 9, italic: true, color: { argb: "6B7280" } };
+    rSin.getCell(2).font = { name: "Arial", size: 9, bold: sinEdadFem > 0, color: { argb: sinEdadFem > 0 ? "831843" : "9CA3AF" } };
+    rSin.getCell(3).font = { name: "Arial", size: 9, bold: sinEdadMasc > 0, color: { argb: sinEdadMasc > 0 ? "1E3A8A" : "9CA3AF" } };
+    rSin.getCell(4).font = { name: "Arial", size: 9, bold: true, color: { argb: "0F172A" } };
+    rSin.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFF" } };
+    rSin.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2F8" } };
+    rSin.getCell(3).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF6FF" } };
+    rSin.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+    for (let c = 1; c <= 4; c++) rSin.getCell(c).border = BORDER_BOX;
+    rSin.height = 22;
+    currRow++;
+  }
+
+  // Fila Total de la tabla demográfica (4 columnas exactas)
   const rTotDemo = ws2.getRow(currRow);
   rTotDemo.getCell(1).value = "Total";
   rTotDemo.getCell(2).value = totalFem;
   rTotDemo.getCell(3).value = totalMasc;
   rTotDemo.getCell(4).value = totalFem + totalMasc;
-  rTotDemo.getCell(5).value = "100.0%";
 
   rTotDemo.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
   rTotDemo.getCell(2).alignment = { vertical: "middle", horizontal: "center" };
   rTotDemo.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
   rTotDemo.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
-  rTotDemo.getCell(5).alignment = { vertical: "middle", horizontal: "center" };
 
   rTotDemo.getCell(1).font = { name: "Arial", size: 10, bold: true, color: { argb: "0F172A" } };
   rTotDemo.getCell(2).font = { name: "Arial", size: 10, bold: true, color: { argb: "831843" } };
   rTotDemo.getCell(3).font = { name: "Arial", size: 10, bold: true, color: { argb: "1E3A8A" } };
   rTotDemo.getCell(4).font = { name: "Arial", size: 10, bold: true, color: { argb: "0F172A" } };
-  rTotDemo.getCell(5).font = { name: "Arial", size: 10, bold: true, color: { argb: "0F172A" } };
 
-  rTotDemo.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "E2E8F0" } };
-  rTotDemo.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FBCFE8" } };
-  rTotDemo.getCell(3).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "BFDBFE" } };
-  rTotDemo.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "CBD5E1" } };
-  rTotDemo.getCell(5).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "E2E8F0" } };
+  rTotDemo.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } };
+  rTotDemo.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFBCFE8" } };
+  rTotDemo.getCell(3).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFBFDBFE" } };
+  rTotDemo.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFCBD5E1" } };
 
-  for (let c = 1; c <= 5; c++) rTotDemo.getCell(c).border = BORDER_TOTAL;
+  for (let c = 1; c <= 4; c++) rTotDemo.getCell(c).border = BORDER_TOTAL_BOX;
   rTotDemo.height = 24;
   currRow += 2; // espaciador
 
   // ── SECCIÓN 3: ATENCIONES POR TIPO DE PACIENTE ──
-  ws2.mergeCells(`A${currRow}:E${currRow}`);
+  ws2.mergeCells(`A${currRow}:D${currRow}`);
   const sec3 = ws2.getCell(`A${currRow}`);
   sec3.value = "3. ATENCIONES POR TIPO DE PACIENTE";
   sec3.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
-  sec3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
   sec3.alignment = { vertical: "middle", horizontal: "left" };
+  styleRowCells(ws2.getRow(currRow), BRAND, BORDER_SECTION);
   ws2.getRow(currRow).height = 26;
   currRow++;
 
   const rTipoHead = ws2.getRow(currRow);
   ws2.mergeCells(`A${currRow}:B${currRow}`);
-  ws2.mergeCells(`D${currRow}:E${currRow}`);
+  ws2.mergeCells(`C${currRow}:D${currRow}`);
   rTipoHead.getCell(1).value = "TIPO DE ATENCIÓN";
-  rTipoHead.getCell(3).value = "CANTIDAD";
-  rTipoHead.getCell(4).value = "% DEL TOTAL";
+  rTipoHead.getCell(3).value = "CANTIDAD DE CONSULTAS";
   rTipoHead.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
   rTipoHead.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
-  rTipoHead.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
   rTipoHead.font = { name: "Arial", size: 9, bold: true, color: { argb: "1E3A8A" } };
-  styleRowCells(rTipoHead, "E2E8F0", BORDER_HEAD);
+  styleRowCells(rTipoHead, "E2E8F0", BORDER_HEAD_BOX);
   rTipoHead.height = 22;
   currRow++;
 
@@ -555,139 +593,157 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
   tiposData.forEach(([label, cnt], idx) => {
     const r = ws2.getRow(currRow);
     ws2.mergeCells(`A${currRow}:B${currRow}`);
-    ws2.mergeCells(`D${currRow}:E${currRow}`);
+    ws2.mergeCells(`C${currRow}:D${currRow}`);
     r.getCell(1).value = label;
     r.getCell(3).value = cnt;
-    r.getCell(4).value = `${((Number(cnt) / totalCons) * 100).toFixed(1)}%`;
     r.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
     r.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
-    r.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
     r.font = { name: "Arial", size: 9, bold: idx === 0 || Number(cnt) > 0, color: { argb: idx === 3 && Number(cnt) > 0 ? "DC2626" : "1F2937" } };
-    styleRowCells(r, idx % 2 === 1 ? ZEBRA : "FFFFFF", BORDER_ALL);
+    styleRowCells(r, idx % 2 === 1 ? ZEBRA : "FFFFFF", BORDER_BOX);
     r.height = 20;
     currRow++;
   });
 
   const rTotTipo = ws2.getRow(currRow);
   ws2.mergeCells(`A${currRow}:B${currRow}`);
-  ws2.mergeCells(`D${currRow}:E${currRow}`);
-  rTotTipo.getCell(1).value = "Total de Atenciones";
+  ws2.mergeCells(`C${currRow}:D${currRow}`);
+  rTotTipo.getCell(1).value = "Total de Atenciones Registradas";
   rTotTipo.getCell(3).value = totalCons;
-  rTotTipo.getCell(4).value = "100.0%";
   rTotTipo.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
   rTotTipo.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
-  rTotTipo.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
   rTotTipo.font = { name: "Arial", size: 10, bold: true, color: { argb: "0F172A" } };
-  styleRowCells(rTotTipo, "E2E8F0", BORDER_TOTAL);
+  styleRowCells(rTotTipo, "E2E8F0", BORDER_TOTAL_BOX);
   rTotTipo.height = 24;
   currRow += 2; // espaciador
 
-  // ── SECCIÓN 4: PATOLOGÍAS DIAGNOSTICADAS MÁS FRECUENTES (BALANCE DE SALUD) ──
-  ws2.mergeCells(`A${currRow}:E${currRow}`);
+  // ── SECCIÓN 4: DIAGNÓSTICOS REGISTRADOS (TODOS - SIN RANKING) ──
+  ws2.mergeCells(`A${currRow}:D${currRow}`);
   const sec4 = ws2.getCell(`A${currRow}`);
-  sec4.value = "4. PATOLOGÍAS MÁS FRECUENTES (RANKING)";
+  sec4.value = "4. DIAGNÓSTICOS REGISTRADOS (TODOS)";
   sec4.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
-  sec4.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
   sec4.alignment = { vertical: "middle", horizontal: "left" };
+  styleRowCells(ws2.getRow(currRow), BRAND, BORDER_SECTION);
   ws2.getRow(currRow).height = 26;
   currRow++;
 
   const rPatHead = ws2.getRow(currRow);
   ws2.mergeCells(`A${currRow}:B${currRow}`);
-  ws2.mergeCells(`D${currRow}:E${currRow}`);
-  rPatHead.getCell(1).value = "PATOLOGÍA DIAGNOSTICADA";
+  rPatHead.getCell(1).value = "DIAGNÓSTICO REGISTRADO";
   rPatHead.getCell(3).value = "CASOS";
   rPatHead.getCell(4).value = "% DE INCIDENCIA";
   rPatHead.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
   rPatHead.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
   rPatHead.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
   rPatHead.font = { name: "Arial", size: 9, bold: true, color: { argb: "1E3A8A" } };
-  styleRowCells(rPatHead, "E2E8F0", BORDER_HEAD);
+  styleRowCells(rPatHead, "E2E8F0", BORDER_HEAD_BOX);
   rPatHead.height = 22;
   currRow++;
 
-  const topPats = Array.from(patCount.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  if (topPats.length === 0) {
+  const allPats = Array.from(patCount.entries()).sort((a, b) => b[1] - a[1]);
+  if (allPats.length === 0) {
     const r = ws2.getRow(currRow);
-    ws2.mergeCells(`A${currRow}:E${currRow}`);
-    r.getCell(1).value = "Sin patologías diagnosticadas en el período analizado.";
+    ws2.mergeCells(`A${currRow}:D${currRow}`);
+    r.getCell(1).value = "Sin diagnósticos de patología registrados en las consultas de esta muestra.";
     r.getCell(1).font = { name: "Arial", size: 9, italic: true, color: { argb: "6B7280" } };
     r.getCell(1).alignment = { vertical: "middle", horizontal: "center" };
-    styleRowCells(r, "FFFFFF", BORDER_ALL);
+    styleRowCells(r, "FFFFFF", BORDER_BOX);
     r.height = 22;
     currRow++;
   } else {
     let totalDiagPats = Array.from(patCount.values()).reduce((a, b) => a + b, 0) || 1;
-    topPats.forEach(([nombre, cnt], idx) => {
+    allPats.forEach(([nombre, cnt], idx) => {
       const r = ws2.getRow(currRow);
       ws2.mergeCells(`A${currRow}:B${currRow}`);
-      ws2.mergeCells(`D${currRow}:E${currRow}`);
       r.getCell(1).value = `${idx + 1}. ${nombre}`;
       r.getCell(3).value = cnt;
       r.getCell(4).value = `${((cnt / totalDiagPats) * 100).toFixed(1)}%`;
       r.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
       r.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
       r.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
-      r.font = { name: "Arial", size: 9, bold: idx < 3, color: { argb: "1F2937" } };
-      styleRowCells(r, idx % 2 === 1 ? ZEBRA : "FFFFFF", BORDER_ALL);
+      r.font = { name: "Arial", size: 9, color: { argb: "1F2937" } };
+      styleRowCells(r, idx % 2 === 1 ? ZEBRA : "FFFFFF", BORDER_BOX);
       r.height = 20;
       currRow++;
     });
+
+    const rTotPat = ws2.getRow(currRow);
+    ws2.mergeCells(`A${currRow}:B${currRow}`);
+    rTotPat.getCell(1).value = "Total de Casos Diagnosticados";
+    rTotPat.getCell(3).value = totalDiagPats;
+    rTotPat.getCell(4).value = "100.0%";
+    rTotPat.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
+    rTotPat.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
+    rTotPat.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
+    rTotPat.font = { name: "Arial", size: 10, bold: true, color: { argb: "0F172A" } };
+    styleRowCells(rTotPat, "E2E8F0", BORDER_TOTAL_BOX);
+    rTotPat.height = 24;
+    currRow++;
   }
 
   currRow += 2; // espaciador
 
-  // ── SECCIÓN 5: MEDICAMENTOS MÁS RECETADOS (BALANCE DE SALUD) ──
-  ws2.mergeCells(`A${currRow}:E${currRow}`);
+  // ── SECCIÓN 5: MEDICAMENTOS Y TRATAMIENTOS PRESCRITOS EN FÓRMULAS (TODOS - SIN RANKING NI PALABRAS DE ENTREGA) ──
+  ws2.mergeCells(`A${currRow}:D${currRow}`);
   const sec5 = ws2.getCell(`A${currRow}`);
-  sec5.value = "5. MEDICAMENTOS Y TRATAMIENTOS MÁS RECETADOS";
+  sec5.value = "5. MEDICAMENTOS Y TRATAMIENTOS PRESCRITOS EN FÓRMULAS (TODOS)";
   sec5.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
-  sec5.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
   sec5.alignment = { vertical: "middle", horizontal: "left" };
+  styleRowCells(ws2.getRow(currRow), BRAND, BORDER_SECTION);
   ws2.getRow(currRow).height = 26;
   currRow++;
 
   const rMedHead = ws2.getRow(currRow);
   ws2.mergeCells(`A${currRow}:B${currRow}`);
-  ws2.mergeCells(`D${currRow}:E${currRow}`);
   rMedHead.getCell(1).value = "MEDICAMENTO / TRATAMIENTO PRESCRITO";
-  rMedHead.getCell(3).value = "RECETAS";
-  rMedHead.getCell(4).value = "% DE PRESCRIPCIONES";
+  rMedHead.getCell(3).value = "PRESCRIPCIONES / FÓRMULAS";
+  rMedHead.getCell(4).value = "% SOBRE TOTAL DE FÓRMULAS";
   rMedHead.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
   rMedHead.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
   rMedHead.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
   rMedHead.font = { name: "Arial", size: 9, bold: true, color: { argb: "1E3A8A" } };
-  styleRowCells(rMedHead, "E2E8F0", BORDER_HEAD);
+  styleRowCells(rMedHead, "E2E8F0", BORDER_HEAD_BOX);
   rMedHead.height = 22;
   currRow++;
 
-  const topMeds = Array.from(medMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  if (topMeds.length === 0) {
+  const allMeds = Array.from(medMap.entries()).sort((a, b) => b[1] - a[1]);
+  if (allMeds.length === 0) {
     const r = ws2.getRow(currRow);
-    ws2.mergeCells(`A${currRow}:E${currRow}`);
-    r.getCell(1).value = "Sin medicamentos recetados en el período analizado.";
+    ws2.mergeCells(`A${currRow}:D${currRow}`);
+    r.getCell(1).value = "Sin prescripciones en fórmulas médicas en las consultas de esta muestra.";
     r.getCell(1).font = { name: "Arial", size: 9, italic: true, color: { argb: "6B7280" } };
     r.getCell(1).alignment = { vertical: "middle", horizontal: "center" };
-    styleRowCells(r, "FFFFFF", BORDER_ALL);
+    styleRowCells(r, "FFFFFF", BORDER_BOX);
     r.height = 22;
     currRow++;
   } else {
     let totalMedsAll = Array.from(medMap.values()).reduce((a, b) => a + b, 0) || 1;
-    topMeds.forEach(([nombre, cnt], idx) => {
+    allMeds.forEach(([nombre, cnt], idx) => {
       const r = ws2.getRow(currRow);
       ws2.mergeCells(`A${currRow}:B${currRow}`);
-      ws2.mergeCells(`D${currRow}:E${currRow}`);
       r.getCell(1).value = `${idx + 1}. ${nombre}`;
       r.getCell(3).value = cnt;
       r.getCell(4).value = `${((cnt / totalMedsAll) * 100).toFixed(1)}%`;
       r.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
       r.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
       r.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
-      r.font = { name: "Arial", size: 9, bold: idx < 3, color: { argb: "1F2937" } };
-      styleRowCells(r, idx % 2 === 1 ? ZEBRA : "FFFFFF", BORDER_ALL);
+      r.font = { name: "Arial", size: 9, color: { argb: "1F2937" } };
+      styleRowCells(r, idx % 2 === 1 ? ZEBRA : "FFFFFF", BORDER_BOX);
       r.height = 20;
       currRow++;
     });
+
+    const rTotMed = ws2.getRow(currRow);
+    ws2.mergeCells(`A${currRow}:B${currRow}`);
+    rTotMed.getCell(1).value = "Total de Prescripciones en Fórmulas";
+    rTotMed.getCell(3).value = totalMedsAll;
+    rTotMed.getCell(4).value = "100.0%";
+    rTotMed.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
+    rTotMed.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
+    rTotMed.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
+    rTotMed.font = { name: "Arial", size: 10, bold: true, color: { argb: "0F172A" } };
+    styleRowCells(rTotMed, "E2E8F0", BORDER_TOTAL_BOX);
+    rTotMed.height = 24;
+    currRow++;
   }
 
   // ── Descarga ──────────────────────────────────────────────────────────────
