@@ -369,13 +369,17 @@ export default function MorbilidadTab() {
     seedEstados("ILESO", "NO");
   };
 
-  // Descargar Excel: modal con 2 formatos (General con membrete / Registro Min Salud SIS-02).
+  const getHoyYMD = () => {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  };
   const [exporting, setExporting] = useState(false);
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [exportingMinSalud, setExportingMinSalud] = useState(false);
-  const [minSaludDia, setMinSaludDia] = useState(""); // yyyy-mm-dd del reporte diario oficial
+  const [minSaludDia, setMinSaludDia] = useState(getHoyYMD); // yyyy-mm-dd del reporte diario oficial (hoy por defecto)
   const [excelModo, setExcelModo] = useState<"completo" | "dia">("completo");
-  const [excelDia, setExcelDia] = useState("");
+  const [excelDia, setExcelDia] = useState(getHoyYMD); // hoy por defecto
 
   const handleExportExcel = async () => {
     let exportItems = filteredConsultas;
@@ -1212,8 +1216,9 @@ export default function MorbilidadTab() {
           </div>
           {allConsultas.length > 0 && (
             <button type="button" className="toolbar-btn" onClick={() => {
-              const d = new Date(); const p = (n: number) => String(n).padStart(2, "0");
-              setMinSaludDia(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`); // día por defecto: hoy
+              const hoyStr = getHoyYMD();
+              setMinSaludDia(hoyStr); // día por defecto: hoy
+              setExcelDia(hoyStr); // día por defecto: hoy
               setShowExcelModal(true);
             }} disabled={exporting || exportingMinSalud} title="Descargar en Excel (General o formulario oficial SIS-02)">
               {(exporting || exportingMinSalud) ? <span className="spinner spinner-sm" /> : (
@@ -1766,28 +1771,28 @@ export default function MorbilidadTab() {
       {/* Modal: elegir qué Excel descargar (General con membrete / formulario oficial SIS-02 por día) */}
       {mExcel.mounted && (
         <div className={`modal-overlay${mExcel.closing ? " modal-overlay--closing" : ""}`} onClick={() => { if (!exporting && !exportingMinSalud) setShowExcelModal(false); }}>
-          <div className={`modal-content modal-content--detail${mExcel.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px" }}>
-            <div className="modal-header">
-              <span className="modal-title">Descargar Excel</span>
+          <div className={`modal-content modal-content--detail${mExcel.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px", padding: "1.1rem 1.35rem" }}>
+            <div className="modal-header" style={{ marginBottom: "0.3rem" }}>
+              <span className="modal-title" style={{ fontSize: "1.1rem" }}>Descargar Excel</span>
               <button className="modal-close" onClick={() => setShowExcelModal(false)}>✕</button>
             </div>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "0 0 1rem" }}>Elige qué exportar:</p>
-            <div className="export-options">
-              <div className="export-option export-option--form">
-                <span className="export-option__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", margin: "0 0 0.65rem" }}>Elige qué exportar:</p>
+            <div className="export-options" style={{ gap: "0.55rem" }}>
+              <div className="export-option export-option--form" style={{ padding: "0.7rem 0.85rem", gap: "0.7rem" }}>
+                <span className="export-option__icon" style={{ width: "34px", height: "34px", borderRadius: "9px" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "16px", height: "16px" }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                 </span>
-                <span className="export-option__text" style={{ width: "100%" }}>
-                  <strong>Excel General (con Resumen Estadístico)</strong>
-                  <small>Incluye listado clínico y una <b>segunda hoja</b> con estadísticas y distribución demográfica por edad y género.</small>
+                <span className="export-option__text" style={{ width: "100%", gap: "0.1rem" }}>
+                  <strong style={{ fontSize: "0.88rem" }}>Excel General (con Resumen Estadístico)</strong>
+                  <small style={{ fontSize: "0.73rem" }}>Incluye listado clínico y una <b>segunda hoja</b> con estadísticas y distribución demográfica por edad y género.</small>
                   
-                  <div className="pill-form" style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                  <div className="pill-form" style={{ marginTop: "0.55rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                       <button 
                         type="button" 
                         className={`btn-seg ${excelModo === "completo" ? "btn-seg--active" : ""}`} 
                         onClick={() => setExcelModo("completo")}
-                        style={{ flex: 1, padding: "0.45rem", fontSize: "0.8rem", borderRadius: "100px", border: "1px solid var(--border-color)", background: excelModo === "completo" ? "var(--color-primary)" : "var(--bg-secondary)", color: excelModo === "completo" ? "#fff" : "var(--text-primary)", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+                        style={{ flex: 1, padding: "0.4rem", fontSize: "0.78rem", borderRadius: "100px", border: "1px solid var(--border-color)", background: excelModo === "completo" ? "var(--color-primary)" : "var(--bg-secondary)", color: excelModo === "completo" ? "#fff" : "var(--text-primary)", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
                       >
                         Completo ({filteredConsultas.length})
                       </button>
@@ -1795,39 +1800,39 @@ export default function MorbilidadTab() {
                         type="button" 
                         className={`btn-seg ${excelModo === "dia" ? "btn-seg--active" : ""}`} 
                         onClick={() => setExcelModo("dia")}
-                        style={{ flex: 1, padding: "0.45rem", fontSize: "0.8rem", borderRadius: "100px", border: "1px solid var(--border-color)", background: excelModo === "dia" ? "var(--color-primary)" : "var(--bg-secondary)", color: excelModo === "dia" ? "#fff" : "var(--text-primary)", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+                        style={{ flex: 1, padding: "0.4rem", fontSize: "0.78rem", borderRadius: "100px", border: "1px solid var(--border-color)", background: excelModo === "dia" ? "var(--color-primary)" : "var(--bg-secondary)", color: excelModo === "dia" ? "#fff" : "var(--text-primary)", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
                       >
                         Por Día específico
                       </button>
                     </div>
 
                     {excelModo === "dia" && (
-                      <div className="form-group">
-                        <label>Día a descargar</label>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", margin: 0 }}>
+                        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.03em" }}>Día a descargar</label>
                         <DatePicker value={excelDia} onChange={setExcelDia} placeholder="Elegir día…" defaultToday />
                       </div>
                     )}
 
-                    <button type="button" className="btn-submit" onClick={handleExportExcel} disabled={exporting || exportingMinSalud}>
+                    <button type="button" className="btn-submit" onClick={handleExportExcel} disabled={exporting || exportingMinSalud} style={{ marginTop: "0.1rem" }}>
                       {exporting ? <span className="spinner spinner-sm" /> : `Descargar Excel ${excelModo === "dia" ? (excelDia ? `del ${excelDia.split("-").reverse().join("/")}` : "por día") : "Completo"}`}
                     </button>
                   </div>
                 </span>
               </div>
 
-              <div className="export-option export-option--form">
-                <span className="export-option__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="9" y2="9"/></svg>
+              <div className="export-option export-option--form" style={{ padding: "0.7rem 0.85rem", gap: "0.7rem" }}>
+                <span className="export-option__icon" style={{ width: "34px", height: "34px", borderRadius: "9px" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "16px", height: "16px" }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="9" y2="9"/></svg>
                 </span>
-                <span className="export-option__text" style={{ width: "100%" }}>
-                  <strong>Registro Min Salud (SIS-02 · EPI-10/13)</strong>
-                  <small>Formulario oficial del MPPS, <b>por día</b>: las consultas del campamento en el día elegido (si superan 25, van en <b>varias hojas</b> del mismo archivo).</small>
-                  <div className="pill-form" style={{ marginTop: "0.6rem", display: "flex", flexDirection: "column", gap: "0.55rem" }}>
-                    <div className="form-group">
-                      <label>Día del reporte</label>
+                <span className="export-option__text" style={{ width: "100%", gap: "0.1rem" }}>
+                  <strong style={{ fontSize: "0.88rem" }}>Registro Min Salud (SIS-02 · EPI-10/13)</strong>
+                  <small style={{ fontSize: "0.73rem" }}>Formulario oficial del MPPS, <b>por día</b>: las consultas del campamento en el día elegido (si superan 25, van en <b>varias hojas</b> del mismo archivo).</small>
+                  <div className="pill-form" style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", margin: 0 }}>
+                      <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.03em" }}>Día del reporte</label>
                       <DatePicker value={minSaludDia} onChange={setMinSaludDia} placeholder="Elegir día…" defaultToday />
                     </div>
-                    <button type="button" className="btn-submit" onClick={handleExportMinSalud} disabled={exportingMinSalud || exporting}>
+                    <button type="button" className="btn-submit" onClick={handleExportMinSalud} disabled={exportingMinSalud || exporting} style={{ marginTop: "0.1rem" }}>
                       {exportingMinSalud ? <span className="spinner spinner-sm" /> : "Descargar formulario del día"}
                     </button>
                   </div>
