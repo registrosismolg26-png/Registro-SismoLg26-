@@ -190,12 +190,12 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     pageSetup: { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
-  // 4 Columnas simétricas y anchas para que los textos, nombres médicos y números quepan perfectamente sin cortar
+  // 4 Columnas simétricas y generosas en ancho para que el membrete y todo el contenido se vean 100% completos y holgados
   ws2.columns = [
-    { width: 42 }, // A: Indicador / Grupo de edad / Tipo de atención / Diagnóstico registrado / Medicamento prescrito
-    { width: 22 }, // B: Femenino / Cantidad / Casos / Prescripciones
-    { width: 22 }, // C: Masculino / Detalle / % del total
-    { width: 24 }, // D: Total / Referencia / Leyenda
+    { width: 44 }, // A: Indicador / Grupo de edad / Tipo de atención / Diagnóstico registrado / Medicamento prescrito
+    { width: 26 }, // B: Femenino / Cantidad / Casos / Prescripciones
+    { width: 26 }, // C: Masculino / Detalle / % del total
+    { width: 28 }, // D: Total / Referencia / Leyenda
   ];
 
   // Membrete Hoja 2 (filas 1-4). Logo en A1:A4, Textos en B1:D4 para evitar corte por la derecha.
@@ -239,7 +239,7 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
   }
 
   if (logoImgId) {
-    try { ws2.addImage(logoImgId, { tl: { col: 0.15, row: 0.2 } as any, ext: { width: 92, height: 60 } }); } catch {}
+    try { ws2.addImage(logoImgId, { tl: { col: 0.35, row: 0.28 } as any, ext: { width: 92, height: 60 } }); } catch {}
   }
 
   // Estilos de borde negros/grises nítidos e innegociables para definir cada cuadro y celda
@@ -494,9 +494,9 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     r.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
 
     r.getCell(1).font = { name: "Arial", size: 9, bold: true, color: { argb: "1F2937" } };
-    r.getCell(2).font = { name: "Arial", size: 9, bold: fem > 0, color: { argb: fem > 0 ? "831843" : "9CA3AF" } };
-    r.getCell(3).font = { name: "Arial", size: 9, bold: masc > 0, color: { argb: masc > 0 ? "1E3A8A" : "9CA3AF" } };
-    r.getCell(4).font = { name: "Arial", size: 9, bold: true, color: { argb: tot > 0 ? "0F172A" : "9CA3AF" } };
+    r.getCell(2).font = { name: "Arial", size: 9, bold: true, color: { argb: "831843" } };
+    r.getCell(3).font = { name: "Arial", size: 9, bold: true, color: { argb: "1E3A8A" } };
+    r.getCell(4).font = { name: "Arial", size: 9, bold: true, color: { argb: "0F172A" } };
 
     r.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFF" } };
     r.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2F8" } }; // Rosado pastel suave Adjunto 1
@@ -523,8 +523,8 @@ export async function exportMorbilidadExcel(opts: ExportOpts): Promise<void> {
     rSin.getCell(3).alignment = { vertical: "middle", horizontal: "center" };
     rSin.getCell(4).alignment = { vertical: "middle", horizontal: "center" };
     rSin.getCell(1).font = { name: "Arial", size: 9, italic: true, color: { argb: "6B7280" } };
-    rSin.getCell(2).font = { name: "Arial", size: 9, bold: sinEdadFem > 0, color: { argb: sinEdadFem > 0 ? "831843" : "9CA3AF" } };
-    rSin.getCell(3).font = { name: "Arial", size: 9, bold: sinEdadMasc > 0, color: { argb: sinEdadMasc > 0 ? "1E3A8A" : "9CA3AF" } };
+    rSin.getCell(2).font = { name: "Arial", size: 9, bold: true, color: { argb: "831843" } };
+    rSin.getCell(3).font = { name: "Arial", size: 9, bold: true, color: { argb: "1E3A8A" } };
     rSin.getCell(4).font = { name: "Arial", size: 9, bold: true, color: { argb: "0F172A" } };
     rSin.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFF" } };
     rSin.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2F8" } };
