@@ -10087,7 +10087,7 @@ select.morb-control {
      es corta (fr chico) y el PERÍODO va a ancho fijo suficiente para "Cada 12 horas"
      (así su selector no se corta). fr/px alinean header y filas (no dependen del
      contenido). Si aun así un nombre muy largo se corta → tooltip propio al pasar. */
-  grid-template-columns: minmax(0, 2fr) minmax(0, 0.7fr) 120px 36px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 0.55fr) 144px 34px;
   gap: 0.4rem;
   align-items: center;
 }
@@ -10138,7 +10138,9 @@ select.morb-control {
 .morb-med .morb-control {
   height: var(--morb-h-sm);
   font-size: 0.8rem;
-  padding: 0 0.85rem;
+  /* Padding compacto: más espacio para el texto del período ("Cada 12 horas") sin
+     ensanchar la columna, para que su selector no se corte. */
+  padding: 0 0.55rem;
 }
 .morb-med__x {
   display: inline-flex;
