@@ -10083,7 +10083,11 @@ select.morb-control {
 .morb-med,
 .morb-meds__head {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.15fr) 36px;
+  /* Se prioriza el NOMBRE (fr grande) para que quepa completo en una línea; la dosis
+     es corta (fr chico) y el PERÍODO va a ancho fijo suficiente para "Cada 12 horas"
+     (así su selector no se corta). fr/px alinean header y filas (no dependen del
+     contenido). Si aun así un nombre muy largo se corta → tooltip propio al pasar. */
+  grid-template-columns: minmax(0, 2fr) minmax(0, 0.7fr) 120px 36px;
   gap: 0.4rem;
   align-items: center;
 }

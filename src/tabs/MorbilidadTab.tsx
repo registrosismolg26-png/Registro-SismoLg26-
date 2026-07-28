@@ -225,6 +225,10 @@ export default function MorbilidadTab() {
   // scroll suave al primero. Solo los campos editables que pueden quedar vacíos.
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  // Tooltip flotante (fixed) para una fila de medicamento truncada — escapa del
+  // overflow del modal (a diferencia del `title` nativo, es nuestro y estilizado).
+  // Muestra las indicaciones completas: medicamento · dosis · período.
+  const [medTip, setMedTip] = useState<{ text: string; x: number; y: number } | null>(null);
   // Scroll suave al primer control con error dentro del modal abierto.
   const scrollToFirstError = () => {
     setTimeout(() => {
@@ -991,10 +995,21 @@ export default function MorbilidadTab() {
         <div className="morb-meds__head"><span>Medicamento</span><span>Dosis</span><span>Período</span><span /></div>
         {items.map((m, i) => {
           const key = `${ns}:${m.id}`;
+          const label = medLabel(m.id, predefinedMedicamentos);
+          // Indicaciones completas para el tooltip: medicamento · dosis · período.
+          const full = `${label}${m.dosis ? " · " + m.dosis : ""}${m.periodo ? " · " + m.periodo : ""}`;
+          // Solo muestra el tooltip si el texto REALMENTE se corta (scrollWidth > ancho).
+          const showTipIfClipped = (e: React.MouseEvent<HTMLElement>) => {
+            const el = e.currentTarget;
+            if (el.scrollWidth > el.clientWidth + 1) {
+              const r = el.getBoundingClientRect();
+              setMedTip({ text: full, x: r.left, y: r.top });
+            }
+          };
           return (
             <div key={m.id} className={`morb-med ${exiting[key] ? "morb-med--out" : ""}`}>
-              <span className="morb-med__name" title={medLabel(m.id, predefinedMedicamentos)}>{medLabel(m.id, predefinedMedicamentos)}</span>
-              <span className="morb-med__dosis" title={m.dosis}>{m.dosis || "—"}</span>
+              <span className="morb-med__name" onMouseEnter={showTipIfClipped} onMouseLeave={() => setMedTip(null)}>{label}</span>
+              <span className="morb-med__dosis" onMouseEnter={showTipIfClipped} onMouseLeave={() => setMedTip(null)}>{m.dosis || "—"}</span>
               <StyledSelect dense value={m.periodo} onChange={(v) => onUpdate(i, "periodo", v)} options={PERIODO_OPTS} placeholder="Período…" ariaLabel="Período" />
               <button type="button" className="morb-med__x" aria-label="Quitar" onClick={() => animateOut(key, () => onRemove(m.id))}>×</button>
             </div>
@@ -1880,6 +1895,14 @@ export default function MorbilidadTab() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tooltip flotante de una fila de medicamento truncada (fixed → no lo corta
+          el overflow del modal). Reusa el estilo genérico .cuarto-tip. */}
+      {medTip && (
+        <div className="cuarto-tip" style={{ left: medTip.x, top: medTip.y }}>
+          {medTip.text}
         </div>
       )}
     </div>
