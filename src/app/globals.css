@@ -10084,10 +10084,10 @@ select.morb-control {
 .morb-meds__head {
   display: grid;
   /* 3 columnas: MEDICAMENTO + DOSIS juntos (1fr → todo el ancho posible) · PERÍODO
-     (columna ancha fija → su selector muestra el texto completo, "Cada 12 horas") ·
-     quitar. Unir medicamento y dosis libera espacio para el período; si el
-     medicamento+dosis se corta → tooltip propio al pasar el mouse. */
-  grid-template-columns: minmax(0, 1fr) 156px 34px;
+     (columna COMPACTA: el chip muestra la abreviatura en mayúsculas "C/12H"; el menú,
+     el texto completo) · quitar. Así el medicamento+dosis gana casi todo el ancho; si
+     se corta → tooltip propio al pasar el mouse. */
+  grid-template-columns: minmax(0, 1fr) 104px 34px;
   gap: 0.4rem;
   align-items: center;
 }
@@ -10130,7 +10130,7 @@ select.morb-control {
 .morb-med .morb-control {
   height: var(--morb-h-sm);
   font-size: 0.8rem;
-  padding: 0 0.85rem;
+  padding: 0 0.55rem; /* compacto: la abreviatura del período entra holgada */
 }
 .morb-med__x {
   display: inline-flex;

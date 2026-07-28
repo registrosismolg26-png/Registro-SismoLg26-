@@ -23,7 +23,19 @@ import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS, ZONAS_CUERPO
 import type { Medicamento, Lesion, Patologia } from "@/types";
 
 const GENERO_OPTS = [{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }];
-const PERIODO_OPTS = [{ value: "", label: "Período…" }, ...PERIODO_OPTIONS.map((op) => ({ value: op, label: op }))];
+// Abreviatura COMPACTA en MAYÚSCULAS del período (convención médica), DERIVADA del
+// patrón del texto (no un mapa fijo → nuevas frecuencias se abrevian solas; si no
+// encaja, cae al texto en mayúsculas). Se ve solo en el chip cerrado del selector.
+const periodoAbbr = (p: string): string => {
+  const s = (p || "").trim();
+  let m = s.match(/^Cada\s+(\d+)\s*horas?$/i); if (m) return `C/${m[1]}H`;
+  m = s.match(/^(\d+)\s*ve(?:z|ces)\s+al\s+d[ií]a$/i); if (m) return `${m[1]}×DÍA`;
+  if (/^interdiario$/i.test(s)) return "INTERD.";
+  return s.toUpperCase();
+};
+// Menú: texto COMPLETO ("Cada 12 horas") para elegir sin ambigüedad; chip cerrado:
+// abreviatura en mayúsculas ("C/12H") vía shortLabel. El valor guardado = texto completo.
+const PERIODO_OPTS_COMPACT = [{ value: "", label: "Período…", shortLabel: "PERÍODO…" }, ...PERIODO_OPTIONS.map((op) => ({ value: op, label: op, shortLabel: periodoAbbr(op) }))];
 const ZONA_OPTS = ZONAS_CUERPO.map((z) => ({ value: z, label: z }));
 
 // Fecha-hora de la consulta (elegida a mano, distinta del momento de carga).
@@ -1014,7 +1026,7 @@ export default function MorbilidadTab() {
               <span className="morb-med__name" onMouseEnter={showTipIfClipped} onMouseLeave={() => setMedTip(null)}>
                 {label}{m.dosis ? <span className="morb-med__dose-inline">{` - ${m.dosis}`}</span> : null}
               </span>
-              <StyledSelect dense value={m.periodo} onChange={(v) => onUpdate(i, "periodo", v)} options={PERIODO_OPTS} placeholder="Período…" ariaLabel="Período" />
+              <StyledSelect dense value={m.periodo} onChange={(v) => onUpdate(i, "periodo", v)} options={PERIODO_OPTS_COMPACT} placeholder="Período…" ariaLabel="Período" />
               <button type="button" className="morb-med__x" aria-label="Quitar" onClick={() => animateOut(key, () => onRemove(m.id))}>×</button>
             </div>
           );
