@@ -10768,14 +10768,27 @@ select.morb-control {
   border-radius: var(--ctl-radius);
 }
 
-/* Estado de error para los controles reformateados (button/trigger no-nativos) */
+/* Estado de error para los controles reformateados (button/trigger no-nativos).
+   Ring rojo SUTIL siempre visible (no solo al enfocar), un poco más marcado al foco. */
 .morb-control.has-error,
 .morb-select__trigger.has-error {
   border-color: var(--color-danger) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
 }
 .morb-control.has-error:focus,
 .morb-select__trigger.has-error:focus {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.22) !important;
+}
+/* Mensaje de error por campo: pequeño, rojo, discreto (no mayúsculas). El espacio
+   se RESERVA siempre (min-height) para que aparecer/desaparecer no mueva el layout. */
+.morb-field__err {
+  display: block;
+  min-height: 1.05rem;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.05rem;
+  color: var(--color-danger);
 }
 
 /* Entrada por paso: fundido + leve deslizamiento (replay al cambiar de paso) */

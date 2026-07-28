@@ -167,7 +167,7 @@ export default function MorbilidadTab() {
   const [tipoPaciente, setTipoPaciente] = useState("REFUGIADO");
   const [tipoNota, setTipoNota] = useState("");
 
-  const onFechaChange = (ymd: string) => { setFechaNacimiento(ymd); setEdad(computeEdad(ymd)); };
+  const onFechaChange = (ymd: string) => { setFechaNacimiento(ymd); setEdad(computeEdad(ymd)); setCreateErrors((p) => (p.fechaNacimiento ? { ...p, fechaNacimiento: "" } : p)); };
 
   // Antecedentes del censo — EDITABLES (guardar actualiza el registro del censo). Por-ID.
   const [antecedentesPatologiaIds, setAntecedentesPatologiaIds] = useState<string[]>([]);
@@ -219,6 +219,19 @@ export default function MorbilidadTab() {
   };
 
   const [saving, setSaving] = useState(false);
+
+  // Errores de validación por campo (validación PROPIA, no la del navegador). Se
+  // muestran como mensaje discreto bajo el campo + ring rojo; el guardado hace
+  // scroll suave al primero. Solo los campos editables que pueden quedar vacíos.
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  // Scroll suave al primer control con error dentro del modal abierto.
+  const scrollToFirstError = () => {
+    setTimeout(() => {
+      const el = document.querySelector(".modal-content--morb .has-error");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  };
 
   // Animación de salida: marca una clave (namespaced) como "saliendo" y la remueve al terminar.
   const [exiting, setExiting] = useState<Record<string, boolean>>({});
@@ -346,6 +359,7 @@ export default function MorbilidadTab() {
 
   // --- RESET STATE ---
   const handleReset = () => {
+    setCreateErrors({});
     setSearchCedula("");
     setSearched(false);
     setCedula("");
@@ -565,20 +579,19 @@ export default function MorbilidadTab() {
   // --- GUARDAR CONSULTA (OFFLINE-FIRST) ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Datos obligatorios del paciente. Sexo/estado físico/embarazo tienen valor por
-    // defecto (siempre presentes); el gate real es cédula, nombre, fecha y campamento.
-    const faltan: string[] = [];
-    if (!cedula) faltan.push("cédula");
-    if (!nombreApellido.trim()) faltan.push("nombre y apellido");
-    if (!genero) faltan.push("sexo");
-    if (!fechaNacimiento) faltan.push("fecha de nacimiento");
-    if (!refugio) faltan.push("campamento");
-    if (!estadoFisico) faltan.push("estado físico");
-    if (genero === "FEMENINO" && embarazo !== "SI" && embarazo !== "NO") faltan.push("embarazo");
-    if (faltan.length) {
-      showToast(`Complete los datos obligatorios del paciente: ${faltan.join(", ")}.`, "error");
+    // Validación PROPIA (no la del navegador): errores por campo con ring rojo +
+    // mensaje discreto y scroll suave al primero. Los campos editables que pueden
+    // quedar vacíos son nombre y fecha; cédula/campamento los completa el flujo
+    // (búsqueda + refugio activo) → si faltan, aviso corto (no debería pasar).
+    const errs: Record<string, string> = {};
+    if (!nombreApellido.trim()) errs.nombreApellido = "Ingrese el nombre y apellido.";
+    if (!fechaNacimiento) errs.fechaNacimiento = "Seleccione la fecha de nacimiento.";
+    setCreateErrors(errs);
+    if (!cedula || !refugio) {
+      showToast("Faltan datos base del paciente (cédula o campamento).", "error");
       return;
     }
+    if (Object.keys(errs).length) { scrollToFirstError(); return; }
     setSaving(true);
     const docId = crypto.randomUUID();
     const localConsultaData = {
@@ -680,6 +693,7 @@ export default function MorbilidadTab() {
   };
 
   const openEdit = (c: any) => {
+    setEditErrors({});
     // Fecha de nacimiento: la almacenada; si es una consulta vieja sin ella, se
     // intenta recuperar del censo (por UID o cédula). La edad se DERIVA de aquí.
     let fecha: string = c.data.fechaNacimiento || "";
@@ -728,7 +742,7 @@ export default function MorbilidadTab() {
   const closeEdit = () => {
     if (editClosing) return;
     setEditClosing(true);
-    setTimeout(() => { setEditForm(null); setEditClosing(false); }, 220);
+    setTimeout(() => { setEditForm(null); setEditErrors({}); setEditClosing(false); }, 220);
   };
 
   const efPatAdd = (key: "antPat" | "diagPat", id: string) => { if (id) setEditForm((f: any) => f && !f[key].includes(id) ? { ...f, [key]: [...f[key], id] } : f); };
@@ -805,20 +819,18 @@ export default function MorbilidadTab() {
 
   const saveEdit = async () => {
     if (!editForm) return;
-    // Mismos datos obligatorios que al crear (cédula, nombre, sexo, fecha de
-    // nacimiento → edad, campamento, estado físico, embarazo si es mujer).
-    const faltan: string[] = [];
-    if (!editForm.cedula) faltan.push("cédula");
-    if (!editForm.nombreApellido?.trim()) faltan.push("nombre y apellido");
-    if (!editForm.genero) faltan.push("sexo");
-    if (!editForm.fechaNacimiento) faltan.push("fecha de nacimiento");
-    if (!editForm.refugio) faltan.push("campamento");
-    if (!editForm.estadoFisico) faltan.push("estado físico");
-    if (editForm.genero === "FEMENINO" && editForm.embarazo !== "SI" && editForm.embarazo !== "NO") faltan.push("embarazo");
-    if (faltan.length) {
-      showToast(`Complete los datos obligatorios del paciente: ${faltan.join(", ")}.`, "error");
+    // Validación PROPIA (igual que al crear): ring rojo + mensaje discreto por campo
+    // y scroll suave al primero. Nombre y fecha son los editables que pueden quedar
+    // vacíos; cédula/campamento vienen del flujo (aviso corto si faltaran).
+    const errs: Record<string, string> = {};
+    if (!editForm.nombreApellido?.trim()) errs.nombreApellido = "Ingrese el nombre y apellido.";
+    if (!editForm.fechaNacimiento) errs.fechaNacimiento = "Seleccione la fecha de nacimiento.";
+    setEditErrors(errs);
+    if (!editForm.cedula || !editForm.refugio) {
+      showToast("Faltan datos base del paciente (cédula o campamento).", "error");
       return;
     }
+    if (Object.keys(errs).length) { scrollToFirstError(); return; }
     setEditSaving(true);
     try {
       const eStr = editForm.fechaNacimiento ? computeEdad(editForm.fechaNacimiento) : "";
@@ -1152,7 +1164,8 @@ export default function MorbilidadTab() {
               </div>
               <div className="morb-field f-nombre">
                 <label className="morb-field__label">Nombre y Apellido <span className="required-star">*</span></label>
-                <input className="morb-control" type="text" value={nombreApellido} onChange={(e) => setNombreApellido(e.target.value)} required />
+                <input className={`morb-control${createErrors.nombreApellido ? " has-error" : ""}`} type="text" value={nombreApellido} onChange={(e) => { setNombreApellido(e.target.value); if (createErrors.nombreApellido) setCreateErrors((p) => ({ ...p, nombreApellido: "" })); }} />
+                <span className="morb-field__err">{createErrors.nombreApellido || ""}</span>
               </div>
               <div className="morb-field f-genero">
                 <label className="morb-field__label">Género <span className="required-star">*</span></label>
@@ -1160,7 +1173,8 @@ export default function MorbilidadTab() {
               </div>
               <div className="morb-field f-fecha">
                 <label className="morb-field__label">Fecha de Nacimiento <span className="required-star">*</span></label>
-                <DatePicker value={fechaNacimiento} onChange={onFechaChange} placeholder="Seleccionar fecha…" />
+                <DatePicker value={fechaNacimiento} onChange={onFechaChange} placeholder="Seleccionar fecha…" error={!!createErrors.fechaNacimiento} />
+                <span className="morb-field__err">{createErrors.fechaNacimiento || ""}</span>
               </div>
               <div className="morb-field f-edad">
                 <label className="morb-field__label">Edad (años) <span className="required-star">*</span></label>
@@ -1488,7 +1502,8 @@ export default function MorbilidadTab() {
                   </div>
                   <div className="morb-field f-nombre">
                     <label className="morb-field__label">Nombre y Apellido <span className="required-star">*</span></label>
-                    <input className="morb-control" type="text" value={editForm.nombreApellido} onChange={(e) => setEditForm((f: any) => ({ ...f, nombreApellido: e.target.value }))} />
+                    <input className={`morb-control${editErrors.nombreApellido ? " has-error" : ""}`} type="text" value={editForm.nombreApellido} onChange={(e) => { const v = e.target.value; setEditForm((f: any) => ({ ...f, nombreApellido: v })); if (editErrors.nombreApellido) setEditErrors((p) => ({ ...p, nombreApellido: "" })); }} />
+                    <span className="morb-field__err">{editErrors.nombreApellido || ""}</span>
                   </div>
                   <div className="morb-field f-genero">
                     <label className="morb-field__label">Género <span className="required-star">*</span></label>
@@ -1496,7 +1511,8 @@ export default function MorbilidadTab() {
                   </div>
                   <div className="morb-field f-fecha">
                     <label className="morb-field__label">Fecha de Nacimiento <span className="required-star">*</span></label>
-                    <DatePicker value={editForm.fechaNacimiento} onChange={(v) => setEditForm((f: any) => ({ ...f, fechaNacimiento: v }))} placeholder="Seleccionar fecha…" />
+                    <DatePicker value={editForm.fechaNacimiento} onChange={(v) => { setEditForm((f: any) => ({ ...f, fechaNacimiento: v })); if (editErrors.fechaNacimiento) setEditErrors((p) => ({ ...p, fechaNacimiento: "" })); }} placeholder="Seleccionar fecha…" error={!!editErrors.fechaNacimiento} />
+                    <span className="morb-field__err">{editErrors.fechaNacimiento || ""}</span>
                   </div>
                   <div className="morb-field f-edad">
                     <label className="morb-field__label">Edad (años) <span className="required-star">*</span></label>
