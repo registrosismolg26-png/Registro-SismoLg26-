@@ -10083,11 +10083,11 @@ select.morb-control {
 .morb-med,
 .morb-meds__head {
   display: grid;
-  /* Se prioriza el NOMBRE (fr grande) para que quepa completo en una línea; la dosis
-     es corta (fr chico) y el PERÍODO va a ancho fijo suficiente para "Cada 12 horas"
-     (así su selector no se corta). fr/px alinean header y filas (no dependen del
-     contenido). Si aun así un nombre muy largo se corta → tooltip propio al pasar. */
-  grid-template-columns: minmax(0, 2fr) minmax(0, 0.55fr) 144px 34px;
+  /* 3 columnas: NOMBRE (toma todo el ancho posible, 1fr) · RECETA UNIFICADA
+     (dosis + período abreviado, ancho fijo que siempre entra) · quitar. Al unir
+     dosis y período en una sola celda, el nombre gana muchísimo espacio y cabe
+     completo casi siempre; si un nombre extremo se corta → tooltip propio. */
+  grid-template-columns: minmax(0, 1fr) 168px 34px;
   gap: 0.4rem;
   align-items: center;
 }
@@ -10121,15 +10121,28 @@ select.morb-control {
   background: var(--bg-primary);
   border-radius: 999px;
 }
+/* Celda de RECETA unificada: dosis (texto, toma lo que sobra con ellipsis) +
+   período abreviado (chip editable de ancho fijo). Juntos = la posología. */
+.morb-med__rx {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.morb-med__rx .morb-select {
+  flex: none;
+  width: 96px; /* período abreviado: "c/12h" / "1×día" / "Interd." */
+}
 .morb-med__dosis {
   display: flex;
   align-items: center;
   height: var(--morb-h-sm);
-  padding: 0 0.9rem;
+  padding: 0 0.7rem;
   font-size: 0.8rem;
   color: var(--text-secondary);
   background: var(--bg-primary);
   border-radius: 999px;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -10138,9 +10151,7 @@ select.morb-control {
 .morb-med .morb-control {
   height: var(--morb-h-sm);
   font-size: 0.8rem;
-  /* Padding compacto: más espacio para el texto del período ("Cada 12 horas") sin
-     ensanchar la columna, para que su selector no se corte. */
-  padding: 0 0.55rem;
+  padding: 0 0.55rem; /* compacto: el período abreviado entra sin apretar */
 }
 .morb-med__x {
   display: inline-flex;
@@ -10176,9 +10187,9 @@ select.morb-control {
     display: none;
   }
   .morb-med {
-    grid-template-columns: 1fr 1fr 34px;
-    grid-template-areas: "name name x" "dosis periodo periodo";
-    row-gap: 0.35rem;
+    grid-template-columns: 1fr 34px;
+    grid-template-areas: "name x" "rx rx";
+    row-gap: 0.4rem;
     padding: 0.6rem 0.7rem;
     border: 1px solid var(--border-color);
     border-radius: 16px;
@@ -10190,11 +10201,12 @@ select.morb-control {
     height: auto;
     white-space: normal;
   }
-  .morb-med__dosis {
-    grid-area: dosis;
+  .morb-med__rx {
+    grid-area: rx;
   }
-  .morb-med .morb-select {
-    grid-area: periodo;
+  /* En móvil hay ancho de sobra: dosis flexible y período a ancho natural cómodo. */
+  .morb-med__rx .morb-select {
+    width: 116px;
   }
   .morb-med__x {
     grid-area: x;
