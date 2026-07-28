@@ -10087,7 +10087,7 @@ select.morb-control {
      (columna COMPACTA: el chip muestra la abreviatura en mayúsculas "C/12H"; el menú,
      el texto completo) · quitar. Así el medicamento+dosis gana casi todo el ancho; si
      se corta → tooltip propio al pasar el mouse. */
-  grid-template-columns: minmax(0, 1fr) 104px 34px;
+  grid-template-columns: minmax(0, 1fr) 116px 34px;
   gap: 0.4rem;
   align-items: center;
 }
@@ -10108,7 +10108,7 @@ select.morb-control {
 }
 .morb-med__name {
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   color: var(--text-primary);
   min-width: 0;
   overflow: hidden;
@@ -10117,7 +10117,7 @@ select.morb-control {
   display: flex;
   align-items: center;
   height: var(--morb-h-sm);
-  padding: 0 0.9rem;
+  padding: 0 0.75rem;
   background: var(--bg-primary);
   border-radius: 999px;
 }
@@ -10129,7 +10129,7 @@ select.morb-control {
 }
 .morb-med .morb-control {
   height: var(--morb-h-sm);
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   padding: 0 0.55rem; /* compacto: la abreviatura del período entra holgada */
 }
 .morb-med__x {
