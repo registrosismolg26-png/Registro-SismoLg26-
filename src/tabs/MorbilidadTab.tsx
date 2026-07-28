@@ -23,20 +23,7 @@ import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS, ZONAS_CUERPO
 import type { Medicamento, Lesion, Patologia } from "@/types";
 
 const GENERO_OPTS = [{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }];
-// Abreviatura compacta del período (convención médica) DERIVADA del patrón del texto
-// (no un mapa fijo → nuevas frecuencias en constants.ts se abrevian solas; si no
-// encaja, cae al texto completo). El VALOR guardado sigue siendo el texto completo
-// (BD/export sin cambios); solo cambia la etiqueta que se ve en el chip.
-const periodoAbbr = (p: string): string => {
-  const s = (p || "").trim();
-  let m = s.match(/^Cada\s+(\d+)\s*horas?$/i); if (m) return `c/${m[1]}h`;
-  m = s.match(/^(\d+)\s*ve(?:z|ces)\s+al\s+d[ií]a$/i); if (m) return `${m[1]}×día`;
-  if (/^interdiario$/i.test(s)) return "Interd.";
-  return s;
-};
-// Menú: texto COMPLETO ("Cada 12 horas") para elegir sin ambigüedad; chip cerrado:
-// abreviatura ("c/12h") vía shortLabel. El valor guardado = texto completo.
-const PERIODO_OPTS_COMPACT = [{ value: "", label: "Período…", shortLabel: "Período…" }, ...PERIODO_OPTIONS.map((op) => ({ value: op, label: op, shortLabel: periodoAbbr(op) }))];
+const PERIODO_OPTS = [{ value: "", label: "Período…" }, ...PERIODO_OPTIONS.map((op) => ({ value: op, label: op }))];
 const ZONA_OPTS = ZONAS_CUERPO.map((z) => ({ value: z, label: z }));
 
 // Fecha-hora de la consulta (elegida a mano, distinta del momento de carga).
@@ -1005,12 +992,13 @@ export default function MorbilidadTab() {
       <p className="morb-meds__empty">Sin medicamentos. Búscalo y agrégalo del catálogo.</p>
     ) : (
       <div className="morb-meds">
-        <div className="morb-meds__head"><span>Medicamento</span><span>Dosis · Período</span><span /></div>
+        <div className="morb-meds__head"><span>Medicamento y Dosis</span><span>Período</span><span /></div>
         {items.map((m, i) => {
           const key = `${ns}:${m.id}`;
           const label = medLabel(m.id, predefinedMedicamentos);
-          // Indicaciones completas para el tooltip: medicamento · dosis · período.
-          const full = `${label}${m.dosis ? " · " + m.dosis : ""}${m.periodo ? " · " + m.periodo : ""}`;
+          // Medicamento + dosis en UNA celda ("ACETAMINOFEN - TABLETA - 650MG"). El
+          // tooltip muestra la indicación completa (con el período) si se corta.
+          const full = `${label}${m.dosis ? " - " + m.dosis : ""}${m.periodo ? " · " + m.periodo : ""}`;
           // Solo muestra el tooltip si el texto REALMENTE se corta (scrollWidth > ancho).
           const showTipIfClipped = (e: React.MouseEvent<HTMLElement>) => {
             const el = e.currentTarget;
@@ -1021,13 +1009,12 @@ export default function MorbilidadTab() {
           };
           return (
             <div key={m.id} className={`morb-med ${exiting[key] ? "morb-med--out" : ""}`}>
-              <span className="morb-med__name" onMouseEnter={showTipIfClipped} onMouseLeave={() => setMedTip(null)}>{label}</span>
-              {/* Receta UNIFICADA: dosis (texto) + período abreviado (chip editable). Juntos
-                  se leen como la posología; el texto completo va en el tooltip. */}
-              <div className="morb-med__rx">
-                <span className="morb-med__dosis" onMouseEnter={showTipIfClipped} onMouseLeave={() => setMedTip(null)}>{m.dosis || "—"}</span>
-                <StyledSelect dense value={m.periodo} onChange={(v) => onUpdate(i, "periodo", v)} options={PERIODO_OPTS_COMPACT} placeholder="Período…" ariaLabel="Período (frecuencia)" />
-              </div>
+              {/* Medicamento + dosis unificados en una celda (ellipsis + tooltip); así el
+                  período se queda con una columna ancha y se ve completo. */}
+              <span className="morb-med__name" onMouseEnter={showTipIfClipped} onMouseLeave={() => setMedTip(null)}>
+                {label}{m.dosis ? <span className="morb-med__dose-inline">{` - ${m.dosis}`}</span> : null}
+              </span>
+              <StyledSelect dense value={m.periodo} onChange={(v) => onUpdate(i, "periodo", v)} options={PERIODO_OPTS} placeholder="Período…" ariaLabel="Período" />
               <button type="button" className="morb-med__x" aria-label="Quitar" onClick={() => animateOut(key, () => onRemove(m.id))}>×</button>
             </div>
           );

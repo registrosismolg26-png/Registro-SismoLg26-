@@ -15,10 +15,7 @@ import { useIsMobile } from "./useIsMobile";
 import { useBodyScrollLock } from "./useBodyScrollLock";
 import MobileSheet from "./MobileSheet";
 
-// `shortLabel` (opcional): etiqueta COMPACTA que se ve solo en el trigger/chip
-// cerrado; el menú desplegable siempre muestra `label` (texto completo). Útil para
-// abreviar valores largos sin perder claridad al elegir (p. ej. período: "c/12h").
-export interface StyledOption { value: string; label: string; shortLabel?: string; }
+export interface StyledOption { value: string; label: string; }
 
 interface Props {
   value: string;
@@ -106,7 +103,7 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
         onClick={() => !disabled && setOpen((o) => !o)}
         onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
       >
-        <span className={current ? "" : "morb-select__ph"}>{current ? (current.shortLabel || current.label) : placeholder}</span>
+        <span className={current ? "" : "morb-select__ph"}>{current ? current.label : placeholder}</span>
         <span className="morb-select__arrow" aria-hidden>
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" ><path d="m6 9 6 6 6-6"/></svg>
         </span>
