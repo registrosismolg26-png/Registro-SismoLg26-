@@ -373,10 +373,10 @@ export default function HistorialClinicoTab() {
               {/* Antecedentes | Diagnóstico en 2 columnas: morb-duo */}
               <div className="morb-duo">
                 <div className="morb-card morb-card--primary">
-                  <h3 className="morb-card__title">Antecedentes Clínicos (Censo)</h3>
+                  <h3 className="morb-card__title">Antecedentes Crónicos</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
                     <div className="morb-field">
-                      <label className="morb-field__label">Patologías del paciente</label>
+                      <label className="morb-field__label">Patologías Crónicas</label>
                       {Array.isArray(viewConsulta.data?.antecedentesPatologiaIds) && viewConsulta.data.antecedentesPatologiaIds.length > 0 ? (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.3rem" }}>
                           {viewConsulta.data.antecedentesPatologiaIds.map((id: string) => (
@@ -390,7 +390,7 @@ export default function HistorialClinicoTab() {
                       )}
                     </div>
                     <div className="morb-field">
-                      <label className="morb-field__label">Medicamentos del paciente</label>
+                      <label className="morb-field__label">Medicamentos Crónicos</label>
                       {Array.isArray(viewConsulta.data?.antecedentesMedicamentoIds) && viewConsulta.data.antecedentesMedicamentoIds.length > 0 ? (
                         <div className="med-items" style={{ marginTop: "0.3rem" }}>
                           {viewConsulta.data.antecedentesMedicamentoIds.map((m: Medicamento, i: number) => (
