@@ -2204,13 +2204,26 @@ export default function AsignacionesTab() {
                       {selectedRegistro.nombreApellido}
                     </span>
                   </div>
+                  <div className="detail-field detail-field--full">
+                    <span className="detail-label">
+                      {parseStoredCedula(selectedRegistro.cedula).isChild ? "Cédula del Representante" : "Cédula de Identidad"}
+                    </span>
+                    <span className="detail-value">
+                      {selectedRegistro.nacionalidad || "V"}-{parseStoredCedula(selectedRegistro.cedula).digits}
+                      {parseStoredCedula(selectedRegistro.cedula).isChild && (
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginLeft: "0.5rem", fontWeight: "normal" }}>
+                          (Dependiente N° {parseStoredCedula(selectedRegistro.cedula).depNum})
+                        </span>
+                      )}
+                    </span>
+                  </div>
                   {/* Representante (informativo, NO se persiste): si el registro es un
                       hijo/dependiente (cédula con sufijo), se muestra a quién representa.
                       Va junto a la identidad (bajo la cédula del registro), no en el
                       grupo familiar. */}
                   {parseStoredCedula(selectedRegistro.cedula).isChild && (
                     <div className="detail-field detail-field--full">
-                      <span className="detail-label">Representante</span>
+                      <span className="detail-label">Representante Registrado</span>
                       {(() => {
                         const rep = findRepresentante(
                           parseStoredCedula(selectedRegistro.cedula).digits,
@@ -2254,6 +2267,14 @@ export default function AsignacionesTab() {
                           </span>
                         );
                       })()}
+                    </div>
+                  )}
+                  {selectedRegistro.fechaNacimiento && (
+                    <div className="detail-field detail-field--full">
+                      <span className="detail-label">Fecha de Nacimiento</span>
+                      <span className="detail-value">
+                        {selectedRegistro.fechaNacimiento}
+                      </span>
                     </div>
                   )}
                   <div className="detail-field">
@@ -2478,24 +2499,59 @@ export default function AsignacionesTab() {
                     </div>
                   )}
                   {selectedRegistro.cuarto && (
-                    <div className="detail-field detail-field--full">
-                      <span className="detail-label">Cuarto Asignado</span>
-                      <span
-                        className="detail-value"
-                        style={{ color: "var(--color-success)" }}
-                      >
-                        <span
-                          style={{
-                            width: "7px",
-                            height: "7px",
-                            borderRadius: "50%",
-                            backgroundColor: "var(--color-success)",
-                            display: "inline-block",
-                          }}
-                        />
-                        {selectedRegistro.cuarto}
-                      </span>
-                    </div>
+                    <>
+                      {esCarpa ? (
+                        <>
+                          <div className="detail-field detail-field--full">
+                            <span className="detail-label">Tipo de Carpa</span>
+                            <span className="detail-value">{selectedRegistro.carpaTipo || "—"}</span>
+                          </div>
+                          <div className="detail-field detail-field--full">
+                            <span className="detail-label">N.º / Código de Carpa</span>
+                            <span className="detail-value">{selectedRegistro.carpaNro || "—"}</span>
+                          </div>
+                          <div className="detail-field detail-field--full">
+                            <span className="detail-label">Designación Completa</span>
+                            <span
+                              className="detail-value"
+                              style={{ color: "var(--color-success)" }}
+                            >
+                              <span
+                                style={{
+                                  width: "7px",
+                                  height: "7px",
+                                  borderRadius: "50%",
+                                  backgroundColor: "var(--color-success)",
+                                  display: "inline-block",
+                                  marginRight: "0.35rem",
+                                }}
+                              />
+                              {selectedRegistro.cuarto}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="detail-field detail-field--full">
+                          <span className="detail-label">Habitación / Salón Asignado</span>
+                          <span
+                            className="detail-value"
+                            style={{ color: "var(--color-success)" }}
+                          >
+                            <span
+                              style={{
+                                width: "7px",
+                                height: "7px",
+                                borderRadius: "50%",
+                                backgroundColor: "var(--color-success)",
+                                display: "inline-block",
+                                marginRight: "0.35rem",
+                              }}
+                            />
+                            {selectedRegistro.cuarto}
+                          </span>
+                        </div>
+                      )}
+                    </>
                   )}
                   {selectedRegistro.retirado === "SI" && (
                     <div className="detail-field detail-field--full">
