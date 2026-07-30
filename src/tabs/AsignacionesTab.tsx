@@ -2204,15 +2204,15 @@ export default function AsignacionesTab() {
                       {selectedRegistro.nombreApellido}
                     </span>
                   </div>
-                  <div className="detail-field detail-field--full">
+                  <div className="detail-field">
                     <span className="detail-label">
-                      {parseStoredCedula(selectedRegistro.cedula).isChild ? "Cédula del Representante" : "Cédula de Identidad"}
+                      {parseStoredCedula(selectedRegistro.cedula).isChild ? "C.I. Representante" : "Cédula de Identidad"}
                     </span>
                     <span className="detail-value">
                       {selectedRegistro.nacionalidad || "V"}-{parseStoredCedula(selectedRegistro.cedula).digits}
                       {parseStoredCedula(selectedRegistro.cedula).isChild && (
-                        <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginLeft: "0.5rem", fontWeight: "normal" }}>
-                          (Dependiente N° {parseStoredCedula(selectedRegistro.cedula).depNum})
+                        <span className="cuarto-badge cuarto-badge--none" style={{ marginLeft: "0.35rem", fontSize: "0.6rem" }}>
+                          Dep. N° {parseStoredCedula(selectedRegistro.cedula).depNum}
                         </span>
                       )}
                     </span>
@@ -2263,14 +2263,14 @@ export default function AsignacionesTab() {
                               <line x1="12" y1="9" x2="12" y2="13" />
                               <line x1="12" y1="17" x2="12.01" y2="17" />
                             </svg>
-                            Representante no registrado en el censo
+                            Representante no registrado
                           </span>
                         );
                       })()}
                     </div>
                   )}
                   {selectedRegistro.fechaNacimiento && (
-                    <div className="detail-field detail-field--full">
+                    <div className="detail-field">
                       <span className="detail-label">Fecha de Nacimiento</span>
                       <span className="detail-value">
                         {(() => {
@@ -2509,11 +2509,11 @@ export default function AsignacionesTab() {
                     <>
                       {esCarpa ? (
                         <>
-                          <div className="detail-field detail-field--full">
+                          <div className="detail-field">
                             <span className="detail-label">Tipo de Carpa</span>
                             <span className="detail-value">{selectedRegistro.carpaTipo || "—"}</span>
                           </div>
-                          <div className="detail-field detail-field--full">
+                          <div className="detail-field">
                             <span className="detail-label">N.º / Código de Carpa</span>
                             <span className="detail-value">{selectedRegistro.carpaNro || "—"}</span>
                           </div>
