@@ -2273,7 +2273,14 @@ export default function AsignacionesTab() {
                     <div className="detail-field detail-field--full">
                       <span className="detail-label">Fecha de Nacimiento</span>
                       <span className="detail-value">
-                        {selectedRegistro.fechaNacimiento}
+                        {(() => {
+                          const f = selectedRegistro.fechaNacimiento;
+                          if (typeof f === "string" && f.match(/^\d{4}-\d{2}-\d{2}/)) {
+                            const [y, m, d] = f.split("T")[0].split("-");
+                            return `${d}/${m}/${y}`;
+                          }
+                          return f;
+                        })()}
                       </span>
                     </div>
                   )}
