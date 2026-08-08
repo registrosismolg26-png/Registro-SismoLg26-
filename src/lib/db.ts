@@ -79,7 +79,7 @@ export interface PadrónCiudadano {
 }
 
 const DB_NAME = 'registro-sismo-db';
-const DB_VERSION = 6; // v6: cola offline de caracterización (fichas socioeconómicas)
+const DB_VERSION = 9; // Subido para solventar VersionError
 const STORE_NAME = 'registros';
 const PADRON_STORE = 'padron';
 const CONSULTAS_STORE = 'consultas';
