@@ -9,7 +9,7 @@ interface Props {
 
 export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false, step = 0 }: Props) {
   const tProps = (key: string) => ({
-    className: "detail-value detail-value--pill",
+    className: "morb-control",
     value: formData[key] || "",
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(key, e.target.value),
     readOnly,
@@ -36,7 +36,7 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
   });
 
   const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-    <div className="detail-section-title" style={{ marginTop: "1.5rem" }}>
+    <div className="morb-card__title" style={{ marginTop: "1.5rem" }}>
       <span>{children}</span>
     </div>
   );
@@ -47,32 +47,32 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
         <>
           <SectionTitle>Antropometría y Signos Vitales</SectionTitle>
           <div className="detail-grid">
-            <div className="detail-field">
-              <label>Peso (kg)</label>
+            <div className="morb-field">
+              <label className="morb-field__label">Peso (kg)</label>
               <input {...numProps("peso")} placeholder="Ej. 62" />
             </div>
-            <div className="detail-field">
-              <label>Talla (m)</label>
+            <div className="morb-field">
+              <label className="morb-field__label">Talla (m)</label>
               <input {...numProps("talla")} placeholder="Ej. 1.80" />
             </div>
-            <div className="detail-field">
-              <label>IMC</label>
+            <div className="morb-field">
+              <label className="morb-field__label">IMC</label>
               <input {...tProps("imc")} readOnly placeholder="Auto-calculado" />
             </div>
-            <div className="detail-field">
-              <label>Tensión Arterial</label>
+            <div className="morb-field">
+              <label className="morb-field__label">Tensión Arterial</label>
               <input {...tProps("tensionArterial")} placeholder="Ej. 120/80" />
             </div>
-            <div className="detail-field">
-              <label>Frec. Respiratoria (rpm)</label>
+            <div className="morb-field">
+              <label className="morb-field__label">Frec. Respiratoria (rpm)</label>
               <input {...tProps("frecuenciaRespiratoria")} placeholder="Ej. 16" />
             </div>
-            <div className="detail-field">
-              <label>Temperatura (°C)</label>
+            <div className="morb-field">
+              <label className="morb-field__label">Temperatura (°C)</label>
               <input {...numProps("temperatura")} placeholder="Ej. 37.5" />
             </div>
-            <div className="detail-field">
-              <label>Saturación O₂ (%)</label>
+            <div className="morb-field">
+              <label className="morb-field__label">Saturación O₂ (%)</label>
               <input {...tProps("saturacionOxigeno")} placeholder="Ej. 98" />
             </div>
           </div>
@@ -92,8 +92,8 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
               { k: "funGastrointestinal", l: "Gastrointestinal" }, { k: "funGinecologico", l: "Ginecológico" },
               { k: "funGenitourinario", l: "Genitourinario" }, { k: "funNerviosoMental", l: "Nervioso y Mental" }
             ].map(f => (
-              <div key={f.k} className="detail-field detail-field--full">
-                <label>{f.l}</label>
+              <div key={f.k} className="morb-field">
+                <label className="morb-field__label">{f.l}</label>
                 <textarea {...tProps(f.k)} rows={2} style={{ resize: "vertical" }} />
               </div>
             ))}
@@ -110,8 +110,8 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
               { k: "efOjos", l: "Ojos" }, { k: "efOrn", l: "ORL (Oídos, Nariz, Laringe)" },
               { k: "efOtro", l: "Otro" }
             ].map(f => (
-              <div key={f.k} className="detail-field detail-field--full">
-                <label>{f.l}</label>
+              <div key={f.k} className="morb-field">
+                <label className="morb-field__label">{f.l}</label>
                 <textarea {...tProps(f.k)} rows={2} style={{ resize: "vertical" }} />
               </div>
             ))}
@@ -123,16 +123,16 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
         <>
           <SectionTitle>Impresión Diagnóstica y Plan (Adicional)</SectionTitle>
           <div className="detail-grid">
-            <div className="detail-field detail-field--full">
-              <label>Impresión Diagnóstica</label>
+            <div className="morb-field">
+              <label className="morb-field__label">Impresión Diagnóstica</label>
               <textarea {...tProps("impresionDiagnostica")} rows={3} style={{ resize: "vertical" }} />
             </div>
-            <div className="detail-field detail-field--full">
-              <label>Exámenes Paraclínicos</label>
+            <div className="morb-field">
+              <label className="morb-field__label">Exámenes Paraclínicos</label>
               <textarea {...tProps("examenesParaclinicos")} rows={2} style={{ resize: "vertical" }} />
             </div>
-            <div className="detail-field detail-field--full">
-              <label>Plan</label>
+            <div className="morb-field">
+              <label className="morb-field__label">Plan</label>
               <textarea {...tProps("plan")} rows={3} style={{ resize: "vertical" }} />
             </div>
           </div>
