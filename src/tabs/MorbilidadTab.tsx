@@ -1287,7 +1287,7 @@ export default function MorbilidadTab() {
           </div>
 
           {/* Antecedentes | Diagnóstico — 2 columnas simétricas */}
-          <div className="morb-duo" style={{ display: wizardStep === 1 ? 'flex' : 'none' }}>
+          <div className="morb-duo" style={{ display: wizardStep === 1 ? 'grid' : 'none' }}>
             <div className="morb-card morb-card--primary">
               <h3 className="morb-card__title">Antecedentes Crónicos</h3>
               <p className="morb-hint">
@@ -1625,7 +1625,7 @@ export default function MorbilidadTab() {
               </div>
 
               {/* Antecedentes | Diagnóstico */}
-              <div className="morb-duo" style={{ display: wizardStep === 1 ? 'flex' : 'none' }}>
+              <div className="morb-duo" style={{ display: editWizardStep === 1 ? 'grid' : 'none' }}>
                 <div className="morb-card morb-card--primary" style={{ display: editWizardStep === 1 ? 'block' : 'none' }}>
                   <h3 className="morb-card__title">Antecedentes Crónicos</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
@@ -1758,7 +1758,7 @@ export default function MorbilidadTab() {
               </div>
 
               {/* Antecedentes | Diagnóstico en 2 columnas: morb-duo */}
-              <div className="morb-duo" style={{ display: wizardStep === 1 ? 'flex' : 'none' }}>
+              <div className="morb-duo" style={{ display: viewWizardStep === 1 ? 'grid' : 'none' }}>
                 <div className="morb-card morb-card--primary" style={{ display: viewWizardStep === 1 ? 'block' : 'none' }}>
                   <h3 className="morb-card__title">Antecedentes Crónicos</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
