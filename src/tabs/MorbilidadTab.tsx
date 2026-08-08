@@ -1328,6 +1328,7 @@ export default function MorbilidadTab() {
               </div>
             </div>
           </div>
+          <HistoriaClinicaExtendida formData={clinicaFormData} onChange={handleClinicaCreateChange} step={wizardStep} />
 
           <div className="morb-actions">
             <button type="button" className="morb-btn morb-btn--ghost" onClick={closeCreate}>Cancelar</button>
