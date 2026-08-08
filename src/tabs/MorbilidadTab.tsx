@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAppContext } from "@/context/AppContext";
+import { HistoriaClinicaExtendida } from "@/components/HistoriaClinicaExtendida";
 import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText } from "@/lib/helpers";
@@ -178,6 +179,9 @@ export default function MorbilidadTab() {
   // Tipo de atención: refugiado (censo) o apoyo externo (con nota opcional).
   const [tipoPaciente, setTipoPaciente] = useState("REFUGIADO");
   const [tipoNota, setTipoNota] = useState("");
+  const [wizardStep, setWizardStep] = useState(1);
+  const [editWizardStep, setEditWizardStep] = useState(1);
+  const [viewWizardStep, setViewWizardStep] = useState(1);
 
   const onFechaChange = (ymd: string) => { setFechaNacimiento(ymd); setEdad(computeEdad(ymd)); setCreateErrors((p) => (p.fechaNacimiento ? { ...p, fechaNacimiento: "" } : p)); };
 
@@ -379,6 +383,28 @@ export default function MorbilidadTab() {
   const updateLesion = (i: number, field: keyof Lesion, value: string) => setLesiones((p) => p.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
 
   // --- RESET STATE ---
+  
+  const renderWizardNav = (currentStep: number, setStep: (s: number) => void) => (
+    <div className="btn-seg-group" style={{ marginBottom: "1.5rem", display: "flex", width: "100%", overflowX: "auto" }}>
+      {[
+        { i: 1, l: "1. Básicos y Diag" },
+        { i: 2, l: "2. Signos Vitales" },
+        { i: 3, l: "3. Examen Médico" },
+        { i: 4, l: "4. Paraclínicos / Plan" }
+      ].map((s) => (
+        <button
+          key={s.i}
+          type="button"
+          className={`toolbar-btn ${currentStep === s.i ? "toolbar-btn--active" : ""}`}
+          onClick={() => setStep(s.i)}
+          style={{ flex: 1, whiteSpace: "nowrap", padding: "0.6rem 1rem", minWidth: "120px" }}
+        >
+          {s.l}
+        </button>
+      ))}
+    </div>
+  );
+
   const handleReset = () => {
     setCreateErrors({});
     setSearchCedula("");
@@ -531,7 +557,7 @@ export default function MorbilidadTab() {
   };
 
   // Modal "Nueva consulta": abrir (arranca en el buscador de cédula) / cerrar.
-  const openCreate = () => { handleReset(); setShowCreate(true); };
+  const openCreate = () => { handleReset(); setWizardStep(1); setShowCreate(true); };
   // No reseteamos aquí para que el formulario NO "salte" (se vacíe) durante la animación
   // de cierre; el reset ya ocurre al ABRIR (openCreate → handleReset).
   const closeCreate = () => { setShowCreate(false); };
@@ -676,7 +702,7 @@ export default function MorbilidadTab() {
   const [viewClosing, setViewClosing] = useState(false);
   useBodyScrollLock(!!viewConsulta);
 
-  const openView = (c: any) => setViewConsulta(c);
+  const openView = (c: any) => { setViewWizardStep(1); setViewConsulta(c); };
   const closeView = () => {
     if (viewClosing || !viewConsulta) return;
     setViewClosing(true);
@@ -722,6 +748,7 @@ export default function MorbilidadTab() {
   };
 
   const openEdit = (c: any) => {
+    setEditWizardStep(1);
     setEditErrors({});
     // Fecha de nacimiento: la almacenada; si es una consulta vieja sin ella, se
     // intenta recuperar del censo (por UID o cédula). La edad se DERIVA de aquí.
@@ -1187,6 +1214,7 @@ export default function MorbilidadTab() {
               </button>
             </div>
             <div className="morb morb-editbody">
+              {searched && renderWizardNav(wizardStep, setWizardStep)}
             {!searched ? (
               <div className="morb-search">
                 <form onSubmit={handleSearch} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -1211,7 +1239,7 @@ export default function MorbilidadTab() {
             ) : (
               <form onSubmit={handleSave} className="morb-form">
           {/* Datos Básicos — ocupa todo el ancho */}
-          <div className="morb-card morb-card--primary">
+          <div className="morb-card morb-card--primary" style={{ display: wizardStep === 1 ? 'block' : 'none' }}>
             <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
             <div className="morb-tipo">
               <div className="morb-field">
@@ -1259,7 +1287,7 @@ export default function MorbilidadTab() {
           </div>
 
           {/* Antecedentes | Diagnóstico — 2 columnas simétricas */}
-          <div className="morb-duo">
+          <div className="morb-duo" style={{ display: wizardStep === 1 ? 'flex' : 'none' }}>
             <div className="morb-card morb-card--primary">
               <h3 className="morb-card__title">Antecedentes Crónicos</h3>
               <p className="morb-hint">
@@ -1549,8 +1577,8 @@ export default function MorbilidadTab() {
 
             <div className="morb pill-form morb-editbody">
               {/* Datos Básicos */}
-              <div className="morb-card morb-card--primary">
-                <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
+              <div className="morb-card morb-card--primary" style={{ display: wizardStep === 1 ? 'block' : 'none' }}>
+            <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
                 <div className="morb-tipo">
                   <div className="morb-field">
                     <label className="morb-field__label">Tipo de atención</label>
@@ -1596,8 +1624,8 @@ export default function MorbilidadTab() {
               </div>
 
               {/* Antecedentes | Diagnóstico */}
-              <div className="morb-duo">
-                <div className="morb-card morb-card--primary">
+              <div className="morb-duo" style={{ display: wizardStep === 1 ? 'flex' : 'none' }}>
+                <div className="morb-card morb-card--primary" style={{ display: editWizardStep === 1 ? 'block' : 'none' }}>
                   <h3 className="morb-card__title">Antecedentes Crónicos</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
                     <div className="morb-field">
@@ -1632,6 +1660,7 @@ export default function MorbilidadTab() {
                       <textarea className="morb-control" value={editForm.notas} onChange={(e) => setEditForm((f: any) => ({ ...f, notas: e.target.value }))} placeholder="Comentarios del doctor…" />
                     </div>
                   </div>
+                  <HistoriaClinicaExtendida formData={editForm.clinicaFormData || {}} onChange={handleClinicaEditChange} step={editWizardStep} />
                 </div>
               </div>
 
@@ -1659,8 +1688,8 @@ export default function MorbilidadTab() {
 
             <div className="morb pill-form morb-editbody">
               {/* Datos Básicos */}
-              <div className="morb-card morb-card--primary">
-                <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
+              <div className="morb-card morb-card--primary" style={{ display: wizardStep === 1 ? 'block' : 'none' }}>
+            <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
                 <div className="morb-tipo">
                   <div className="morb-field">
                     <label className="morb-field__label">Tipo de atención</label>
@@ -1728,8 +1757,8 @@ export default function MorbilidadTab() {
               </div>
 
               {/* Antecedentes | Diagnóstico en 2 columnas: morb-duo */}
-              <div className="morb-duo">
-                <div className="morb-card morb-card--primary">
+              <div className="morb-duo" style={{ display: wizardStep === 1 ? 'flex' : 'none' }}>
+                <div className="morb-card morb-card--primary" style={{ display: viewWizardStep === 1 ? 'block' : 'none' }}>
                   <h3 className="morb-card__title">Antecedentes Crónicos</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
                     <div className="morb-field">
@@ -1830,11 +1859,13 @@ export default function MorbilidadTab() {
                     </div>
 
                     <div className="morb-field">
-                      <label className="morb-field__label">Notas Médicas / Observaciones</label>
-                      <textarea className="morb-control" value={viewConsulta.data?.notasDoctor || ""} disabled placeholder="Sin notas u observaciones" style={{ minHeight: "60px", resize: "none" }} />
-                    </div>
+                    <label className="morb-field__label">Notas Médicas / Observaciones</label>
+                    <textarea className="morb-control" value={viewConsulta.data?.notasDoctor || ""} disabled placeholder="Sin notas u observaciones" style={{ minHeight: "60px", resize: "none" }} />
                   </div>
                 </div>
+              </div>
+
+              <HistoriaClinicaExtendida formData={viewConsulta.data || {}} onChange={() => {}} readOnly={true} step={viewWizardStep} />
               </div>
 
               <div className="morb-actions">
