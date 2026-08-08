@@ -198,6 +198,11 @@ export default function MorbilidadTab() {
   // Lesiones, heridas y curas de esta consulta: [{ tipoId, zona, estado, cura }].
   const [lesiones, setLesiones] = useState<Lesion[]>([]);
 
+  // --- HISTORIA CLÍNICA (Signos, Físico, Funcional, Evaluación) ---
+  const [clinicaFormData, setClinicaFormData] = useState<any>({});
+  const [activeStep, setActiveStep] = useState<number>(1);
+
+
   // ── Estados EXPLÍCITOS del paciente (toggles): auto-sugeridos por lesiones/patologías
   //    pero el médico decide (una vez que toca el toggle, `touched` congela su elección).
   //    La "base" = valor del censo al cargar (para no revertir un lesionado/embarazo del
@@ -396,6 +401,8 @@ export default function MorbilidadTab() {
     setFechaConsulta(todayYmd());
     setHoraConsulta(nowHm());
     setLesiones([]);
+    setClinicaFormData({});
+    setActiveStep(1);
     seedEstados("ILESO", "NO");
   };
 
@@ -528,6 +535,11 @@ export default function MorbilidadTab() {
   // No reseteamos aquí para que el formulario NO "salte" (se vacíe) durante la animación
   // de cierre; el reset ya ocurre al ABRIR (openCreate → handleReset).
   const closeCreate = () => { setShowCreate(false); };
+
+  const handleClinicaCreateChange = (field: string, value: any) => {
+    setClinicaFormData((prev: any) => ({ ...prev, [field]: value }));
+  };
+
   // "Ver historial": salta a la pestaña Historial Clínico y abre a ese paciente.
   const verHistorial = (cedula: string) => { setPendingHistorialCedula(String(cedula || "")); setActiveTab("historial"); };
 
@@ -631,6 +643,7 @@ export default function MorbilidadTab() {
         diagnosticoPatologiaIds,
         diagnosticoMedicamentoIds: diagnosticoMedicamentoIds.filter((m) => m.id),
         notasDoctor: notasDoctor.trim() || undefined,
+        ...clinicaFormData,
       },
       userId: currentUser?.email,
     };
@@ -750,11 +763,35 @@ export default function MorbilidadTab() {
       estadoFisico: savedEstado, estadoTouched: savedEstado !== autoEstado, estadoBase: baseEstado,
       embarazo: savedEmb, embarazoTouched: savedEmb !== autoEmb, embarazoBase: baseEmb,
       notas: c.data.notasDoctor || "",
+      clinicaFormData: {
+        peso: c.data.peso, talla: c.data.talla, imc: c.data.imc,
+        tensionArterial: c.data.tensionArterial, frecuenciaRespiratoria: c.data.frecuenciaRespiratoria,
+        temperatura: c.data.temperatura, saturacionOxigeno: c.data.saturacionOxigeno,
+        funGeneral: c.data.funGeneral, funPiel: c.data.funPiel, funCabeza: c.data.funCabeza,
+        funOjos: c.data.funOjos, funNariz: c.data.funNariz, funOidos: c.data.funOidos,
+        funBoca: c.data.funBoca, funOsteomuscular: c.data.funOsteomuscular, funRespiratorio: c.data.funRespiratorio,
+        funCardiovascular: c.data.funCardiovascular, funGastrointestinal: c.data.funGastrointestinal,
+        funGinecologico: c.data.funGinecologico, funGenitourinario: c.data.funGenitourinario,
+        funNerviosoMental: c.data.funNerviosoMental,
+        efGeneral: c.data.efGeneral, efPiel: c.data.efPiel, efCabeza: c.data.efCabeza,
+        efCuello: c.data.efCuello, efTorax: c.data.efTorax, efCardiovascular: c.data.efCardiovascular,
+        efAbdomen: c.data.efAbdomen, efGenital: c.data.efGenital, efOsteomuscular: c.data.efOsteomuscular,
+        efNeurologico: c.data.efNeurologico, efOjos: c.data.efOjos, efOrn: c.data.efOrn, efOtro: c.data.efOtro,
+        impresionDiagnostica: c.data.impresionDiagnostica, plan: c.data.plan, examenesParaclinicos: c.data.examenesParaclinicos
+      },
     });
   };
   // Cierre del modal de EDICIÓN con animación de salida: mantenemos `editForm` (el
   // contenido) durante la animación y lo limpiamos al terminar, para que no salte.
   const [editClosing, setEditClosing] = useState(false);
+  
+  const handleClinicaEditChange = (field: string, value: any) => {
+    setEditForm((prev: any) => ({
+      ...prev,
+      clinicaFormData: { ...(prev?.clinicaFormData || {}), [field]: value }
+    }));
+  };
+
   const closeEdit = () => {
     if (editClosing) return;
     setEditClosing(true);
@@ -869,6 +906,7 @@ export default function MorbilidadTab() {
         diagnosticoPatologiaIds: editForm.diagPat,
         diagnosticoMedicamentoIds: editForm.diagMed.filter((m: Medicamento) => m.id),
         notasDoctor: editForm.notas.trim() || undefined,
+        ...(editForm.clinicaFormData || {}),
       };
       await saveLocalConsulta({ id: editForm.id, data, userId: currentUser?.email, createdAt: editForm.createdAt });
       // Persistir también en el censo (si el paciente está vinculado).

@@ -65,7 +65,17 @@ export async function POST(req: Request) {
       antecedentesMedicamentoIds,
       diagnosticoPatologiaIds,
       diagnosticoMedicamentoIds,
-      notasDoctor
+      notasDoctor,
+      // --- ANTROPOMETRÍA Y SIGNOS VITALES ---
+      peso, talla, imc, tensionArterial, frecuenciaRespiratoria, temperatura, saturacionOxigeno,
+      // --- EXAMEN FUNCIONAL ---
+      funGeneral, funPiel, funCabeza, funOjos, funNariz, funOidos, funBoca, funOsteomuscular,
+      funRespiratorio, funCardiovascular, funGastrointestinal, funGinecologico, funGenitourinario, funNerviosoMental,
+      // --- EXAMEN FÍSICO SEGMENTARIO ---
+      efGeneral, efPiel, efCabeza, efCuello, efTorax, efCardiovascular, efAbdomen, efGenital,
+      efOsteomuscular, efNeurologico, efOjos, efOrn, efOtro,
+      // --- EVALUACIÓN DIAGNÓSTICA Y PLAN ---
+      impresionDiagnostica, plan, examenesParaclinicos
     } = body;
 
     if (!cedula || !nombreApellido) {
@@ -90,6 +100,9 @@ export async function POST(req: Request) {
     const estadoFisicoClean = ["ILESO", "LESIONADO"].includes(estadoFisico) ? estadoFisico : null;
     const embarazoClean = ["SI", "NO"].includes(embarazo) ? embarazo : null;
 
+    // Helper para parsear opcional a Float
+    const parseFloatOpt = (val: any) => val != null && val !== "" ? parseFloat(String(val).replace(",", ".")) : null;
+
     // Datos SIN refugio: el refugio lo decide el backend (nunca el cliente).
     const baseData = {
       cedula,
@@ -110,6 +123,48 @@ export async function POST(req: Request) {
       diagnosticoPatologiaIds: arr(diagnosticoPatologiaIds),
       diagnosticoMedicamentoIds: arr(diagnosticoMedicamentoIds),
       notasDoctor,
+      // --- ANTROPOMETRÍA Y SIGNOS VITALES ---
+      peso: parseFloatOpt(peso),
+      talla: parseFloatOpt(talla),
+      imc: parseFloatOpt(imc),
+      tensionArterial: tensionArterial || null,
+      frecuenciaRespiratoria: frecuenciaRespiratoria || null,
+      temperatura: parseFloatOpt(temperatura),
+      saturacionOxigeno: saturacionOxigeno || null,
+      // --- EXAMEN FUNCIONAL ---
+      funGeneral: funGeneral || null,
+      funPiel: funPiel || null,
+      funCabeza: funCabeza || null,
+      funOjos: funOjos || null,
+      funNariz: funNariz || null,
+      funOidos: funOidos || null,
+      funBoca: funBoca || null,
+      funOsteomuscular: funOsteomuscular || null,
+      funRespiratorio: funRespiratorio || null,
+      funCardiovascular: funCardiovascular || null,
+      funGastrointestinal: funGastrointestinal || null,
+      funGinecologico: funGinecologico || null,
+      funGenitourinario: funGenitourinario || null,
+      funNerviosoMental: funNerviosoMental || null,
+      // --- EXAMEN FÍSICO SEGMENTARIO ---
+      efGeneral: efGeneral || null,
+      efPiel: efPiel || null,
+      efCabeza: efCabeza || null,
+      efCuello: efCuello || null,
+      efTorax: efTorax || null,
+      efCardiovascular: efCardiovascular || null,
+      efAbdomen: efAbdomen || null,
+      efGenital: efGenital || null,
+      efOsteomuscular: efOsteomuscular || null,
+      efNeurologico: efNeurologico || null,
+      efOjos: efOjos || null,
+      efOrn: efOrn || null,
+      efOtro: efOtro || null,
+      // --- EVALUACIÓN DIAGNÓSTICA Y PLAN ---
+      impresionDiagnostica: impresionDiagnostica || null,
+      plan: plan || null,
+      examenesParaclinicos: examenesParaclinicos || null,
+      
       userId: auth.email,
     };
 

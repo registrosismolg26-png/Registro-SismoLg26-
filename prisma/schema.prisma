@@ -185,6 +185,52 @@ model ConsultaMedica {
   antecedentesMedicamentoIds  Json?  @default("[]") // [{ id, dosis, periodo }]
   diagnosticoMedicamentoIds   Json?  @default("[]") // [{ id, dosis, periodo }]
   notasDoctor               String?
+
+  // --- ANTROPOMETRÍA Y SIGNOS VITALES ---
+  peso                      Float?
+  talla                     Float?
+  imc                       Float?
+  tensionArterial           String?
+  frecuenciaRespiratoria    String?
+  temperatura               Float?
+  saturacionOxigeno         String?
+
+  // --- EXAMEN FUNCIONAL ---
+  funGeneral                String?
+  funPiel                   String?
+  funCabeza                 String?
+  funOjos                   String?
+  funNariz                  String?
+  funOidos                  String?
+  funBoca                   String?
+  funOsteomuscular          String?
+  funRespiratorio           String?
+  funCardiovascular         String?
+  funGastrointestinal       String?
+  funGinecologico           String?
+  funGenitourinario         String?
+  funNerviosoMental         String?
+
+  // --- EXAMEN FÍSICO SEGMENTARIO ---
+  efGeneral                 String?
+  efPiel                    String?
+  efCabeza                  String?
+  efCuello                  String?
+  efTorax                   String?
+  efCardiovascular          String?
+  efAbdomen                 String?
+  efGenital                 String?
+  efOsteomuscular           String?
+  efNeurologico             String?
+  efOjos                    String?
+  efOrn                     String?
+  efOtro                    String?
+
+  // --- EVALUACIÓN DIAGNÓSTICA Y PLAN ---
+  impresionDiagnostica      String?
+  plan                      String?
+  examenesParaclinicos      String?
+
   createdAt                 DateTime @default(now())
   userId                    String
 
