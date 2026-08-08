@@ -82,7 +82,7 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
       {(step === 0 || step === 3) && (
         <>
           <SectionTitle>Examen Funcional</SectionTitle>
-          <div className="detail-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          <div className="detail-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
             {[
               { k: "funGeneral", l: "General" }, { k: "funPiel", l: "Piel" },
               { k: "funCabeza", l: "Cabeza" }, { k: "funOjos", l: "Ojos" },
@@ -100,7 +100,7 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
           </div>
 
           <SectionTitle>Examen Físico Segmentario</SectionTitle>
-          <div className="detail-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          <div className="detail-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
             {[
               { k: "efGeneral", l: "General" }, { k: "efPiel", l: "Piel" },
               { k: "efCabeza", l: "Cabeza" }, { k: "efCuello", l: "Cuello" },

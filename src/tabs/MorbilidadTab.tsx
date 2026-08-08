@@ -395,7 +395,7 @@ export default function MorbilidadTab() {
         <button
           key={s.i}
           type="button"
-          className={`toolbar-btn ${currentStep === s.i ? "toolbar-btn--active" : ""}`}
+          className={`toolbar-btn ${currentStep === s.i ? "is-active" : ""}`}
           onClick={() => setStep(s.i)}
           style={{ flex: 1, whiteSpace: "nowrap", padding: "0.6rem 1rem", minWidth: "120px" }}
         >
