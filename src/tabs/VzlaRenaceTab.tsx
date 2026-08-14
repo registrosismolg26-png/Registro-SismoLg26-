@@ -17,7 +17,10 @@ import Pagination from "@/components/Pagination";
 import RenacePlanModal from "@/components/RenacePlanModal";
 import type { RenaceJefe, RenaceMiembro } from "@/types";
 
-const LIST_CACHE_KEY = "renace_list_cache_v1";
+// v2: la forma del cache cambió (ahora guarda `planteamientoNros` para el semáforo);
+// subir la versión invalida los caches viejos y fuerza un fetch fresco (evita que un
+// 304 conserve un cache con la forma anterior y deje el semáforo en ámbar).
+const LIST_CACHE_KEY = "renace_list_cache_v2";
 
 // ── Parseo del Excel en el cliente (exceljs perezoso) ────────────────────────
 // Devuelve filas CRUDAS (strings); el backend normaliza a MAYÚSCULA + sexo + ints.
@@ -167,6 +170,7 @@ export default function VzlaRenaceTab() {
 
   const [jefes, setJefes] = useState<RenaceJefe[]>([]);
   const [miembros, setMiembros] = useState<RenaceMiembro[]>([]);
+  const [planNros, setPlanNros] = useState<Set<number>>(new Set()); // jefeNro con planteamiento (semáforo + KPI)
   const [loadingList, setLoadingList] = useState(false);
   const [dirTab, setDirTab] = useState<"jefes" | "miembros">("jefes");
   const [jq, setJq] = useState(""); const [jPage, setJPage] = useState(1); const [jSize, setJSize] = useState(20);
@@ -180,7 +184,7 @@ export default function VzlaRenaceTab() {
   const loadList = async (force = false) => {
     let cached: any = null;
     try { cached = JSON.parse(localStorage.getItem(cacheKey) || "null"); } catch { /* ignore */ }
-    if (cached && !force) { setJefes(cached.jefes || []); setMiembros(cached.miembros || []); }
+    if (cached && !force) { setJefes(cached.jefes || []); setMiembros(cached.miembros || []); setPlanNros(new Set(cached.planteamientoNros || [])); }
     else if (force) { /* limpia lo mostrado al forzar un refugio nuevo */ }
     if (!navigator.onLine) return;
     setLoadingList(true);
@@ -193,14 +197,14 @@ export default function VzlaRenaceTab() {
       if (res.ok) {
         const etag = res.headers.get("ETag");
         const data = await res.json();
-        setJefes(data.jefes || []); setMiembros(data.miembros || []);
-        try { localStorage.setItem(cacheKey, JSON.stringify({ etag, jefes: data.jefes, miembros: data.miembros })); } catch { /* cuota */ }
+        setJefes(data.jefes || []); setMiembros(data.miembros || []); setPlanNros(new Set(data.planteamientoNros || []));
+        try { localStorage.setItem(cacheKey, JSON.stringify({ etag, jefes: data.jefes, miembros: data.miembros, planteamientoNros: data.planteamientoNros })); } catch { /* cuota */ }
       }
     } catch (e) { console.error(e); }
     finally { setLoadingList(false); }
   };
   // Recarga al abrir y cada vez que cambie el campamento (Master).
-  useEffect(() => { setJefes([]); setMiembros([]); loadList(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [effectiveRefugio]);
+  useEffect(() => { setJefes([]); setMiembros([]); setPlanNros(new Set()); loadList(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [effectiveRefugio]);
   useEffect(() => { setJPage(1); }, [jq, jSize]);
   useEffect(() => { setMPage(1); }, [mq, mSize]);
 
@@ -282,6 +286,32 @@ export default function VzlaRenaceTab() {
         <input ref={fileRef} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={onFile} />
       </div>
 
+      {/* KPIs (mismo lenguaje visual que Estadísticas: .bal-cards/.bal-card) */}
+      {(() => {
+        const totalFamilias = jefes.length;
+        const conPlan = Math.min(planNros.size, totalFamilias);
+        const sinPlan = Math.max(0, totalFamilias - conPlan);
+        const pct = (n: number) => (totalFamilias ? `${Math.round((n / totalFamilias) * 100)}%` : "0%");
+        const fmt = (n: number) => n.toLocaleString("es-VE");
+        const kpis = [
+          { label: "Familias", value: totalFamilias, accent: "#1e3a8a", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18" /><path d="M5 21V7l7-4 7 4v14" /><path d="M9 21v-6h6v6" /></svg>) },
+          { label: "Con planteamiento", value: conPlan, sub: pct(conPlan), accent: "#059669", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335" /><path d="m9 11 3 3L22 4" /></svg>) },
+          { label: "Sin planteamiento", value: sinPlan, sub: pct(sinPlan), accent: "#d97706", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>) },
+          { label: "Miembros", value: miembros.length, accent: "#0284c7", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>) },
+        ];
+        return (
+          <div className="bal-cards renace-kpis">
+            {kpis.map((c) => (
+              <div key={c.label} className="bal-card" style={{ ["--accent" as any]: c.accent } as React.CSSProperties}>
+                <span className="bal-card__icon">{c.icon}</span>
+                <span key={c.value} className="bal-card__value stat-card-value-animate">{fmt(c.value)}</span>
+                <span className="bal-card__label">{c.label}{c.sub && <span className="bal-card__sub"> · {c.sub}</span>}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Sub-tablas */}
       <div className="btn-seg-group renace-dirtabs">
         <button type="button" className={`toolbar-btn${dirTab === "jefes" ? " is-active" : ""}`} onClick={() => setDirTab("jefes")}>Jefes ({jefes.length})</button>
@@ -295,13 +325,24 @@ export default function VzlaRenaceTab() {
           </div>
           <div className="registro-table-wrapper">
             <table className="registro-table">
-              <thead><tr><th className="col-num">N°</th><th>Nombre</th><th>Cédula</th><th>Miembros</th><th>Procedencia</th><th className="col-action"></th></tr></thead>
+              <thead><tr><th className="col-num">N°</th><th className="col-sem">Plan</th><th>Nombre</th><th>Cédula</th><th>Miembros</th><th>Procedencia</th><th className="col-action"></th></tr></thead>
               <tbody>
                 {jefesPage.length === 0 ? (
-                  <tr><td colSpan={6} className="renace-td-empty">{loadingList ? "Cargando…" : "Sin resultados."}</td></tr>
+                  <tr><td colSpan={7} className="renace-td-empty">{loadingList ? "Cargando…" : "Sin resultados."}</td></tr>
                 ) : jefesPage.map((j) => (
                   <tr key={j.id}>
                     <td className="col-num">{j.nro}</td>
+                    <td className="col-sem" data-label="Plan">
+                      {planNros.has(j.nro) ? (
+                        <span className="renace-sem renace-sem--ok" title="Con planteamiento" aria-label="Con planteamiento">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335" /><path d="m9 11 3 3L22 4" /></svg>
+                        </span>
+                      ) : (
+                        <span className="renace-sem renace-sem--no" title="Sin planteamiento" aria-label="Sin planteamiento">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
+                        </span>
+                      )}
+                    </td>
                     <td>{j.nombres}</td>
                     <td>{j.cedula || "—"}</td>
                     <td>{j.cantMiembros ?? "—"}</td>
@@ -354,6 +395,7 @@ export default function VzlaRenaceTab() {
           jefe={planeando}
           miembros={miembrosDelNucleo}
           onClose={() => setPlaneando(null)}
+          onSaved={() => loadList(true)}
           showToast={showToast}
         />
       )}
