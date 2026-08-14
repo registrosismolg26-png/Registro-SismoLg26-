@@ -79,7 +79,11 @@ export interface PadrónCiudadano {
 }
 
 const DB_NAME = 'registro-sismo-db';
-const DB_VERSION = 9; // Subido para solventar VersionError
+// ⚠️ NUNCA BAJAR este número. IndexedDB no puede abrirse con una versión MENOR a la
+// que ya tiene el navegador → `VersionError` y falla TODO guardado local. Si un build
+// local llegó a una versión mayor (p. ej. 10 en máquinas del equipo), este valor debe
+// quedar por ENCIMA. Subido a 11 tras detectar navegadores con la 10.
+const DB_VERSION = 11;
 const STORE_NAME = 'registros';
 const PADRON_STORE = 'padron';
 const CONSULTAS_STORE = 'consultas';
