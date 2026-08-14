@@ -1,4 +1,5 @@
 import React from "react";
+import { PosDecimalInput } from "@/components/PosDecimalInput";
 
 // Campos de la Historia Clínica Extendida — fuente ÚNICA (se usan en el wizard y
 // para detectar/mostrar en la vista de detalle). Cada `k` = clave en el objeto de
@@ -74,6 +75,14 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
     }
   });
 
+  // Recalcula el IMC = peso / talla². Se llama al cambiar peso o talla (talla usa el
+  // POS input, así que no pasa por numProps). Acepta "," o "." como decimal.
+  const recomputeImc = (peso: any, talla: any) => {
+    const p = parseFloat(String(peso ?? "").replace(",", "."));
+    const t = parseFloat(String(talla ?? "").replace(",", "."));
+    onChange("imc", p > 0 && t > 0 ? (p / (t * t)).toFixed(1) : "");
+  };
+
   const SectionTitle = ({ children }: { children: React.ReactNode }) => (
     <div className="morb-card__title" style={{ marginTop: "1.5rem" }}>
       <span>{children}</span>
@@ -92,7 +101,15 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
             </div>
             <div className="morb-field">
               <label className="morb-field__label">Talla (m)</label>
-              <input {...numProps("talla")} placeholder="Ej. 1.80" />
+              <PosDecimalInput
+                className="morb-control"
+                value={formData.talla || ""}
+                decimals={2}
+                readOnly={readOnly}
+                placeholder="0.00"
+                ariaLabel="Talla en metros"
+                onChange={(v) => { onChange("talla", v); recomputeImc(formData.peso, v); }}
+              />
             </div>
             <div className="morb-field">
               <label className="morb-field__label">IMC</label>
@@ -108,7 +125,15 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
             </div>
             <div className="morb-field">
               <label className="morb-field__label">Temperatura (°C)</label>
-              <input {...numProps("temperatura")} placeholder="Ej. 37.5" />
+              <PosDecimalInput
+                className="morb-control"
+                value={formData.temperatura || ""}
+                decimals={1}
+                readOnly={readOnly}
+                placeholder="0.0"
+                ariaLabel="Temperatura en grados"
+                onChange={(v) => onChange("temperatura", v)}
+              />
             </div>
             <div className="morb-field">
               <label className="morb-field__label">Saturación O₂ (%)</label>
