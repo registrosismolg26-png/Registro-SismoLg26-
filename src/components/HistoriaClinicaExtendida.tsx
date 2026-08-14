@@ -6,7 +6,7 @@ import { PosDecimalInput } from "@/components/PosDecimalInput";
 // la consulta (ConsultaMedica.data), `l` = etiqueta visible.
 export const HCE_VITALES: { k: string; l: string }[] = [
   { k: "peso", l: "Peso (kg)" }, { k: "talla", l: "Talla (m)" }, { k: "imc", l: "IMC" },
-  { k: "tensionArterial", l: "Tensión Arterial" }, { k: "frecuenciaRespiratoria", l: "Frec. Respiratoria (rpm)" },
+  { k: "tensionArterial", l: "Tensión Arterial (mm Hg)" }, { k: "frecuenciaRespiratoria", l: "Frec. Respiratoria (rpm)" },
   { k: "temperatura", l: "Temperatura (°C)" }, { k: "saturacionOxigeno", l: "Saturación O₂ (%)" },
 ];
 export const HCE_FUNCIONAL: { k: string; l: string }[] = [
@@ -116,7 +116,7 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
               <input {...tProps("imc")} readOnly placeholder="Auto-calculado" />
             </div>
             <div className="morb-field">
-              <label className="morb-field__label">Tensión Arterial</label>
+              <label className="morb-field__label">Tensión Arterial (mm Hg)</label>
               <input {...tProps("tensionArterial")} placeholder="Ej. 120/80" />
             </div>
             <div className="morb-field">
