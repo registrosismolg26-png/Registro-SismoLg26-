@@ -1372,27 +1372,12 @@ export default function Home() {
               apiFetch("/api/consultas", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  id: c.id,
-                  cedula: c.data.cedula,
-                  nombreApellido: c.data.nombreApellido,
-                  genero: c.data.genero,
-                  edad: c.data.edad,
-                  fechaNacimiento: c.data.fechaNacimiento,
-                  tipoPaciente: c.data.tipoPaciente,
-                  tipoNota: c.data.tipoNota,
-                  fechaConsulta: c.data.fechaConsulta,
-                  lesiones: c.data.lesiones,
-                  estadoFisico: c.data.estadoFisico,
-                  embarazo: c.data.embarazo,
-                  refugio: c.data.refugio,
-                  registroId: c.data.registroId,
-                  antecedentesPatologiaIds: c.data.antecedentesPatologiaIds,
-                  antecedentesMedicamentoIds: c.data.antecedentesMedicamentoIds,
-                  diagnosticoPatologiaIds: c.data.diagnosticoPatologiaIds,
-                  diagnosticoMedicamentoIds: c.data.diagnosticoMedicamentoIds,
-                  notasDoctor: c.data.notasDoctor,
-                }),
+                // Se envía TODO el `data` de la consulta (id + todos los campos),
+                // incluidos los del WIZARD (peso, talla, examen funcional/físico,
+                // impresión, plan…). Antes se listaban a mano y se PERDÍAN esos
+                // campos en el sync → el server los guardaba nulos. El backend
+                // ignora las claves que no espera, así que enviar de más es seguro.
+                body: JSON.stringify({ id: c.id, ...c.data }),
                 timeoutMs: 15000,
               }),
             ),
