@@ -15,6 +15,7 @@ import { useAppContext } from "@/context/AppContext";
 import { patologiaNombre, medLabel, tipoLesionNombre, formatCedulaDisplay, initialsOf } from "@/lib/helpers";
 import { ESTADO_LESION_LABELS } from "@/lib/constants";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
+import { HistoriaClinicaExtendida, tieneHistoriaExtendida } from "@/components/HistoriaClinicaExtendida";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import type { Medicamento, Lesion } from "@/types";
 
@@ -478,6 +479,15 @@ export default function HistorialClinicoTab() {
                     </div>
                   </div>
                 </div>
+
+                {/* Historia Clínica Extendida (signos vitales, examen funcional/físico,
+                    impresión y plan) — solo si la consulta trae esos datos del wizard. */}
+                {tieneHistoriaExtendida(viewConsulta.data) && (
+                  <div className="morb-card morb-card--primary" style={{ marginTop: "1rem" }}>
+                    <h3 className="morb-card__title">Historia Clínica Extendida</h3>
+                    <HistoriaClinicaExtendida formData={viewConsulta.data || {}} onChange={() => {}} readOnly step={0} />
+                  </div>
+                )}
               </div>
 
               <div className="morb-actions">

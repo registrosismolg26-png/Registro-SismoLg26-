@@ -1,5 +1,44 @@
 import React from "react";
 
+// Campos de la Historia Clínica Extendida — fuente ÚNICA (se usan en el wizard y
+// para detectar/mostrar en la vista de detalle). Cada `k` = clave en el objeto de
+// la consulta (ConsultaMedica.data), `l` = etiqueta visible.
+export const HCE_VITALES: { k: string; l: string }[] = [
+  { k: "peso", l: "Peso (kg)" }, { k: "talla", l: "Talla (m)" }, { k: "imc", l: "IMC" },
+  { k: "tensionArterial", l: "Tensión Arterial" }, { k: "frecuenciaRespiratoria", l: "Frec. Respiratoria (rpm)" },
+  { k: "temperatura", l: "Temperatura (°C)" }, { k: "saturacionOxigeno", l: "Saturación O₂ (%)" },
+];
+export const HCE_FUNCIONAL: { k: string; l: string }[] = [
+  { k: "funGeneral", l: "General" }, { k: "funPiel", l: "Piel" },
+  { k: "funCabeza", l: "Cabeza" }, { k: "funOjos", l: "Ojos" },
+  { k: "funNariz", l: "Nariz" }, { k: "funOidos", l: "Oídos" },
+  { k: "funBoca", l: "Boca" }, { k: "funOsteomuscular", l: "Osteomuscular" },
+  { k: "funRespiratorio", l: "Respiratorio" }, { k: "funCardiovascular", l: "Cardiovascular" },
+  { k: "funGastrointestinal", l: "Gastrointestinal" }, { k: "funGinecologico", l: "Ginecológico" },
+  { k: "funGenitourinario", l: "Genitourinario" }, { k: "funNerviosoMental", l: "Nervioso y Mental" },
+];
+export const HCE_FISICO: { k: string; l: string }[] = [
+  { k: "efGeneral", l: "General" }, { k: "efPiel", l: "Piel" },
+  { k: "efCabeza", l: "Cabeza" }, { k: "efCuello", l: "Cuello" },
+  { k: "efTorax", l: "Tórax" }, { k: "efCardiovascular", l: "Cardiovascular" },
+  { k: "efAbdomen", l: "Abdomen" }, { k: "efGenital", l: "Genital" },
+  { k: "efOsteomuscular", l: "Osteomuscular" }, { k: "efNeurologico", l: "Neurológico" },
+  { k: "efOjos", l: "Ojos" }, { k: "efOrn", l: "ORL (Oídos, Nariz, Laringe)" },
+  { k: "efOtro", l: "Otro" },
+];
+export const HCE_PLAN: { k: string; l: string }[] = [
+  { k: "impresionDiagnostica", l: "Impresión Diagnóstica" },
+  { k: "examenesParaclinicos", l: "Exámenes Paraclínicos" },
+  { k: "plan", l: "Plan" },
+];
+// Todas las claves, para detectar si una consulta trae historia extendida.
+export const HCE_FIELD_KEYS: string[] = [
+  ...HCE_VITALES, ...HCE_FUNCIONAL, ...HCE_FISICO, ...HCE_PLAN,
+].map((f) => f.k);
+// ¿La consulta tiene AL MENOS un campo de historia extendida con valor?
+export const tieneHistoriaExtendida = (data: any): boolean =>
+  !!data && HCE_FIELD_KEYS.some((k) => { const v = data[k]; return v != null && String(v).trim() !== ""; });
+
 interface Props {
   formData: any;
   onChange: (field: string, value: any) => void;
@@ -83,15 +122,7 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
         <>
           <SectionTitle>Examen Funcional</SectionTitle>
           <div className="detail-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-            {[
-              { k: "funGeneral", l: "General" }, { k: "funPiel", l: "Piel" },
-              { k: "funCabeza", l: "Cabeza" }, { k: "funOjos", l: "Ojos" },
-              { k: "funNariz", l: "Nariz" }, { k: "funOidos", l: "Oídos" },
-              { k: "funBoca", l: "Boca" }, { k: "funOsteomuscular", l: "Osteomuscular" },
-              { k: "funRespiratorio", l: "Respiratorio" }, { k: "funCardiovascular", l: "Cardiovascular" },
-              { k: "funGastrointestinal", l: "Gastrointestinal" }, { k: "funGinecologico", l: "Ginecológico" },
-              { k: "funGenitourinario", l: "Genitourinario" }, { k: "funNerviosoMental", l: "Nervioso y Mental" }
-            ].map(f => (
+            {HCE_FUNCIONAL.map(f => (
               <div key={f.k} className="morb-field">
                 <label className="morb-field__label">{f.l}</label>
                 <textarea {...tProps(f.k)} rows={2} style={{ resize: "vertical" }} />
@@ -101,15 +132,7 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
 
           <SectionTitle>Examen Físico Segmentario</SectionTitle>
           <div className="detail-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-            {[
-              { k: "efGeneral", l: "General" }, { k: "efPiel", l: "Piel" },
-              { k: "efCabeza", l: "Cabeza" }, { k: "efCuello", l: "Cuello" },
-              { k: "efTorax", l: "Tórax" }, { k: "efCardiovascular", l: "Cardiovascular" },
-              { k: "efAbdomen", l: "Abdomen" }, { k: "efGenital", l: "Genital" },
-              { k: "efOsteomuscular", l: "Osteomuscular" }, { k: "efNeurologico", l: "Neurológico" },
-              { k: "efOjos", l: "Ojos" }, { k: "efOrn", l: "ORL (Oídos, Nariz, Laringe)" },
-              { k: "efOtro", l: "Otro" }
-            ].map(f => (
+            {HCE_FISICO.map(f => (
               <div key={f.k} className="morb-field">
                 <label className="morb-field__label">{f.l}</label>
                 <textarea {...tProps(f.k)} rows={2} style={{ resize: "vertical" }} />
