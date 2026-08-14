@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAppContext } from "@/context/AppContext";
 import { HistoriaClinicaExtendida } from "@/components/HistoriaClinicaExtendida";
+import { WizardNav } from "@/components/WizardNav";
 import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText } from "@/lib/helpers";
@@ -385,24 +386,7 @@ export default function MorbilidadTab() {
   // --- RESET STATE ---
   
   const renderWizardNav = (currentStep: number, setStep: (s: number) => void) => (
-    <div className="btn-seg-group" style={{ marginBottom: "1.5rem", display: "flex", width: "100%", overflowX: "auto" }}>
-      {[
-        { i: 1, l: "1. Básicos y Diag" },
-        { i: 2, l: "2. Signos Vitales" },
-        { i: 3, l: "3. Examen Médico" },
-        { i: 4, l: "4. Paraclínicos / Plan" }
-      ].map((s) => (
-        <button
-          key={s.i}
-          type="button"
-          className={`toolbar-btn ${currentStep === s.i ? "is-active" : ""}`}
-          onClick={() => setStep(s.i)}
-          style={{ flex: 1, whiteSpace: "nowrap", padding: "0.6rem 1rem", minWidth: "120px" }}
-        >
-          {s.l}
-        </button>
-      ))}
-    </div>
+    <WizardNav step={currentStep} setStep={setStep} />
   );
 
   const handleReset = () => {

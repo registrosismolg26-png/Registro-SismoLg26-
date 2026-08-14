@@ -16,6 +16,7 @@ import { patologiaNombre, medLabel, tipoLesionNombre, formatCedulaDisplay, initi
 import { ESTADO_LESION_LABELS } from "@/lib/constants";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import { HistoriaClinicaExtendida, tieneHistoriaExtendida } from "@/components/HistoriaClinicaExtendida";
+import { WizardNav } from "@/components/WizardNav";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import type { Medicamento, Lesion } from "@/types";
 
@@ -59,6 +60,7 @@ export default function HistorialClinicoTab() {
 
   // Ver detalle de una consulta en modal de solo lectura
   const [viewConsulta, setViewConsulta] = useState<any | null>(null);
+  const [hcStep, setHcStep] = useState(1); // paso del wizard en el detalle (1=básicos, 2-4=extendida)
   const [viewClosing, setViewClosing] = useState(false);
   useBodyScrollLock(!!viewConsulta);
 
@@ -247,7 +249,7 @@ export default function HistorialClinicoTab() {
                           type="button"
                           className="morb-row-actions__btn morb-row-actions__btn--view"
                           style={{ marginLeft: "auto", padding: "0.3rem 0.75rem", borderRadius: "100px", border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.1)", color: "#6366f1", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.78rem", cursor: "pointer" }}
-                          onClick={() => setViewConsulta({ ...c, data: c })}
+                          onClick={() => { setHcStep(1); setViewConsulta({ ...c, data: c }); }}
                           data-tip="Ver detalle"
                           aria-label="Ver detalle de la consulta"
                         >
@@ -307,6 +309,10 @@ export default function HistorialClinicoTab() {
             </div>
 
             <div className="morb pill-form morb-editbody">
+              {tieneHistoriaExtendida(viewConsulta.data) && <WizardNav step={hcStep} setStep={setHcStep} />}
+              {/* Paso 1: datos básicos + antecedentes + diagnóstico. Si la consulta NO tiene
+                  datos del wizard, se muestran siempre (sin barra de pasos). */}
+              <div style={{ display: !tieneHistoriaExtendida(viewConsulta.data) || hcStep === 1 ? "block" : "none" }}>
               {/* Datos Básicos */}
               <div className="morb-card morb-card--primary">
                 <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
@@ -479,15 +485,15 @@ export default function HistorialClinicoTab() {
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Historia Clínica Extendida (signos vitales, examen funcional/físico,
-                    impresión y plan) — solo si la consulta trae esos datos del wizard. */}
-                {tieneHistoriaExtendida(viewConsulta.data) && (
-                  <div className="morb-card morb-card--primary" style={{ marginTop: "1rem" }}>
-                    <h3 className="morb-card__title">Historia Clínica Extendida</h3>
-                    <HistoriaClinicaExtendida formData={viewConsulta.data || {}} onChange={() => {}} readOnly step={0} />
-                  </div>
-                )}
+              {/* Pasos 2-4 del wizard (solo lectura), navegables con la barra de pasos —
+                  igual que en Morbilidad. El paso 1 es el detalle básico de arriba. */}
+              {tieneHistoriaExtendida(viewConsulta.data) && hcStep !== 1 && (
+                <div className="morb-card morb-card--primary">
+                  <HistoriaClinicaExtendida formData={viewConsulta.data || {}} onChange={() => {}} readOnly step={hcStep} />
+                </div>
+              )}
               </div>
 
               <div className="morb-actions">
