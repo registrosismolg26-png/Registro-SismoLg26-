@@ -950,25 +950,18 @@ export default function MorbilidadTab() {
       if (!localIds.has(c.id)) {
         combined.push({
           id: c.id,
+          // Se conservan TODOS los campos de la consulta remota — incluidos los del
+          // WIZARD (peso, talla, imc, tensión, examen funcional/físico, impresión,
+          // plan…). Antes se listaban a mano y se PERDÍAN los del historial extendido,
+          // así que al sincronizarse la consulta el detalle/edición salían vacíos.
           data: {
-            cedula: c.cedula,
-            nombreApellido: c.nombreApellido,
-            registroId: c.registroId,
-            genero: c.genero,
-            edad: c.edad,
-            fechaNacimiento: c.fechaNacimiento,
+            ...c,
             tipoPaciente: c.tipoPaciente || "REFUGIADO",
-            tipoNota: c.tipoNota,
-            fechaConsulta: c.fechaConsulta,
             lesiones: c.lesiones || [],
-            estadoFisico: c.estadoFisico,
-            embarazo: c.embarazo,
-            refugio: c.refugio,
             antecedentesPatologiaIds: c.antecedentesPatologiaIds || [],
             antecedentesMedicamentoIds: c.antecedentesMedicamentoIds || [],
             diagnosticoPatologiaIds: c.diagnosticoPatologiaIds || [],
             diagnosticoMedicamentoIds: c.diagnosticoMedicamentoIds || [],
-            notasDoctor: c.notasDoctor,
           },
           status: "synced",
           attempts: 0,
