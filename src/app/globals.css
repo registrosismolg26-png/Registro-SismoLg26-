@@ -14024,9 +14024,15 @@ select.morb-control {
   padding: 1rem !important;
 }
 
-/* Bloques condicionales del planteamiento: ocupan todo el ancho de la grilla. */
-.renace-plan .reveal {
+/* Bloques condicionales del planteamiento: ocupan todo el ancho de la grilla Y le dan
+   una COLUMNA DEFINIDA (minmax(0,1fr)) a su contenido; sin esto la grilla interna
+   (dentro del Reveal, que es display:grid para animar) colapsa a 1 columna. */
+.renace-modal .reveal {
   grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr);
+}
+.renace-modal .reveal__inner {
+  min-width: 0;
 }
 .renace-sub {
   padding: 0.15rem 0 0.2rem;
@@ -14063,4 +14069,148 @@ select.morb-control {
 }
 .renace-link:hover {
   text-decoration: underline;
+}
+
+/* Botón "Planear" de fila (pill con tinte primario) */
+.btn-planear {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 34px;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-primary-ring);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+.btn-planear:hover {
+  transform: translateY(-1px);
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+/* ── Modal-wizard "Planear" ──────────────────────────────────────────────── */
+/* Selector COMPUESTO (0,2,0) para vencer el `max-width: 380px` de `.modal-content`
+   (mismo patrón que .modal-content--morb). Sin esto el modal se queda angosto. */
+.modal-content.renace-modal {
+  width: min(960px, 96vw);
+  max-width: min(960px, 96vw);
+  max-height: 92vh;
+  padding: 0;
+}
+/* Grilla del wizard: responsive REAL — 1 col en móvil, 2 en tablet, 3 en escritorio.
+   `minmax(0,1fr)` evita que el contenido ancho reviente las columnas. `min-width: 100%`
+   es CLAVE: la grilla condicional vive dentro de `.reveal__inner` (overflow:hidden +
+   grid-item), contexto que la auto-limita a su max-content y la deja angosta; forzar
+   min-width al 100% del contenedor la hace LLENAR el ancho (verificado). */
+.renace-modal .carac-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.8rem 1rem;
+  min-width: 100%;
+}
+@media (min-width: 640px) {
+  .renace-modal .carac-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 900px) {
+  .renace-modal .carac-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* Botones del wizard: no full-width (anula el width:100% de .pill-form) */
+.renace-modal__nav .btn-submit,
+.renace-modal__nav .btn-back {
+  width: auto !important;
+  flex: 0 0 auto;
+}
+.renace-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.4rem 0.8rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.renace-modal__head h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+.renace-modal__sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.renace-modal__progress {
+  padding: 0.9rem 1.4rem 0.2rem;
+}
+.renace-modal .wizard-step-label {
+  padding: 0 1.4rem;
+}
+.renace-modal__body {
+  overflow-y: auto;
+  padding: 1rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  flex: 1 1 auto;
+}
+.renace-modal__nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.9rem 1.4rem;
+  border-top: 1px solid var(--border-color);
+}
+.renace-modal__loading {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+.renace-modal__note {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-warning);
+  background: var(--color-warning-light);
+  border: 1px solid var(--color-warning);
+  border-radius: 12px;
+  padding: 0.55rem 0.8rem;
+  margin-bottom: 0.9rem;
+}
+.renace-resumen {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+}
+.renace-resumen .renace-block__title {
+  margin-bottom: 0.7rem;
+}
+
+@media (max-width: 560px) {
+  .renace-modal__head,
+  .renace-modal__nav {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .renace-modal__body {
+    padding: 0.9rem 1rem;
+  }
+  .renace-modal__progress {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .renace-modal .wizard-step-label {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }

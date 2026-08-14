@@ -1,11 +1,40 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, isMaster, type AuthUser } from "@/lib/auth";
+import { refugioIdByName } from "@/lib/renaceScope";
 
-// POST — registra/actualiza el PLANTEAMIENTO de un núcleo (1 por jefe, upsert por
-// jefeNro). Todo texto en MAYÚSCULA; solo se persisten los campos pertinentes al
-// `tipo` elegido (las ramas no elegidas se guardan en null). ALQUILER: cánon ≤ 500 $.
-// `createdBy` = email del operador (solo al crear). Cualquier autenticado.
+// Refugio DESTINO del planteamiento: se usa el refugioId del NÚCLEO (que el cliente
+// envía desde el jefe). Seguridad: un NO-master solo puede operar en SU refugio →
+// se fuerza el suyo (se ignora el enviado); Master puede operar en el del núcleo.
+async function targetRefugioId(auth: AuthUser, sent: string): Promise<string | null> {
+  if (isMaster(auth)) return sent?.trim() || null;
+  return await refugioIdByName(auth.refugio); // fuerza el refugio del usuario
+}
+
+// GET ?jefeNro=&refugioId= — planteamiento del núcleo (o null). Autenticado.
+export async function GET(req: Request) {
+  try {
+    const auth = await getAuthUser(req);
+    if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const url = new URL(req.url);
+    const jefeNro = parseInt(url.searchParams.get("jefeNro") ?? "", 10);
+    const refugioId = await targetRefugioId(auth, url.searchParams.get("refugioId") ?? "");
+    if (!Number.isFinite(jefeNro) || !refugioId) return NextResponse.json({ planteamiento: null });
+
+    const planteamiento = await prisma.renacePlanteamiento.findUnique({
+      where: { jefeNro_refugioId: { jefeNro, refugioId } },
+    });
+    return NextResponse.json({ planteamiento: planteamiento ?? null });
+  } catch (error: any) {
+    console.error("Error en GET /api/vzlarenace/planteamiento:", error);
+    return NextResponse.json({ error: "Error al cargar el planteamiento" }, { status: 500 });
+  }
+}
+
+// POST — registra/actualiza el PLANTEAMIENTO (1 por núcleo, upsert por [jefeNro,
+// refugioId]). Todo texto en MAYÚSCULA; solo se persisten los campos del `tipo`.
+// ALQUILER: cánon ≤ 500 $ (formato venezolano ##.###,##).
 export async function POST(req: Request) {
   try {
     const auth = await getAuthUser(req);
@@ -17,22 +46,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Falta el núcleo (jefeNro)." }, { status: 400 });
     }
 
+    const refugioId = await targetRefugioId(auth, String(body?.refugioId ?? ""));
+    if (!refugioId) {
+      return NextResponse.json({ error: "No se pudo determinar el campamento del núcleo." }, { status: 400 });
+    }
+
     const tipo = String(body?.tipo ?? "").trim().toUpperCase();
     const TIPOS = ["COMPRA", "ALQUILER", "GMVV_INTERIOR", "PLAN_RENACE"];
     if (!TIPOS.includes(tipo)) {
       return NextResponse.json({ error: "Tipo de planteamiento inválido." }, { status: 400 });
     }
 
-    // El núcleo debe existir (evita planteamientos huérfanos).
-    const jefe = await prisma.renaceJefe.findUnique({ where: { nro: jefeNro } });
-    if (!jefe) return NextResponse.json({ error: "El núcleo no existe." }, { status: 404 });
+    // El núcleo debe existir EN ESE REFUGIO (evita planear en un campamento ajeno).
+    const jefe = await prisma.renaceJefe.findUnique({ where: { nro_refugioId: { nro: jefeNro, refugioId } } });
+    if (!jefe) return NextResponse.json({ error: "El núcleo no existe en ese campamento." }, { status: 404 });
 
     const up = (v: any) => { const s = String(v ?? "").trim().toUpperCase(); return s || null; };
 
-    // Cánon de alquiler acotado a 500 $ (regla del dueño).
+    // Cánon de alquiler acotado a 500 $. El monto llega en formato venezolano
+    // ("52.000.055,55"): se quitan los puntos de miles y la coma decimal pasa a punto.
     const precioOCanon = up(body?.precioOCanon);
     if (tipo === "ALQUILER" && precioOCanon) {
-      const monto = parseFloat(String(precioOCanon).replace(/[^\d.]/g, ""));
+      const monto = parseFloat(String(precioOCanon).replace(/\./g, "").replace(",", ".").replace(/[^\d.]/g, ""));
       if (Number.isFinite(monto) && monto > 500) {
         return NextResponse.json({ error: "El cánon de alquiler no puede exceder 500 $." }, { status: 400 });
       }
@@ -56,8 +91,8 @@ export async function POST(req: Request) {
     };
 
     const saved = await prisma.renacePlanteamiento.upsert({
-      where: { jefeNro },
-      create: { jefeNro, ...data, createdBy: auth.email },
+      where: { jefeNro_refugioId: { jefeNro, refugioId } },
+      create: { jefeNro, refugioId, ...data, createdBy: auth.email },
       update: data,
     });
 

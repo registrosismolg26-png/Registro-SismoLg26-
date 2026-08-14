@@ -9,18 +9,29 @@ import { fileURLToPath } from "node:url";
 
 const swPath = fileURLToPath(new URL("../public/sw.js", import.meta.url));
 
-// En Vercel: VERCEL_GIT_COMMIT_SHA. En local: git. Último recurso: timestamp.
-let version = process.env.VERCEL_GIT_COMMIT_SHA || "";
-if (!version) {
-  try {
-    version = execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] })
-      .toString()
-      .trim();
-  } catch {
-    /* sin git disponible */
+// Modo DEV (`--dev`): fuerza un BUILD_TS ÚNICO por timestamp. Se usa al iterar UI
+// en `next dev` (que NO corre `prebuild`), para que el Service Worker del navegador
+// detecte una versión nueva y pida ACTUALIZAR — si no, sirve el CSS/JS cacheado y los
+// cambios de UI no se ven. En build normal se usa el commit SHA (invalidación por deploy).
+const devMode = process.argv.includes("--dev");
+
+let version = "";
+if (devMode) {
+  version = `dev-${Date.now().toString(36)}`;
+} else {
+  // En Vercel: VERCEL_GIT_COMMIT_SHA. En local: git. Último recurso: timestamp.
+  version = process.env.VERCEL_GIT_COMMIT_SHA || "";
+  if (!version) {
+    try {
+      version = execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+        .toString()
+        .trim();
+    } catch {
+      /* sin git disponible */
+    }
   }
+  version = (version || String(Date.now())).slice(0, 12);
 }
-version = (version || String(Date.now())).slice(0, 12);
 
 const sw = readFileSync(swPath, "utf8");
 if (!/const BUILD_TS = "[^"]*";/.test(sw)) {

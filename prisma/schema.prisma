@@ -430,9 +430,13 @@ model Notification {
 // MAYÚSCULAS. No se scopea por refugio (es data global del programa).
 
 // Jefe de familia del programa (1 por núcleo). `nro` = número del Excel (enlace).
+// Datos SCOPED por refugio: `refugioId` = Refugio dueño (por ID, estable — no por
+// nombre, igual que Comunidad.refugioId). El `nro` del Excel se repite entre
+// campamentos → es único POR refugio, no global.
 model RenaceJefe {
   id                      String   @id @default(uuid())
-  nro                     Int      @unique // NRO del Excel — enlace con RenaceMiembro.jefeNro
+  refugioId               String
+  nro                     Int      // NRO del Excel — enlace con RenaceMiembro.jefeNro (único por refugio)
   cantMiembros            Int?
   nombres                 String
   cedula                  String
@@ -451,12 +455,16 @@ model RenaceJefe {
   observaciones           String?
   createdAt               DateTime @default(now())
 
+  @@unique([nro, refugioId])
+  @@index([refugioId])
   @@index([cedula])
 }
 
-// Miembro del grupo familiar. `jefeNro` enlaza con RenaceJefe.nro (= Nº del Excel).
+// Miembro del grupo familiar. `jefeNro` enlaza con RenaceJefe.nro (= Nº del Excel)
+// DENTRO del mismo refugio.
 model RenaceMiembro {
   id                   String   @id @default(uuid())
+  refugioId            String
   jefeNro              Int
   nombres              String
   cedula               String
@@ -470,15 +478,16 @@ model RenaceMiembro {
   parroquiaProcedencia String?
   createdAt            DateTime @default(now())
 
-  @@index([jefeNro])
+  @@index([refugioId, jefeNro])
   @@index([cedula])
 }
 
 // Planteamiento de solución habitacional que el operador registra por núcleo
-// (1 por jefe, ancla `jefeNro @unique` para upsert). Campos condicionales según `tipo`.
+// (1 por jefe DENTRO del refugio → ancla `@@unique([jefeNro, refugioId])` para upsert).
 model RenacePlanteamiento {
   id                 String   @id @default(uuid())
-  jefeNro            Int      @unique
+  refugioId          String
+  jefeNro            Int
   tipo               String // COMPRA | ALQUILER | GMVV_INTERIOR | PLAN_RENACE
   modalidadPlan      String? // REPARACION_VIVIENDA | ENTREGA_MATERIALES (solo PLAN_RENACE)
   precioOCanon       String? // precio (compra) o cánon (alquiler, ≤ 500 USD)
@@ -495,4 +504,6 @@ model RenacePlanteamiento {
   createdBy          String? // email del operador
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  @@unique([jefeNro, refugioId])
 }

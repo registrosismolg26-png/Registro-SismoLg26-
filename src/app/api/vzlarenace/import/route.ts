@@ -1,20 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canImportRenace } from "@/lib/auth";
+import { renaceWriteRefugio } from "@/lib/renaceScope";
 
-// POST — importa jefes + miembros del Excel de VZLA RENACE. El cliente parsea el
-// .xlsx y envía { jefes:[], miembros:[] }; aquí se NORMALIZA a MAYÚSCULA y se hace
-// REEMPLAZO COMPLETO (el Excel es la fuente única). Los planteamientos (por jefeNro)
-// NO se tocan → sobreviven a la re-importación. Solo Master/Admin.
+// POST — importa jefes + miembros del Excel de VZLA RENACE AL CAMPAMENTO indicado
+// (body.refugio). El cliente parsea el .xlsx y envía { refugio, jefes, miembros };
+// aquí se NORMALIZA a MAYÚSCULA y se hace REEMPLAZO COMPLETO SOLO de ese refugio (el
+// Excel es la fuente única de ese campamento). Los planteamientos NO se tocan → sobreviven.
+// SOLO Master. El `nro` del Excel es único POR refugio.
 export async function POST(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (!canImportRenace(auth)) {
-      return NextResponse.json({ error: "Solo Master/Admin pueden importar." }, { status: 403 });
+      return NextResponse.json({ error: "Solo Master puede importar." }, { status: 403 });
     }
 
     const body = await req.json();
+    const { refugioId } = await renaceWriteRefugio(auth, body?.refugio ?? null);
+    if (!refugioId) {
+      return NextResponse.json({ error: "Selecciona un campamento válido antes de importar." }, { status: 400 });
+    }
     const rawJefes = Array.isArray(body?.jefes) ? body.jefes : [];
     const rawMiembros = Array.isArray(body?.miembros) ? body.miembros : [];
 
@@ -24,6 +30,7 @@ export async function POST(req: Request) {
 
     const jefesData = rawJefes
       .map((r: any) => ({
+        refugioId,
         nro: intOrNull(r.nro),
         cantMiembros: intOrNull(r.cantMiembros),
         nombres: up(r.nombres) || "",
@@ -46,6 +53,7 @@ export async function POST(req: Request) {
 
     const miembrosData = rawMiembros
       .map((r: any) => ({
+        refugioId,
         jefeNro: intOrNull(r.jefeNro),
         nombres: up(r.nombres) || "",
         cedula: up(r.cedula) || "",
@@ -70,8 +78,8 @@ export async function POST(req: Request) {
     // (re-ejecutable), así que un fallo parcial se corrige re-importando. createMany
     // por lotes por si el dataset crece. skipDuplicates cubre NRO repetidos en el Excel.
     const CHUNK = 500;
-    await prisma.renaceMiembro.deleteMany({});
-    await prisma.renaceJefe.deleteMany({});
+    await prisma.renaceMiembro.deleteMany({ where: { refugioId } });
+    await prisma.renaceJefe.deleteMany({ where: { refugioId } });
     for (let i = 0; i < jefesData.length; i += CHUNK) {
       await prisma.renaceJefe.createMany({ data: jefesData.slice(i, i + CHUNK), skipDuplicates: true });
     }

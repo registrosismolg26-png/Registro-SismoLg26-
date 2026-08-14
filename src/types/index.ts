@@ -100,6 +100,7 @@ export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignac
 // "planteamiento" de solución habitacional por núcleo. Todo en MAYÚSCULAS.
 export interface RenaceJefe {
   id: string;
+  refugioId: string;
   nro: number;
   cantMiembros: number | null;
   nombres: string;
@@ -121,6 +122,7 @@ export interface RenaceJefe {
 }
 export interface RenaceMiembro {
   id: string;
+  refugioId: string;
   jefeNro: number;
   nombres: string;
   cedula: string;
@@ -138,6 +140,7 @@ export interface RenaceMiembro {
 export type RenaceTipo = "COMPRA" | "ALQUILER" | "GMVV_INTERIOR" | "PLAN_RENACE";
 export interface RenacePlanteamiento {
   id: string;
+  refugioId: string;
   jefeNro: number;
   tipo: RenaceTipo;
   modalidadPlan: string | null;
