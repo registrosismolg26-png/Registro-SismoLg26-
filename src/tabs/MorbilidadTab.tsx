@@ -1577,8 +1577,9 @@ export default function MorbilidadTab() {
             </div>
 
             <div className="morb pill-form morb-editbody">
+              {renderWizardNav(editWizardStep, setEditWizardStep)}
               {/* Datos Básicos */}
-              <div className="morb-card morb-card--primary" style={{ display: wizardStep === 1 ? 'block' : 'none' }}>
+              <div className="morb-card morb-card--primary" style={{ display: editWizardStep === 1 ? 'block' : 'none' }}>
             <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
                 <div className="morb-tipo">
                   <div className="morb-field">
@@ -1661,9 +1662,11 @@ export default function MorbilidadTab() {
                       <textarea className="morb-control" value={editForm.notas} onChange={(e) => setEditForm((f: any) => ({ ...f, notas: e.target.value }))} placeholder="Comentarios del doctor…" />
                     </div>
                   </div>
-                  <HistoriaClinicaExtendida formData={editForm.clinicaFormData || {}} onChange={handleClinicaEditChange} step={editWizardStep} />
                 </div>
               </div>
+              {/* Pasos 2-4 del wizard: signos vitales, examen funcional/físico, impresión/plan.
+                  Va FUERA del duo (hermano), auto-gateado por el paso, igual que en crear. */}
+              <HistoriaClinicaExtendida formData={editForm.clinicaFormData || {}} onChange={handleClinicaEditChange} step={editWizardStep} />
 
               <div className="morb-actions">
                 <button type="button" className="morb-btn morb-btn--ghost" onClick={closeEdit} disabled={editSaving}>Cancelar</button>
@@ -1688,8 +1691,9 @@ export default function MorbilidadTab() {
             </div>
 
             <div className="morb pill-form morb-editbody">
+              {renderWizardNav(viewWizardStep, setViewWizardStep)}
               {/* Datos Básicos */}
-              <div className="morb-card morb-card--primary" style={{ display: wizardStep === 1 ? 'block' : 'none' }}>
+              <div className="morb-card morb-card--primary" style={{ display: viewWizardStep === 1 ? 'block' : 'none' }}>
             <h3 className="morb-card__title">Datos Básicos del Paciente</h3>
                 <div className="morb-tipo">
                   <div className="morb-field">
