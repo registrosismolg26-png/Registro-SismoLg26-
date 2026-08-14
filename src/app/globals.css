@@ -14156,11 +14156,14 @@ select.morb-control {
 @media (min-width: 900px) {
   .renace-modal .carac-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-/* Botones del wizard: no full-width (anula el width:100% de .pill-form) */
+/* Botones del wizard: no full-width (anula el width:100% de .pill-form). Como pasan a
+   ancho automático, hay que darles padding horizontal o el texto queda pegado a los
+   bordes del pill. */
 .renace-modal__nav .btn-submit,
 .renace-modal__nav .btn-back {
   width: auto !important;
   flex: 0 0 auto;
+  padding-inline: 1.5rem;
 }
 .renace-modal__head {
   display: flex;

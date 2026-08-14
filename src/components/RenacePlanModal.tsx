@@ -433,7 +433,9 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
           )}
           {step === 3 && (
             <button type="button" className="btn-submit" onClick={save} disabled={saving || loading}>
-              {saving ? "Guardando…" : existing ? "Actualizar planteamiento" : "Guardar planteamiento"}
+              {saving ? "Guardando…" : (
+                <>{existing ? "Actualizar" : "Guardar"}<span className="btn-txt-collapsible">&nbsp;planteamiento</span></>
+              )}
             </button>
           )}
         </div>
