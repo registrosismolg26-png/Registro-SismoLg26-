@@ -61,6 +61,7 @@ import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CaracterizacionTab from "@/tabs/CaracterizacionTab";
 import MonitoreoTab from "@/tabs/MonitoreoTab";
+import VzlaRenaceTab from "@/tabs/VzlaRenaceTab";
 import CensoTab from "@/tabs/CensoTab";
 import MorbilidadTab from "@/tabs/MorbilidadTab";
 import BalanceTab from "@/tabs/BalanceTab";
@@ -2094,6 +2095,10 @@ export default function Home() {
             <MonitoreoTab />
           )}
           {activeTab === "mapa" && isMaster(currentUser.role) && <MapaTab />}
+
+          {/* VZLA RENACE — módulo independiente (lado censo, NO médicos); el gate de
+              "Importar Excel" va dentro de la pestaña (Master/Admin). */}
+          {activeTab === "vzlarenace" && !isMedico(currentUser.role) && <VzlaRenaceTab />}
 
           {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
           {activeTab === "morbilidad" &&

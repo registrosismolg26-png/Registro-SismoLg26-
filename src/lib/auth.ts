@@ -72,6 +72,9 @@ export const canDeleteRegistro = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u
 export const canManageUsers    = (u: AuthUser) => ["MASTER", "ADMIN", "AdminMedico"].includes(u.role);
 export const canManageRooms    = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 export const canManagePadron   = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
+// VZLA RENACE: ver/buscar/llenar planteamiento = cualquier autenticado; IMPORTAR el
+// Excel (op. masiva) = solo Master/Admin. Mantener en sincronía con permissions.ts.
+export const canImportRenace   = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 // Morbilidad: registrar consultas médicas.
 export const canManageMorbilidad = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
 // Eliminar consultas médicas: SOLO AdminMedico y Master (Operador/Asistente no eliminan).

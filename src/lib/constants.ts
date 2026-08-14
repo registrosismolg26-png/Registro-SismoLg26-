@@ -18,6 +18,27 @@ export const PARROQUIAS = [
   "CARACAS"
 ];
 
+// Estados de Venezuela (23 estados + Distrito Capital). Reference data FIJA
+// (como PARROQUIAS), en MAYÚSCULA. Se usa en VZLA RENACE ("Estado de preferencia").
+export const VENEZUELA_ESTADOS = [
+  "AMAZONAS", "ANZOÁTEGUI", "APURE", "ARAGUA", "BARINAS", "BOLÍVAR", "CARABOBO",
+  "COJEDES", "DELTA AMACURO", "DISTRITO CAPITAL", "FALCÓN", "GUÁRICO", "LA GUAIRA",
+  "LARA", "MÉRIDA", "MIRANDA", "MONAGAS", "NUEVA ESPARTA", "PORTUGUESA", "SUCRE",
+  "TÁCHIRA", "TRUJILLO", "YARACUY", "ZULIA",
+];
+
+// VZLA RENACE — planteamiento de solución habitacional por núcleo (para StyledSelect).
+export const RENACE_PLANTEAMIENTO_TIPOS = [
+  { value: "COMPRA", label: "COMPRA" },
+  { value: "ALQUILER", label: "ALQUILER" },
+  { value: "GMVV_INTERIOR", label: "GMVV – INTERIOR DEL PAÍS" },
+  { value: "PLAN_RENACE", label: "PLAN VZLA RENACE" },
+] as const;
+export const RENACE_MODALIDAD_PLAN = [
+  { value: "REPARACION_VIVIENDA", label: "REPARACIÓN DE VIVIENDA" },
+  { value: "ENTREGA_MATERIALES", label: "ENTREGA DE MATERIALES" },
+] as const;
+
 // Habitaciones base (las personalizadas se cargan desde la BD)
 export const CUARTOS: string[] = [];
 

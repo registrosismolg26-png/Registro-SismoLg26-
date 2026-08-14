@@ -13878,3 +13878,189 @@ select.morb-control {
     grid-column: 1 / -1;
   }
 }
+
+/* ── VZLA RENACE (Venezuela Renace) ──────────────────────────────────────────
+   Módulo independiente: búsqueda de núcleo + planteamiento + directorio (2 tablas).
+   Reutiliza el sistema pill (.pill-form/.carac-field/.carac-grid/.registro-table);
+   aquí solo el layout propio del módulo (encabezado, tarjeta del jefe, badges). */
+.renace-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.renace-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.renace-head__title h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.renace-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  max-width: 60ch;
+}
+.renace-head__actions {
+  flex: 0 0 auto;
+}
+
+/* Búsqueda / filtros: input estirado + botón al lado (anula el width:100% del pill). */
+.renace-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.renace-search .morb-control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.renace-search .btn-submit {
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.renace-empty {
+  padding: 1.1rem 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+}
+
+/* Tarjeta del jefe (solo lectura) */
+.renace-jefe-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+  padding: 1rem 1.1rem;
+}
+.renace-jefe-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+.renace-jefe-card__head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.renace-badge {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border: 1px solid var(--color-primary-ring);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
+}
+.renace-badge--ok {
+  color: var(--color-success);
+  background: var(--color-success-light);
+  border-color: var(--color-success);
+}
+.renace-jefe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.7rem 1rem;
+  margin: 0;
+}
+.renace-jefe-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.renace-jefe-grid__wide {
+  grid-column: 1 / -1;
+}
+.renace-jefe-grid dt {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.renace-jefe-grid dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.renace-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.renace-block__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.renace-td-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  padding: 1rem !important;
+}
+
+/* Bloques condicionales del planteamiento: ocupan todo el ancho de la grilla. */
+.renace-plan .reveal {
+  grid-column: 1 / -1;
+}
+.renace-sub {
+  padding: 0.15rem 0 0.2rem;
+}
+.renace-plan__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+.renace-plan__head h4 {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.renace-plan__foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.8rem;
+}
+.renace-plan__foot .btn-submit {
+  width: auto;
+}
+
+/* Enlace-botón (abrir núcleo desde la tabla de miembros) */
+.renace-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+.renace-link:hover {
+  text-decoration: underline;
+}

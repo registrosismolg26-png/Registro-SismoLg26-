@@ -12,6 +12,7 @@ export const canDeleteRegistro = (role: string) => ["MASTER", "ADMIN"].includes(
 export const canManageUsers    = (role: string) => ["MASTER", "ADMIN", "AdminMedico"].includes(role);
 export const canManageRooms    = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canManagePadron   = (role: string) => ["MASTER", "ADMIN"].includes(role);
+export const canImportRenace   = (role: string) => ["MASTER", "ADMIN"].includes(role); // VZLA RENACE: importar Excel (espejo de auth.ts)
 export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role); // panel de estadísticas
 export const canManageMorbilidad = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(role);
 // Eliminar consultas médicas: SOLO AdminMedico y Master (Operador/Asistente no eliminan).

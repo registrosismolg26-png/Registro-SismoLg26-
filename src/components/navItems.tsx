@@ -105,6 +105,20 @@ export const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    // VZLA RENACE (Venezuela Renace): módulo INDEPENDIENTE del censo. Lo ven los
+    // operadores del lado censo (NO los roles médicos); "Importar Excel" queda
+    // gateado DENTRO de la pestaña a Master/Admin (canImportRenace).
+    tab: "vzlarenace",
+    label: "VZLA Renace",
+    show: (r) => !isMedico(r),
+    icon: sv(
+      <>
+        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </>,
+    ),
+  },
+  {
     tab: "morbilidad",
     label: "Morbilidad",
     show: (r) => canManageMorbilidad(r),

@@ -422,3 +422,77 @@ model Notification {
 
   @@index([userId, createdAt])
 }
+
+// ── VZLA RENACE (Venezuela Renace) ──────────────────────────────────────────
+// Módulo INDEPENDIENTE del censo: base de familias afectadas importada desde un
+// Excel (jefes + grupo familiar, enlazados por `nro`), más un "planteamiento" de
+// solución habitacional por núcleo que el operador llena en la app. Todo en
+// MAYÚSCULAS. No se scopea por refugio (es data global del programa).
+
+// Jefe de familia del programa (1 por núcleo). `nro` = número del Excel (enlace).
+model RenaceJefe {
+  id                      String   @id @default(uuid())
+  nro                     Int      @unique // NRO del Excel — enlace con RenaceMiembro.jefeNro
+  cantMiembros            Int?
+  nombres                 String
+  cedula                  String
+  fechaNacimiento         String? // se conserva tal cual del Excel (dd/mm/aaaa o texto)
+  sexo                    String? // normalizado a MASCULINO/FEMENINO al importar
+  edad                    Int?
+  telefono                String?
+  profesion               String?
+  estadoProcedencia       String?
+  parroquiaProcedencia    String?
+  tipoAfectacion          String?
+  condicionVivienda       String?
+  incidencias             String?
+  numeroCertificado       String?
+  planteamientoAfectacion String? // el del Excel (distinto del planteamiento de la app)
+  observaciones           String?
+  createdAt               DateTime @default(now())
+
+  @@index([cedula])
+}
+
+// Miembro del grupo familiar. `jefeNro` enlaza con RenaceJefe.nro (= Nº del Excel).
+model RenaceMiembro {
+  id                   String   @id @default(uuid())
+  jefeNro              Int
+  nombres              String
+  cedula               String
+  fechaNacimiento      String?
+  sexo                 String?
+  edad                 Int?
+  parentesco           String?
+  telefono             String?
+  profesion            String?
+  estadoProcedencia    String?
+  parroquiaProcedencia String?
+  createdAt            DateTime @default(now())
+
+  @@index([jefeNro])
+  @@index([cedula])
+}
+
+// Planteamiento de solución habitacional que el operador registra por núcleo
+// (1 por jefe, ancla `jefeNro @unique` para upsert). Campos condicionales según `tipo`.
+model RenacePlanteamiento {
+  id                 String   @id @default(uuid())
+  jefeNro            Int      @unique
+  tipo               String // COMPRA | ALQUILER | GMVV_INTERIOR | PLAN_RENACE
+  modalidadPlan      String? // REPARACION_VIVIENDA | ENTREGA_MATERIALES (solo PLAN_RENACE)
+  precioOCanon       String? // precio (compra) o cánon (alquiler, ≤ 500 USD)
+  nombreContraparte  String? // vendedor o arrendatario (compra/alquiler)
+  cedulaContraparte  String?
+  contacto           String?
+  contactoSecundario String?
+  estado             String? // dirección de la vivienda (compra/alquiler)
+  municipio          String?
+  parroquia          String?
+  direccionEspecifica String?
+  estadoPreferencia  String? // solo GMVV_INTERIOR
+  observacion        String? // SIEMPRE
+  createdBy          String? // email del operador
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

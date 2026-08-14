@@ -92,7 +92,70 @@ export interface CurrentUser {
 }
 
 // Vista de pestaña activa
-export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad" | "balance" | "historial" | "caracterizacion" | "monitoreo" | "mapa";
+export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad" | "balance" | "historial" | "caracterizacion" | "monitoreo" | "mapa" | "vzlarenace";
+
+// ── VZLA RENACE (Venezuela Renace) — módulo independiente del censo ─────────
+// Espejo cliente de los modelos Prisma (RenaceJefe / RenaceMiembro / RenacePlanteamiento).
+// Datos importados de Excel (jefe + grupo familiar); el operador registra un
+// "planteamiento" de solución habitacional por núcleo. Todo en MAYÚSCULAS.
+export interface RenaceJefe {
+  id: string;
+  nro: number;
+  cantMiembros: number | null;
+  nombres: string;
+  cedula: string;
+  fechaNacimiento: string | null;
+  sexo: string | null;
+  edad: number | null;
+  telefono: string | null;
+  profesion: string | null;
+  estadoProcedencia: string | null;
+  parroquiaProcedencia: string | null;
+  tipoAfectacion: string | null;
+  condicionVivienda: string | null;
+  incidencias: string | null;
+  numeroCertificado: string | null;
+  planteamientoAfectacion: string | null;
+  observaciones: string | null;
+  createdAt?: string;
+}
+export interface RenaceMiembro {
+  id: string;
+  jefeNro: number;
+  nombres: string;
+  cedula: string;
+  fechaNacimiento: string | null;
+  sexo: string | null;
+  edad: number | null;
+  parentesco: string | null;
+  telefono: string | null;
+  profesion: string | null;
+  estadoProcedencia: string | null;
+  parroquiaProcedencia: string | null;
+  createdAt?: string;
+}
+// `tipo` del planteamiento (fuente única: RENACE_PLANTEAMIENTO_TIPOS en constants.ts).
+export type RenaceTipo = "COMPRA" | "ALQUILER" | "GMVV_INTERIOR" | "PLAN_RENACE";
+export interface RenacePlanteamiento {
+  id: string;
+  jefeNro: number;
+  tipo: RenaceTipo;
+  modalidadPlan: string | null;
+  precioOCanon: string | null;
+  nombreContraparte: string | null;
+  cedulaContraparte: string | null;
+  contacto: string | null;
+  contactoSecundario: string | null;
+  estado: string | null;
+  municipio: string | null;
+  parroquia: string | null;
+  direccionEspecifica: string | null;
+  estadoPreferencia: string | null;
+  observacion: string | null;
+  createdBy: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 // Fila de monitoreo por campamento (números generales, todo agregado en SQL → sin PII).
 // Definiciones ALINEADAS con Estadísticas (src/lib/stats.ts + DashboardTab):
