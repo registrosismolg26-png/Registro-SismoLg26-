@@ -1,6 +1,6 @@
 // La ficha de caracterización se encola con la misma forma que las demás
 // (import type: se borra en compilación → sin ciclo aunque @/types re-exporte de aquí).
-import type { LocalCaracterizacion } from "@/types";
+import type { LocalCaracterizacion, LocalRenacePlanteamiento } from "@/types";
 
 export interface LocalConsulta {
   id: string;
@@ -83,12 +83,14 @@ const DB_NAME = 'registro-sismo-db';
 // que ya tiene el navegador → `VersionError` y falla TODO guardado local. Si un build
 // local llegó a una versión mayor (p. ej. 10 en máquinas del equipo), este valor debe
 // quedar por ENCIMA. Subido a 11 tras detectar navegadores con la 10.
-const DB_VERSION = 11;
+// Subido a 12: nuevo store `renace_planteamientos` (cola offline del planteamiento).
+const DB_VERSION = 12;
 const STORE_NAME = 'registros';
 const PADRON_STORE = 'padron';
 const CONSULTAS_STORE = 'consultas';
 const LOGS_STORE = 'activity_logs';
 const CARACTERIZACION_STORE = 'caracterizacion';
+const RENACE_PLAN_STORE = 'renace_planteamientos';
 
 function getDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -128,6 +130,11 @@ function getDB(): Promise<IDBDatabase> {
       // Cola offline de fichas de caracterización (1 registro = ficha de una familia)
       if (!db.objectStoreNames.contains(CARACTERIZACION_STORE)) {
         db.createObjectStore(CARACTERIZACION_STORE, { keyPath: 'id' });
+      }
+
+      // Cola offline del PLANTEAMIENTO de VZLA RENACE (1 registro = plan de un núcleo)
+      if (!db.objectStoreNames.contains(RENACE_PLAN_STORE)) {
+        db.createObjectStore(RENACE_PLAN_STORE, { keyPath: 'id' });
       }
     };
   });
@@ -859,6 +866,129 @@ export async function markCaracterizacionPermanentError(id: string, reason: stri
     const request = store.get(id);
     request.onsuccess = () => {
       const record = request.result as LocalCaracterizacion | undefined;
+      if (record) {
+        record.status = 'error';
+        record.permanentError = reason;
+        const u = store.put(record);
+        u.onsuccess = () => resolve();
+        u.onerror = () => reject(u.error);
+      } else resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// ══ Cola offline de VZLA RENACE (planteamiento por núcleo) ═══════════════════
+// 1 registro = el planteamiento de un núcleo. Mismo patrón: re-guardar = 'pending';
+// backoff exponencial 15s·2ⁿ (tope 5min); error permanente 400/401/403/404. El `id`
+// = `${refugioId}::${jefeNro}` (ancla → upsert idempotente por núcleo+refugio).
+export async function saveLocalRenacePlanteamiento(
+  rec: Omit<LocalRenacePlanteamiento, 'status' | 'attempts' | 'createdAt'> & { createdAt?: string }
+): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(RENACE_PLAN_STORE, 'readwrite');
+    const store = transaction.objectStore(RENACE_PLAN_STORE);
+    const getRequest = store.get(rec.id);
+    getRequest.onsuccess = () => {
+      const existing = getRequest.result as LocalRenacePlanteamiento | undefined;
+      const fullRecord: LocalRenacePlanteamiento = {
+        id: rec.id,
+        jefeNro: rec.jefeNro,
+        refugioId: rec.refugioId,
+        data: rec.data,
+        status: 'pending',
+        attempts: 0,
+        nextAttemptAt: undefined,
+        permanentError: undefined,
+        createdAt: existing?.createdAt || rec.createdAt || new Date().toISOString(),
+      };
+      const putRequest = store.put(fullRecord);
+      putRequest.onsuccess = () => resolve();
+      putRequest.onerror = () => reject(putRequest.error);
+    };
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+export async function getPendingRenacePlanteamientos(): Promise<LocalRenacePlanteamiento[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(RENACE_PLAN_STORE, 'readonly');
+    const store = transaction.objectStore(RENACE_PLAN_STORE);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const all = request.result as LocalRenacePlanteamiento[];
+      const now = Date.now();
+      resolve(all.filter(c => c.status === 'pending' && (!c.nextAttemptAt || c.nextAttemptAt <= now)));
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getAllLocalRenacePlanteamientos(): Promise<LocalRenacePlanteamiento[]> {
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(RENACE_PLAN_STORE, 'readonly');
+      const store = transaction.objectStore(RENACE_PLAN_STORE);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result as LocalRenacePlanteamiento[]);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
+
+export async function markRenacePlanteamientoSynced(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(RENACE_PLAN_STORE, 'readwrite');
+    const store = transaction.objectStore(RENACE_PLAN_STORE);
+    const request = store.get(id);
+    request.onsuccess = () => {
+      const record = request.result as LocalRenacePlanteamiento | undefined;
+      if (record) {
+        record.status = 'synced';
+        const u = store.put(record);
+        u.onsuccess = () => resolve();
+        u.onerror = () => reject(u.error);
+      } else resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function incrementRenacePlanteamientoAttempt(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(RENACE_PLAN_STORE, 'readwrite');
+    const store = transaction.objectStore(RENACE_PLAN_STORE);
+    const request = store.get(id);
+    request.onsuccess = () => {
+      const record = request.result as LocalRenacePlanteamiento | undefined;
+      if (record) {
+        record.attempts += 1;
+        record.nextAttemptAt = Date.now() + Math.min(15000 * Math.pow(2, record.attempts - 1), 300000);
+        const u = store.put(record);
+        u.onsuccess = () => resolve();
+        u.onerror = () => reject(u.error);
+      } else resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function markRenacePlanteamientoPermanentError(id: string, reason: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(RENACE_PLAN_STORE, 'readwrite');
+    const store = transaction.objectStore(RENACE_PLAN_STORE);
+    const request = store.get(id);
+    request.onsuccess = () => {
+      const record = request.result as LocalRenacePlanteamiento | undefined;
       if (record) {
         record.status = 'error';
         record.permanentError = reason;

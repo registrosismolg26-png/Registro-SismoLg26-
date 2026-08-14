@@ -136,6 +136,20 @@ export interface RenaceMiembro {
   parroquiaProcedencia: string | null;
   createdAt?: string;
 }
+// Registro en la COLA OFFLINE del planteamiento (IndexedDB). 1 registro = el
+// planteamiento de un núcleo; `id` = `${refugioId}::${jefeNro}` → upsert idempotente.
+export interface LocalRenacePlanteamiento {
+  id: string;
+  jefeNro: number;
+  refugioId: string;
+  data: Record<string, any>; // payload del planteamiento (tipo, precioOCanon, contacto…)
+  status: "pending" | "synced" | "error";
+  attempts: number;
+  nextAttemptAt?: number;
+  permanentError?: string;
+  createdAt: string;
+}
+
 // `tipo` del planteamiento (fuente única: RENACE_PLANTEAMIENTO_TIPOS en constants.ts).
 export type RenaceTipo = "COMPRA" | "ALQUILER" | "GMVV_INTERIOR" | "PLAN_RENACE";
 export interface RenacePlanteamiento {

@@ -22,6 +22,10 @@ import {
   markCaracterizacionSynced,
   incrementCaracterizacionAttempt,
   markCaracterizacionPermanentError,
+  getPendingRenacePlanteamientos,
+  markRenacePlanteamientoSynced,
+  incrementRenacePlanteamientoAttempt,
+  markRenacePlanteamientoPermanentError,
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
 import { syncActivityLogs } from "@/lib/activityLog";
@@ -1482,6 +1486,63 @@ export default function Home() {
                     .catch(() => `HTTP ${res.status}`);
                 }
                 await incrementCaracterizacionAttempt(f.id);
+              }
+            }),
+          );
+        }
+      }
+
+      // --- Sincronizar VZLA RENACE (planteamiento por núcleo; 1 registro = 1 plan) ---
+      const pendingRenace = await getPendingRenacePlanteamientos();
+      pendingRenace.sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+      if (pendingRenace.length > 0) {
+        for (let i = 0; i < pendingRenace.length; i += BATCH) {
+          const batch = pendingRenace.slice(i, i + BATCH);
+          const results = await Promise.allSettled(
+            batch.map((p) =>
+              apiFetch("/api/vzlarenace/planteamiento", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ jefeNro: p.jefeNro, refugioId: p.refugioId, ...p.data }),
+                timeoutMs: 15000,
+              }),
+            ),
+          );
+          await Promise.allSettled(
+            results.map(async (result, j) => {
+              const p = batch[j];
+              if (result.status === "rejected") {
+                await incrementRenacePlanteamientoAttempt(p.id);
+                return;
+              }
+              const res = result.value;
+              if (res.status === 201 || res.status === 200) {
+                await markRenacePlanteamientoSynced(p.id);
+              } else if (
+                res.status === 400 ||
+                res.status === 401 ||
+                res.status === 403 ||
+                res.status === 404
+              ) {
+                const reason =
+                  res.status === 401
+                    ? "Sesión no válida para sincronizar el planteamiento. Vuelva a iniciar sesión."
+                    : res.status === 403
+                      ? "Sin permiso para guardar el planteamiento."
+                      : res.status === 404
+                        ? "El núcleo no existe en el campamento."
+                        : "Datos inválidos en el planteamiento.";
+                await markRenacePlanteamientoPermanentError(p.id, reason);
+              } else {
+                if (res.status >= 500 && !serverError) {
+                  serverError = await res
+                    .json()
+                    .then((d: any) => d?.details || d?.error || `HTTP ${res.status}`)
+                    .catch(() => `HTTP ${res.status}`);
+                }
+                await incrementRenacePlanteamientoAttempt(p.id);
               }
             }),
           );

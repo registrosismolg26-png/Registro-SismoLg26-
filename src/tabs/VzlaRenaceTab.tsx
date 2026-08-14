@@ -1,26 +1,30 @@
 "use client";
 
 // ── Pestaña VZLA RENACE (Venezuela Renace) ──────────────────────────────────
-// Módulo INDEPENDIENTE del censo. DIRECTORIO de dos tablas (Jefes / Grupo
-// familiar) buscables y paginadas, cargadas de la BD y cacheadas en localStorage
-// con ETag/304. Desde un jefe se pulsa "Planear" → modal-wizard (RenacePlanModal)
-// para registrar el planteamiento de solución habitacional del núcleo. Los datos
-// entran por "Importar Excel" (Master/Admin); todo en MAYÚSCULAS (el backend
-// normaliza al guardar). Diseño ONLINE (no toca IndexedDB/DB_VERSION).
+// Módulo INDEPENDIENTE del censo. DIRECTORIO de dos tablas (Jefes / Grupo familiar)
+// buscables y paginadas. LECTURA EFICIENTE separada por volatilidad: jefes/miembros
+// (casi estáticos, solo cambian al importar) y planteamientos (calientes) tienen su
+// propia clave de cache + ETag → guardar un plan NO re-descarga las ~1000 filas.
+// Desde un jefe se pulsa "Planear" → modal-wizard (RenacePlanModal) que guarda el
+// planteamiento OFFLINE-first (cola en IndexedDB + reintentos con backoff, vía
+// triggerSync). El semáforo/KPI = servidor ∪ pendientes locales (optimista). Import
+// = solo Master; Actualizar = todos. Todo en MAYÚSCULAS (el backend normaliza).
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
+import { getAllLocalRenacePlanteamientos } from "@/lib/db";
 import { normalizeText } from "@/lib/helpers";
 import { canImportRenace } from "@/lib/permissions";
 import Pagination from "@/components/Pagination";
 import RenacePlanModal from "@/components/RenacePlanModal";
 import type { RenaceJefe, RenaceMiembro } from "@/types";
 
-// v2: la forma del cache cambió (ahora guarda `planteamientoNros` para el semáforo);
-// subir la versión invalida los caches viejos y fuerza un fetch fresco (evita que un
-// 304 conserve un cache con la forma anterior y deje el semáforo en ámbar).
-const LIST_CACHE_KEY = "renace_list_cache_v2";
+// Caches SEPARADOS por volatilidad: jefes/miembros (casi estáticos, solo cambian al
+// importar) y planteamientos (calientes) tienen su propia clave + ETag → guardar un
+// plan no re-descarga las ~1000 filas de jefes/miembros.
+const JM_CACHE_KEY = "renace_jm_v1";
+const PLAN_CACHE_KEY = "renace_plan_v1";
 
 // ── Parseo del Excel en el cliente (exceljs perezoso) ────────────────────────
 // Devuelve filas CRUDAS (strings); el backend normaliza a MAYÚSCULA + sexo + ints.
@@ -161,6 +165,21 @@ async function parseRenaceXlsx(file: File): Promise<{ jefes: any[]; miembros: an
   return { jefes, miembros };
 }
 
+// Filas skeleton (shimmer) para las tablas mientras carga la primera vez.
+function SkelRows({ widths, n = 6 }: { widths: (string | number)[]; n?: number }) {
+  return (
+    <>
+      {Array.from({ length: n }).map((_, i) => (
+        <tr key={`sk-${i}`} style={{ animationDelay: `${i * 50}ms` }}>
+          {widths.map((w, c) => (
+            <td key={c}><span className="skeleton-cell" style={{ width: w, margin: typeof w === "number" && w < 40 ? "0 auto" : undefined }} /></td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
 export default function VzlaRenaceTab() {
   const { currentUser, showToast, effectiveRefugio } = useAppContext();
   const puedeImportar = canImportRenace(currentUser?.role || "");
@@ -170,7 +189,8 @@ export default function VzlaRenaceTab() {
 
   const [jefes, setJefes] = useState<RenaceJefe[]>([]);
   const [miembros, setMiembros] = useState<RenaceMiembro[]>([]);
-  const [planNros, setPlanNros] = useState<Set<number>>(new Set()); // jefeNro con planteamiento (semáforo + KPI)
+  const [serverPlanNros, setServerPlanNros] = useState<Set<number>>(new Set()); // jefeNro con plan (servidor)
+  const [localPlanNros, setLocalPlanNros] = useState<Set<number>>(new Set());   // pendientes en la cola offline
   const [loadingList, setLoadingList] = useState(false);
   const [dirTab, setDirTab] = useState<"jefes" | "miembros">("jefes");
   const [jq, setJq] = useState(""); const [jPage, setJPage] = useState(1); const [jSize, setJSize] = useState(20);
@@ -178,14 +198,17 @@ export default function VzlaRenaceTab() {
 
   const [planeando, setPlaneando] = useState<RenaceJefe | null>(null);
 
-  // El listado está SCOPED por refugio → cache y fetch por campamento (Master puede
-  // cambiar de campamento y el cache no debe mezclarse).
-  const cacheKey = `${LIST_CACHE_KEY}::${effectiveRefugio || "all"}`;
-  const loadList = async (force = false) => {
+  // Semáforo/KPI = servidor ∪ pendientes locales (optimista, sin esperar la sync).
+  const planNros = useMemo(() => new Set<number>([...serverPlanNros, ...localPlanNros]), [serverPlanNros, localPlanNros]);
+
+  const jmCacheKey = `${JM_CACHE_KEY}::${effectiveRefugio || "all"}`;
+  const planCacheKey = `${PLAN_CACHE_KEY}::${effectiveRefugio || "all"}`;
+
+  // Jefes + miembros: casi estáticos (solo cambian al importar) → casi siempre 304.
+  const loadJM = async (force = false) => {
     let cached: any = null;
-    try { cached = JSON.parse(localStorage.getItem(cacheKey) || "null"); } catch { /* ignore */ }
-    if (cached && !force) { setJefes(cached.jefes || []); setMiembros(cached.miembros || []); setPlanNros(new Set(cached.planteamientoNros || [])); }
-    else if (force) { /* limpia lo mostrado al forzar un refugio nuevo */ }
+    try { cached = JSON.parse(localStorage.getItem(jmCacheKey) || "null"); } catch { /* ignore */ }
+    if (cached && !force) { setJefes(cached.jefes || []); setMiembros(cached.miembros || []); }
     if (!navigator.onLine) return;
     setLoadingList(true);
     try {
@@ -197,14 +220,59 @@ export default function VzlaRenaceTab() {
       if (res.ok) {
         const etag = res.headers.get("ETag");
         const data = await res.json();
-        setJefes(data.jefes || []); setMiembros(data.miembros || []); setPlanNros(new Set(data.planteamientoNros || []));
-        try { localStorage.setItem(cacheKey, JSON.stringify({ etag, jefes: data.jefes, miembros: data.miembros, planteamientoNros: data.planteamientoNros })); } catch { /* cuota */ }
+        setJefes(data.jefes || []); setMiembros(data.miembros || []);
+        try { localStorage.setItem(jmCacheKey, JSON.stringify({ etag, jefes: data.jefes, miembros: data.miembros })); } catch { /* cuota */ }
       }
     } catch (e) { console.error(e); }
     finally { setLoadingList(false); }
   };
+
+  // Planteamientos (semáforo/KPI): payload chico, su propio ETag → barato de refrescar.
+  const loadPlans = async (force = false) => {
+    let cached: any = null;
+    try { cached = JSON.parse(localStorage.getItem(planCacheKey) || "null"); } catch { /* ignore */ }
+    if (cached && !force) setServerPlanNros(new Set(cached.planteamientoNros || []));
+    if (!navigator.onLine) return;
+    try {
+      const headers: Record<string, string> = {};
+      if (cached?.etag && !force) headers["If-None-Match"] = cached.etag;
+      const q = effectiveRefugio ? `?refugio=${encodeURIComponent(effectiveRefugio)}` : "";
+      const res = await apiFetch(`/api/vzlarenace/planteamientos${q}`, { headers });
+      if (res.status === 304) return;
+      if (res.ok) {
+        const etag = res.headers.get("ETag");
+        const data = await res.json();
+        setServerPlanNros(new Set(data.planteamientoNros || []));
+        try { localStorage.setItem(planCacheKey, JSON.stringify({ etag, planteamientoNros: data.planteamientoNros })); } catch { /* cuota */ }
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  // Pendientes locales del refugio actual (cola offline) → semáforo optimista.
+  const refreshLocalPlanNros = async () => {
+    try {
+      const locals = await getAllLocalRenacePlanteamientos();
+      const refId = jefes[0]?.refugioId; // los jefes del view comparten refugioId
+      const s = new Set<number>();
+      for (const l of locals) {
+        if (l.status === "error") continue;
+        if (refId && l.refugioId !== refId) continue;
+        s.add(l.jefeNro);
+      }
+      setLocalPlanNros(s);
+    } catch { /* ignore */ }
+  };
+
+  const reloadAll = (force = false) => { loadJM(force); loadPlans(force); refreshLocalPlanNros(); };
+
   // Recarga al abrir y cada vez que cambie el campamento (Master).
-  useEffect(() => { setJefes([]); setMiembros([]); setPlanNros(new Set()); loadList(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [effectiveRefugio]);
+  useEffect(() => {
+    setJefes([]); setMiembros([]); setServerPlanNros(new Set()); setLocalPlanNros(new Set());
+    reloadAll();
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [effectiveRefugio]);
+  // Cuando llegan los jefes, re-filtra los pendientes locales por su refugioId.
+  useEffect(() => { refreshLocalPlanNros(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [jefes]);
   useEffect(() => { setJPage(1); }, [jq, jSize]);
   useEffect(() => { setMPage(1); }, [mq, mSize]);
 
@@ -254,8 +322,8 @@ export default function VzlaRenaceTab() {
       const data = await r.json().catch(() => ({}));
       if (r.ok && data?.success) {
         showToast(`Importado en ${effectiveRefugio}: ${data.jefes} jefes y ${data.miembros} miembros.`, "success");
-        localStorage.removeItem(cacheKey);
-        await loadList(true);
+        localStorage.removeItem(jmCacheKey);
+        await loadJM(true); loadPlans(true); refreshLocalPlanNros();
       } else {
         showToast(data?.error || "No se pudo importar el archivo.", "error");
       }
@@ -273,16 +341,17 @@ export default function VzlaRenaceTab() {
           <h2>VZLA Renace</h2>
           <p className="renace-sub">Directorio del programa Venezuela Renace. Pulsa “Planear” en un jefe para registrar la solución habitacional del núcleo.</p>
         </div>
-        {puedeImportar && (
-          <div className="btn-seg-group renace-head__actions">
+        <div className="btn-seg-group renace-head__actions">
+          {/* Importar = solo Master (op. masiva); Actualizar = todos. */}
+          {puedeImportar && (
             <button type="button" className="toolbar-btn" onClick={() => fileRef.current?.click()} disabled={importing}>
               {importing ? "Importando…" : "Importar Excel"}
             </button>
-            <button type="button" className="toolbar-btn" onClick={() => loadList(true)} disabled={loadingList}>
-              {loadingList ? "Actualizando…" : "Actualizar"}
-            </button>
-          </div>
-        )}
+          )}
+          <button type="button" className="toolbar-btn" onClick={() => reloadAll(true)} disabled={loadingList}>
+            {loadingList ? "Actualizando…" : "Actualizar"}
+          </button>
+        </div>
         <input ref={fileRef} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={onFile} />
       </div>
 
@@ -327,8 +396,10 @@ export default function VzlaRenaceTab() {
             <table className="registro-table">
               <thead><tr><th className="col-num">N°</th><th className="col-sem">Plan</th><th>Nombre</th><th>Cédula</th><th>Miembros</th><th>Procedencia</th><th className="col-action"></th></tr></thead>
               <tbody>
-                {jefesPage.length === 0 ? (
-                  <tr><td colSpan={7} className="renace-td-empty">{loadingList ? "Cargando…" : "Sin resultados."}</td></tr>
+                {loadingList && jefes.length === 0 ? (
+                  <SkelRows widths={[24, 32, "60%", 90, 30, 130, 72]} />
+                ) : jefesPage.length === 0 ? (
+                  <tr><td colSpan={7} className="renace-td-empty">Sin resultados.</td></tr>
                 ) : jefesPage.map((j) => (
                   <tr key={j.id}>
                     <td className="col-num">{j.nro}</td>
@@ -371,8 +442,10 @@ export default function VzlaRenaceTab() {
             <table className="registro-table">
               <thead><tr><th className="col-num">Núcleo</th><th>Nombre</th><th>Cédula</th><th>Parentesco</th><th>Sexo</th><th>Edad</th></tr></thead>
               <tbody>
-                {miembrosPage.length === 0 ? (
-                  <tr><td colSpan={6} className="renace-td-empty">{loadingList ? "Cargando…" : "Sin resultados."}</td></tr>
+                {loadingList && miembros.length === 0 ? (
+                  <SkelRows widths={[36, "55%", 90, 90, 60, 30]} />
+                ) : miembrosPage.length === 0 ? (
+                  <tr><td colSpan={6} className="renace-td-empty">Sin resultados.</td></tr>
                 ) : miembrosPage.map((m) => (
                   <tr key={m.id}>
                     <td className="col-num"><button type="button" className="renace-link" onClick={() => openPlanPorNro(m.jefeNro)}>#{m.jefeNro}</button></td>
@@ -395,7 +468,7 @@ export default function VzlaRenaceTab() {
           jefe={planeando}
           miembros={miembrosDelNucleo}
           onClose={() => setPlaneando(null)}
-          onSaved={() => loadList(true)}
+          onSaved={() => { refreshLocalPlanNros(); loadPlans(true); }}
           showToast={showToast}
         />
       )}

@@ -8,6 +8,8 @@
 
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/apiFetch";
+import { useAppContext } from "@/context/AppContext";
+import { saveLocalRenacePlanteamiento, getAllLocalRenacePlanteamientos } from "@/lib/db";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import StyledSelect from "@/components/StyledSelect";
 import Reveal from "@/components/Reveal";
@@ -130,9 +132,11 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
   jefe: RenaceJefe; // trae su refugioId → el planteamiento se scopea a ESE campamento
   miembros: RenaceMiembro[];
   onClose: () => void;
-  onSaved?: (p: RenacePlanteamiento) => void;
+  onSaved?: () => void; // señal para que el tab refresque (semáforo/KPI) — guardado optimista
   showToast: (message: string, type: "success" | "error" | "warning" | "info") => void;
 }) {
+  const { triggerSync } = useAppContext();
+  const localId = `${jefe.refugioId}::${jefe.nro}`;
   const [show, setShow] = useState(true);
   const modal = useAnimatedModal(show);
   const close = () => setShow(false);
@@ -145,11 +149,18 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
   const [existing, setExisting] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Precarga del planteamiento ya registrado (si existe).
+  // Precarga: primero el pendiente LOCAL (aún sin sincronizar → tiene prioridad), si no
+  // el del servidor.
   useEffect(() => {
     let cancel = false;
     (async () => {
       try {
+        const locals = await getAllLocalRenacePlanteamientos();
+        const localRec = locals.find((l) => l.id === localId && l.status !== "error");
+        if (localRec) {
+          if (!cancel) { setPlan(planFromRecord(localRec.data as RenacePlanteamiento)); setExisting(true); setLoading(false); }
+          return;
+        }
         const r = await apiFetch(`/api/vzlarenace/planteamiento?jefeNro=${jefe.nro}&refugioId=${encodeURIComponent(jefe.refugioId)}`);
         if (!cancel && r.ok) {
           const data = await r.json();
@@ -216,9 +227,9 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
     if (Object.keys(errs).length) { setStep(2); showToast("Revisa los campos marcados.", "warning"); scrollToError(); return; }
     setSaving(true);
     try {
-      const payload = {
-        jefeNro: jefe.nro,
-        refugioId: jefe.refugioId,
+      // Guardado OFFLINE-first: a la cola de IndexedDB (optimista) + disparo de sync.
+      // El semáforo/KPI se ponen verde al instante; la cola reintenta con backoff.
+      const data = {
         tipo: plan.tipo,
         modalidadPlan: plan.modalidadPlan,
         precioOCanon: plan.precioOCanon,
@@ -233,21 +244,15 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
         estadoPreferencia: plan.estadoPreferencia,
         observacion: plan.observacion,
       };
-      const r = await apiFetch("/api/vzlarenace/planteamiento", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (r.ok && data?.success) {
-        showToast("Planteamiento guardado.", "success");
-        onSaved?.(data.planteamiento);
-        close();
-      } else {
-        showToast(data?.error || "No se pudo guardar el planteamiento.", "error");
-      }
-    } catch { showToast("Error de red al guardar.", "error"); }
-    finally { setSaving(false); }
+      await saveLocalRenacePlanteamiento({ id: localId, jefeNro: jefe.nro, refugioId: jefe.refugioId, data });
+      triggerSync();
+      showToast("Planteamiento guardado. Se sincroniza automáticamente.", "success");
+      onSaved?.();
+      close();
+    } catch (e) {
+      console.error(e);
+      showToast("No se pudo guardar el planteamiento localmente.", "error");
+    } finally { setSaving(false); }
   };
 
   if (!modal.mounted) return null;
@@ -282,7 +287,15 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
 
         <div className="renace-modal__body">
           {loading ? (
-            <div className="renace-modal__loading">Cargando…</div>
+            <div className="carac-grid renace-modal__skeleton">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <label key={i} className={`carac-field${i === 5 ? " carac-field--wide" : ""}`}>
+                  <span className="skeleton-cell" style={{ width: "42%", height: 9 }} />
+                  <span className="skeleton-cell" style={{ width: "100%", height: 42, borderRadius: 999 }} />
+                  <div className="error-container" />
+                </label>
+              ))}
+            </div>
           ) : (
             <>
               {/* PASO 1 — Núcleo (solo lectura) */}
