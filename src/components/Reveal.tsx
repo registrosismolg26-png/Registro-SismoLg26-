@@ -14,7 +14,7 @@ export default function Reveal({ open, inline = false, className = "", children 
   return (
     <div
       className={`reveal${inline ? " reveal--inline" : ""}${open ? " is-open" : ""}${className ? " " + className : ""}`}
-      {...(open ? {} : { inert: "" as any })}
+      inert={!open}
     >
       <div className="reveal__inner">{children}</div>
     </div>

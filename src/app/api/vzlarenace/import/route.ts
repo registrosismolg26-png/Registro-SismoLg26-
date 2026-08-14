@@ -64,16 +64,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "El archivo no trae jefes válidos (falta NRO o nombre)." }, { status: 400 });
     }
 
-    // Reemplazo completo (borra y recrea). skipDuplicates cubre NRO repetidos en el Excel.
-    await prisma.$transaction(
-      [
-        prisma.renaceMiembro.deleteMany({}),
-        prisma.renaceJefe.deleteMany({}),
-        prisma.renaceJefe.createMany({ data: jefesData, skipDuplicates: true }),
-        prisma.renaceMiembro.createMany({ data: miembrosData }),
-      ],
-      { timeout: 60000 },
-    );
+    // Reemplazo completo, SIN transacción larga: el pooler de transacción de Supabase
+    // (6543) a veces no puede ARRANCAR una transacción a tiempo bajo carga → P2028.
+    // Cada statement usa/suelta su propia conexión del pool. El import es idempotente
+    // (re-ejecutable), así que un fallo parcial se corrige re-importando. createMany
+    // por lotes por si el dataset crece. skipDuplicates cubre NRO repetidos en el Excel.
+    const CHUNK = 500;
+    await prisma.renaceMiembro.deleteMany({});
+    await prisma.renaceJefe.deleteMany({});
+    for (let i = 0; i < jefesData.length; i += CHUNK) {
+      await prisma.renaceJefe.createMany({ data: jefesData.slice(i, i + CHUNK), skipDuplicates: true });
+    }
+    for (let i = 0; i < miembrosData.length; i += CHUNK) {
+      await prisma.renaceMiembro.createMany({ data: miembrosData.slice(i, i + CHUNK) });
+    }
 
     return NextResponse.json({ success: true, jefes: jefesData.length, miembros: miembrosData.length });
   } catch (error: any) {
