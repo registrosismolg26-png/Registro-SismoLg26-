@@ -1847,8 +1847,9 @@ export default function MorbilidadTab() {
                 </div>
               </div>
 
-              <HistoriaClinicaExtendida formData={viewConsulta.data || {}} onChange={() => {}} readOnly={true} step={viewWizardStep} />
               </div>
+              {/* FUERA del duo (hermano), auto-gateado por el paso → se ve en 2/3/4. */}
+              <HistoriaClinicaExtendida formData={viewConsulta.data || {}} onChange={() => {}} readOnly={true} step={viewWizardStep} />
 
               <div className="morb-actions">
                 <button type="button" className="morb-btn morb-btn--ghost" onClick={closeView}>Cerrar</button>
