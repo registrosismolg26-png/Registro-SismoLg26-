@@ -83,6 +83,7 @@ export default function AppHeader() {
     REGISTRADOR: "Registrador",
     VISUALIZADOR: "Visualizador",
     RENACE: "VZLA Renace",
+    RENACE_MASTER: "Master Renace",
     AdminMedico: "Admin Médico",
     OperadorMedico: "Op. Médico",
     AsistenteMedico: "Asist. Médico",

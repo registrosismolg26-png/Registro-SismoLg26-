@@ -83,8 +83,13 @@ export const canDeleteConsulta = (u: AuthUser) => ["MASTER", "AdminMedico"].incl
 export const isMedico = (u: AuthUser) => ["AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
 // Rol EXCLUSIVO de VZLA RENACE: solo ese módulo + su Config de perfil.
 export const isRenace = (u: AuthUser) => u.role === "RENACE";
-// ¿Puede USAR el módulo VZLA RENACE? Lado censo SIN visualizador + el rol RENACE.
-export const canUseRenace = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR", "RENACE"].includes(u.role);
+// Rol EXCLUSIVO "Master Renace": solo el módulo VZLA RENACE y ahí SOLO las Gráficas
+// (dashboard global). No ve el Directorio ni otros módulos; no importa ni edita.
+export const isRenaceMaster = (u: AuthUser) => u.role === "RENACE_MASTER";
+// ¿Puede VER las Gráficas agregadas del módulo? Master global + Master Renace.
+export const canViewRenaceGraficas = (u: AuthUser) => isMaster(u) || isRenaceMaster(u);
+// ¿Puede USAR el módulo VZLA RENACE? Lado censo SIN visualizador + los roles RENACE y RENACE_MASTER.
+export const canUseRenace = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR", "RENACE", "RENACE_MASTER"].includes(u.role);
 // Catálogos médicos — CREAR/EDITAR (renombrar): AdminMedico, OperadorMedico y Master.
 export const canEditCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico"].includes(u.role);
 // Catálogos médicos — ELIMINAR y superficie de administración: solo AdminMedico y Master

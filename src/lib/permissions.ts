@@ -22,9 +22,16 @@ export const isMedico          = (role: string) => ["AdminMedico", "OperadorMedi
 // Rol EXCLUSIVO de VZLA RENACE: SOLO ese módulo (registrar planteamientos) + su Config
 // de perfil. No ve censo, estadísticas, registrados, morbilidad, etc., ni descarga padrón.
 export const isRenace          = (role: string) => role === "RENACE";
-// ¿Puede USAR el módulo VZLA RENACE? Lado censo SIN visualizador + el rol RENACE.
-// (VISUALIZADOR y roles médicos NO.) El backend valida de nuevo.
-export const canUseRenace      = (role: string) => ["MASTER", "ADMIN", "REGISTRADOR", "RENACE"].includes(role);
+// Rol EXCLUSIVO "Master Renace": entra al módulo pero SOLO ve las Gráficas (dashboard
+// GLOBAL de todos los campamentos), NO el Directorio ni edición. Tampoco ve otros módulos.
+export const isRenaceMaster    = (role: string) => role === "RENACE_MASTER";
+// Roles EXCLUSIVOS del módulo VZLA RENACE (no ven ningún otro módulo del sistema).
+export const isRenaceOnly      = (role: string) => isRenace(role) || isRenaceMaster(role);
+// ¿Puede VER las Gráficas del módulo (dashboard agregado)? Master global + Master Renace.
+export const canViewRenaceGraficas = (role: string) => isMaster(role) || isRenaceMaster(role);
+// ¿Puede USAR el módulo VZLA RENACE? Lado censo SIN visualizador + los roles RENACE y
+// RENACE_MASTER. (VISUALIZADOR y roles médicos NO.) El backend valida de nuevo.
+export const canUseRenace      = (role: string) => ["MASTER", "ADMIN", "REGISTRADOR", "RENACE", "RENACE_MASTER"].includes(role);
 // Catálogos médicos — CREAR/EDITAR: AdminMedico, OperadorMedico y Master.
 export const canEditCatalogosMedicos = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico"].includes(role);
 // Catálogos médicos — ELIMINAR y superficie de administración: solo AdminMedico y Master.
@@ -41,7 +48,7 @@ export const hasRefugio        = (refugio: string | null | undefined): boolean =
  *  backend (src/app/api/auth/users/route.ts → assignableRoles). Solo para poblar
  *  el selector de rol; el backend vuelve a validar. */
 export function assignableRoles(role: string): string[] {
-  if (isMaster(role)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (isMaster(role)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
   if (role === "AdminMedico") return ["OperadorMedico", "AsistenteMedico"];
   return ["REGISTRADOR", "VISUALIZADOR"];
 }
@@ -51,7 +58,7 @@ export function assignableRoles(role: string): string[] {
  *  otros Master y verse a sí mismo en la audiencia). El resto de emisores mantiene
  *  su ámbito. El backend revalida con esta misma función. */
 export function avisoAudienceRoles(role: string): string[] {
-  if (isMaster(role)) return ["MASTER", "ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (isMaster(role)) return ["MASTER", "ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
   return assignableRoles(role);
 }
 
@@ -62,6 +69,7 @@ export const ROLE_LABELS: Record<string, string> = {
   REGISTRADOR: "Registrador",
   VISUALIZADOR: "Visualizador",
   RENACE: "VZLA Renace",
+  RENACE_MASTER: "Master Renace",
   AdminMedico: "Admin Médico",
   OperadorMedico: "Operador Médico",
   AsistenteMedico: "Asistente Médico",

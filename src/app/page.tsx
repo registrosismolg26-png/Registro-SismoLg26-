@@ -38,7 +38,7 @@ import {
   canViewDashboard,
   canManageMorbilidad,
   isMedico,
-  isRenace,
+  isRenaceOnly,
   canUseRenace,
 } from "@/lib/permissions";
 import type {
@@ -329,10 +329,11 @@ export default function Home() {
     if (!allowed.includes(activeTab)) setActiveTab("morbilidad");
   }, [currentUser, activeTab]);
 
-  // El rol EXCLUSIVO VZLA RENACE solo puede estar en su módulo o en Config (su perfil);
-  // cualquier otra pestaña (incl. el default "censo") lo devuelve a VZLA Renace.
+  // Los roles EXCLUSIVOS de VZLA RENACE (RENACE y RENACE_MASTER) solo pueden estar en su
+  // módulo o en Config (su perfil); cualquier otra pestaña (incl. el default "censo") los
+  // devuelve a VZLA Renace.
   useEffect(() => {
-    if (currentUser?.role !== "RENACE") return;
+    if (!isRenaceOnly(currentUser?.role || "")) return;
     if (!["vzlarenace", "config"].includes(activeTab)) setActiveTab("vzlarenace");
   }, [currentUser, activeTab]);
 
@@ -2154,8 +2155,8 @@ export default function Home() {
               secciones admin van gateadas dentro de ConfigTab (cada rol ve lo suyo). */}
           {activeTab === "config" && <ConfigTab />}
 
-          {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos ni RENACE */}
-          {activeTab === "asignaciones" && !isMedico(currentUser.role) && !isRenace(currentUser.role) && (
+          {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos ni roles RENACE */}
+          {activeTab === "asignaciones" && !isMedico(currentUser.role) && !isRenaceOnly(currentUser.role) && (
             <AsignacionesTab />
           )}
           {activeTab === "caracterizacion" && isMaster(currentUser.role) && (
