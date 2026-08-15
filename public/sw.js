@@ -1,8 +1,17 @@
 // AUTOGENERADO: `scripts/update-sw-version.mjs` (script `prebuild`) reemplaza este
 // valor con el commit SHA en cada build, para invalidar el cache de todos los
 // clientes en cada deploy. NO editar a mano; el valor de abajo es solo placeholder.
-const BUILD_TS = "dev-mstoqhux";
+const BUILD_TS = "dev-msun4vcq";
 const CACHE_NAME = `registro-sismo-v${BUILD_TS}`;
+
+// ¿Estamos en LOCAL (pruebas del dueño en localhost)? Solo en local queremos
+// AUTO-actualización: el worker nuevo toma el control SIN esperar el banner, para
+// que cada recarga muestre lo último sin fricción de caché. En producción (Vercel /
+// registrosismo.site) esto es SIEMPRE false → el flujo del banner queda intacto.
+const IS_LOCAL =
+  self.location.hostname === "localhost" ||
+  self.location.hostname === "127.0.0.1" ||
+  self.location.hostname === "0.0.0.0";
 
 const PRECACHE = [
   "/",
@@ -16,6 +25,9 @@ const PRECACHE = [
 // decide cuándo (o sigue trabajando). El controllerchange → reload del cliente solo
 // dispara tras aceptar el banner.
 self.addEventListener("install", (event) => {
+  // En LOCAL, activar de inmediato el worker nuevo (auto-update sin banner): junto
+  // con el `controllerchange → reload` del cliente, cada recarga trae lo último.
+  if (IS_LOCAL) self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       // Cachear cada recurso POR SEPARADO con allSettled: si UNO falla (p. ej. un 404),
