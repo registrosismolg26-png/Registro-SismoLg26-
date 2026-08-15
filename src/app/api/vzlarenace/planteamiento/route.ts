@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, isMaster, type AuthUser } from "@/lib/auth";
+import { getAuthUser, isMaster, canUseRenace, type AuthUser } from "@/lib/auth";
 import { refugioIdByName } from "@/lib/renaceScope";
 
 // Refugio DESTINO del planteamiento: se usa el refugioId del NÚCLEO (que el cliente
@@ -16,6 +16,7 @@ export async function GET(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (!canUseRenace(auth)) return NextResponse.json({ error: "Sin acceso a VZLA Renace." }, { status: 403 });
 
     const url = new URL(req.url);
     const jefeNro = parseInt(url.searchParams.get("jefeNro") ?? "", 10);
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (!canUseRenace(auth)) return NextResponse.json({ error: "Sin acceso a VZLA Renace." }, { status: 403 });
 
     const body = await req.json();
     const jefeNro = parseInt(String(body?.jefeNro), 10);

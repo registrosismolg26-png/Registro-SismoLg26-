@@ -38,6 +38,8 @@ import {
   canViewDashboard,
   canManageMorbilidad,
   isMedico,
+  isRenace,
+  canUseRenace,
 } from "@/lib/permissions";
 import type {
   ToastType,
@@ -325,6 +327,13 @@ export default function Home() {
         ? ["morbilidad", "balance", "historial", "usuarios", "config"]
         : ["morbilidad", "balance", "historial", "config"];
     if (!allowed.includes(activeTab)) setActiveTab("morbilidad");
+  }, [currentUser, activeTab]);
+
+  // El rol EXCLUSIVO VZLA RENACE solo puede estar en su módulo o en Config (su perfil);
+  // cualquier otra pestaña (incl. el default "censo") lo devuelve a VZLA Renace.
+  useEffect(() => {
+    if (currentUser?.role !== "RENACE") return;
+    if (!["vzlarenace", "config"].includes(activeTab)) setActiveTab("vzlarenace");
   }, [currentUser, activeTab]);
 
   // Persistir la pestaña activa para restaurarla al recargar (solo tras el arranque,
@@ -2145,8 +2154,8 @@ export default function Home() {
               secciones admin van gateadas dentro de ConfigTab (cada rol ve lo suyo). */}
           {activeTab === "config" && <ConfigTab />}
 
-          {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos */}
-          {activeTab === "asignaciones" && !isMedico(currentUser.role) && (
+          {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos ni RENACE */}
+          {activeTab === "asignaciones" && !isMedico(currentUser.role) && !isRenace(currentUser.role) && (
             <AsignacionesTab />
           )}
           {activeTab === "caracterizacion" && isMaster(currentUser.role) && (
@@ -2157,9 +2166,9 @@ export default function Home() {
           )}
           {activeTab === "mapa" && isMaster(currentUser.role) && <MapaTab />}
 
-          {/* VZLA RENACE — módulo independiente (lado censo, NO médicos); el gate de
-              "Importar Excel" va dentro de la pestaña (Master/Admin). */}
-          {activeTab === "vzlarenace" && !isMedico(currentUser.role) && <VzlaRenaceTab />}
+          {/* VZLA RENACE — MASTER/ADMIN/REGISTRADOR + rol exclusivo RENACE (NO médicos,
+              NO visualizador); el gate de "Importar Excel" va dentro (solo Master). */}
+          {activeTab === "vzlarenace" && canUseRenace(currentUser.role) && <VzlaRenaceTab />}
 
           {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
           {activeTab === "morbilidad" &&

@@ -62,6 +62,8 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, the
           setCurrentUser(userSession);
           if (userSession.role === "VISUALIZADOR") {
             setActiveTab("dashboard");
+          } else if (userSession.role === "RENACE") {
+            setActiveTab("vzlarenace");
           } else {
             setActiveTab("censo");
           }
@@ -98,6 +100,8 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, the
         setCurrentUser(data.user);
         if (data.user.role === "VISUALIZADOR") {
           setActiveTab("dashboard");
+        } else if (data.user.role === "RENACE") {
+          setActiveTab("vzlarenace");
         } else {
           setActiveTab("censo");
         }

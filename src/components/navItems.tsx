@@ -9,6 +9,8 @@ import {
   canManageUsers,
   canViewDashboard,
   isMedico,
+  isRenace,
+  canUseRenace,
   canManageMorbilidad,
   canRegister,
   isMaster,
@@ -64,7 +66,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     tab: "asignaciones",
     label: "Registrados",
-    show: (r) => !isMedico(r),
+    show: (r) => !isMedico(r) && !isRenace(r),
     icon: sv(
       <>
 <path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/>
@@ -105,12 +107,12 @@ export const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    // VZLA RENACE (Venezuela Renace): módulo INDEPENDIENTE del censo. Lo ven los
-    // operadores del lado censo (NO los roles médicos); "Importar Excel" queda
-    // gateado DENTRO de la pestaña a Master/Admin (canImportRenace).
+    // VZLA RENACE (Venezuela Renace): módulo INDEPENDIENTE del censo. Lo ven MASTER,
+    // ADMIN, REGISTRADOR y el rol EXCLUSIVO RENACE (NO médicos ni VISUALIZADOR).
+    // "Importar Excel" queda gateado DENTRO de la pestaña a Master (canImportRenace).
     tab: "vzlarenace",
     label: "VZLA Renace",
-    show: (r) => !isMedico(r),
+    show: (r) => canUseRenace(r),
     icon: sv(
       <>
         <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -190,7 +192,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: "/buscar",
     label: "Buscar",
-    show: (r) => !isMedico(r),
+    show: (r) => !isMedico(r) && !isRenace(r),
     icon: sv(
       <>
         <circle cx="11" cy="11" r="8" />

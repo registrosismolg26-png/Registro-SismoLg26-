@@ -81,6 +81,10 @@ export const canManageMorbilidad = (u: AuthUser) => ["MASTER", "AdminMedico", "O
 export const canDeleteConsulta = (u: AuthUser) => ["MASTER", "AdminMedico"].includes(u.role);
 // ¿Es un rol médico? (solo ven Morbilidad; AdminMedico además ve Usuarios filtrado a médicos).
 export const isMedico = (u: AuthUser) => ["AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
+// Rol EXCLUSIVO de VZLA RENACE: solo ese módulo + su Config de perfil.
+export const isRenace = (u: AuthUser) => u.role === "RENACE";
+// ¿Puede USAR el módulo VZLA RENACE? Lado censo SIN visualizador + el rol RENACE.
+export const canUseRenace = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR", "RENACE"].includes(u.role);
 // Catálogos médicos — CREAR/EDITAR (renombrar): AdminMedico, OperadorMedico y Master.
 export const canEditCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico"].includes(u.role);
 // Catálogos médicos — ELIMINAR y superficie de administración: solo AdminMedico y Master

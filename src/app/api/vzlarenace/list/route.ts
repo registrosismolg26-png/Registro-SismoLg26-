@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, canUseRenace } from "@/lib/auth";
 import { renaceReadScope } from "@/lib/renaceScope";
 
 // GET — jefes y miembros del refugio del usuario (Master: el `?refugio=` seleccionado,
@@ -10,6 +10,7 @@ export async function GET(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (!canUseRenace(auth)) return NextResponse.json({ error: "Sin acceso a VZLA Renace." }, { status: 403 });
 
     const requested = new URL(req.url).searchParams.get("refugio");
     const { where, key } = await renaceReadScope(auth, requested);

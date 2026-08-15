@@ -71,7 +71,7 @@ model User {
   email                 String   @unique
   nombre                String
   password              String
-  role                  String   // "MASTER" | "ADMIN" | "REGISTRADOR" | "VISUALIZADOR"
+  role                  String   // "MASTER" | "ADMIN" | "REGISTRADOR" | "VISUALIZADOR" | "RENACE" (solo VZLA Renace) | AdminMedico/OperadorMedico/AsistenteMedico
   campamentoTransitorio String
   createdAt             DateTime @default(now())
   // Telegram — canal de respaldo (códigos/avisos). chatId = destino del bot;
