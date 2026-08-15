@@ -15,9 +15,10 @@ import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { getAllLocalRenacePlanteamientos } from "@/lib/db";
 import { normalizeText } from "@/lib/helpers";
-import { canImportRenace } from "@/lib/permissions";
+import { canImportRenace, isMaster, isRenaceMaster, canViewRenaceGraficas } from "@/lib/permissions";
 import Pagination from "@/components/Pagination";
 import RenacePlanModal from "@/components/RenacePlanModal";
+import RenaceGraficas from "@/components/RenaceGraficas";
 import type { RenaceJefe, RenaceMiembro } from "@/types";
 
 // Caches SEPARADOS por volatilidad: jefes/miembros (casi estáticos, solo cambian al
@@ -183,6 +184,12 @@ function SkelRows({ widths, n = 6 }: { widths: (string | number)[]; n?: number }
 export default function VzlaRenaceTab() {
   const { currentUser, showToast, effectiveRefugio } = useAppContext();
   const puedeImportar = canImportRenace(currentUser?.role || "");
+  const esMaster = isMaster(currentUser?.role || "");
+  // "Master Renace": entra al módulo pero SOLO ve las Gráficas (sin Directorio ni edición).
+  const esRenaceMaster = isRenaceMaster(currentUser?.role || "");
+  const puedeVerGraficas = canViewRenaceGraficas(currentUser?.role || ""); // Master global + Master Renace
+  // Vista inicial: Master Renace arranca (y se queda) en Gráficas; el resto en Directorio.
+  const [view, setView] = useState<"directorio" | "graficas">(esRenaceMaster ? "graficas" : "directorio");
 
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [importing, setImporting] = useState(false);
@@ -268,6 +275,7 @@ export default function VzlaRenaceTab() {
   // Recarga al abrir y cada vez que cambie el campamento (Master).
   useEffect(() => {
     setJefes([]); setMiembros([]); setServerPlanNros(new Set()); setLocalPlanNros(new Set());
+    if (esRenaceMaster) return; // Master Renace solo ve Gráficas → no baja el directorio (~1000 filas)
     reloadAll();
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [effectiveRefugio]);
@@ -339,22 +347,42 @@ export default function VzlaRenaceTab() {
       <div className="renace-head">
         <div className="renace-head__title">
           <h2>VZLA Renace</h2>
-          <p className="renace-sub">Directorio del programa Venezuela Renace. Pulsa “Planear” en un jefe para registrar la solución habitacional del núcleo.</p>
+          <p className="renace-sub">
+            {esRenaceMaster
+              ? "Panel de gráficas del programa Venezuela Renace — resumen global de todos los campamentos."
+              : "Directorio del programa Venezuela Renace. Pulsa “Plantear” en un jefe para registrar la solución habitacional del núcleo."}
+          </p>
         </div>
-        <div className="btn-seg-group renace-head__actions">
-          {/* Importar = solo Master (op. masiva); Actualizar = todos. */}
-          {puedeImportar && (
-            <button type="button" className="toolbar-btn" onClick={() => fileRef.current?.click()} disabled={importing}>
-              {importing ? "Importando…" : "Importar Excel"}
+        {/* Master Renace solo ve Gráficas → sin botonera de Importar/Actualizar (son del Directorio). */}
+        {!esRenaceMaster && (
+          <div className="btn-seg-group renace-head__actions">
+            {/* Importar = solo Master (op. masiva); Actualizar = todos. */}
+            {puedeImportar && (
+              <button type="button" className="toolbar-btn" onClick={() => fileRef.current?.click()} disabled={importing}>
+                {importing ? "Importando…" : "Importar Excel"}
+              </button>
+            )}
+            <button type="button" className="toolbar-btn" onClick={() => reloadAll(true)} disabled={loadingList}>
+              {loadingList ? "Actualizando…" : "Actualizar"}
             </button>
-          )}
-          <button type="button" className="toolbar-btn" onClick={() => reloadAll(true)} disabled={loadingList}>
-            {loadingList ? "Actualizando…" : "Actualizar"}
-          </button>
-        </div>
+          </div>
+        )}
         <input ref={fileRef} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={onFile} />
       </div>
 
+      {/* Master (global) alterna entre Directorio y Gráficas. Master Renace NO ve el
+          toggle: su vista es solo Gráficas. El resto de roles solo ve el Directorio. */}
+      {esMaster && (
+        <div className="btn-seg-group renace-viewtabs">
+          <button type="button" className={`toolbar-btn${view === "directorio" ? " is-active" : ""}`} onClick={() => setView("directorio")}>Directorio</button>
+          <button type="button" className={`toolbar-btn${view === "graficas" ? " is-active" : ""}`} onClick={() => setView("graficas")}>Gráficas</button>
+        </div>
+      )}
+
+      {view === "graficas" && puedeVerGraficas ? (
+        <RenaceGraficas />
+      ) : (
+      <>
       {/* KPIs (mismo lenguaje visual que Estadísticas: .bal-cards/.bal-card) */}
       {(() => {
         const totalFamilias = jefes.length;
@@ -405,11 +433,11 @@ export default function VzlaRenaceTab() {
                     <td className="col-num">{j.nro}</td>
                     <td className="col-sem" data-label="Plan">
                       {planNros.has(j.nro) ? (
-                        <span className="renace-sem renace-sem--ok" title="Con planteamiento" aria-label="Con planteamiento">
+                        <span className="renace-sem renace-sem--ok" data-tip="Con planteamiento" aria-label="Con planteamiento">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335" /><path d="m9 11 3 3L22 4" /></svg>
                         </span>
                       ) : (
-                        <span className="renace-sem renace-sem--no" title="Sin planteamiento" aria-label="Sin planteamiento">
+                        <span className="renace-sem renace-sem--no" data-tip="Sin planteamiento" aria-label="Sin planteamiento">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
                         </span>
                       )}
@@ -419,9 +447,9 @@ export default function VzlaRenaceTab() {
                     <td>{j.cantMiembros ?? "—"}</td>
                     <td>{[j.estadoProcedencia, j.parroquiaProcedencia].filter(Boolean).join(" / ") || "—"}</td>
                     <td className="col-action">
-                      <button type="button" className="btn-planear" onClick={() => setPlaneando(j)} title="Planear solución del núcleo">
+                      <button type="button" className="btn-planear" onClick={() => setPlaneando(j)} data-tip="Plantear solución del núcleo">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-                        <span className="btn-planear__txt">Planear</span>
+                        <span className="btn-planear__txt">Plantear</span>
                       </button>
                     </td>
                   </tr>
@@ -461,6 +489,8 @@ export default function VzlaRenaceTab() {
           </div>
           <Pagination total={miembrosF.length} page={mPage} pageSize={mSize} onPageChange={setMPage} onPageSizeChange={setMSize} itemLabel="miembros" />
         </div>
+      )}
+      </>
       )}
 
       {planeando && (

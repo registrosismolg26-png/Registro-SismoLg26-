@@ -262,7 +262,7 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
       <div className={`modal-content pill-form renace-modal${modal.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="renace-modal__head">
           <div>
-            <h3>Planear solución — {jefe.nombres}</h3>
+            <h3>Plantear solución — {jefe.nombres}</h3>
             <p className="renace-modal__sub">NÚCLEO #{jefe.nro} · C.I. {jefe.cedula || "—"} · {miembros.length} {miembros.length === 1 ? "persona" : "personas"}</p>
           </div>
           <button type="button" className="modal-close" onClick={close} aria-label="Cerrar">×</button>
