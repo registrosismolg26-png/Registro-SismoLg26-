@@ -1515,7 +1515,7 @@ export default function Home() {
               apiFetch("/api/vzlarenace/planteamiento", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ jefeNro: p.jefeNro, refugioId: p.refugioId, ...p.data }),
+                body: JSON.stringify({ jefeNro: p.jefeNro, jefeCedula: p.jefeCedula, refugioId: p.refugioId, ...p.data }),
                 timeoutMs: 15000,
               }),
             ),

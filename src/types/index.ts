@@ -124,6 +124,7 @@ export interface RenaceMiembro {
   id: string;
   refugioId: string;
   jefeNro: number;
+  jefeCedula?: string | null; // cédula del jefe (ancla de familia; la que MANDA)
   nombres: string;
   cedula: string;
   fechaNacimiento: string | null;
@@ -139,8 +140,9 @@ export interface RenaceMiembro {
 // Registro en la COLA OFFLINE del planteamiento (IndexedDB). 1 registro = el
 // planteamiento de un núcleo; `id` = `${refugioId}::${jefeNro}` → upsert idempotente.
 export interface LocalRenacePlanteamiento {
-  id: string;
-  jefeNro: number;
+  id: string; // `${refugioId}::${jefeCedula}` — ancla por cédula del jefe (upsert idempotente)
+  jefeNro: number; // referencia (se envía al backend, pero MANDA la cédula)
+  jefeCedula: string; // cédula del jefe = ancla real del planteamiento
   refugioId: string;
   data: Record<string, any>; // payload del planteamiento (tipo, precioOCanon, contacto…)
   status: "pending" | "synced" | "error";
@@ -156,6 +158,7 @@ export interface RenacePlanteamiento {
   id: string;
   refugioId: string;
   jefeNro: number;
+  jefeCedula?: string | null; // cédula del jefe (ancla que MANDA)
   tipo: RenaceTipo;
   modalidadPlan: string | null;
   precioOCanon: string | null;

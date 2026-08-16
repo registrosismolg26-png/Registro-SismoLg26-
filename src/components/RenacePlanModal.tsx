@@ -65,17 +65,17 @@ function planFromRecord(p: RenacePlanteamiento): PlanForm {
 }
 
 // ── Sub-controles pill (module-level → no pierden foco al re-render) ──────────
-function Txt({ label, value, onChange, error, placeholder, wide, inputMode, numeric, req }: {
+function Txt({ label, value, onChange, error, placeholder, wide, inputMode, numeric, req, maxLen }: {
   label: string; value: string; onChange: (v: string) => void;
   error?: string; placeholder?: string; wide?: boolean; inputMode?: "text" | "numeric" | "decimal" | "tel";
-  numeric?: boolean; req?: boolean; // numeric = solo 0-9; req = muestra asterisco
+  numeric?: boolean; req?: boolean; maxLen?: number; // numeric = solo 0-9; req = asterisco; maxLen = tope de caracteres
 }) {
   return (
     <label className={`carac-field${wide ? " carac-field--wide" : ""}`}>
       <span>{label}{req && <span className="required-star"> *</span>}</span>
       <input className={`morb-control${error ? " has-error" : ""}`} value={value} placeholder={placeholder}
         inputMode={numeric ? "numeric" : inputMode}
-        onChange={(e) => onChange(numeric ? e.target.value.replace(/\D/g, "") : e.target.value.toUpperCase())} />
+        onChange={(e) => { let v = numeric ? e.target.value.replace(/\D/g, "") : e.target.value.toUpperCase(); if (maxLen) v = v.slice(0, maxLen); onChange(v); }} />
       <div className="error-container">{error && <span className="field-error-message">{error}</span>}</div>
     </label>
   );
@@ -136,7 +136,8 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
   showToast: (message: string, type: "success" | "error" | "warning" | "info") => void;
 }) {
   const { triggerSync } = useAppContext();
-  const localId = `${jefe.refugioId}::${jefe.nro}`;
+  // Ancla local por CÉDULA del jefe (la que MANDA), no por NRO.
+  const localId = `${jefe.refugioId}::${jefe.cedula}`;
   const [show, setShow] = useState(true);
   const modal = useAnimatedModal(show);
   const close = () => setShow(false);
@@ -161,7 +162,7 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
           if (!cancel) { setPlan(planFromRecord(localRec.data as RenacePlanteamiento)); setExisting(true); setLoading(false); }
           return;
         }
-        const r = await apiFetch(`/api/vzlarenace/planteamiento?jefeNro=${jefe.nro}&refugioId=${encodeURIComponent(jefe.refugioId)}`);
+        const r = await apiFetch(`/api/vzlarenace/planteamiento?jefeNro=${jefe.nro}&jefeCedula=${encodeURIComponent(jefe.cedula || "")}&refugioId=${encodeURIComponent(jefe.refugioId)}`);
         if (!cancel && r.ok) {
           const data = await r.json();
           if (data?.planteamiento) { setPlan(planFromRecord(data.planteamiento)); setExisting(true); }
@@ -194,6 +195,7 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
         if (Number.isFinite(monto) && monto > 500) e.precioOCanon = "El cánon no puede exceder 500 $.";
       }
       if (!plan.nombreContraparte.trim()) e.nombreContraparte = plan.tipo === "ALQUILER" ? "Indica el arrendatario." : "Indica el vendedor.";
+      if (plan.cedulaContraparte && (plan.cedulaContraparte.length < 6 || plan.cedulaContraparte.length > 8)) e.cedulaContraparte = "La cédula debe tener entre 6 y 8 dígitos.";
       if (!plan.contactoNum.trim()) e.contactoNum = "Indica el número de contacto.";
       // Dirección: TODOS los campos obligatorios en compra/alquiler.
       if (!plan.estado) e.estado = "Selecciona el estado.";
@@ -244,7 +246,7 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
         estadoPreferencia: plan.estadoPreferencia,
         observacion: plan.observacion,
       };
-      await saveLocalRenacePlanteamiento({ id: localId, jefeNro: jefe.nro, refugioId: jefe.refugioId, data });
+      await saveLocalRenacePlanteamiento({ id: localId, jefeNro: jefe.nro, jefeCedula: jefe.cedula, refugioId: jefe.refugioId, data });
       triggerSync();
       showToast("Planteamiento guardado. Se sincroniza automáticamente.", "success");
       onSaved?.();
@@ -349,7 +351,7 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
                           value={plan.precioOCanon} onChange={(v) => setField("precioOCanon", v)} error={errors.precioOCanon} />
                         <Txt label={plan.tipo === "ALQUILER" ? "Nombre del arrendatario" : "Nombre del vendedor"} req
                           value={plan.nombreContraparte} onChange={(v) => setField("nombreContraparte", v)} error={errors.nombreContraparte} />
-                        <Txt label="Cédula de la contraparte" value={plan.cedulaContraparte} onChange={(v) => setField("cedulaContraparte", v)} numeric />
+                        <Txt label="Cédula de la contraparte" value={plan.cedulaContraparte} onChange={(v) => setField("cedulaContraparte", v)} numeric maxLen={8} error={errors.cedulaContraparte} />
                         <Phone label="Contacto" req cod={plan.contactoCod} num={plan.contactoNum} onCod={(v) => setField("contactoCod", v)} onNum={(v) => setField("contactoNum", v)} error={errors.contactoNum} />
                         <Phone label="Contacto secundario" cod={plan.contacto2Cod} num={plan.contacto2Num} onCod={(v) => setField("contacto2Cod", v)} onNum={(v) => setField("contacto2Num", v)} />
                         <Sel label="Estado" value={plan.estado} onChange={setEstado} error={errors.estado} req

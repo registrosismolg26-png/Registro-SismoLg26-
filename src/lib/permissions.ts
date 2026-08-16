@@ -13,6 +13,8 @@ export const canManageUsers    = (role: string) => ["MASTER", "ADMIN", "AdminMed
 export const canManageRooms    = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canManagePadron   = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canImportRenace   = (role: string) => role === "MASTER"; // VZLA RENACE: importar Excel al campamento seleccionado (espejo de auth.ts)
+export const canExportRenace   = (role: string) => ["MASTER", "ADMIN"].includes(role); // VZLA RENACE: descargar el Directorio a Excel (NO Registrador/RENACE/Master Renace)
+export const canEditRenace     = (role: string) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(role); // VZLA RENACE: editar datos de jefe/miembro (scoped por refugio en el back)
 export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role); // panel de estadísticas
 export const canManageMorbilidad = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(role);
 // Eliminar consultas médicas: SOLO AdminMedico y Master (Operador/Asistente no eliminan).

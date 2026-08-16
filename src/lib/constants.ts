@@ -83,6 +83,31 @@ export const RENACE_MODALIDAD_PLAN = [
   { value: "ENTREGA_MATERIALES", label: "ENTREGA DE MATERIALES" },
 ] as const;
 
+// Listas cerradas del DIRECTORIO (edición del jefe). En MAYÚSCULA (convención del módulo)
+// con ortografía corregida. El valor guardado en el jefe es exactamente el texto.
+export const RENACE_TIPO_AFECTACION = [
+  "SIN VIVIENDA PREVIA",
+  "VIVIENDA A DEMOLER O COLAPSO TOTAL",
+  "VIVIENDA CON DAÑOS REPARABLES",
+  "VIVIENDA NO AFECTADA O CON DAÑOS MENORES",
+];
+export const RENACE_CONDICION_VIVIENDA = [
+  "ALQUILADA",
+  "PROPIA",
+  "AL CUIDO/EN PRÉSTAMO O DE UN FAMILIAR",
+  "ARRIMADO",
+  "EN CONDICIÓN DE CALLE",
+];
+export const RENACE_PLANTEAMIENTO_AFECTACION = [
+  "ASIGNACIÓN DE VIVIENDA POR PARTE DE LA GMVV",
+  "PAGO DE ALQUILER",
+  "REPARACIÓN DE VIVIENDA EN ARTICULACIÓN CON EL PLAN VENEZUELA RENACE",
+  "SUBSIDIO PARA LA COMPRA DE ACUERDO A LA SITUACIÓN PARTICULAR",
+  "TRASLADO A CAMPAMENTO TRANSITORIO DE MAYOR PERMANENCIA",
+  "CASO NEGRA HIPÓLITA",
+  "INCIDENCIA A EVALUAR",
+];
+
 // Habitaciones base (las personalizadas se cargan desde la BD)
 export const CUARTOS: string[] = [];
 

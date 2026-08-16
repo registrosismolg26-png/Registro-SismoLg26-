@@ -26,10 +26,15 @@ export async function GET(req: Request) {
       return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": "no-store" } });
     }
 
-    const plans = await prisma.renacePlanteamiento.findMany({ where, select: { jefeNro: true } });
+    const plans = await prisma.renacePlanteamiento.findMany({ where, select: { jefeNro: true, jefeCedula: true } });
     const headers: Record<string, string> = { "Cache-Control": "no-store" };
     if (etag) headers.ETag = etag;
-    return NextResponse.json({ planteamientoNros: plans.map((p) => p.jefeNro) }, { headers });
+    // Se devuelven AMBOS: cédulas (ancla que MANDA) y NROs (respaldo durante la transición,
+    // antes del backfill). El cliente marca el semáforo si coincide por cualquiera.
+    return NextResponse.json({
+      planteamientoNros: plans.map((p) => p.jefeNro),
+      planteamientoCedulas: plans.map((p) => p.jefeCedula).filter((c): c is string => !!c),
+    }, { headers });
   } catch (error: any) {
     console.error("Error en GET /api/vzlarenace/planteamientos:", error);
     return NextResponse.json({ error: "Error al listar planteamientos" }, { status: 500 });

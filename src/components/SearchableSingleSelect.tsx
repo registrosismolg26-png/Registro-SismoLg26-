@@ -25,7 +25,7 @@ interface Props {
   options: SingleOption[];
   placeholder?: string;      // texto del trigger cuando no hay selección
   searchPlaceholder?: string;
-  clearLabel?: string;       // fila para limpiar la selección ("" ). null = sin fila
+  clearLabel?: string | null;  // fila para limpiar la selección. null = sin fila (obligatorio)
   emptyText?: string;
   disabled?: boolean;
   ariaLabel?: string;

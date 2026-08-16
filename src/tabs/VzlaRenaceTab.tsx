@@ -15,9 +15,11 @@ import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { getAllLocalRenacePlanteamientos } from "@/lib/db";
 import { normalizeText } from "@/lib/helpers";
-import { canImportRenace, isMaster, isRenaceMaster, canViewRenaceGraficas } from "@/lib/permissions";
+import { canImportRenace, canExportRenace, canEditRenace, isMaster, isRenaceMaster, canViewRenaceGraficas } from "@/lib/permissions";
 import Pagination from "@/components/Pagination";
 import RenacePlanModal from "@/components/RenacePlanModal";
+import RenaceEditModal from "@/components/RenaceEditModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import RenaceGraficas from "@/components/RenaceGraficas";
 import type { RenaceJefe, RenaceMiembro } from "@/types";
 
@@ -184,6 +186,8 @@ function SkelRows({ widths, n = 6 }: { widths: (string | number)[]; n?: number }
 export default function VzlaRenaceTab() {
   const { currentUser, showToast, effectiveRefugio } = useAppContext();
   const puedeImportar = canImportRenace(currentUser?.role || "");
+  const puedeExportar = canExportRenace(currentUser?.role || ""); // descargar Directorio a Excel = MASTER/ADMIN
+  const puedeEditar = canEditRenace(currentUser?.role || "");     // editar jefe/miembro = MASTER/ADMIN/REGISTRADOR
   const esMaster = isMaster(currentUser?.role || "");
   // "Master Renace": entra al módulo pero SOLO ve las Gráficas (sin Directorio ni edición).
   const esRenaceMaster = isRenaceMaster(currentUser?.role || "");
@@ -193,20 +197,36 @@ export default function VzlaRenaceTab() {
 
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [jefes, setJefes] = useState<RenaceJefe[]>([]);
   const [miembros, setMiembros] = useState<RenaceMiembro[]>([]);
-  const [serverPlanNros, setServerPlanNros] = useState<Set<number>>(new Set()); // jefeNro con plan (servidor)
-  const [localPlanNros, setLocalPlanNros] = useState<Set<number>>(new Set());   // pendientes en la cola offline
+  // Semáforo/KPI: el ancla que MANDA es la CÉDULA del jefe; se conservan los NROs como
+  // respaldo (transición antes del backfill, o pendientes offline con NRO viejo).
+  const [serverPlanNros, setServerPlanNros] = useState<Set<number>>(new Set());
+  const [serverPlanCeds, setServerPlanCeds] = useState<Set<string>>(new Set());
+  const [localPlanNros, setLocalPlanNros] = useState<Set<number>>(new Set());
+  const [localPlanCeds, setLocalPlanCeds] = useState<Set<string>>(new Set());
   const [loadingList, setLoadingList] = useState(false);
   const [dirTab, setDirTab] = useState<"jefes" | "miembros">("jefes");
   const [jq, setJq] = useState(""); const [jPage, setJPage] = useState(1); const [jSize, setJSize] = useState(20);
   const [mq, setMq] = useState(""); const [mPage, setMPage] = useState(1); const [mSize, setMSize] = useState(20);
 
   const [planeando, setPlaneando] = useState<RenaceJefe | null>(null);
+  const [editando, setEditando] = useState<
+    | { modo: "editar"; tipo: "jefe" | "miembro"; record: RenaceJefe | RenaceMiembro }
+    | { modo: "crear"; jefeFijo?: RenaceJefe }
+    | null
+  >(null);
+  const [confirmMiembro, setConfirmMiembro] = useState<RenaceMiembro | null>(null);
 
   // Semáforo/KPI = servidor ∪ pendientes locales (optimista, sin esperar la sync).
+  // Cédula → SOLO DÍGITOS (para comparar sin importar formato/cache viejo).
+  const cedDigits = (s?: string | null) => (s || "").replace(/\D/g, "");
   const planNros = useMemo(() => new Set<number>([...serverPlanNros, ...localPlanNros]), [serverPlanNros, localPlanNros]);
+  const planCeds = useMemo(() => new Set<string>([...serverPlanCeds, ...localPlanCeds]), [serverPlanCeds, localPlanCeds]);
+  // ¿El jefe tiene planteamiento? Por CÉDULA (la que manda) o, de respaldo, por NRO.
+  const tienePlan = (j: RenaceJefe) => planCeds.has(cedDigits(j.cedula)) || planNros.has(j.nro);
 
   const jmCacheKey = `${JM_CACHE_KEY}::${effectiveRefugio || "all"}`;
   const planCacheKey = `${PLAN_CACHE_KEY}::${effectiveRefugio || "all"}`;
@@ -238,7 +258,7 @@ export default function VzlaRenaceTab() {
   const loadPlans = async (force = false) => {
     let cached: any = null;
     try { cached = JSON.parse(localStorage.getItem(planCacheKey) || "null"); } catch { /* ignore */ }
-    if (cached && !force) setServerPlanNros(new Set(cached.planteamientoNros || []));
+    if (cached && !force) { setServerPlanNros(new Set(cached.planteamientoNros || [])); setServerPlanCeds(new Set((cached.planteamientoCedulas || []).map(cedDigits))); }
     if (!navigator.onLine) return;
     try {
       const headers: Record<string, string> = {};
@@ -250,7 +270,8 @@ export default function VzlaRenaceTab() {
         const etag = res.headers.get("ETag");
         const data = await res.json();
         setServerPlanNros(new Set(data.planteamientoNros || []));
-        try { localStorage.setItem(planCacheKey, JSON.stringify({ etag, planteamientoNros: data.planteamientoNros })); } catch { /* cuota */ }
+        setServerPlanCeds(new Set((data.planteamientoCedulas || []).map(cedDigits)));
+        try { localStorage.setItem(planCacheKey, JSON.stringify({ etag, planteamientoNros: data.planteamientoNros, planteamientoCedulas: data.planteamientoCedulas })); } catch { /* cuota */ }
       }
     } catch (e) { console.error(e); }
   };
@@ -260,13 +281,16 @@ export default function VzlaRenaceTab() {
     try {
       const locals = await getAllLocalRenacePlanteamientos();
       const refId = jefes[0]?.refugioId; // los jefes del view comparten refugioId
-      const s = new Set<number>();
+      const nros = new Set<number>();
+      const ceds = new Set<string>();
       for (const l of locals) {
         if (l.status === "error") continue;
         if (refId && l.refugioId !== refId) continue;
-        s.add(l.jefeNro);
+        nros.add(l.jefeNro);
+        if (l.jefeCedula) ceds.add(cedDigits(l.jefeCedula));
       }
-      setLocalPlanNros(s);
+      setLocalPlanNros(nros);
+      setLocalPlanCeds(ceds);
     } catch { /* ignore */ }
   };
 
@@ -274,7 +298,8 @@ export default function VzlaRenaceTab() {
 
   // Recarga al abrir y cada vez que cambie el campamento (Master).
   useEffect(() => {
-    setJefes([]); setMiembros([]); setServerPlanNros(new Set()); setLocalPlanNros(new Set());
+    setJefes([]); setMiembros([]);
+    setServerPlanNros(new Set()); setServerPlanCeds(new Set()); setLocalPlanNros(new Set()); setLocalPlanCeds(new Set());
     if (esRenaceMaster) return; // Master Renace solo ve Gráficas → no baja el directorio (~1000 filas)
     reloadAll();
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
@@ -297,15 +322,50 @@ export default function VzlaRenaceTab() {
   const jefesPage = jefesF.slice((jPage - 1) * jSize, jPage * jSize);
   const miembrosPage = miembrosF.slice((mPage - 1) * mSize, mPage * mSize);
 
+  // Conteo REAL de miembros por núcleo (desde los `RenaceMiembro` cargados), NO el valor
+  // del Excel. INCLUYE al jefe exactamente una vez: en unos campamentos el jefe quedó
+  // guardado como miembro (primer miembro del grupo) y en otros no → se suma 1 solo si su
+  // cédula NO aparece ya entre los miembros. Clave por refugio+nro (Master ve varios).
+  // Miembros agrupados por su vínculo al jefe: por CÉDULA del jefe (la que manda, en
+  // dígitos) cuando existe, o por NRO como respaldo (datos pre-backfill). `ced` = cédulas
+  // de los miembros (para saber si el jefe ya está entre ellos y no contarlo dos veces).
+  const nucleoInfo = useMemo(() => {
+    const m = new Map<string, { count: number; ced: Set<string> }>();
+    for (const x of miembros) {
+      const k = x.jefeCedula ? `${x.refugioId}::C:${cedDigits(x.jefeCedula)}` : `${x.refugioId}::N:${x.jefeNro}`;
+      let e = m.get(k);
+      if (!e) { e = { count: 0, ced: new Set<string>() }; m.set(k, e); }
+      e.count++;
+      const d = cedDigits(x.cedula);
+      if (d) e.ced.add(d);
+    }
+    return m;
+  }, [miembros]);
+  const memberCount = (j: RenaceJefe) => {
+    const e = nucleoInfo.get(`${j.refugioId}::C:${cedDigits(j.cedula)}`) || nucleoInfo.get(`${j.refugioId}::N:${j.nro}`);
+    const base = e?.count || 0;
+    const jefeIncluido = !!e && e.ced.has(cedDigits(j.cedula));
+    return base + (jefeIncluido ? 0 : 1);
+  };
+
   // Miembros del núcleo abierto (desde la lista ya cargada → sin fetch extra).
   const miembrosDelNucleo = useMemo(
-    () => (planeando ? miembros.filter((m) => m.jefeNro === planeando.nro) : []),
+    () => (planeando ? miembros.filter((m) => (m.jefeCedula ? cedDigits(m.jefeCedula) === cedDigits(planeando.cedula) : m.jefeNro === planeando.nro)) : []),
     [planeando, miembros],
   );
   const openPlanPorNro = (nro: number) => {
     const j = jefes.find((x) => x.nro === nro);
     if (j) setPlaneando(j);
     else showToast("No se encontró el jefe de ese núcleo.", "warning");
+  };
+
+  // Eliminar un miembro (solo Master). La CONFIRMACIÓN la hace ConfirmModal (no confirm()
+  // nativo); esta función solo ejecuta el DELETE y lanza si falla (para que el modal siga).
+  const doDeleteMiembro = async (m: RenaceMiembro) => {
+    const res = await apiFetch(`/api/vzlarenace/miembro?id=${encodeURIComponent(m.id)}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data?.success) { showToast("Miembro eliminado.", "success"); reloadAll(true); }
+    else { showToast(data?.error || "No se pudo eliminar el miembro.", "error"); throw new Error("delete failed"); }
   };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -341,6 +401,32 @@ export default function VzlaRenaceTab() {
     } finally { setImporting(false); }
   };
 
+  // Descargar el Directorio a Excel (MASTER/ADMIN): reutiliza los jefes/miembros ya
+  // cargados y trae los planteamientos COMPLETOS del alcance (`/export`, scoped).
+  const onExport = async () => {
+    if (exporting) return;
+    if (!jefes.length) { showToast("No hay datos para descargar en este alcance.", "warning"); return; }
+    setExporting(true);
+    try {
+      const q = effectiveRefugio ? `?refugio=${encodeURIComponent(effectiveRefugio)}` : "";
+      const res = await apiFetch(`/api/vzlarenace/export${q}`);
+      if (!res.ok) { showToast("No se pudo preparar la descarga.", "error"); return; }
+      const data = await res.json().catch(() => ({}));
+      const { exportRenaceExcel } = await import("@/lib/exportRenaceExcel");
+      await exportRenaceExcel({
+        jefes,
+        miembros,
+        planteamientos: data.planteamientos || [],
+        refugio: effectiveRefugio || "Todos los campamentos",
+        generadoEn: new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      });
+      showToast("Directorio descargado.", "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error al generar el Excel.", "error");
+    } finally { setExporting(false); }
+  };
+
   return (
     <div className="renace-tab">
       {/* Encabezado + importar */}
@@ -356,10 +442,15 @@ export default function VzlaRenaceTab() {
         {/* Master Renace solo ve Gráficas → sin botonera de Importar/Actualizar (son del Directorio). */}
         {!esRenaceMaster && (
           <div className="btn-seg-group renace-head__actions">
-            {/* Importar = solo Master (op. masiva); Actualizar = todos. */}
+            {/* Importar = solo Master (op. masiva); Descargar = Master/Admin; Actualizar = todos. */}
             {puedeImportar && (
               <button type="button" className="toolbar-btn" onClick={() => fileRef.current?.click()} disabled={importing}>
                 {importing ? "Importando…" : "Importar Excel"}
+              </button>
+            )}
+            {puedeExportar && (
+              <button type="button" className="toolbar-btn" onClick={onExport} disabled={exporting || loadingList}>
+                {exporting ? "Descargando…" : "Descargar"}
               </button>
             )}
             <button type="button" className="toolbar-btn" onClick={() => reloadAll(true)} disabled={loadingList}>
@@ -386,7 +477,7 @@ export default function VzlaRenaceTab() {
       {/* KPIs (mismo lenguaje visual que Estadísticas: .bal-cards/.bal-card) */}
       {(() => {
         const totalFamilias = jefes.length;
-        const conPlan = Math.min(planNros.size, totalFamilias);
+        const conPlan = jefes.filter(tienePlan).length;
         const sinPlan = Math.max(0, totalFamilias - conPlan);
         const pct = (n: number) => (totalFamilias ? `${Math.round((n / totalFamilias) * 100)}%` : "0%");
         const fmt = (n: number) => n.toLocaleString("es-VE");
@@ -432,7 +523,7 @@ export default function VzlaRenaceTab() {
                   <tr key={j.id}>
                     <td className="col-num">{j.nro}</td>
                     <td className="col-sem" data-label="Plan">
-                      {planNros.has(j.nro) ? (
+                      {tienePlan(j) ? (
                         <span className="renace-sem renace-sem--ok" data-tip="Con planteamiento" aria-label="Con planteamiento">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335" /><path d="m9 11 3 3L22 4" /></svg>
                         </span>
@@ -444,13 +535,25 @@ export default function VzlaRenaceTab() {
                     </td>
                     <td>{j.nombres}</td>
                     <td>{j.cedula || "—"}</td>
-                    <td>{j.cantMiembros ?? "—"}</td>
+                    <td>{memberCount(j)}</td>
                     <td>{[j.estadoProcedencia, j.parroquiaProcedencia].filter(Boolean).join(" / ") || "—"}</td>
                     <td className="col-action">
-                      <button type="button" className="btn-planear" onClick={() => setPlaneando(j)} data-tip="Plantear solución del núcleo">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-                        <span className="btn-planear__txt">Plantear</span>
-                      </button>
+                      <div className="row-actions">
+                        {puedeEditar && (
+                          <button type="button" className="btn-ver btn-ver--edit" onClick={() => setEditando({ modo: "editar", tipo: "jefe", record: j })} data-tip="Editar datos del jefe" aria-label="Editar jefe">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          </button>
+                        )}
+                        {puedeEditar && (
+                          <button type="button" className="btn-ver btn-ver--room" onClick={() => setEditando({ modo: "crear", jefeFijo: j })} data-tip="Agregar miembro a este núcleo" aria-label="Agregar miembro">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" x2="19" y1="8" y2="14" /><line x1="22" x2="16" y1="11" y2="11" /></svg>
+                          </button>
+                        )}
+                        <button type="button" className="btn-planear" onClick={() => setPlaneando(j)} data-tip="Plantear solución del núcleo">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                          <span className="btn-planear__txt">Plantear</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -463,17 +566,25 @@ export default function VzlaRenaceTab() {
 
       {dirTab === "miembros" && (
         <div className="renace-block">
+          {puedeEditar && (
+            <div className="renace-miembros-tools">
+              <button type="button" className="toolbar-btn" onClick={() => setEditando({ modo: "crear" })}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" x2="19" y1="8" y2="14" /><line x1="22" x2="16" y1="11" y2="11" /></svg>
+                Agregar miembro
+              </button>
+            </div>
+          )}
           <div className="pill-form renace-search">
             <input className="morb-control" placeholder="Buscar miembro por nombre, cédula, N° o parentesco…" value={mq} onChange={(e) => setMq(e.target.value)} />
           </div>
           <div className="registro-table-wrapper">
             <table className="registro-table">
-              <thead><tr><th className="col-num">Núcleo</th><th>Nombre</th><th>Cédula</th><th>Parentesco</th><th>Sexo</th><th>Edad</th></tr></thead>
+              <thead><tr><th className="col-num">Núcleo</th><th>Nombre</th><th>Cédula</th><th>Parentesco</th><th>Sexo</th><th>Edad</th>{puedeEditar && <th className="col-action"></th>}</tr></thead>
               <tbody>
                 {loadingList && miembros.length === 0 ? (
-                  <SkelRows widths={[36, "55%", 90, 90, 60, 30]} />
+                  <SkelRows widths={puedeEditar ? [36, "55%", 90, 90, 60, 30, 40] : [36, "55%", 90, 90, 60, 30]} />
                 ) : miembrosPage.length === 0 ? (
-                  <tr><td colSpan={6} className="renace-td-empty">Sin resultados.</td></tr>
+                  <tr><td colSpan={puedeEditar ? 7 : 6} className="renace-td-empty">Sin resultados.</td></tr>
                 ) : miembrosPage.map((m) => (
                   <tr key={m.id}>
                     <td className="col-num"><button type="button" className="renace-link" onClick={() => openPlanPorNro(m.jefeNro)}>#{m.jefeNro}</button></td>
@@ -482,6 +593,20 @@ export default function VzlaRenaceTab() {
                     <td>{m.parentesco || "—"}</td>
                     <td>{m.sexo || "—"}</td>
                     <td>{m.edad ?? "—"}</td>
+                    {puedeEditar && (
+                      <td className="col-action">
+                        <div className="row-actions">
+                          <button type="button" className="btn-ver btn-ver--edit" onClick={() => setEditando({ modo: "editar", tipo: "miembro", record: m })} data-tip="Editar datos del miembro" aria-label="Editar miembro">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          </button>
+                          {esMaster && (
+                            <button type="button" className="btn-ver btn-ver--danger" onClick={() => setConfirmMiembro(m)} data-tip="Eliminar miembro" aria-label="Eliminar miembro">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -500,6 +625,29 @@ export default function VzlaRenaceTab() {
           onClose={() => setPlaneando(null)}
           onSaved={() => { refreshLocalPlanNros(); loadPlans(true); }}
           showToast={showToast}
+        />
+      )}
+
+      {editando && (
+        <RenaceEditModal
+          modo={editando.modo}
+          tipo={editando.modo === "editar" ? editando.tipo : "miembro"}
+          record={editando.modo === "editar" ? editando.record : undefined}
+          jefeFijo={editando.modo === "crear" ? editando.jefeFijo : undefined}
+          jefes={jefes}
+          puedeEliminar={esMaster}
+          onClose={() => setEditando(null)}
+          onSaved={() => reloadAll(true)}
+          showToast={showToast}
+        />
+      )}
+
+      {confirmMiembro && (
+        <ConfirmModal
+          message={<>¿Eliminar a este miembro del núcleo <strong>#{confirmMiembro.jefeNro}</strong>?</>}
+          highlight={confirmMiembro.nombres}
+          onConfirm={() => doDeleteMiembro(confirmMiembro)}
+          onClose={() => setConfirmMiembro(null)}
         />
       )}
     </div>

@@ -7477,7 +7477,8 @@ h2.dashboard-section-title {
 }
 .renace-ring[data-tip]:not([data-tip=""])::after,
 .renace-sem[data-tip]:not([data-tip=""])::after,
-.btn-planear[data-tip]:not([data-tip=""])::after {
+.btn-planear[data-tip]:not([data-tip=""])::after,
+.renace-ced-btn[data-tip]:not([data-tip=""])::after {
   content: attr(data-tip);
   position: absolute;
   top: calc(100% + 7px);
@@ -7501,7 +7502,9 @@ h2.dashboard-section-title {
 .renace-ring:focus-visible::after,
 .renace-sem:hover::after,
 .btn-planear:hover::after,
-.btn-planear:focus-visible::after {
+.btn-planear:focus-visible::after,
+.renace-ced-btn:hover::after,
+.renace-ced-btn:focus-visible::after {
   opacity: 1;
 }
 /* El anillo tiene el nombre debajo y puede ser largo → el tooltip sale ARRIBA y envuelve. */
@@ -7512,10 +7515,17 @@ h2.dashboard-section-title {
   width: max-content;
   max-width: 220px;
 }
+/* La lupa está al borde derecho del input → su tooltip se alinea a la derecha (no se sale). */
+.renace-ced-btn[data-tip]:not([data-tip=""])::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
 @media (hover: none) {
   .renace-ring[data-tip]::after,
   .renace-sem[data-tip]::after,
-  .btn-planear[data-tip]::after {
+  .btn-planear[data-tip]::after,
+  .renace-ced-btn[data-tip]::after {
     display: none;
   }
 }
@@ -11387,6 +11397,18 @@ select.morb-control {
   border-color: var(--color-warning, #d97706);
   transform: translateY(-1px);
 }
+/* Eliminar → rojo */
+.btn-ver--danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--color-danger, #dc2626);
+  border-color: rgba(220, 38, 38, 0.35);
+}
+.btn-ver--danger:hover {
+  background: var(--color-danger, #dc2626);
+  color: #fff;
+  border-color: var(--color-danger, #dc2626);
+  transform: translateY(-1px);
+}
 
 /* ── Grupo de botones SEGMENTADO (regla de tema visual: las toolbars van AGRUPADAS) ──
    Envuelve varios .toolbar-btn en un contenedor pill único con divisores. En pantallas
@@ -14280,6 +14302,60 @@ select.morb-control {
 .renace-camp-modal__head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-primary); line-height: 1.25; }
 .renace-camp-modal__head p { margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .renace-camp-modal__body { display: flex; flex-direction: column; gap: 1.15rem; }
+
+/* ── Modal de EDICIÓN de jefe/miembro (reusa .renace-modal para el ancho) ──── */
+.renace-edit-modal { max-height: 92vh; display: flex; flex-direction: column; }
+.renace-edit-modal__head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem;
+  padding: 1.05rem 1.2rem 0.8rem; border-bottom: 1px solid var(--border-color);
+}
+.renace-edit-modal__head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-primary); }
+.renace-edit-modal__body { padding: 1rem 1.2rem 1.2rem; overflow-y: auto; }
+.renace-edit-modal__actions { display: flex; align-items: center; gap: 0.6rem; margin-top: 1.15rem; }
+.renace-edit-modal__actions-main { margin-left: auto; display: flex; gap: 0.6rem; }
+.renace-edit-modal__delete {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.55rem 1rem; border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--color-danger);
+  font-weight: 700; font-size: 0.82rem; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.renace-edit-modal__delete:hover:not(:disabled) { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+.renace-edit-modal__delete:disabled { opacity: 0.55; cursor: default; }
+@media (max-width: 520px) {
+  .renace-edit-modal__actions { flex-wrap: wrap; }
+  .renace-edit-modal__actions-main { margin-left: 0; width: 100%; justify-content: flex-end; }
+}
+
+/* Input de cédula con LUPA incorporada (buscar en padrón/API) */
+.renace-ced-input { position: relative; }
+.renace-ced-input .morb-control { padding-right: 2.7rem; width: 100%; }
+.renace-ced-btn {
+  position: absolute;
+  right: 0.3rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-primary-light, #eff6ff);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.renace-ced-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff; }
+.renace-ced-btn:disabled { opacity: 0.55; cursor: default; }
+
+/* Barra "Agregar miembro" en la vista Grupo familiar */
+.renace-miembros-tools { margin-bottom: 0.6rem; }
+/* La fila del jefe ahora tiene 2 íconos (editar/agregar) + "Plantear" → más ancho. */
+.renace-block .registro-table .col-action { width: 12rem; }
 
 /* ── Modal-wizard "Planear" ──────────────────────────────────────────────── */
 /* Selector COMPUESTO (0,2,0) para vencer el `max-width: 380px` de `.modal-content`

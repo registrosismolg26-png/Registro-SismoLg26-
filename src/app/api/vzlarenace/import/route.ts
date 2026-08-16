@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canImportRenace } from "@/lib/auth";
 import { renaceWriteRefugio } from "@/lib/renaceScope";
+import { normCedula, normFechaNacimiento } from "@/lib/renaceNormalize";
 
 // POST — importa jefes + miembros del Excel de VZLA RENACE AL CAMPAMENTO indicado
 // (body.refugio). El cliente parsea el .xlsx y envía { refugio, jefes, miembros };
@@ -34,8 +35,8 @@ export async function POST(req: Request) {
         nro: intOrNull(r.nro),
         cantMiembros: intOrNull(r.cantMiembros),
         nombres: up(r.nombres) || "",
-        cedula: up(r.cedula) || "",
-        fechaNacimiento: up(r.fechaNacimiento),
+        cedula: normCedula(r.cedula),
+        fechaNacimiento: normFechaNacimiento(r.fechaNacimiento),
         sexo: normSexo(r.sexo),
         edad: intOrNull(r.edad),
         telefono: up(r.telefono),
@@ -51,13 +52,21 @@ export async function POST(req: Request) {
       }))
       .filter((j: any) => j.nro != null && j.nombres); // fila válida = nro + nombre
 
+    // Cédula del jefe por NRO (dentro de este refugio) → cada miembro guarda `jefeCedula`
+    // (el ancla de familia que MANDA). El `jefeNro` se conserva como referencia.
+    const cedulaByNro = new Map<number, string>();
+    for (const j of jefesData) if (j.nro != null && j.cedula) cedulaByNro.set(j.nro, j.cedula);
+
     const miembrosData = rawMiembros
-      .map((r: any) => ({
+      .map((r: any) => {
+        const jefeNro = intOrNull(r.jefeNro);
+        return {
         refugioId,
-        jefeNro: intOrNull(r.jefeNro),
+        jefeNro,
+        jefeCedula: jefeNro != null ? (cedulaByNro.get(jefeNro) ?? null) : null,
         nombres: up(r.nombres) || "",
-        cedula: up(r.cedula) || "",
-        fechaNacimiento: up(r.fechaNacimiento),
+        cedula: normCedula(r.cedula),
+        fechaNacimiento: normFechaNacimiento(r.fechaNacimiento),
         sexo: normSexo(r.sexo),
         edad: intOrNull(r.edad),
         parentesco: up(r.parentesco),
@@ -65,7 +74,8 @@ export async function POST(req: Request) {
         profesion: up(r.profesion),
         estadoProcedencia: up(r.estadoProcedencia),
         parroquiaProcedencia: up(r.parroquiaProcedencia),
-      }))
+        };
+      })
       .filter((m: any) => m.jefeNro != null && m.nombres);
 
     if (jefesData.length === 0) {

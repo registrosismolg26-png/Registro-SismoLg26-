@@ -460,12 +460,14 @@ model RenaceJefe {
   @@index([cedula])
 }
 
-// Miembro del grupo familiar. `jefeNro` enlaza con RenaceJefe.nro (= Nº del Excel)
-// DENTRO del mismo refugio.
+// Miembro del grupo familiar. El vínculo con el jefe MANDA por `jefeCedula` (cédula del
+// jefe = ancla estable de la familia, como `Caracterizacion.familiaCedula`); `jefeNro` se
+// conserva como referencia (= Nº del Excel dentro del refugio) pero ya no es la fuente.
 model RenaceMiembro {
   id                   String   @id @default(uuid())
   refugioId            String
   jefeNro              Int
+  jefeCedula           String? // cédula del jefe (ancla de familia; la que MANDA)
   nombres              String
   cedula               String
   fechaNacimiento      String?
@@ -479,15 +481,19 @@ model RenaceMiembro {
   createdAt            DateTime @default(now())
 
   @@index([refugioId, jefeNro])
+  @@index([refugioId, jefeCedula])
   @@index([cedula])
 }
 
-// Planteamiento de solución habitacional que el operador registra por núcleo
-// (1 por jefe DENTRO del refugio → ancla `@@unique([jefeNro, refugioId])` para upsert).
+// Planteamiento de solución habitacional que el operador registra por núcleo (1 por
+// jefe DENTRO del refugio). El ancla que MANDA es la cédula del jefe → `@@unique([jefeCedula,
+// refugioId])` (sobrevive re-importaciones aunque cambie el NRO). Se mantiene también
+// `@@unique([jefeNro, refugioId])` durante la transición (respaldo, sin ventana rota).
 model RenacePlanteamiento {
   id                 String   @id @default(uuid())
   refugioId          String
   jefeNro            Int
+  jefeCedula         String? // cédula del jefe (ancla que MANDA para el upsert)
   tipo               String // COMPRA | ALQUILER | GMVV_INTERIOR | PLAN_RENACE
   modalidadPlan      String? // REPARACION_VIVIENDA | ENTREGA_MATERIALES (solo PLAN_RENACE)
   precioOCanon       String? // precio (compra) o cánon (alquiler, ≤ 500 USD)
@@ -505,5 +511,6 @@ model RenacePlanteamiento {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  @@unique([jefeCedula, refugioId])
   @@unique([jefeNro, refugioId])
 }

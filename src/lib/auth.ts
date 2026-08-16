@@ -75,6 +75,10 @@ export const canManagePadron   = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u
 // VZLA RENACE: ver/planear = operadores del refugio (scoped por refugioId); IMPORTAR el
 // Excel al campamento seleccionado (op. masiva) = SOLO Master. Espejo en permissions.ts.
 export const canImportRenace   = (u: AuthUser) => u.role === "MASTER";
+// VZLA RENACE: descargar el Directorio a Excel = MASTER/ADMIN (NO Registrador/RENACE/Master Renace).
+export const canExportRenace   = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
+// VZLA RENACE: editar datos de jefe/miembro = MASTER/ADMIN/REGISTRADOR (scoped por refugio).
+export const canEditRenace     = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(u.role);
 // Morbilidad: registrar consultas médicas.
 export const canManageMorbilidad = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
 // Eliminar consultas médicas: SOLO AdminMedico y Master (Operador/Asistente no eliminan).

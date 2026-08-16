@@ -881,7 +881,8 @@ export async function markCaracterizacionPermanentError(id: string, reason: stri
 // ══ Cola offline de VZLA RENACE (planteamiento por núcleo) ═══════════════════
 // 1 registro = el planteamiento de un núcleo. Mismo patrón: re-guardar = 'pending';
 // backoff exponencial 15s·2ⁿ (tope 5min); error permanente 400/401/403/404. El `id`
-// = `${refugioId}::${jefeNro}` (ancla → upsert idempotente por núcleo+refugio).
+// = `${refugioId}::${jefeCedula}` (ancla por CÉDULA del jefe → upsert idempotente por
+// núcleo+refugio, estable ante re-importaciones que cambien el NRO).
 export async function saveLocalRenacePlanteamiento(
   rec: Omit<LocalRenacePlanteamiento, 'status' | 'attempts' | 'createdAt'> & { createdAt?: string }
 ): Promise<void> {
@@ -895,6 +896,7 @@ export async function saveLocalRenacePlanteamiento(
       const fullRecord: LocalRenacePlanteamiento = {
         id: rec.id,
         jefeNro: rec.jefeNro,
+        jefeCedula: rec.jefeCedula,
         refugioId: rec.refugioId,
         data: rec.data,
         status: 'pending',
