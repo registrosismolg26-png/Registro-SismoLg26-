@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { useAppContext } from "@/context/AppContext";
 import { patologiaNombre, medLabel, tipoLesionNombre, formatCedulaDisplay, initialsOf, duracionText } from "@/lib/helpers";
 import { exportInformeMedicoPdf } from "@/lib/exportInformeMedicoPdf";
+import { exportRecipeMedicoPdf } from "@/lib/exportRecipeMedicoPdf";
 import { ESTADO_LESION_LABELS } from "@/lib/constants";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import { HistoriaClinicaExtendida, tieneHistoriaExtendida } from "@/components/HistoriaClinicaExtendida";
@@ -80,6 +81,24 @@ export default function HistorialClinicoTab() {
       console.error("Error al generar el informe médico:", err);
     } finally {
       setInformeBusy(false);
+    }
+  };
+
+  // Descargar el RECIPE MÉDICO + INDICACIONES (PDF horizontal) de una consulta.
+  const [recipeBusy, setRecipeBusy] = useState(false);
+  const handleDescargarRecipe = async (c: any) => {
+    if (!c) return;
+    setRecipeBusy(true);
+    try {
+      const ced = String(c.data?.cedula || "").replace(/\D/g, "");
+      const reg = registros.find(
+        (r: any) => (c.data?.registroId && r.id === c.data.registroId) || (r.cedula || "").replace(/\D/g, "") === ced
+      );
+      await exportRecipeMedicoPdf({ consulta: c, predefinedMedicamentos, registro: reg });
+    } catch (err) {
+      console.error("Error al generar el recipe médico:", err);
+    } finally {
+      setRecipeBusy(false);
     }
   };
   const [sel, setSel] = useState(""); // cédula (dígitos) del paciente elegido
@@ -342,6 +361,18 @@ export default function HistorialClinicoTab() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
                   )}
                   <span className="btn-txt-collapsible">Informe</span>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={() => handleDescargarRecipe(viewConsulta)}
+                  disabled={recipeBusy}
+                  title="Descargar recipe médico e indicaciones (PDF)"
+                >
+                  {recipeBusy ? <span className="spinner spinner-sm" /> : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+                  )}
+                  <span className="btn-txt-collapsible">Recipe</span>
                 </button>
                 <button className="modal-close" onClick={closeView} aria-label="Cerrar">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
