@@ -12,7 +12,8 @@
 import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useAppContext } from "@/context/AppContext";
-import { patologiaNombre, medLabel, tipoLesionNombre, formatCedulaDisplay, initialsOf } from "@/lib/helpers";
+import { patologiaNombre, medLabel, tipoLesionNombre, formatCedulaDisplay, initialsOf, duracionText } from "@/lib/helpers";
+import { exportInformeMedicoPdf } from "@/lib/exportInformeMedicoPdf";
 import { ESTADO_LESION_LABELS } from "@/lib/constants";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import { HistoriaClinicaExtendida, tieneHistoriaExtendida } from "@/components/HistoriaClinicaExtendida";
@@ -55,7 +56,32 @@ interface PacienteEntry {
 }
 
 export default function HistorialClinicoTab() {
-  const { consultas, localConsultas, registros, patologias, tiposLesion, predefinedMedicamentos, effectiveRefugio, pendingHistorialCedula, setPendingHistorialCedula } = useAppContext();
+  const { consultas, localConsultas, registros, patologias, tiposLesion, predefinedMedicamentos, currentUser, effectiveRefugio, pendingHistorialCedula, setPendingHistorialCedula } = useAppContext();
+
+  // Descargar el INFORME MÉDICO (PDF) institucional de una consulta.
+  const [informeBusy, setInformeBusy] = useState(false);
+  const handleDescargarInforme = async (c: any) => {
+    if (!c) return;
+    setInformeBusy(true);
+    try {
+      const ced = String(c.data?.cedula || "").replace(/\D/g, "");
+      const reg = registros.find(
+        (r: any) => (c.data?.registroId && r.id === c.data.registroId) || (r.cedula || "").replace(/\D/g, "") === ced
+      );
+      await exportInformeMedicoPdf({
+        consulta: c,
+        patologias,
+        predefinedMedicamentos,
+        tiposLesion,
+        registro: reg,
+        medicoNombre: currentUser?.nombre || "",
+      });
+    } catch (err) {
+      console.error("Error al generar el informe médico:", err);
+    } finally {
+      setInformeBusy(false);
+    }
+  };
   const [sel, setSel] = useState(""); // cédula (dígitos) del paciente elegido
 
   // Ver detalle de una consulta en modal de solo lectura
@@ -159,7 +185,8 @@ export default function HistorialClinicoTab() {
 
   const medFull = (m: Medicamento) => {
     const base = medLabel(m.id, predefinedMedicamentos);
-    const extra = [m.dosis, m.periodo].filter(Boolean).join(" · ");
+    const dur = duracionText(m);
+    const extra = [m.dosis, m.periodo, dur ? `por ${dur}` : ""].filter(Boolean).join(" · ");
     return extra ? `${base} — ${extra}` : base;
   };
 
@@ -303,9 +330,23 @@ export default function HistorialClinicoTab() {
           <div className={`modal-content modal-content--morb${viewClosing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Detalle de consulta</span>
-              <button className="modal-close" onClick={closeView} aria-label="Cerrar">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={() => handleDescargarInforme(viewConsulta)}
+                  disabled={informeBusy}
+                  title="Descargar informe médico (PDF)"
+                >
+                  {informeBusy ? <span className="spinner spinner-sm" /> : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+                  )}
+                  <span className="btn-txt-collapsible">Informe</span>
+                </button>
+                <button className="modal-close" onClick={closeView} aria-label="Cerrar">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
             </div>
 
             <div className="morb pill-form morb-editbody">
@@ -405,9 +446,9 @@ export default function HistorialClinicoTab() {
                               <div className="med-item__head">
                                 <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
                               </div>
-                              {(m.dosis || m.periodo) && (
+                              {(m.dosis || m.periodo || duracionText(m)) && (
                                 <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                                  {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
+                                  {[m.dosis ? `Dosis: ${m.dosis}` : "", m.periodo ? `Período: ${m.periodo}` : "", duracionText(m) ? `Por: ${duracionText(m)}` : ""].filter(Boolean).join(" · ")}
                                 </div>
                               )}
                             </div>
@@ -466,9 +507,9 @@ export default function HistorialClinicoTab() {
                               <div className="med-item__head">
                                 <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
                               </div>
-                              {(m.dosis || m.periodo) && (
+                              {(m.dosis || m.periodo || duracionText(m)) && (
                                 <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                                  {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
+                                  {[m.dosis ? `Dosis: ${m.dosis}` : "", m.periodo ? `Período: ${m.periodo}` : "", duracionText(m) ? `Por: ${duracionText(m)}` : ""].filter(Boolean).join(" · ")}
                                 </div>
                               )}
                             </div>

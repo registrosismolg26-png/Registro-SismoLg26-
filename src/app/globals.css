@@ -10142,19 +10142,60 @@ select.morb-control {
 .morb-meds {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  /* La duración pega a SU medicamento (row-gap chico dentro de .morb-med); entre
+     medicamentos distintos hay más aire + un DIVISOR punteado (solo desktop, abajo). */
+  gap: 0.75rem;
   margin-top: 0.55rem;
 }
 .morb-med,
 .morb-meds__head {
   display: grid;
-  /* 3 columnas: MEDICAMENTO + DOSIS juntos (1fr → todo el ancho posible) · PERÍODO
-     (columna COMPACTA: el chip muestra la abreviatura en mayúsculas "C/12H"; el menú,
-     el texto completo) · quitar. Así el medicamento+dosis gana casi todo el ancho; si
-     se corta → tooltip propio al pasar el mouse. */
+  /* Fila 1: MEDICAMENTO + DOSIS (1fr) · PERÍODO (compacto, "C/12H") · quitar. La
+     DURACIÓN (solo en la receta de diagnóstico) va en una SEGUNDA FILA a ancho completo. */
   grid-template-columns: minmax(0, 1fr) 116px 34px;
-  gap: 0.4rem;
+  column-gap: 0.4rem;
+  row-gap: 0.28rem; /* duración PEGADA a su medicamento (grupo) */
   align-items: center;
+}
+/* Duración: segunda fila a ancho completo → "DURACIÓN: por [N] [unidad]". Va PEGADA a
+   su medicamento (misma tarjeta), SIN divisor: la separación real es entre medicamentos
+   distintos (gap mayor en .morb-meds). Ligera sangría para que se lea como "de arriba". */
+.morb-med__dur {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-left: 0.1rem;
+}
+.morb-med__dur-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.morb-med__dur-pre {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+.morb-med__durnum {
+  width: 48px;
+  flex: 0 0 auto;
+  text-align: center;
+  padding: 0 0.3rem !important;
+}
+.morb-med__dur .morb-select {
+  width: 120px;
+  flex: 0 0 auto;
+}
+/* Divisor punteado ENTRE medicamentos distintos (no entre el medicamento y su
+   período/duración). Solo desktop; en móvil cada medicamento ya es una tarjeta con
+   borde propio. El `+` excluye al primero y a la fila de encabezados. */
+@media (min-width: 561px) {
+  .morb-med + .morb-med {
+    border-top: 1px dashed var(--border-color);
+    padding-top: 0.75rem;
+  }
 }
 .morb-meds__head {
   font-size: 0.7rem;
@@ -10232,7 +10273,7 @@ select.morb-control {
   }
   .morb-med {
     grid-template-columns: 1fr 34px;
-    grid-template-areas: "name x" "periodo periodo";
+    grid-template-areas: "name x" "periodo periodo" "duracion duracion";
     row-gap: 0.45rem;
     padding: 0.6rem 0.7rem;
     border: 1px solid var(--border-color);
@@ -10245,8 +10286,13 @@ select.morb-control {
     height: auto;
     white-space: normal; /* medicamento + dosis pueden envolver en móvil */
   }
-  .morb-med .morb-select {
+  /* Solo el PERÍODO (hijo directo); el select de la unidad de duración está anidado
+     en .morb-med__dur y NO debe caer en el área "periodo". */
+  .morb-med > .morb-select {
     grid-area: periodo; /* período a ancho completo debajo */
+  }
+  .morb-med__dur {
+    grid-area: duracion; /* duración a ancho completo debajo del período */
   }
   .morb-med__x {
     grid-area: x;

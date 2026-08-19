@@ -7,8 +7,9 @@ import { HistoriaClinicaExtendida } from "@/components/HistoriaClinicaExtendida"
 import { WizardNav } from "@/components/WizardNav";
 import { saveLocalConsulta, deleteLocalConsulta, buscarCedulaEnCliente, saveLocal } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
-import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText } from "@/lib/helpers";
+import { patologiaNombre, medLabel, medItemsText, tipoLesionNombre, normalizeText, duracionText } from "@/lib/helpers";
 import { exportMorbilidadExcel } from "@/lib/exportMorbilidadExcel";
+import { exportInformeMedicoPdf } from "@/lib/exportInformeMedicoPdf";
 import { exportRegistroMinSaludExcel } from "@/lib/exportRegistroMinSaludExcel";
 import { logActivity } from "@/lib/activityLog";
 import { apiFetch } from "@/lib/apiFetch";
@@ -21,7 +22,7 @@ import CatalogosMedicos from "@/components/CatalogosMedicos";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import Pagination from "@/components/Pagination";
-import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS, ZONAS_CUERPO, ESTADO_LESION_OPTS, ESTADO_LESION_LABELS } from "@/lib/constants";
+import { PERIODO_OPTIONS, TIPO_PACIENTE_OPTS, TIPO_PACIENTE_LABELS, ZONAS_CUERPO, ESTADO_LESION_OPTS, ESTADO_LESION_LABELS, DURACION_UNIDADES } from "@/lib/constants";
 import type { Medicamento, Lesion, Patologia } from "@/types";
 
 const GENERO_OPTS = [{ value: "MASCULINO", label: "Masculino" }, { value: "FEMENINO", label: "Femenino" }];
@@ -38,6 +39,8 @@ const periodoAbbr = (p: string): string => {
 // Menú: texto COMPLETO ("Cada 12 horas") para elegir sin ambigüedad; chip cerrado:
 // abreviatura en mayúsculas ("C/12H") vía shortLabel. El valor guardado = texto completo.
 const PERIODO_OPTS_COMPACT = [{ value: "", label: "Período…", shortLabel: "PERÍODO…" }, ...PERIODO_OPTIONS.map((op) => ({ value: op, label: op, shortLabel: periodoAbbr(op) }))];
+// Unidades de duración para el selector (etiqueta = plural: Días/Semanas/Meses).
+const DURACION_UNIDAD_OPTS = DURACION_UNIDADES.map((u) => ({ value: u.value, label: u.plural.charAt(0).toUpperCase() + u.plural.slice(1) }));
 const ZONA_OPTS = ZONAS_CUERPO.map((z) => ({ value: z, label: z }));
 
 // Fecha-hora de la consulta (elegida a mano, distinta del momento de carga).
@@ -362,7 +365,7 @@ export default function MorbilidadTab() {
     if (item && !antecedentesMedicamentoIds.some((x) => x.id === medId)) setAntecedentesMedicamentoIds((p) => [...p, item]);
   };
   const removeAntMed = (id: string) => setAntecedentesMedicamentoIds((p) => p.filter((m) => m.id !== id));
-  const updateAntMed = (i: number, field: "dosis" | "periodo", value: string) =>
+  const updateAntMed = (i: number, field: "dosis" | "periodo" | "duracionNum" | "duracionUnidad", value: string) =>
     setAntecedentesMedicamentoIds((p) => p.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
 
   // --- DIAGNÓSTICO ---
@@ -373,7 +376,7 @@ export default function MorbilidadTab() {
     if (item && !diagnosticoMedicamentoIds.some((x) => x.id === medId)) setDiagnosticoMedicamentoIds((p) => [...p, item]);
   };
   const removeDiagMed = (id: string) => setDiagnosticoMedicamentoIds((p) => p.filter((m) => m.id !== id));
-  const updateDiagMed = (i: number, field: "dosis" | "periodo", value: string) =>
+  const updateDiagMed = (i: number, field: "dosis" | "periodo" | "duracionNum" | "duracionUnidad", value: string) =>
     setDiagnosticoMedicamentoIds((p) => p.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
 
   // --- LESIONES / HERIDAS / CURAS ---
@@ -414,6 +417,33 @@ export default function MorbilidadTab() {
     setClinicaFormData({});
     setActiveStep(1);
     seedEstados("ILESO", "NO");
+  };
+
+  // Descargar el INFORME MÉDICO (PDF) de una consulta, con identidad institucional.
+  // Vincula el censo (por registroId o cédula) para completar dirección/teléfono.
+  const [informeBusyId, setInformeBusyId] = useState<string | null>(null);
+  const handleDescargarInforme = async (c: any) => {
+    if (!c) return;
+    setInformeBusyId(c.id);
+    try {
+      const ced = String(c.data?.cedula || "").replace(/\D/g, "");
+      const reg = registros.find(
+        (r: any) => (c.data?.registroId && r.id === c.data.registroId) || (r.cedula || "").replace(/\D/g, "") === ced
+      );
+      await exportInformeMedicoPdf({
+        consulta: c,
+        patologias,
+        predefinedMedicamentos,
+        tiposLesion,
+        registro: reg,
+        medicoNombre: currentUser?.nombre || "",
+      });
+    } catch (err) {
+      console.error("Error al generar el informe médico:", err);
+      showToast("No se pudo generar el informe médico.", "error");
+    } finally {
+      setInformeBusyId(null);
+    }
   };
 
   const getHoyYMD = () => {
@@ -775,6 +805,7 @@ export default function MorbilidadTab() {
       embarazo: savedEmb, embarazoTouched: savedEmb !== autoEmb, embarazoBase: baseEmb,
       notas: c.data.notasDoctor || "",
       clinicaFormData: {
+        motivoConsulta: c.data.motivoConsulta,
         peso: c.data.peso, talla: c.data.talla, imc: c.data.imc,
         tensionArterial: c.data.tensionArterial, frecuenciaRespiratoria: c.data.frecuenciaRespiratoria,
         temperatura: c.data.temperatura, saturacionOxigeno: c.data.saturacionOxigeno,
@@ -813,7 +844,7 @@ export default function MorbilidadTab() {
   const efPatRemove = (key: "antPat" | "diagPat", id: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].filter((x: string) => x !== id) } : f);
   const efMedAdd = (key: "antMed" | "diagMed", medId: string) => { const it = buildMedItem(medId); if (it) setEditForm((f: any) => f && !f[key].some((m: Medicamento) => m.id === medId) ? { ...f, [key]: [...f[key], it] } : f); };
   const efMedRemove = (key: "antMed" | "diagMed", id: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].filter((m: Medicamento) => m.id !== id) } : f);
-  const efMedUpdate = (key: "antMed" | "diagMed", i: number, field: "dosis" | "periodo", value: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].map((m: Medicamento, idx: number) => idx === i ? { ...m, [field]: value } : m) } : f);
+  const efMedUpdate = (key: "antMed" | "diagMed", i: number, field: "dosis" | "periodo" | "duracionNum" | "duracionUnidad", value: string) => setEditForm((f: any) => f ? { ...f, [key]: f[key].map((m: Medicamento, idx: number) => idx === i ? { ...m, [field]: value } : m) } : f);
 
   // Lesiones dentro del formulario de edición.
   const efLesAdd = (tipoId: string) => { if (tipoId) setEditForm((f: any) => f ? { ...f, lesiones: [...(f.lesiones || []), { tipoId, zona: "", estado: "NUEVA", cura: "" }] } : f); };
@@ -1041,7 +1072,7 @@ export default function MorbilidadTab() {
     </div>
   );
 
-  const medRowsView = (items: Medicamento[], onUpdate: (i: number, f: "dosis" | "periodo", v: string) => void, onRemove: (id: string) => void, ns: string) => (
+  const medRowsView = (items: Medicamento[], onUpdate: (i: number, f: "dosis" | "periodo" | "duracionNum" | "duracionUnidad", v: string) => void, onRemove: (id: string) => void, ns: string, showDuracion = false) => (
     items.length === 0 ? (
       <p className="morb-meds__empty">Sin medicamentos. Búscalo y agrégalo del catálogo.</p>
     ) : (
@@ -1050,9 +1081,10 @@ export default function MorbilidadTab() {
         {items.map((m, i) => {
           const key = `${ns}:${m.id}`;
           const label = medLabel(m.id, predefinedMedicamentos);
+          const dur = duracionText(m);
           // Medicamento + dosis en UNA celda ("ACETAMINOFEN - TABLETA - 650MG"). El
-          // tooltip muestra la indicación completa (con el período) si se corta.
-          const full = `${label}${m.dosis ? " - " + m.dosis : ""}${m.periodo ? " · " + m.periodo : ""}`;
+          // tooltip muestra la indicación completa (período + duración) si se corta.
+          const full = `${label}${m.dosis ? " - " + m.dosis : ""}${m.periodo ? " · " + m.periodo : ""}${dur ? " · por " + dur : ""}`;
           // Solo muestra el tooltip si el texto REALMENTE se corta (scrollWidth > ancho).
           const showTipIfClipped = (e: React.MouseEvent<HTMLElement>) => {
             const el = e.currentTarget;
@@ -1070,6 +1102,24 @@ export default function MorbilidadTab() {
               </span>
               <StyledSelect dense value={m.periodo} onChange={(v) => onUpdate(i, "periodo", v)} options={PERIODO_OPTS_COMPACT} placeholder="Período…" ariaLabel="Período" />
               <button type="button" className="morb-med__x" aria-label="Quitar" onClick={() => animateOut(key, () => onRemove(m.id))}>×</button>
+              {/* Duración — SOLO en la receta (diagnóstico); los crónicos/antecedentes son
+                  de largo plazo. Segunda fila a ancho completo: "por N días/semanas/meses". */}
+              {showDuracion && (
+                <div className="morb-med__dur">
+                  <span className="morb-med__dur-label">Duración:</span>
+                  <span className="morb-med__dur-pre">por</span>
+                  <input
+                    className="morb-control morb-med__durnum"
+                    inputMode="numeric"
+                    maxLength={2}
+                    placeholder="0"
+                    aria-label="Cantidad de duración"
+                    value={m.duracionNum || ""}
+                    onChange={(e) => onUpdate(i, "duracionNum", e.target.value.replace(/\D/g, "").slice(0, 2))}
+                  />
+                  <StyledSelect dense value={m.duracionUnidad || "dias"} onChange={(v) => onUpdate(i, "duracionUnidad", v)} options={DURACION_UNIDAD_OPTS} ariaLabel="Unidad de duración" />
+                </div>
+              )}
             </div>
           );
         })}
@@ -1263,6 +1313,9 @@ export default function MorbilidadTab() {
             {estadosRow(estadoFisico, embarazo, genero, toggleEstado, toggleEmbarazo)}
           </div>
 
+          {/* Motivo de Consulta — ANTES del par Antecedentes/Diagnóstico */}
+          <HistoriaClinicaExtendida formData={clinicaFormData} onChange={handleClinicaCreateChange} step={wizardStep} />
+
           {/* Antecedentes | Diagnóstico — 2 columnas simétricas */}
           <div className="morb-duo" style={{ display: wizardStep === 1 ? 'grid' : 'none' }}>
             <div className="morb-card morb-card--primary">
@@ -1296,7 +1349,7 @@ export default function MorbilidadTab() {
                 <div className="morb-field">
                   <label className="morb-field__label">Medicamentos Diagnósticados (Receta)</label>
                   <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(diagnosticoMedicamentoIds)} onSelect={addDiagMed} />
-                  {medRowsView(diagnosticoMedicamentoIds, updateDiagMed, removeDiagMed, "diagmed")}
+                  {medRowsView(diagnosticoMedicamentoIds, updateDiagMed, removeDiagMed, "diagmed", true)}
                 </div>
                 <div className="morb-field">
                   <label className="morb-field__label" htmlFor="notas-doctor">Notas Médicas / Observaciones</label>
@@ -1305,7 +1358,6 @@ export default function MorbilidadTab() {
               </div>
             </div>
           </div>
-          <HistoriaClinicaExtendida formData={clinicaFormData} onChange={handleClinicaCreateChange} step={wizardStep} />
 
           <div className="morb-actions">
             <button type="button" className="morb-btn morb-btn--ghost" onClick={closeCreate}>Cancelar</button>
@@ -1602,6 +1654,10 @@ export default function MorbilidadTab() {
                 {estadosRow(editForm.estadoFisico, editForm.embarazo, editForm.genero, efToggleEstado, efToggleEmbarazo)}
               </div>
 
+              {/* Motivo de Consulta — ANTES del par; los pasos 2-4 (vitales/examen/plan)
+                  también los renderiza HCE, auto-gateado por el paso. */}
+              <HistoriaClinicaExtendida formData={editForm.clinicaFormData || {}} onChange={handleClinicaEditChange} step={editWizardStep} />
+
               {/* Antecedentes | Diagnóstico */}
               <div className="morb-duo" style={{ display: editWizardStep === 1 ? 'grid' : 'none' }}>
                 <div className="morb-card morb-card--primary" style={{ display: editWizardStep === 1 ? 'block' : 'none' }}>
@@ -1632,7 +1688,7 @@ export default function MorbilidadTab() {
                     <div className="morb-field">
                       <label className="morb-field__label">Medicamentos Diagnósticados (Receta)</label>
                       <SearchableSelect inputClassName="morb-control" placeholder="Buscar y agregar medicamento…" options={medOptions(editForm.diagMed)} onSelect={(id) => efMedAdd("diagMed", id)} />
-                      {medRowsView(editForm.diagMed, (i, f, v) => efMedUpdate("diagMed", i, f, v), (id) => efMedRemove("diagMed", id), "ediagmed")}
+                      {medRowsView(editForm.diagMed, (i, f, v) => efMedUpdate("diagMed", i, f, v), (id) => efMedRemove("diagMed", id), "ediagmed", true)}
                     </div>
                     <div className="morb-field">
                       <label className="morb-field__label">Notas Médicas / Observaciones</label>
@@ -1641,9 +1697,6 @@ export default function MorbilidadTab() {
                   </div>
                 </div>
               </div>
-              {/* Pasos 2-4 del wizard: signos vitales, examen funcional/físico, impresión/plan.
-                  Va FUERA del duo (hermano), auto-gateado por el paso, igual que en crear. */}
-              <HistoriaClinicaExtendida formData={editForm.clinicaFormData || {}} onChange={handleClinicaEditChange} step={editWizardStep} />
 
               <div className="morb-actions">
                 <button type="button" className="morb-btn morb-btn--ghost" onClick={closeEdit} disabled={editSaving}>Cancelar</button>
@@ -1662,9 +1715,23 @@ export default function MorbilidadTab() {
           <div className={`modal-content modal-content--morb${viewClosing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Detalle de consulta</span>
-              <button className="modal-close" onClick={closeView} aria-label="Cerrar">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={() => handleDescargarInforme(viewConsulta)}
+                  disabled={informeBusyId === viewConsulta.id}
+                  title="Descargar informe médico (PDF)"
+                >
+                  {informeBusyId === viewConsulta.id ? <span className="spinner spinner-sm" /> : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+                  )}
+                  <span className="btn-txt-collapsible">Informe</span>
+                </button>
+                <button className="modal-close" onClick={closeView} aria-label="Cerrar">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
             </div>
 
             <div className="morb pill-form morb-editbody">
@@ -1738,6 +1805,9 @@ export default function MorbilidadTab() {
                 </div>
               </div>
 
+              {/* Motivo de Consulta — ANTES del par; pasos 2-4 los renderiza HCE. */}
+              <HistoriaClinicaExtendida formData={viewConsulta.data || {}} onChange={() => {}} readOnly={true} step={viewWizardStep} />
+
               {/* Antecedentes | Diagnóstico en 2 columnas: morb-duo */}
               <div className="morb-duo" style={{ display: viewWizardStep === 1 ? 'grid' : 'none' }}>
                 <div className="morb-card morb-card--primary" style={{ display: viewWizardStep === 1 ? 'block' : 'none' }}>
@@ -1766,9 +1836,9 @@ export default function MorbilidadTab() {
                               <div className="med-item__head">
                                 <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
                               </div>
-                              {(m.dosis || m.periodo) && (
+                              {(m.dosis || m.periodo || duracionText(m)) && (
                                 <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                                  {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
+                                  {[m.dosis ? `Dosis: ${m.dosis}` : "", m.periodo ? `Período: ${m.periodo}` : "", duracionText(m) ? `Por: ${duracionText(m)}` : ""].filter(Boolean).join(" · ")}
                                 </div>
                               )}
                             </div>
@@ -1827,9 +1897,9 @@ export default function MorbilidadTab() {
                               <div className="med-item__head">
                                 <span className="med-item__name">{medLabel(m.id, predefinedMedicamentos)}</span>
                               </div>
-                              {(m.dosis || m.periodo) && (
+                              {(m.dosis || m.periodo || duracionText(m)) && (
                                 <div className="med-item__fields" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                                  {m.dosis ? `Dosis: ${m.dosis}` : ""}{m.dosis && m.periodo ? " · " : ""}{m.periodo ? `Período: ${m.periodo}` : ""}
+                                  {[m.dosis ? `Dosis: ${m.dosis}` : "", m.periodo ? `Período: ${m.periodo}` : "", duracionText(m) ? `Por: ${duracionText(m)}` : ""].filter(Boolean).join(" · ")}
                                 </div>
                               )}
                             </div>
@@ -1848,8 +1918,6 @@ export default function MorbilidadTab() {
               </div>
 
               </div>
-              {/* FUERA del duo (hermano), auto-gateado por el paso → se ve en 2/3/4. */}
-              <HistoriaClinicaExtendida formData={viewConsulta.data || {}} onChange={() => {}} readOnly={true} step={viewWizardStep} />
 
               <div className="morb-actions">
                 <button type="button" className="morb-btn morb-btn--ghost" onClick={closeView}>Cerrar</button>

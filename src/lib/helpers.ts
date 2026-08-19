@@ -1,6 +1,7 @@
 // ── Utilidades puras compartidas ────────────────────────────────────────────
 
 import type { Patologia, MedicamentoPredefinido, Medicamento, TipoLesion, CaracterizacionOpcion } from "@/types";
+import { DURACION_UNIDADES } from "@/lib/constants";
 
 // Normaliza texto para BÚSQUEDAS: minúsculas y SIN acentos/diacríticos, para que
 // "patologia" encuentre "patología" y "nino" encuentre "niño". Úsalo tanto en la
@@ -92,13 +93,24 @@ export function medLabel(id: string, catalogo: MedicamentoPredefinido[]): string
 }
 
 
-// Texto de una receta/lista de medicamentos { id, dosis, periodo } (para resúmenes/CSV).
+// Duración del tratamiento de un medicamento → "5 días" / "1 mes" / "" (si no hay).
+// Pluraliza según el número (1 → singular). `duracionNum` (1-2 díg.) + `duracionUnidad`.
+export function duracionText(m: Pick<Medicamento, "duracionNum" | "duracionUnidad"> | null | undefined): string {
+  const n = String(m?.duracionNum ?? "").replace(/\D/g, "").slice(0, 2);
+  if (!n || n === "0") return "";
+  const u = DURACION_UNIDADES.find(x => x.value === m?.duracionUnidad) ?? DURACION_UNIDADES[0];
+  return `${n} ${n === "1" ? u.singular : u.plural}`;
+}
+
+// Texto de una receta/lista de medicamentos { id, dosis, periodo, duración } (resúmenes/CSV).
 export function medItemsText(items: Medicamento[] | undefined | null, catalogo: MedicamentoPredefinido[]): string {
   return (Array.isArray(items) ? items : [])
     .map(m => {
       const base = medLabel(m.id, catalogo);
-      const extra = [m.dosis, m.periodo].map(s => (s || "").trim()).filter(Boolean).join(" ");
-      return extra ? `${base} (${extra})` : base;
+      const freq = [m.dosis, m.periodo].map(s => (s || "").trim()).filter(Boolean).join(" ");
+      const dur = duracionText(m);
+      const inside = [freq, dur ? `por ${dur}` : ""].filter(Boolean).join(" · ");
+      return inside ? `${base} (${inside})` : base;
     })
     .join(", ");
 }

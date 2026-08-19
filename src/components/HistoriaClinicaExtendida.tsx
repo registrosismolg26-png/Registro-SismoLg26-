@@ -1,5 +1,6 @@
 import React from "react";
 import { PosDecimalInput } from "@/components/PosDecimalInput";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 // Campos de la Historia Clínica Extendida — fuente ÚNICA (se usan en el wizard y
 // para detectar/mostrar en la vista de detalle). Cada `k` = clave en el objeto de
@@ -32,9 +33,13 @@ export const HCE_PLAN: { k: string; l: string }[] = [
   { k: "examenesParaclinicos", l: "Exámenes Paraclínicos" },
   { k: "plan", l: "Plan" },
 ];
+// Motivo de consulta (chief complaint): se captura en el Paso 1 junto a lo básico.
+export const HCE_MOTIVO: { k: string; l: string }[] = [
+  { k: "motivoConsulta", l: "Motivo de Consulta" },
+];
 // Todas las claves, para detectar si una consulta trae historia extendida.
 export const HCE_FIELD_KEYS: string[] = [
-  ...HCE_VITALES, ...HCE_FUNCIONAL, ...HCE_FISICO, ...HCE_PLAN,
+  ...HCE_MOTIVO, ...HCE_VITALES, ...HCE_FUNCIONAL, ...HCE_FISICO, ...HCE_PLAN,
 ].map((f) => f.k);
 // ¿La consulta tiene AL MENOS un campo de historia extendida con valor?
 export const tieneHistoriaExtendida = (data: any): boolean =>
@@ -91,6 +96,21 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
 
   return (
     <div className="pill-form">
+      {(step === 0 || step === 1) && (
+        <>
+          <SectionTitle>Motivo de Consulta</SectionTitle>
+          <div className="detail-grid" style={{ gridTemplateColumns: "1fr" }}>
+            <div className="morb-field">
+              <label className="morb-field__label">Motivo de la consulta</label>
+              <AutoGrowTextarea
+                {...tProps("motivoConsulta")}
+                minRows={2}
+                placeholder="Ej. Fiebre y tos de 3 días de evolución"
+              />
+            </div>
+          </div>
+        </>
+      )}
       {(step === 0 || step === 2) && (
         <>
           <SectionTitle>Antropometría y Signos Vitales</SectionTitle>
@@ -150,7 +170,7 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
             {HCE_FUNCIONAL.map(f => (
               <div key={f.k} className="morb-field">
                 <label className="morb-field__label">{f.l}</label>
-                <textarea {...tProps(f.k)} rows={2} style={{ resize: "vertical" }} />
+                <AutoGrowTextarea {...tProps(f.k)} minRows={2} />
               </div>
             ))}
           </div>
@@ -160,7 +180,7 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
             {HCE_FISICO.map(f => (
               <div key={f.k} className="morb-field">
                 <label className="morb-field__label">{f.l}</label>
-                <textarea {...tProps(f.k)} rows={2} style={{ resize: "vertical" }} />
+                <AutoGrowTextarea {...tProps(f.k)} minRows={2} />
               </div>
             ))}
           </div>
@@ -173,15 +193,15 @@ export function HistoriaClinicaExtendida({ formData, onChange, readOnly = false,
           <div className="detail-grid">
             <div className="morb-field">
               <label className="morb-field__label">Impresión Diagnóstica</label>
-              <textarea {...tProps("impresionDiagnostica")} rows={3} style={{ resize: "vertical" }} />
+              <AutoGrowTextarea {...tProps("impresionDiagnostica")} minRows={3} />
             </div>
             <div className="morb-field">
               <label className="morb-field__label">Exámenes Paraclínicos</label>
-              <textarea {...tProps("examenesParaclinicos")} rows={2} style={{ resize: "vertical" }} />
+              <AutoGrowTextarea {...tProps("examenesParaclinicos")} minRows={2} />
             </div>
             <div className="morb-field">
               <label className="morb-field__label">Plan</label>
-              <textarea {...tProps("plan")} rows={3} style={{ resize: "vertical" }} />
+              <AutoGrowTextarea {...tProps("plan")} minRows={3} />
             </div>
           </div>
         </>

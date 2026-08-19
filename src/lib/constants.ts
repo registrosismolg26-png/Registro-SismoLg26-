@@ -203,6 +203,14 @@ export const PERIODO_OPTIONS = [
   "Cada 4 horas",
 ];
 
+// Unidades de DURACIÓN del tratamiento (para "por N días/semanas/meses"). Fuente
+// ÚNICA: `singular`/`plural` para pluralizar según el número (1 → singular).
+export const DURACION_UNIDADES = [
+  { value: "dias", singular: "día", plural: "días" },
+  { value: "semanas", singular: "semana", plural: "semanas" },
+  { value: "meses", singular: "mes", plural: "meses" },
+] as const;
+
 // ── Caracterización: metadata de campos con catálogo (fuente única) ─────────
 // Describe cada lista CERRADA de la ficha: en qué (modulo, campo) del catálogo
 // general vive, su etiqueta, si es multi-selección, a qué nivel pertenece

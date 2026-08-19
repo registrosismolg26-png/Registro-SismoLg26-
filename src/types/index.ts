@@ -7,7 +7,9 @@ export type { LocalRegistro };
 // Ítem de medicamento en un registro/consulta: vínculo POR-ID al catálogo
 // (MedicamentoPredefinido.id) + posología por paciente. El nombre NO se guarda;
 // se interpola desde el catálogo al mostrar (ver helpers medById/medLabel).
-export type Medicamento = { id: string; dosis: string; periodo: string };
+// `duracionNum` (1-2 dígitos) + `duracionUnidad` (dias|semanas|meses) → "por N días/…".
+// Estructurado (no un string compuesto) para que la unidad persista y no haya reparseo.
+export type Medicamento = { id: string; dosis: string; periodo: string; duracionNum?: string; duracionUnidad?: string };
 
 // Catálogo de patologías (para pills/selects). Se guarda solo el id en los registros.
 export type Patologia = { id: string; nombre: string };
@@ -259,6 +261,7 @@ export interface LocalConsulta {
     diagnosticoPatologiaIds: string[];
     diagnosticoMedicamentoIds: Medicamento[];
     notasDoctor?: string;
+    motivoConsulta?: string;
   };
   status: "pending" | "synced" | "error";
   attempts: number;

@@ -185,6 +185,7 @@ model ConsultaMedica {
   antecedentesMedicamentoIds  Json?  @default("[]") // [{ id, dosis, periodo }]
   diagnosticoMedicamentoIds   Json?  @default("[]") // [{ id, dosis, periodo }]
   notasDoctor               String?
+  motivoConsulta            String? // motivo de la consulta (para el informe médico)
 
   // --- ANTROPOMETRÍA Y SIGNOS VITALES ---
   peso                      Float?

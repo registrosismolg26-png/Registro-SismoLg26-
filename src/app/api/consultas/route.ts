@@ -66,6 +66,7 @@ export async function POST(req: Request) {
       diagnosticoPatologiaIds,
       diagnosticoMedicamentoIds,
       notasDoctor,
+      motivoConsulta,
       // --- ANTROPOMETRÍA Y SIGNOS VITALES ---
       peso, talla, imc, tensionArterial, frecuenciaRespiratoria, temperatura, saturacionOxigeno,
       // --- EXAMEN FUNCIONAL ---
@@ -123,6 +124,7 @@ export async function POST(req: Request) {
       diagnosticoPatologiaIds: arr(diagnosticoPatologiaIds),
       diagnosticoMedicamentoIds: arr(diagnosticoMedicamentoIds),
       notasDoctor,
+      motivoConsulta: motivoConsulta || null,
       // --- ANTROPOMETRÍA Y SIGNOS VITALES ---
       peso: parseFloatOpt(peso),
       talla: parseFloatOpt(talla),
