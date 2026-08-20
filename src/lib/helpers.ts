@@ -1,7 +1,7 @@
 // ── Utilidades puras compartidas ────────────────────────────────────────────
 
 import type { Patologia, MedicamentoPredefinido, Medicamento, TipoLesion, CaracterizacionOpcion } from "@/types";
-import { DURACION_UNIDADES } from "@/lib/constants";
+import { DURACION_UNIDADES, RAZONES_RETIRO } from "@/lib/constants";
 
 // Normaliza texto para BÚSQUEDAS: minúsculas y SIN acentos/diacríticos, para que
 // "patologia" encuentre "patología" y "nino" encuentre "niño". Úsalo tanto en la
@@ -166,10 +166,7 @@ export function compareCuarto(a?: string | null, b?: string | null): number {
 // Se guarda "Tipo" o "Tipo: especificación" en Registro.retiradoRazon. Estas
 // funciones son la fuente única para leer/armar/filtrar por el TIPO base, e
 // incluyen compatibilidad con datos legados (HOGAR SOLIDARIO, "Trasladado al…").
-const RAZONES_RETIRO_LIST = [
-  "Hogar Solidario", "Retiro Voluntario", "Retiro Forzado", "Traslado", "Emergencia Médica", "Otra",
-];
-
+// Lista canónica de razones = fuente ÚNICA `RAZONES_RETIRO` (constants), sin duplicar.
 // Tipo base canónico de una razón (lo de antes del primer ":"), mapeando legado.
 export function razonRetiroBase(razon?: string | null): string {
   const s = String(razon ?? "").trim();
@@ -177,7 +174,7 @@ export function razonRetiroBase(razon?: string | null): string {
   const base = (s.split(":")[0] || "").trim();
   const up = base.toUpperCase();
   if (up.startsWith("TRASLAD")) return "Traslado";          // "Trasladado al campamento X"
-  const canon = RAZONES_RETIRO_LIST.find((r) => r.toUpperCase() === up);
+  const canon = RAZONES_RETIRO.find((r) => r.toUpperCase() === up);
   return canon || base;                                     // no listada → se devuelve tal cual
 }
 
@@ -200,7 +197,8 @@ export function composeRazonRetiro(base?: string | null, spec?: string | null): 
 export function esRazonOtra(razon?: string | null): boolean {
   const base = razonRetiroBase(razon);
   if (!base) return false;
-  const named = RAZONES_RETIRO_LIST.slice(0, 5); // las 5 con nombre propio (sin "Otra")
+  // "Nombradas" = todas las de la lista MENOS "Otra" (robusto al crecer la lista).
+  const named = RAZONES_RETIRO.filter((r) => r !== "Otra");
   return !named.some((r) => r.toUpperCase() === base.toUpperCase());
 }
 

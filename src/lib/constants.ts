@@ -148,6 +148,10 @@ export const RAZONES_RETIRO = [
   "Retiro Forzado",
   "Traslado",
   "Emergencia Médica",
+  "Por alquiler",
+  "Por compra de vivienda",
+  "Por asignación GMVV",
+  "Vivienda reparada Plan Vzla Renace",
   "Otra",
 ] as const;
 
