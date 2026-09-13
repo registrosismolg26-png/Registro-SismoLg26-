@@ -130,9 +130,10 @@ const chev = (
 const tipoLabel = (t: string) => RENACE_PLANTEAMIENTO_TIPOS.find((x) => x.value === t)?.label || t;
 const modalidadLabel = (m: string) => RENACE_MODALIDAD_PLAN.find((x) => x.value === m)?.label || m;
 
-export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, showToast }: {
+export default function RenacePlanModal({ jefe, miembros, bloqueado = false, onClose, onSaved, showToast }: {
   jefe: RenaceJefe; // trae su refugioId → el planteamiento se scopea a ESE campamento
   miembros: RenaceMiembro[];
+  bloqueado?: boolean; // familia APROBADA/RETIRADA → solo lectura (no editar ni eliminar)
   onClose: () => void;
   onSaved?: () => void; // señal para que el tab refresque (semáforo/KPI) — guardado optimista
   showToast: (message: string, type: "success" | "error" | "warning" | "info") => void;
@@ -140,7 +141,7 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
   const { triggerSync, currentUser } = useAppContext();
   // Ancla local por CÉDULA del jefe (la que MANDA), no por NRO.
   const localId = `${jefe.refugioId}::${jefe.cedula}`;
-  const puedeEliminar = canEditRenace(currentUser?.role || "");
+  const puedeEliminar = canEditRenace(currentUser?.role || "") && !bloqueado;
   const [show, setShow] = useState(true);
   const modal = useAnimatedModal(show);
   const close = () => setShow(false);
@@ -161,7 +162,9 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
     (async () => {
       try {
         const locals = await getAllLocalRenacePlanteamientos();
-        const localRec = locals.find((l) => l.id === localId && l.status !== "error");
+        // INCLUYE los que quedaron en error: al reabrir para corregir, se precargan sus
+        // datos y al re-guardar se reencolan (status → pending) para reintentar.
+        const localRec = locals.find((l) => l.id === localId);
         if (localRec) {
           if (!cancel) { setPlan(planFromRecord(localRec.data as RenacePlanteamiento)); setExisting(true); setLoading(false); }
           return;
@@ -228,6 +231,7 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
   };
 
   const save = async () => {
+    if (bloqueado) { showToast("La familia está aprobada o retirada; revierte el estado para modificar el planteamiento.", "warning"); return; }
     const errs = validateSolucion();
     setErrors(errs);
     if (Object.keys(errs).length) { setStep(2); showToast("Revisa los campos marcados.", "warning"); scrollToError(); return; }
@@ -310,6 +314,11 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
         </div>
 
         <div className="renace-modal__body">
+          {bloqueado && (
+            <div className="renace-modal__note renace-modal__note--lock">
+              Solo lectura: la familia está <strong>aprobada o retirada</strong>. Revierte el estado desde el Directorio para modificar o eliminar el planteamiento.
+            </div>
+          )}
           {loading ? (
             <div className="carac-grid renace-modal__skeleton">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -461,12 +470,15 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
           )}
-          {step === 3 && (
+          {step === 3 && !bloqueado && (
             <button type="button" className="btn-submit" onClick={save} disabled={saving || loading}>
               {saving ? "Guardando…" : (
                 <>{existing ? "Actualizar" : "Guardar"}<span className="btn-txt-collapsible">&nbsp;planteamiento</span></>
               )}
             </button>
+          )}
+          {step === 3 && bloqueado && (
+            <button type="button" className="btn-submit" onClick={close}>Cerrar</button>
           )}
         </div>
       </div>

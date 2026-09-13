@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canEditRenace, isMaster } from "@/lib/auth";
 import { refugioIdByName } from "@/lib/renaceScope";
-import { normCedula, normFechaNacimiento } from "@/lib/renaceNormalize";
+import { normRenaceCedula, esCedulaDependiente, normFechaNacimiento } from "@/lib/renaceNormalize";
 
 const up = (v: any) => { const s = String(v ?? "").trim().toUpperCase(); return s || null; };
 const intOrNull = (v: any) => { const n = parseInt(String(v ?? "").replace(/[^\d]/g, ""), 10); return Number.isFinite(n) ? n : null; };
@@ -12,8 +12,9 @@ const normSexo = (v: any) => { const s = up(v); if (!s) return null; if (s[0] ==
 function buildMiembroData(body: any): { data: any } | { error: string } {
   const nombres = up(body?.nombres);
   if (!nombres) return { error: "El nombre es obligatorio." };
-  const cedula = normCedula(body?.cedula);
-  if (cedula && (cedula.length < 6 || cedula.length > 8)) return { error: "La cédula debe tener entre 6 y 8 dígitos." };
+  // Adulto → solo dígitos (6-8); dependiente → "<base>-<N>" (sin tope de longitud).
+  const cedula = normRenaceCedula(body?.cedula);
+  if (cedula && !esCedulaDependiente(cedula) && (cedula.length < 6 || cedula.length > 8)) return { error: "La cédula debe tener entre 6 y 8 dígitos." };
   return {
     data: {
       cedula,

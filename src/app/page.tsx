@@ -1257,14 +1257,19 @@ export default function Home() {
   const triggerSync = async () => {
     if (isSyncingRef.current) return;
 
-    // Check if there are actual pending items to sync before altering state
+    // Check if there are actual pending items to sync before altering state.
+    // OJO: incluir TODAS las colas independientes (registros, consultas, caracterización
+    // y VZLA Renace). Si se omite una, al haber SOLO ese tipo pendiente el sync se sale
+    // antes y esa cola NUNCA sube (bug: un planteamiento quedaba pendiente para siempre).
     const pending = await getPending();
     const pendingConsultasInit = await getPendingConsultas();
     const pendingCaracterizacionInit = await getPendingCaracterizacion();
+    const pendingRenaceInit = await getPendingRenacePlanteamientos();
     if (
       pending.length === 0 &&
       pendingConsultasInit.length === 0 &&
-      pendingCaracterizacionInit.length === 0
+      pendingCaracterizacionInit.length === 0 &&
+      pendingRenaceInit.length === 0
     ) {
       return;
     }
@@ -1273,6 +1278,7 @@ export default function Home() {
     setIsSyncing(true);
 
     let serverError: string | null = null; // detalle del primer 5xx (para no fallar en silencio)
+    let renacePermError: string | null = null; // motivo del 1er planteamiento Renace que falla permanente
     try {
       // Orden: primero las CREACIONES (censos nuevos), luego las ediciones; y dentro
       // de cada grupo, en orden CRONOLÓGICO (createdAt asc) para no montarlos
@@ -1546,6 +1552,7 @@ export default function Home() {
                         ? "El núcleo no existe en el campamento."
                         : "Datos inválidos en el planteamiento.";
                 await markRenacePlanteamientoPermanentError(p.id, reason);
+                if (!renacePermError) renacePermError = reason;
               } else {
                 if (res.status >= 500 && !serverError) {
                   serverError = await res
@@ -1563,6 +1570,11 @@ export default function Home() {
       // Si hubo un 500 del servidor, avisar (una vez) en vez de reintentar en silencio.
       if (serverError) {
         showToast(`No se pudo guardar en el servidor: ${serverError}`, "error");
+      }
+      // Planteamiento Renace que falló PERMANENTE (400/401/403/404): avisar el motivo
+      // para que el operador pueda corregir (no se reintenta solo). Fila marcada en rojo.
+      if (renacePermError) {
+        showToast(`Un planteamiento VZLA Renace no se pudo guardar: ${renacePermError}`, "error");
       }
     } catch (e) {
       console.error("Error en el ciclo de sincronización:", e);

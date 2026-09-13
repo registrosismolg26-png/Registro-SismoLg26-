@@ -18,6 +18,7 @@ import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import { TELEFONO_CODIGOS, PARROQUIAS_POR_ESTADO, RENACE_TIPO_AFECTACION, RENACE_CONDICION_VIVIENDA, RENACE_PLANTEAMIENTO_AFECTACION } from "@/lib/constants";
 import { buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
+import { parseCedula, cedulaBaseDigits } from "@/lib/helpers";
 import type { RenaceJefe, RenaceMiembro } from "@/types";
 
 const dmyToYmd = (dmy: string): string => {
@@ -52,12 +53,13 @@ const cleanOpt = (v: unknown): string => String(v ?? "").trim().replace(/\.+$/, 
 
 const ESTADOS = ["LA GUAIRA", "DISTRITO CAPITAL"];
 
-export default function RenaceEditModal({ modo = "editar", tipo = "miembro", record, jefeFijo, jefes, puedeEliminar, onClose, onSaved, showToast }: {
+export default function RenaceEditModal({ modo = "editar", tipo = "miembro", record, jefeFijo, jefes, miembros, puedeEliminar, onClose, onSaved, showToast }: {
   modo?: "editar" | "crear";
   tipo?: "jefe" | "miembro";
   record?: RenaceJefe | RenaceMiembro;
   jefeFijo?: RenaceJefe;          // crear desde la fila de un jefe (núcleo fijo)
   jefes?: RenaceJefe[];           // crear general → selector de núcleo
+  miembros?: RenaceMiembro[];     // para dependientes: representantes + correlativo del núcleo
   puedeEliminar?: boolean;        // eliminar miembro (solo Master normal)
   onClose: () => void;
   onSaved?: () => void;
@@ -116,6 +118,32 @@ export default function RenaceEditModal({ modo = "editar", tipo = "miembro", rec
   const [errors, setErrors] = useState<Record<string, string>>({});
   const set = (k: string, v: string) => { setF((p) => ({ ...p, [k]: v })); if (errors[k]) setErrors((e) => ({ ...e, [k]: "" })); };
 
+  // ── Dependiente (menor sin cédula): cédula = "<representante>-<N>" (sin nacionalidad) ──
+  const [esDep, setEsDep] = useState<boolean>(() => parseCedula(rec.cedula).isChild);
+  const [repDigits, setRepDigits] = useState<string>(() => { const p = parseCedula(rec.cedula); return p.isChild ? p.digits : ""; });
+  const origP = parseCedula(rec.cedula);
+  const origDep = origP.isChild ? { rep: origP.digits, num: origP.depNum } : null;
+  // Miembros del núcleo destino (excluye al que se edita).
+  const nucleoMiembros = (miembros || []).filter((m) => jefeSel && (m.jefeCedula ? cedulaBaseDigits(m.jefeCedula) === cedulaBaseDigits(jefeSel.cedula) : m.jefeNro === jefeSel.nro) && (!record || m.id !== record.id));
+  // Representantes posibles: el jefe + miembros con cédula NORMAL (no dependientes).
+  const repOpts = (() => {
+    const out: { digits: string; label: string }[] = [];
+    const seen = new Set<string>();
+    const push = (digits: string, label: string) => { if (digits && !seen.has(digits)) { seen.add(digits); out.push({ digits, label }); } };
+    if (jefeSel) push(cedulaBaseDigits(jefeSel.cedula), `${jefeSel.nombres} (jefe)${jefeSel.cedula ? ` · ${jefeSel.cedula}` : ""}`);
+    for (const m of nucleoMiembros) { const p = parseCedula(m.cedula); if (!p.isChild && p.digits) push(p.digits, `${m.nombres} · ${m.cedula}`); }
+    if (repDigits) push(repDigits, `C.I. ${repDigits}`); // el representante actual siempre disponible
+    return out;
+  })();
+  const nextDepNum = (rep: string) => {
+    let max = 0;
+    for (const m of nucleoMiembros) { const p = parseCedula(m.cedula); if (p.isChild && p.digits === rep) max = Math.max(max, parseInt(p.depNum, 10) || 0); }
+    return max + 1;
+  };
+  const depNum = esDep && repDigits ? (origDep && origDep.rep === repDigits ? origDep.num : String(nextDepNum(repDigits))) : "";
+  const cedulaDep = esDep && repDigits ? `${repDigits}-${depNum}` : "";
+  const toggleDep = (on: boolean) => { setEsDep(on); if (errors.cedula) setErrors((e) => ({ ...e, cedula: "" })); if (on && !repDigits && jefeSel) setRepDigits(cedulaBaseDigits(jefeSel.cedula)); };
+
   const edad = calcEdad(dmyToYmd(f.fechaNacimiento));
 
   const buscarCedula = async () => {
@@ -156,7 +184,8 @@ export default function RenaceEditModal({ modo = "editar", tipo = "miembro", rec
     if (esCrear && !jefeSel) e.jefe = "Elige el núcleo (jefe) al que pertenece.";
     if (!f.nombres.trim()) e.nombres = "El nombre es obligatorio.";
     const cedLen = f.cedula.length;
-    if (esJefe && !f.cedula) e.cedula = "La cédula del jefe es obligatoria.";
+    if (esDep && !esJefe) { if (!repDigits) e.cedula = "Selecciona el representante del dependiente."; }
+    else if (esJefe && !f.cedula) e.cedula = "La cédula del jefe es obligatoria.";
     else if (f.cedula && (cedLen < 6 || cedLen > 8)) e.cedula = "La cédula debe tener entre 6 y 8 dígitos.";
     if (!f.estadoProcedencia) e.estadoProcedencia = "Selecciona el estado.";
     if (!f.parroquiaProcedencia.trim()) e.parroquiaProcedencia = "Selecciona la parroquia.";
@@ -171,7 +200,7 @@ export default function RenaceEditModal({ modo = "editar", tipo = "miembro", rec
     try {
       const telefono = f.telefonoNum ? `${f.telefonoCod}-${f.telefonoNum}` : "";
       const base: Record<string, string> = {
-        cedula: f.cedula, nombres: f.nombres, fechaNacimiento: f.fechaNacimiento, sexo: f.sexo, edad,
+        cedula: esDep && !esJefe ? cedulaDep : f.cedula, nombres: f.nombres, fechaNacimiento: f.fechaNacimiento, sexo: f.sexo, edad,
         telefono, profesion: f.profesion, estadoProcedencia: f.estadoProcedencia, parroquiaProcedencia: f.parroquiaProcedencia,
       };
       let url: string, method: string, payload: Record<string, string>;
@@ -243,22 +272,49 @@ export default function RenaceEditModal({ modo = "editar", tipo = "miembro", rec
                 <div className="error-container">{errors.jefe && <span className="field-error-message">{errors.jefe}</span>}</div>
               </div>
             )}
-            {/* Cédula (solo dígitos, 6-8) con lupa */}
-            <label className="carac-field">
-              <span>Cédula{esJefe && <span className="required-star"> *</span>}</span>
-              <div className="renace-ced-input">
-                <input className={`morb-control${errors.cedula ? " has-error" : ""}`} inputMode="numeric" value={f.cedula}
-                  onChange={(e) => set("cedula", e.target.value.replace(/\D/g, "").slice(0, 8))}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarCedula(); } }} />
-                <button type="button" className="renace-ced-btn" onClick={buscarCedula} disabled={buscando}
-                  data-tip="Buscar en el padrón / API" aria-label="Buscar cédula">
-                  {buscando ? <span className="spinner spinner-sm" aria-hidden /> : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                  )}
-                </button>
-              </div>
-              <div className="error-container">{errors.cedula && <span className="field-error-message">{errors.cedula}</span>}</div>
-            </label>
+            {/* Tipo de cédula: con cédula (normal) o menor sin cédula (dependiente). Solo miembros. */}
+            {!esJefe && (
+              <label className="carac-field">
+                <span>Tipo de cédula</span>
+                <div className="renace-dep-seg">
+                  <button type="button" className={!esDep ? "is-active" : ""} onClick={() => toggleDep(false)}>Con cédula</button>
+                  <button type="button" className={esDep ? "is-active" : ""} onClick={() => toggleDep(true)}>Menor sin cédula</button>
+                </div>
+                <div className="error-container" />
+              </label>
+            )}
+            {esDep && !esJefe ? (
+              <>
+                <label className="carac-field">
+                  <span>Representante (dependiente de)<span className="required-star"> *</span></span>
+                  <StyledSelect value={repDigits} onChange={(v) => { setRepDigits(v); if (errors.cedula) setErrors((e) => ({ ...e, cedula: "" })); }} ariaLabel="Representante" error={!!errors.cedula}
+                    options={[{ value: "", label: repOpts.length ? "— Seleccionar —" : "Sin representantes con cédula" }, ...repOpts.map((r) => ({ value: r.digits, label: r.label }))]} />
+                  <div className="error-container">{errors.cedula && <span className="field-error-message">{errors.cedula}</span>}</div>
+                </label>
+                <label className="carac-field">
+                  <span>Cédula del dependiente</span>
+                  <input className="morb-control" value={cedulaDep || "—"} readOnly aria-label="Cédula del dependiente generada" />
+                  <div className="error-container" />
+                </label>
+              </>
+            ) : (
+              /* Cédula (solo dígitos, 6-8) con lupa */
+              <label className="carac-field">
+                <span>Cédula{esJefe && <span className="required-star"> *</span>}</span>
+                <div className="renace-ced-input">
+                  <input className={`morb-control${errors.cedula ? " has-error" : ""}`} inputMode="numeric" value={f.cedula}
+                    onChange={(e) => set("cedula", e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarCedula(); } }} />
+                  <button type="button" className="renace-ced-btn" onClick={buscarCedula} disabled={buscando}
+                    data-tip="Buscar en el padrón / API" aria-label="Buscar cédula">
+                    {buscando ? <span className="spinner spinner-sm" aria-hidden /> : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                    )}
+                  </button>
+                </div>
+                <div className="error-container">{errors.cedula && <span className="field-error-message">{errors.cedula}</span>}</div>
+              </label>
+            )}
             {/* Nombres */}
             <label className="carac-field carac-field--wide">
               <span>Nombres y apellidos<span className="required-star"> *</span></span>

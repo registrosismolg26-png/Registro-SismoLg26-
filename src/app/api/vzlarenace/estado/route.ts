@@ -214,25 +214,36 @@ export async function POST(req: Request) {
     const aRetirar: { id: string; retiradoPrev: string; razonPrev: string | null; fechaPrev: Date | null }[] = [];
     const backfills: { miembroId: string; cedula: string }[] = [];
 
+    const nombreJefe = (c: { cedulaJefeFamilia: string | null }) => cedulaBaseDigits(c.cedulaJefeFamilia || "") === jefeCedula;
     for (const p of familia) {
-      const d = normCedula(p.cedula);
-      let match = d ? candidatos.find((c) => cedulaBaseDigits(c.cedula) === d) : undefined;
-      if (!match && !d) {
-        // Sin cédula → nombre completo + cédula del jefe iguales.
-        const nombreN = normalizeText(p.nombres);
-        match = candidatos.find(
-          (c) => normalizeText(c.nombreApellido) === nombreN && cedulaBaseDigits(c.cedulaJefeFamilia || "") === jefeCedula,
-        );
-        // Backfill de la cédula en Renace SOLO si el censo trae una cédula REAL (no
-        // dependiente sintético "V-<jefe>-N", que colisionaría con el jefe).
-        if (match && p.tipo === "miembro") {
-          const parsed = parseCedula(match.cedula);
-          if (!parsed.isChild && parsed.digits && parsed.digits !== jefeCedula) {
-            backfills.push({ miembroId: p.id, cedula: parsed.digits });
-          }
+      const parsed = parseCedula(p.cedula);
+      let match: (typeof candidatos)[number] | undefined;
+
+      if (parsed.isChild) {
+        // Ya trae cédula de DEPENDIENTE (con sufijo -N): emparejar por cédula COMPLETA
+        // (base + sufijo) o, de respaldo, por nombre + cédula del jefe.
+        match = candidatos.find((c) => { const pc = parseCedula(c.cedula); return pc.isChild && pc.digits === parsed.digits && pc.depNum === parsed.depNum; })
+          || candidatos.find((c) => normalizeText(c.nombreApellido) === normalizeText(p.nombres) && nombreJefe(c));
+      } else if (parsed.digits) {
+        // Cédula normal: contra una ficha NO dependiente del censo con la misma base.
+        match = candidatos.find((c) => { const pc = parseCedula(c.cedula); return !pc.isChild && pc.digits === parsed.digits; });
+      } else {
+        // SIN cédula → nombre completo + cédula del jefe. Copia la cédula del censo a
+        // RenaceMiembro en formato RENACE (SIN nacionalidad V/E), conservando el sufijo
+        // -N del dependiente: "<dígitos>-<N>" (o "<dígitos>" si es normal).
+        match = candidatos.find((c) => normalizeText(c.nombreApellido) === normalizeText(p.nombres) && nombreJefe(c));
+        if (match && p.tipo === "miembro" && match.cedula) {
+          const pc = parseCedula(match.cedula);
+          const renaceCed = pc.isChild ? `${pc.digits}-${pc.depNum}` : pc.digits;
+          if (renaceCed) backfills.push({ miembroId: p.id, cedula: renaceCed });
         }
       }
-      if (!match) { faltantes.push(`${p.nombres} (${d ? `C.I. ${d}` : "sin cédula"})`); continue; }
+
+      if (!match) {
+        const etiqueta = parsed.digits ? `C.I. ${parsed.digits}${parsed.isChild ? `-${parsed.depNum}` : ""}` : "sin cédula";
+        faltantes.push(`${p.nombres} (${etiqueta})`);
+        continue;
+      }
       aRetirar.push({ id: match.id, retiradoPrev: match.retirado, razonPrev: match.retiradoRazon, fechaPrev: match.retiradoFecha });
     }
 

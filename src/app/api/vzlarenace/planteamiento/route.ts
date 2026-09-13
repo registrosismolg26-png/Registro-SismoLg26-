@@ -80,6 +80,16 @@ export async function POST(req: Request) {
     const jefeCedula = jefe.cedula;
     if (!jefeCedula) return NextResponse.json({ error: "El jefe del núcleo no tiene cédula registrada." }, { status: 400 });
 
+    // Bloqueo: no se modifica el planteamiento de una familia ya APROBADA/RETIRADA
+    // (hay que revertir el estado primero). Defensa server-side (además del bloqueo en la UI).
+    const estadoNucleo = await prisma.renaceEstado.findFirst({ where: { refugioId, jefeCedula: jefeCedula.replace(/\D/g, "") } });
+    if (estadoNucleo) {
+      return NextResponse.json(
+        { error: `No se puede modificar el planteamiento: la familia está ${estadoNucleo.estado === "RETIRADO" ? "RETIRADA" : "APROBADA"}. Revierte el estado primero.`, code: "HAS_ESTADO" },
+        { status: 409 },
+      );
+    }
+
     const up = (v: any) => { const s = String(v ?? "").trim().toUpperCase(); return s || null; };
     const ced = (v: any) => String(v ?? "").replace(/\D/g, "") || null; // cédula = solo dígitos
 

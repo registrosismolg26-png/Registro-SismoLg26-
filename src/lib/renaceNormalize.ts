@@ -8,6 +8,18 @@
 
 export const normCedula = (v: unknown): string => String(v ?? "").replace(/\D/g, "");
 
+// Cédula en formato RENACE (SIN nacionalidad V/E): un adulto queda en "<dígitos>", y un
+// DEPENDIENTE (menor sin cédula propia) en "<dígitos del representante>-<N>". Quita el
+// prefijo V/E y conserva el sufijo -N. Úsala en el back al crear/editar miembros.
+export function normRenaceCedula(v: unknown): string {
+  const raw = String(v ?? "").trim().toUpperCase().replace(/^[VE]-?/, "");
+  const m = raw.match(/^(\d+)-(\d+)$/);
+  if (m) return `${m[1]}-${m[2]}`; // dependiente: base-sufijo
+  return raw.replace(/\D/g, "");    // adulto: solo dígitos
+}
+// ¿La cédula Renace es de un dependiente ("<dígitos>-<N>")?
+export const esCedulaDependiente = (v: unknown): boolean => /^\d+-\d+$/.test(String(v ?? "").trim());
+
 export function normFechaNacimiento(v: unknown): string | null {
   const s = String(v ?? "").trim().replace(/[.\-]/g, "/").replace(/\/+/g, "/").replace(/^\/|\/$/g, "");
   if (!s) return null;

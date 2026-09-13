@@ -228,7 +228,7 @@ function EstadoBadge({ estado }: { estado: "SIN_PLAN" | "CON_PLAN" | "APROBADO" 
 }
 
 export default function VzlaRenaceTab() {
-  const { currentUser, showToast, effectiveRefugio } = useAppContext();
+  const { currentUser, showToast, effectiveRefugio, triggerSync } = useAppContext();
   const puedeImportar = canImportRenace(currentUser?.role || "");
   const puedeExportar = canExportRenace(currentUser?.role || ""); // descargar Directorio a Excel = MASTER/ADMIN
   const puedeEditar = canEditRenace(currentUser?.role || "");     // editar jefe/miembro = MASTER/ADMIN/REGISTRADOR
@@ -251,6 +251,12 @@ export default function VzlaRenaceTab() {
   const [serverPlanCeds, setServerPlanCeds] = useState<Set<string>>(new Set());
   const [localPlanNros, setLocalPlanNros] = useState<Set<number>>(new Set());
   const [localPlanCeds, setLocalPlanCeds] = useState<Set<string>>(new Set());
+  // Estado de SINCRONIZACIÓN local del planteamiento: pendiente (⏳) vs error (⚠ + motivo).
+  const [pendPlanNros, setPendPlanNros] = useState<Set<number>>(new Set());
+  const [pendPlanCeds, setPendPlanCeds] = useState<Set<string>>(new Set());
+  const [errPlanNros, setErrPlanNros] = useState<Set<number>>(new Set());
+  const [errPlanCeds, setErrPlanCeds] = useState<Set<string>>(new Set());
+  const [errPlanReasons, setErrPlanReasons] = useState<Map<string, string>>(new Map());
   // Estado/ciclo de vida (aprobado/retirado) — servidor, por cédula (respaldo NRO).
   const [aprobadoNros, setAprobadoNros] = useState<Set<number>>(new Set());
   const [aprobadoCeds, setAprobadoCeds] = useState<Set<string>>(new Set());
@@ -375,17 +381,32 @@ export default function VzlaRenaceTab() {
     try {
       const locals = await getAllLocalRenacePlanteamientos();
       const refId = jefes[0]?.refugioId; // los jefes del view comparten refugioId
-      const nros = new Set<number>();
-      const ceds = new Set<string>();
+      const nros = new Set<number>(), ceds = new Set<string>();     // NO-error → semáforo verde optimista
+      const pNros = new Set<number>(), pCeds = new Set<string>();   // pendientes de subir (⏳)
+      const eNros = new Set<number>(), eCeds = new Set<string>();   // error permanente (⚠)
+      const reasons = new Map<string, string>();
       for (const l of locals) {
-        if (l.status === "error") continue;
         if (refId && l.refugioId !== refId) continue;
-        nros.add(l.jefeNro);
-        if (l.jefeCedula) ceds.add(cedDigits(l.jefeCedula));
+        const d = l.jefeCedula ? cedDigits(l.jefeCedula) : "";
+        if (l.status === "error") {
+          eNros.add(l.jefeNro); if (d) { eCeds.add(d); reasons.set(d, l.permanentError || "No se pudo sincronizar el planteamiento."); }
+        } else {
+          nros.add(l.jefeNro); if (d) ceds.add(d);
+          if (l.status === "pending") { pNros.add(l.jefeNro); if (d) pCeds.add(d); }
+        }
       }
-      setLocalPlanNros(nros);
-      setLocalPlanCeds(ceds);
+      setLocalPlanNros(nros); setLocalPlanCeds(ceds);
+      setPendPlanNros(pNros); setPendPlanCeds(pCeds);
+      setErrPlanNros(eNros); setErrPlanCeds(eCeds); setErrPlanReasons(reasons);
     } catch { /* ignore */ }
+  };
+
+  // Estado de sincronización del planteamiento por jefe (para el indicador de fila).
+  const planSyncDe = (j: RenaceJefe): { kind: "error"; reason: string } | { kind: "pending" } | null => {
+    const d = cedDigits(j.cedula);
+    if (errPlanCeds.has(d) || errPlanNros.has(j.nro)) return { kind: "error", reason: errPlanReasons.get(d) || "No se pudo sincronizar el planteamiento." };
+    if (pendPlanCeds.has(d) || pendPlanNros.has(j.nro)) return { kind: "pending" };
+    return null;
   };
 
   const reloadAll = (force = false) => { loadJM(force); loadPlans(force); loadEstados(force); refreshLocalPlanNros(); };
@@ -394,6 +415,7 @@ export default function VzlaRenaceTab() {
   useEffect(() => {
     setJefes([]); setMiembros([]);
     setServerPlanNros(new Set()); setServerPlanCeds(new Set()); setLocalPlanNros(new Set()); setLocalPlanCeds(new Set());
+    setPendPlanNros(new Set()); setPendPlanCeds(new Set()); setErrPlanNros(new Set()); setErrPlanCeds(new Set()); setErrPlanReasons(new Map());
     setAprobadoNros(new Set()); setAprobadoCeds(new Set()); setRetiradoNros(new Set()); setRetiradoCeds(new Set()); setServerPlanTipos(new Map());
     if (esRenaceMaster) return; // Master Renace solo ve Gráficas → no baja el directorio (~1000 filas)
     reloadAll();
@@ -401,6 +423,17 @@ export default function VzlaRenaceTab() {
   }, [effectiveRefugio]);
   // Cuando llegan los jefes, re-filtra los pendientes locales por su refugioId.
   useEffect(() => { refreshLocalPlanNros(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [jefes]);
+  // Refresco periódico del estado local (pendiente/error) → el semáforo NO queda stale
+  // tras una sincronización de fondo (lectura de IndexedDB, barata). Además al enfocar/reconectar.
+  useEffect(() => {
+    if (esRenaceMaster) return;
+    const id = setInterval(() => { refreshLocalPlanNros(); }, 10000);
+    const onWake = () => refreshLocalPlanNros();
+    window.addEventListener("focus", onWake);
+    window.addEventListener("online", onWake);
+    return () => { clearInterval(id); window.removeEventListener("focus", onWake); window.removeEventListener("online", onWake); };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [jefes, esRenaceMaster]);
   useEffect(() => { setJPage(1); }, [jq, jSize, filtros]);
   useEffect(() => { setMPage(1); }, [mq, mSize]);
 
@@ -491,15 +524,25 @@ export default function VzlaRenaceTab() {
     else { showToast(data?.error || "No se pudo eliminar el miembro.", "error"); throw new Error("delete failed"); }
   };
 
-  // Abre la confirmación de aprobar cargando el DETALLE del planteamiento (qué se aprueba).
+  // Abre la confirmación de aprobar. ANTES verifica que el planteamiento esté EN EL
+  // SERVIDOR (aprobar lo consulta allí). Si aún no subió (pendiente en la cola local),
+  // avisa y FUERZA la sincronización, en vez de abrir la confirmación y fallar con un
+  // "no tiene planteamiento" confuso.
   const openAprobar = async (j: RenaceJefe, estado: CicloEstado) => {
-    setConfirmCiclo({ accion: "aprobar", jefe: j, estado, plan: undefined }); // undefined = cargando
+    if (!navigator.onLine) { showToast("Necesitas conexión para aprobar.", "warning"); return; }
     try {
       const r = await apiFetch(`/api/vzlarenace/planteamiento?jefeNro=${j.nro}&jefeCedula=${encodeURIComponent(j.cedula || "")}&refugioId=${encodeURIComponent(j.refugioId)}`);
       const data = r.ok ? await r.json() : null;
-      setConfirmCiclo((c) => (c && c.accion === "aprobar" && c.jefe.id === j.id ? { ...c, plan: data?.planteamiento ?? null } : c));
+      if (!data?.planteamiento) {
+        const s = planSyncDe(j);
+        if (s?.kind === "error") { showToast(`El planteamiento no se guardó: ${s.reason}`, "error"); }
+        else if (s?.kind === "pending") { showToast("El planteamiento aún se está sincronizando. Reintenta en unos segundos.", "warning"); triggerSync(); }
+        else { showToast("Este núcleo no tiene un planteamiento registrado.", "warning"); }
+        return;
+      }
+      setConfirmCiclo({ accion: "aprobar", jefe: j, estado, plan: data.planteamiento });
     } catch {
-      setConfirmCiclo((c) => (c && c.accion === "aprobar" && c.jefe.id === j.id ? { ...c, plan: null } : c));
+      showToast("No se pudo verificar el planteamiento. Revisa tu conexión.", "error");
     }
   };
 
@@ -737,7 +780,25 @@ export default function VzlaRenaceTab() {
                   return (
                   <tr key={j.id}>
                     <td className="col-num">{j.nro}</td>
-                    <td className="col-restado" data-label="Estado"><EstadoBadge estado={es} /></td>
+                    <td className="col-restado" data-label="Estado">
+                      <div className="renace-estado-cell">
+                        <EstadoBadge estado={es} />
+                        {(() => {
+                          const s = planSyncDe(j);
+                          if (!s) return null;
+                          if (s.kind === "error") return (
+                            <button type="button" className="renace-sync renace-sync--error" data-tip={s.reason} aria-label={`Error de sincronización: ${s.reason}`} onClick={() => showToast(s.reason, "error")}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" x2="12" y1="9" y2="13" /><line x1="12" x2="12.01" y1="17" y2="17" /></svg>
+                            </button>
+                          );
+                          return (
+                            <span className="renace-sync renace-sync--pending" data-tip="Pendiente de sincronizar" aria-label="Pendiente de sincronizar">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </td>
                     <td className="col-grow" data-label="Nombre">{j.nombres}</td>
                     <td>{j.cedula || "—"}</td>
                     <td>{memberCount(j)}</td>
@@ -826,6 +887,7 @@ export default function VzlaRenaceTab() {
         <RenacePlanModal
           jefe={planeando}
           miembros={miembrosDelNucleo}
+          bloqueado={["APROBADO", "RETIRADO"].includes(estadoDe(planeando))}
           onClose={() => setPlaneando(null)}
           onSaved={() => { refreshLocalPlanNros(); loadPlans(true); }}
           showToast={showToast}
@@ -839,6 +901,7 @@ export default function VzlaRenaceTab() {
           record={editando.modo === "editar" ? editando.record : undefined}
           jefeFijo={editando.modo === "crear" ? editando.jefeFijo : undefined}
           jefes={jefes}
+          miembros={miembros}
           puedeEliminar={esMaster}
           onClose={() => setEditando(null)}
           onSaved={() => reloadAll(true)}

@@ -14273,6 +14273,13 @@ select.morb-control {
 .renace-estado-badge--aprobado { background: rgba(16, 185, 129, 0.12); color: var(--color-success); border-color: rgba(16, 185, 129, 0.35); }
 .renace-estado-badge--retirado { background: var(--bg-primary); color: var(--text-muted); border-color: var(--border-color); }
 
+/* Indicador de SINCRONIZACIÓN del planteamiento en la celda de estado (⏳ pendiente / ⚠ error). */
+.renace-estado-cell { display: inline-flex; align-items: center; gap: 6px; }
+.renace-sync { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 7px; border: 1px solid transparent; padding: 0; background: none; }
+.renace-sync--pending { background: rgba(245, 158, 11, 0.14); color: var(--color-warning, #d97706); border-color: rgba(245, 158, 11, 0.4); }
+.renace-sync--error { background: rgba(220, 38, 38, 0.1); color: var(--color-danger, #dc2626); border-color: rgba(220, 38, 38, 0.4); cursor: pointer; }
+.renace-sync--error:hover { background: var(--color-danger, #dc2626); color: #fff; border-color: var(--color-danger, #dc2626); }
+
 /* Botones de fila específicos del ciclo: aprobar (esmeralda) y revertir (pizarra).
    Retirar reusa .btn-ver--danger. */
 .btn-ver--approve { background: rgba(5, 150, 105, 0.12); color: #059669; border-color: rgba(5, 150, 105, 0.4); }
@@ -14475,6 +14482,10 @@ select.morb-control {
 
 /* ── Modal de EDICIÓN de jefe/miembro (reusa .renace-modal para el ancho) ──── */
 .renace-edit-modal { max-height: 92vh; display: flex; flex-direction: column; }
+/* Segmentado "Con cédula / Menor sin cédula" en el modal de edición de miembro. */
+.renace-dep-seg { display: flex; gap: 4px; padding: 4px; min-height: var(--ctl-h, 48px); box-sizing: border-box; align-items: stretch; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 999px; }
+.renace-dep-seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; padding: 0 10px; border: none; background: transparent; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; white-space: nowrap; }
+.renace-dep-seg button.is-active { background: var(--color-primary); color: #fff; }
 .renace-edit-modal__head {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem;
   padding: 1.05rem 1.2rem 0.8rem; border-bottom: 1px solid var(--border-color);
@@ -14617,6 +14628,8 @@ select.morb-control {
   padding: 0.55rem 0.8rem;
   margin-bottom: 0.9rem;
 }
+/* Aviso de SOLO LECTURA (planteamiento bloqueado por aprobado/retirado): tono neutro. */
+.renace-modal__note--lock { color: #475569; background: rgba(100, 116, 139, 0.12); border-color: rgba(100, 116, 139, 0.4); }
 .renace-resumen {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);

@@ -178,7 +178,9 @@ export default function RenaceRetiroModal({ jefe, familia, onClose, onSaved, sho
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.success) {
-        showToast(`Familia retirada. ${data.marcados} ${data.marcados === 1 ? "persona marcada" : "personas marcadas"} en el censo.`, "success");
+        const nb = Number(data.backfills || 0);
+        const extra = nb > 0 ? ` ${nb} cédula${nb === 1 ? "" : "s"} completada${nb === 1 ? "" : "s"} desde el censo.` : "";
+        showToast(`Familia retirada. ${data.marcados} ${data.marcados === 1 ? "persona marcada" : "personas marcadas"} en el censo.${extra}`, "success");
         onSaved?.();
         close();
         return;
