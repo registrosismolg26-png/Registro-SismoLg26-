@@ -227,6 +227,16 @@ export async function POST(req: Request) {
       } else if (parsed.digits) {
         // Cédula normal: contra una ficha NO dependiente del censo con la misma base.
         match = candidatos.find((c) => { const pc = parseCedula(c.cedula); return !pc.isChild && pc.digits === parsed.digits; });
+        if (!match && p.tipo === "miembro") {
+          // Si la cédula no calzó directo, la que MANDA es el NOMBRE + CÉDULA DEL JEFE:
+          // se adopta la cédula del censo (dependiente "<base>-<N>" o adulto "<dígitos>").
+          const cand = candidatos.find((c) => normalizeText(c.nombreApellido) === normalizeText(p.nombres) && nombreJefe(c));
+          if (cand && cand.cedula) {
+            const pc = parseCedula(cand.cedula);
+            match = cand;
+            backfills.push({ miembroId: p.id, cedula: pc.isChild ? `${pc.digits}-${pc.depNum}` : pc.digits });
+          }
+        }
       } else {
         // SIN cédula → nombre completo + cédula del jefe. Copia la cédula del censo a
         // RenaceMiembro en formato RENACE (SIN nacionalidad V/E), conservando el sufijo
