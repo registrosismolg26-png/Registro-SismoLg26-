@@ -287,13 +287,16 @@ export default function VzlaRenaceTab() {
   const cedDigits = (s?: string | null) => (s || "").replace(/\D/g, "");
   const planNros = useMemo(() => new Set<number>([...serverPlanNros, ...localPlanNros]), [serverPlanNros, localPlanNros]);
   const planCeds = useMemo(() => new Set<string>([...serverPlanCeds, ...localPlanCeds]), [serverPlanCeds, localPlanCeds]);
-  // ¿El jefe tiene planteamiento? Por CÉDULA (la que manda) o, de respaldo, por NRO.
-  const tienePlan = (j: RenaceJefe) => planCeds.has(cedDigits(j.cedula)) || planNros.has(j.nro);
-  // Ciclo de vida del núcleo: retirado > aprobado > con plan > sin plan.
+  // ¿El jefe tiene planteamiento? El ancla que MANDA es la CÉDULA: si el jefe tiene
+  // cédula, se decide SOLO por cédula (el NRO se reutiliza entre familias al re-importar
+  // → un plan viejo con ese NRO daría un falso "con plan"). El NRO queda solo como
+  // respaldo para jefes SIN cédula.
+  const tienePlan = (j: RenaceJefe) => { const d = cedDigits(j.cedula); return d ? planCeds.has(d) : planNros.has(j.nro); };
+  // Ciclo de vida del núcleo: retirado > aprobado > con plan > sin plan (mismo criterio cédula-primero).
   const estadoDe = (j: RenaceJefe): CicloEstado => {
     const d = cedDigits(j.cedula);
-    if (retiradoCeds.has(d) || retiradoNros.has(j.nro)) return "RETIRADO";
-    if (aprobadoCeds.has(d) || aprobadoNros.has(j.nro)) return "APROBADO";
+    if (d ? retiradoCeds.has(d) : retiradoNros.has(j.nro)) return "RETIRADO";
+    if (d ? aprobadoCeds.has(d) : aprobadoNros.has(j.nro)) return "APROBADO";
     return tienePlan(j) ? "CON_PLAN" : "SIN_PLAN";
   };
 
@@ -404,8 +407,8 @@ export default function VzlaRenaceTab() {
   // Estado de sincronización del planteamiento por jefe (para el indicador de fila).
   const planSyncDe = (j: RenaceJefe): { kind: "error"; reason: string } | { kind: "pending" } | null => {
     const d = cedDigits(j.cedula);
-    if (errPlanCeds.has(d) || errPlanNros.has(j.nro)) return { kind: "error", reason: errPlanReasons.get(d) || "No se pudo sincronizar el planteamiento." };
-    if (pendPlanCeds.has(d) || pendPlanNros.has(j.nro)) return { kind: "pending" };
+    if (d ? errPlanCeds.has(d) : errPlanNros.has(j.nro)) return { kind: "error", reason: errPlanReasons.get(d) || "No se pudo sincronizar el planteamiento." };
+    if (d ? pendPlanCeds.has(d) : pendPlanNros.has(j.nro)) return { kind: "pending" };
     return null;
   };
 
