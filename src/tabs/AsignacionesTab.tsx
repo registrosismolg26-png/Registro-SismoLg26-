@@ -35,6 +35,7 @@ import {
   razonRetiroSpec,
   composeRazonRetiro,
   esRazonOtra,
+  parseCedula,
 } from "@/lib/helpers";
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
 import { exportFamiliasExcel } from "@/lib/exportFamiliasExcel";
@@ -148,27 +149,8 @@ export default function AsignacionesTab() {
     const parts = fn.split("-"); // padrón: YYYY-MM-DD
     return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : fn;
   };
-  // Descompone una cédula almacenada. Los hijos/dependientes se guardan como
-  // "<nac>-<dígitos del representante>-<correlativo>" (p. ej. "V-12345678-1").
-  const parseStoredCedula = (ced: string) => {
-    let nac = "V";
-    let rest = (ced || "").trim().toUpperCase();
-    if (/^[VE]-/.test(rest)) {
-      nac = rest[0];
-      rest = rest.slice(2);
-    } else if (/^[VE]/.test(rest)) {
-      nac = rest[0];
-      rest = rest.slice(1);
-    }
-    const m = rest.match(/^(\d+)-(\d+)$/);
-    if (m) return { nac, digits: m[1], isChild: true, depNum: m[2] };
-    return {
-      nac,
-      digits: rest.replace(/\D/g, ""),
-      isChild: false,
-      depNum: "1",
-    };
-  };
+  // Descompone una cédula almacenada (fuente única compartida con el cruce Renace).
+  const parseStoredCedula = parseCedula;
 
   const runEditCedulaLookup = async (cleanNum: string, manual = false) => {
     if (cleanNum.length < 6) {

@@ -15,8 +15,11 @@ export async function GET(req: Request) {
 
     const requested = new URL(req.url).searchParams.get("refugio");
     const { where } = await renaceReadScope(auth, requested);
-    const planteamientos = await prisma.renacePlanteamiento.findMany({ where, orderBy: { jefeNro: "asc" } });
-    return NextResponse.json({ planteamientos }, { headers: { "Cache-Control": "no-store" } });
+    const [planteamientos, estados] = await Promise.all([
+      prisma.renacePlanteamiento.findMany({ where, orderBy: { jefeNro: "asc" } }),
+      prisma.renaceEstado.findMany({ where, orderBy: { jefeNro: "asc" } }),
+    ]);
+    return NextResponse.json({ planteamientos, estados }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     console.error("Error en GET /api/vzlarenace/export:", error);
     return NextResponse.json({ error: "Error al preparar la descarga" }, { status: 500 });

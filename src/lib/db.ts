@@ -983,6 +983,17 @@ export async function incrementRenacePlanteamientoAttempt(id: string): Promise<v
   });
 }
 
+export async function deleteLocalRenacePlanteamiento(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(RENACE_PLAN_STORE, 'readwrite');
+    const store = transaction.objectStore(RENACE_PLAN_STORE);
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function markRenacePlanteamientoPermanentError(id: string, reason: string): Promise<void> {
   const db = await getDB();
   return new Promise((resolve, reject) => {

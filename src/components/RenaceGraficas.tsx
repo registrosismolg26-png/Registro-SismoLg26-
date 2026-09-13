@@ -11,8 +11,8 @@ import { useAnimatedModal } from "@/components/useAnimatedModal";
 import { RENACE_PLANTEAMIENTO_TIPOS } from "@/lib/constants";
 
 type PorTipo = Record<string, number>;
-type Camp = { refugioId: string; nombre: string; familias: number; miembros: number; conPlan: number; sinPlan: number; porTipo: PorTipo };
-type Stats = { campamentos: Camp[]; global: { campamentos: number; familias: number; miembros: number; conPlan: number; sinPlan: number; porTipo: PorTipo } };
+type Camp = { refugioId: string; nombre: string; familias: number; miembros: number; conPlan: number; sinPlan: number; aprobadas: number; retiradas: number; porTipo: PorTipo };
+type Stats = { campamentos: Camp[]; global: { campamentos: number; familias: number; miembros: number; conPlan: number; sinPlan: number; aprobadas: number; retiradas: number; porTipo: PorTipo } };
 
 const CACHE_KEY = "renace_stats_v1";
 const TIPOS = ["COMPRA", "ALQUILER", "GMVV_INTERIOR", "PLAN_RENACE"];
@@ -118,6 +118,7 @@ function CampDetalle({ camp, onClose }: { camp: Camp; onClose: () => void }) {
           <div>
             <h4 className="renace-graf-panel__title">Cobertura de planteamientos</h4>
             <Cobertura con={camp.conPlan} sin={camp.sinPlan} />
+            <p className="renace-camp-modal__estados">{fmt(camp.aprobadas)} aprobadas · {fmt(camp.retiradas)} retiradas</p>
           </div>
           <div>
             <h4 className="renace-graf-panel__title">Planteamientos por tipo</h4>
@@ -161,6 +162,8 @@ export default function RenaceGraficas() {
     { label: "Miembros", value: g.miembros, accent: "#0369a1" },
     { label: "Con planteamiento", value: g.conPlan, sub: pctStr(g.conPlan, g.familias), accent: "#059669" },
     { label: "Sin planteamiento", value: g.sinPlan, sub: pctStr(g.sinPlan, g.familias), accent: "#d97706" },
+    { label: "Aprobadas", value: g.aprobadas, sub: pctStr(g.aprobadas, g.familias), accent: "#047857" },
+    { label: "Retiradas", value: g.retiradas, sub: pctStr(g.retiradas, g.familias), accent: "#64748b" },
   ];
 
   return (

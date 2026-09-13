@@ -14,11 +14,12 @@ export async function GET(req: Request) {
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (!canViewRenaceGraficas(auth)) return NextResponse.json({ error: "Sin permiso para ver las gráficas." }, { status: 403 });
 
-    const [jefesByRef, miembrosByRef, plansByRef, plansByRefTipo] = await Promise.all([
+    const [jefesByRef, miembrosByRef, plansByRef, plansByRefTipo, estadosByRef] = await Promise.all([
       prisma.renaceJefe.groupBy({ by: ["refugioId"], _count: true }),
       prisma.renaceMiembro.groupBy({ by: ["refugioId"], _count: true }),
       prisma.renacePlanteamiento.groupBy({ by: ["refugioId"], _count: true }),
       prisma.renacePlanteamiento.groupBy({ by: ["refugioId", "tipo"], _count: true }),
+      prisma.renaceEstado.groupBy({ by: ["refugioId", "estado"], _count: true }),
     ]);
 
     // Nombres de los campamentos presentes.
@@ -29,6 +30,12 @@ export async function GET(req: Request) {
     const nameById = new Map(refugios.map((r) => [r.id, r.nombre]));
     const miembrosMap = new Map(miembrosByRef.map((x) => [x.refugioId, x._count]));
     const plansMap = new Map(plansByRef.map((x) => [x.refugioId, x._count]));
+    const aprobadasMap = new Map<string, number>();
+    const retiradasMap = new Map<string, number>();
+    for (const e of estadosByRef) {
+      if (e.estado === "APROBADO") aprobadasMap.set(e.refugioId, (aprobadasMap.get(e.refugioId) || 0) + e._count);
+      else if (e.estado === "RETIRADO") retiradasMap.set(e.refugioId, (retiradasMap.get(e.refugioId) || 0) + e._count);
+    }
     const tipoMap = new Map<string, Record<string, number>>();
     for (const t of plansByRefTipo) {
       const m = tipoMap.get(t.refugioId) || {};
@@ -50,6 +57,8 @@ export async function GET(req: Request) {
           miembros: miembrosMap.get(j.refugioId) || 0,
           conPlan,
           sinPlan: Math.max(0, familias - conPlan),
+          aprobadas: aprobadasMap.get(j.refugioId) || 0,
+          retiradas: retiradasMap.get(j.refugioId) || 0,
           porTipo,
         };
       })
@@ -61,10 +70,12 @@ export async function GET(req: Request) {
         acc.miembros += c.miembros;
         acc.conPlan += c.conPlan;
         acc.sinPlan += c.sinPlan;
+        acc.aprobadas += c.aprobadas;
+        acc.retiradas += c.retiradas;
         for (const k of TIPOS) acc.porTipo[k] += c.porTipo[k] || 0;
         return acc;
       },
-      { campamentos: campamentos.length, familias: 0, miembros: 0, conPlan: 0, sinPlan: 0, porTipo: { COMPRA: 0, ALQUILER: 0, GMVV_INTERIOR: 0, PLAN_RENACE: 0 } as Record<string, number> },
+      { campamentos: campamentos.length, familias: 0, miembros: 0, conPlan: 0, sinPlan: 0, aprobadas: 0, retiradas: 0, porTipo: { COMPRA: 0, ALQUILER: 0, GMVV_INTERIOR: 0, PLAN_RENACE: 0 } as Record<string, number> },
     );
 
     return NextResponse.json({ campamentos, global }, { headers: { "Cache-Control": "no-store" } });

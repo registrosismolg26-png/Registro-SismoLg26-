@@ -2,8 +2,8 @@
 // Tres hojas: JEFES + GRUPO FAMILIAR + PLANTEAMIENTOS (detalle completo). Solo lo
 // usan MASTER/ADMIN (gate `canExportRenace`). exceljs se carga PEREZOSAMENTE.
 
-import { RENACE_PLANTEAMIENTO_TIPOS, RENACE_MODALIDAD_PLAN } from "@/lib/constants";
-import type { RenaceJefe, RenaceMiembro, RenacePlanteamiento } from "@/types";
+import { RENACE_PLANTEAMIENTO_TIPOS, RENACE_MODALIDAD_PLAN, MONEDAS } from "@/lib/constants";
+import type { RenaceJefe, RenaceMiembro, RenacePlanteamiento, RenaceEstado } from "@/types";
 
 const BRAND = "1E3A8A";
 const BRAND_LIGHT = "E8EDF7";
@@ -11,6 +11,8 @@ const ZEBRA = "F1F5F9";
 
 const tipoLabel = (v: string | null) => (v ? RENACE_PLANTEAMIENTO_TIPOS.find((t) => t.value === v)?.label || v : "");
 const modLabel = (v: string | null) => (v ? RENACE_MODALIDAD_PLAN.find((m) => m.value === v)?.label || v : "");
+const monedaLabel = (v: string | null) => (v ? MONEDAS.find((m) => m.value === v)?.label || v : "");
+const estadoLabel = (v: string | null) => (v === "APROBADO" ? "Aprobada" : v === "RETIRADO" ? "Retirada" : "");
 const dt = (iso?: string) =>
   iso ? new Date(iso).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
 const S = (v: unknown) => (v === null || v === undefined ? "" : (v as any));
@@ -19,17 +21,19 @@ interface Opts {
   jefes: RenaceJefe[];
   miembros: RenaceMiembro[];
   planteamientos: RenacePlanteamiento[];
+  estados?: RenaceEstado[];
   refugio: string; // etiqueta del alcance (campamento o "Todos los campamentos")
   generadoEn: string;
 }
 
 export async function exportRenaceExcel(opts: Opts): Promise<void> {
-  const { jefes, miembros, planteamientos, refugio, generadoEn } = opts;
+  const { jefes, miembros, planteamientos, estados = [], refugio, generadoEn } = opts;
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "Registro-SismoLg26";
 
   const planByNro = new Map(planteamientos.map((p) => [p.jefeNro, p]));
+  const estadoByNro = new Map(estados.map((e) => [e.jefeNro, e]));
   const jefeNombre = new Map(jefes.map((j) => [j.nro, j.nombres]));
   // Conteo REAL de miembros por núcleo (reemplaza el `cantMiembros` del Excel). INCLUYE al
   // jefe una sola vez: se suma 1 solo si su cédula NO aparece ya entre los miembros (en
@@ -117,7 +121,7 @@ export async function exportRenaceExcel(opts: Opts): Promise<void> {
     ["N°", 6], ["Cédula", 14], ["Nombres", 28], ["Sexo", 8], ["F. Nac.", 12], ["Edad", 6],
     ["Teléfono", 14], ["Profesión", 18], ["Estado proc.", 16], ["Parroquia proc.", 18],
     ["Tipo afectación", 18], ["Condición vivienda", 18], ["N° certificado", 14], ["Miembros", 9],
-    ["Planteamiento", 13],
+    ["Planteamiento", 13], ["Estado", 12],
   ];
   const jefesRows = [...jefes]
     .sort((a, b) => a.nro - b.nro)
@@ -126,6 +130,7 @@ export async function exportRenaceExcel(opts: Opts): Promise<void> {
       S(j.telefono), S(j.profesion), S(j.estadoProcedencia), S(j.parroquiaProcedencia),
       S(j.tipoAfectacion), S(j.condicionVivienda), S(j.numeroCertificado), memberCount(j),
       planByNro.has(j.nro) ? "Sí" : "No",
+      estadoLabel(estadoByNro.get(j.nro)?.estado ?? null) || (planByNro.has(j.nro) ? "Con plan" : "Sin plan"),
     ] as (string | number)[]);
   buildSheet("Jefes", "Jefes de familia", jefesCols, jefesRows);
 
@@ -158,6 +163,22 @@ export async function exportRenaceExcel(opts: Opts): Promise<void> {
       S(p.observacion), S(p.createdBy), dt(p.createdAt),
     ] as (string | number)[]);
   buildSheet("Planteamientos", "Planteamientos registrados", planCols, planRows);
+
+  // ── Hoja RETIROS (familias egresadas) ─────────────────────────────────────────
+  const retiros = estados.filter((e) => e.estado === "RETIRADO");
+  const retiroCols: [string, number][] = [
+    ["N° núcleo", 9], ["Jefe", 26], ["Fecha retiro", 14], ["Motivo", 28], ["Monto", 14], ["Moneda", 8],
+    ["Estado destino", 16], ["Municipio destino", 16], ["Parroquia destino", 16], ["Dirección destino", 30],
+    ["Observación", 34], ["Retirado por", 22], ["Aprobado por", 22],
+  ];
+  const retiroRows = [...retiros]
+    .sort((a, b) => a.jefeNro - b.jefeNro)
+    .map((e) => [
+      e.jefeNro, S(jefeNombre.get(e.jefeNro)), S(e.fechaRetiro), S(e.motivo), S(e.monto), monedaLabel(e.moneda),
+      S(e.destinoEstado), S(e.destinoMunicipio), S(e.destinoParroquia), S(e.destinoDireccion),
+      S(e.observacion), S(e.retiradoPor), S(e.aprobadoPor),
+    ] as (string | number)[]);
+  buildSheet("Retiros", "Familias retiradas (egresos)", retiroCols, retiroRows);
 
   // ── Descargar ─────────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();

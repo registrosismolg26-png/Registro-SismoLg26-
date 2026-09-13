@@ -179,6 +179,34 @@ export interface RenacePlanteamiento {
   updatedAt?: string;
 }
 
+// Estado/ciclo de vida del núcleo en VZLA RENACE (espejo del modelo Prisma RenaceEstado).
+// Solo existe al APROBAR; `estado` = APROBADO | RETIRADO. Los campos de retiro solo se
+// llenan al retirar. `censoAfectados` = foto de las fichas del censo tocadas (para revertir).
+export type RenaceEstadoValor = "APROBADO" | "RETIRADO";
+export interface RenaceEstado {
+  id: string;
+  refugioId: string;
+  jefeNro: number;
+  jefeCedula: string;
+  estado: RenaceEstadoValor;
+  aprobadoPor: string | null;
+  aprobadoAt: string | null;
+  retiradoPor: string | null;
+  retiradoAt: string | null;
+  fechaRetiro: string | null;
+  motivo: string | null;
+  monto: string | null;
+  moneda: string | null;
+  destinoEstado: string | null;
+  destinoMunicipio: string | null;
+  destinoParroquia: string | null;
+  destinoDireccion: string | null;
+  observacion: string | null;
+  censoAfectados?: unknown;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // Fila de monitoreo por campamento (números generales, todo agregado en SQL → sin PII).
 // Definiciones ALINEADAS con Estadísticas (src/lib/stats.ts + DashboardTab):
 //   registrados = activos + retirados (todos, = "Total Registrados")

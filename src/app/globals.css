@@ -14254,6 +14254,130 @@ select.morb-control {
   border-color: rgba(245, 158, 11, 0.4);
 }
 
+/* ── VZLA RENACE — insignia de ESTADO/ciclo de vida del núcleo (pill) ─────── */
+.renace-estado-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.renace-estado-badge svg { flex: none; }
+.registro-table .col-restado { width: 1%; white-space: nowrap; }
+.renace-estado-badge--sin { background: rgba(245, 158, 11, 0.14); color: var(--color-warning, #d97706); border-color: rgba(245, 158, 11, 0.4); }
+.renace-estado-badge--plan { background: rgba(2, 132, 199, 0.12); color: #0284c7; border-color: rgba(2, 132, 199, 0.35); }
+.renace-estado-badge--aprobado { background: rgba(16, 185, 129, 0.12); color: var(--color-success); border-color: rgba(16, 185, 129, 0.35); }
+.renace-estado-badge--retirado { background: var(--bg-primary); color: var(--text-muted); border-color: var(--border-color); }
+
+/* Botones de fila específicos del ciclo: aprobar (esmeralda) y revertir (pizarra).
+   Retirar reusa .btn-ver--danger. */
+.btn-ver--approve { background: rgba(5, 150, 105, 0.12); color: #059669; border-color: rgba(5, 150, 105, 0.4); }
+.btn-ver--approve:hover { background: #059669; color: #fff; border-color: #059669; transform: translateY(-1px); }
+.btn-ver--revert { background: rgba(100, 116, 139, 0.14); color: #475569; border-color: rgba(100, 116, 139, 0.4); }
+.btn-ver--revert:hover { background: #475569; color: #fff; border-color: #475569; transform: translateY(-1px); }
+
+/* Columna "Acciones" = ancho MÍNIMO (solo el botón ⋮), centrada. El sobrante va a Nombre. */
+.registro-table .col-action--min { width: 1%; white-space: nowrap; text-align: center; }
+.registro-table .col-grow { width: 100%; } /* absorbe el ancho restante de la tabla */
+
+/* ── Menú de acciones de fila (RowActionsMenu: dropdown en vez de botonera) ── */
+.rowmenu__trigger { color: var(--text-secondary); }
+.rowmenu__trigger:hover { background: var(--bg-primary); color: var(--text-primary); transform: translateY(-1px); }
+.rowmenu__portal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+  animation: rowmenuIn 0.14s ease;
+}
+@keyframes rowmenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.rowmenu__list { display: flex; flex-direction: column; gap: 2px; }
+.rowmenu__item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 9px 11px;
+  border: none; background: transparent; border-radius: 8px;
+  font-size: 0.84rem; font-weight: 600; color: var(--text-primary);
+  cursor: pointer; text-align: left;
+}
+.rowmenu__item:hover { background: var(--bg-primary); }
+.rowmenu__icon { display: inline-flex; width: 18px; justify-content: center; color: var(--text-muted); flex: none; }
+.rowmenu__label { flex: 1; }
+.rowmenu__item--primary .rowmenu__icon { color: var(--color-primary); }
+.rowmenu__item--success .rowmenu__icon { color: #059669; }
+.rowmenu__item--warning .rowmenu__icon { color: var(--color-warning, #d97706); }
+.rowmenu__item--neutral .rowmenu__icon { color: #475569; }
+.rowmenu__item--danger { color: var(--color-danger, #dc2626); }
+.rowmenu__item--danger .rowmenu__icon { color: var(--color-danger, #dc2626); }
+.rowmenu__item--danger:hover { background: rgba(220, 38, 38, 0.08); }
+.rowmenu__sheet .rowmenu__item { padding: 13px 12px; font-size: 0.92rem; }
+
+/* Botón de submit en variante peligro (Retirar familia). */
+.btn-submit--danger { background: var(--color-danger, #dc2626); border-color: var(--color-danger, #dc2626); }
+.btn-submit--danger:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
+
+/* Lista de integrantes faltantes cuando el retiro rebota. */
+.renace-modal__error-list {
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 12px;
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+.renace-modal__error-list ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.renace-modal__error-list li { margin: 0.15rem 0; }
+
+/* Botón "Eliminar planteamiento" en el modal Plantear: peligro, alineado a la izquierda. */
+.renace-modal__delete { margin-right: auto; display: inline-flex; align-items: center; gap: 6px; color: var(--color-danger); border-color: rgba(220, 38, 38, 0.4); }
+.renace-modal__delete:hover:not(:disabled) { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+
+/* Barra de herramientas del Directorio (buscador + filtro por estado). */
+.renace-dir-tools { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; }
+.renace-dir-tools .renace-search { flex: 1 1 240px; margin-bottom: 0; }
+.renace-filter-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--ctl-h, 48px); }
+.renace-filter-btn.is-active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.renace-filter-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--color-primary); color: #fff; font-size: 0.68rem; font-weight: 800; }
+.renace-filter-btn.is-active .renace-filter-badge { background: #fff; color: var(--color-primary); }
+.renace-filtros-panel { margin-bottom: 0.8rem; padding: 0.9rem 1.1rem 1rem; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-secondary); animation: rowmenuIn 0.16s ease; }
+.renace-filtros-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.9rem; }
+.renace-filtros-title { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); }
+.renace-filtros-close { background: none; border: none; color: var(--text-muted); font-size: 1.25rem; line-height: 1; cursor: pointer; padding: 0 6px; border-radius: 8px; }
+.renace-filtros-close:hover { background: var(--bg-primary); color: var(--text-primary); }
+.renace-filtros-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.7rem 0.9rem; }
+.renace-filtros-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; margin-top: 0.95rem; padding-top: 0.8rem; border-top: 1px solid var(--border-color); flex-wrap: wrap; }
+.renace-filtros-count { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+.renace-filtros-clear { margin-left: auto; background: none; border: none; color: var(--text-secondary); font-size: 0.82rem; font-weight: 700; cursor: pointer; padding: 5px 10px; border-radius: 999px; }
+.renace-filtros-clear:hover:not(:disabled) { color: var(--color-primary); background: var(--bg-primary); }
+.renace-filtros-clear:disabled { opacity: 0.45; cursor: default; }
+.renace-camp-modal__estados { margin: 0.5rem 0 0; font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+
+/* Resumen del retiro (qué hará realmente: personas + razón). */
+.renace-retiro-resumen { margin-bottom: 0.8rem; }
+.renace-retiro-resumen__linea { margin: 0 0 0.6rem; font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary); }
+.renace-retiro-resumen__linea strong { color: var(--text-primary); }
+.renace-retiro-resumen .registro-table-wrapper { max-height: 210px; overflow-y: auto; }
+.renace-retiro-hint { margin: 0 0 0.7rem; font-size: 0.78rem; font-style: italic; color: var(--text-muted); }
+
+/* Resumen del planteamiento en la confirmación de APROBAR (qué se aprueba). */
+.renace-aprob-resumen { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem 0.85rem; margin: 0.75rem 0 0; text-align: left; }
+.renace-aprob-resumen > div { display: flex; flex-direction: column; }
+.renace-aprob-resumen__wide { grid-column: 1 / -1; }
+.renace-aprob-resumen dt { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); font-weight: 700; }
+.renace-aprob-resumen dd { margin: 0; font-size: 0.82rem; color: var(--text-primary); font-weight: 600; }
+.renace-aprob-cargando { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+@media (max-width: 420px) { .renace-aprob-resumen { grid-template-columns: 1fr; } }
+@media (max-width: 560px) {
+  .renace-dir-tools { align-items: stretch; }
+  /* En teléfono los filtros se apilan en 2 columnas. */
+  .renace-filtros-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem 0.7rem; }
+}
+
 /* ── VZLA RENACE — Gráficas (Master) ─────────────────────────────────────── */
 .renace-viewtabs { align-self: flex-start; }
 .renace-graficas { display: flex; flex-direction: column; gap: 1rem; }

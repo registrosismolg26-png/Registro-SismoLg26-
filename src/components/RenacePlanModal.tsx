@@ -9,8 +9,10 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { useAppContext } from "@/context/AppContext";
-import { saveLocalRenacePlanteamiento, getAllLocalRenacePlanteamientos } from "@/lib/db";
+import { saveLocalRenacePlanteamiento, getAllLocalRenacePlanteamientos, deleteLocalRenacePlanteamiento } from "@/lib/db";
+import { canEditRenace } from "@/lib/permissions";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import StyledSelect from "@/components/StyledSelect";
 import Reveal from "@/components/Reveal";
 import { PosMoneyInput } from "@/components/PosMoneyInput";
@@ -135,9 +137,10 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
   onSaved?: () => void; // señal para que el tab refresque (semáforo/KPI) — guardado optimista
   showToast: (message: string, type: "success" | "error" | "warning" | "info") => void;
 }) {
-  const { triggerSync } = useAppContext();
+  const { triggerSync, currentUser } = useAppContext();
   // Ancla local por CÉDULA del jefe (la que MANDA), no por NRO.
   const localId = `${jefe.refugioId}::${jefe.cedula}`;
+  const puedeEliminar = canEditRenace(currentUser?.role || "");
   const [show, setShow] = useState(true);
   const modal = useAnimatedModal(show);
   const close = () => setShow(false);
@@ -149,6 +152,7 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
   const [loading, setLoading] = useState(true);
   const [existing, setExisting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Precarga: primero el pendiente LOCAL (aún sin sincronizar → tiene prioridad), si no
   // el del servidor.
@@ -257,9 +261,27 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
     } finally { setSaving(false); }
   };
 
+  // Eliminar el planteamiento (con confirmación). Requiere conexión; bloqueado en el
+  // backend si el núcleo ya está Aprobado/Retirado (revertir primero).
+  const doDelete = async () => {
+    if (!navigator.onLine) { showToast("Necesitas conexión para eliminar el planteamiento.", "warning"); throw new Error("offline"); }
+    const res = await apiFetch(`/api/vzlarenace/planteamiento?jefeNro=${jefe.nro}&jefeCedula=${encodeURIComponent(jefe.cedula || "")}&refugioId=${encodeURIComponent(jefe.refugioId)}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data?.success) {
+      await deleteLocalRenacePlanteamiento(localId).catch(() => {});
+      showToast("Planteamiento eliminado.", "success");
+      onSaved?.();
+      close();
+    } else {
+      showToast(data?.error || "No se pudo eliminar el planteamiento.", "error");
+      throw new Error("delete failed");
+    }
+  };
+
   if (!modal.mounted) return null;
 
   return (
+    <>
     <div className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`} onClick={close}>
       <div className={`modal-content pill-form renace-modal${modal.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="renace-modal__head">
@@ -421,6 +443,12 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
         </div>
 
         <div className="wizard-nav renace-modal__nav">
+          {existing && puedeEliminar && !loading && (
+            <button type="button" className="btn-secondary renace-modal__delete" onClick={() => setConfirmDelete(true)} disabled={saving}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+              <span className="btn-txt-collapsible">Eliminar</span>
+            </button>
+          )}
           {step > 1 && (
             <button type="button" className="btn-back" onClick={() => setStep((s) => (Math.max(1, s - 1) as 1 | 2 | 3))}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -443,5 +471,17 @@ export default function RenacePlanModal({ jefe, miembros, onClose, onSaved, show
         </div>
       </div>
     </div>
+
+    {confirmDelete && (
+      <ConfirmModal
+        title="Eliminar planteamiento"
+        message={<>¿Eliminar el planteamiento de este núcleo? Se podrá registrar de nuevo después.</>}
+        highlight={jefe.nombres}
+        confirmLabel="Sí, eliminar"
+        onConfirm={doDelete}
+        onClose={() => setConfirmDelete(false)}
+      />
+    )}
+    </>
   );
 }

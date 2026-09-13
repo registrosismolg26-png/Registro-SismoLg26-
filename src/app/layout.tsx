@@ -58,8 +58,12 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${poppins.variable} ${montserrat.variable}`}
+      suppressHydrationWarning
     >
-      <body>
+      {/* suppressHydrationWarning: extensiones del navegador (p. ej. ColorZilla añade
+          `cz-shortcut-listen`) inyectan atributos en <body> antes de hidratar → diff
+          falso. Solo afecta el diff de atributos de este elemento, no el de la app. */}
+      <body suppressHydrationWarning>
         {children}
       </body>
     </html>

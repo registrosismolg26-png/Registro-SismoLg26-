@@ -515,3 +515,35 @@ model RenacePlanteamiento {
   @@unique([jefeCedula, refugioId])
   @@unique([jefeNro, refugioId])
 }
+
+// Estado/ciclo de vida del núcleo en VZLA RENACE (1 por núcleo DENTRO del refugio):
+// SIN PLAN → CON PLAN → APROBADO → RETIRADO. Solo existe fila al APROBAR. El ancla que
+// MANDA es la cédula del jefe → @@unique([jefeCedula, refugioId]). Al RETIRAR se encadena
+// con el censo (Registro) por cédula en una transacción (ver /api/vzlarenace/estado);
+// `censoAfectados` guarda la foto de las fichas tocadas para poder REVERTIR exacto.
+model RenaceEstado {
+  id               String    @id @default(uuid())
+  refugioId        String
+  jefeNro          Int
+  jefeCedula       String // cédula del jefe = ancla (solo dígitos)
+  estado           String // APROBADO | RETIRADO
+  aprobadoPor      String? // email del operador que aprobó
+  aprobadoAt       DateTime?
+  retiradoPor      String? // email del operador que retiró
+  retiradoAt       DateTime?
+  fechaRetiro      String? // fecha real de egreso (dd/mm/aaaa), capturada por el usuario
+  motivo           String? // solución ejecutada (= RAZONES_RETIRO)
+  monto            String? // monto ejecutado (formato venezolano ##.###,##)
+  moneda           String? // VES | USD
+  destinoEstado    String?
+  destinoMunicipio String?
+  destinoParroquia String?
+  destinoDireccion String?
+  observacion      String?
+  censoAfectados   Json? // [{ id, retirado, retiradoRazon, retiradoFecha }] — para revertir
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([jefeCedula, refugioId])
+  @@index([refugioId])
+}

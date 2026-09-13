@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, isMaster, canUseRenace, type AuthUser } from "@/lib/auth";
+import { getAuthUser, isMaster, canUseRenace, canEditRenace, type AuthUser } from "@/lib/auth";
 import { refugioIdByName } from "@/lib/renaceScope";
 
 // Refugio DESTINO del planteamiento: se usa el refugioId del NÚCLEO (que el cliente
@@ -125,5 +125,44 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Error en POST /api/vzlarenace/planteamiento:", error);
     return NextResponse.json({ error: "Error al guardar el planteamiento", details: error?.message }, { status: 500 });
+  }
+}
+
+// DELETE ?jefeNro=&jefeCedula=&refugioId= — elimina el planteamiento del núcleo.
+// `canEditRenace` (Master/Admin/Registrador), scoped al refugio del usuario (no-master).
+// BLOQUEA si el núcleo ya tiene estado (Aprobado/Retirado): hay que revertir primero.
+export async function DELETE(req: Request) {
+  try {
+    const auth = await getAuthUser(req);
+    if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (!canEditRenace(auth)) return NextResponse.json({ error: "Sin permiso para eliminar el planteamiento." }, { status: 403 });
+
+    const url = new URL(req.url);
+    const jefeNro = parseInt(url.searchParams.get("jefeNro") ?? "", 10);
+    const refugioId = await targetRefugioId(auth, url.searchParams.get("refugioId") ?? "");
+    if (!refugioId) return NextResponse.json({ error: "No se pudo determinar el campamento." }, { status: 400 });
+
+    let jefeCedula = (url.searchParams.get("jefeCedula") ?? "").replace(/\D/g, "") || null;
+    if (!jefeCedula && Number.isFinite(jefeNro)) {
+      const jefe = await prisma.renaceJefe.findUnique({ where: { nro_refugioId: { nro: jefeNro, refugioId } } });
+      jefeCedula = jefe?.cedula ? jefe.cedula.replace(/\D/g, "") : null;
+    }
+    if (!jefeCedula) return NextResponse.json({ error: "Falta el núcleo." }, { status: 400 });
+
+    const estado = await prisma.renaceEstado.findFirst({ where: { refugioId, jefeCedula } });
+    if (estado) {
+      return NextResponse.json(
+        { error: `No se puede eliminar: el núcleo está ${estado.estado === "RETIRADO" ? "RETIRADO" : "APROBADO"}. Revierte primero desde el Directorio.`, code: "HAS_ESTADO" },
+        { status: 409 },
+      );
+    }
+
+    const existing = await prisma.renacePlanteamiento.findFirst({ where: { refugioId, jefeCedula } });
+    if (!existing) return NextResponse.json({ success: true, deleted: 0 });
+    await prisma.renacePlanteamiento.delete({ where: { id: existing.id } });
+    return NextResponse.json({ success: true, deleted: 1 });
+  } catch (error: any) {
+    console.error("Error en DELETE /api/vzlarenace/planteamiento:", error);
+    return NextResponse.json({ error: "Error al eliminar el planteamiento", details: error?.message }, { status: 500 });
   }
 }

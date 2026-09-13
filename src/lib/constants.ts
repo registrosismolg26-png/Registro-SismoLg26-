@@ -155,6 +155,23 @@ export const RAZONES_RETIRO = [
   "Otra",
 ] as const;
 
+// Motivo del RETIRO en VZLA RENACE (solución ejecutada) = subconjunto de RAZONES_RETIRO
+// para que el encadenado al censo caiga en una razón que este ya entiende (sus filtros y
+// estadísticas). Fuente única: no duplicar textos.
+export const RENACE_MOTIVO_RETIRO = [
+  "Por compra de vivienda",
+  "Por alquiler",
+  "Por asignación GMVV",
+  "Vivienda reparada Plan Vzla Renace",
+  "Otra",
+] as const;
+
+// Monedas para el monto ejecutado del retiro (Bs / $).
+export const MONEDAS = [
+  { value: "VES", label: "Bs" },
+  { value: "USD", label: "$" },
+] as const;
+
 // Tiempo de expiración de sesión por inactividad (1 hora)
 export const INACTIVITY_MS = 60 * 60 * 1000;
 

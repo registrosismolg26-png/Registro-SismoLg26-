@@ -223,3 +223,26 @@ export function initialsOf(name?: string | null): string {
     .join("")
     .toUpperCase() || "?";
 }
+
+// ── Cédula: descomposición de una cédula ALMACENADA ─────────────────────────
+// Fuente ÚNICA (censo Registrados + cruce de VZLA Renace). Los hijos/dependientes
+// se guardan como "<nac>-<dígitos del representante>-<correlativo>" (p. ej.
+// "V-12345678-1"). Devuelve nacionalidad, dígitos BASE (sin el sufijo de
+// dependiente), si es dependiente y su correlativo.
+export function parseCedula(ced: string | null | undefined): {
+  nac: string; digits: string; isChild: boolean; depNum: string;
+} {
+  let nac = "V";
+  let rest = (ced || "").trim().toUpperCase();
+  if (/^[VE]-/.test(rest)) { nac = rest[0]; rest = rest.slice(2); }
+  else if (/^[VE]/.test(rest)) { nac = rest[0]; rest = rest.slice(1); }
+  const m = rest.match(/^(\d+)-(\d+)$/);
+  if (m) return { nac, digits: m[1], isChild: true, depNum: m[2] };
+  return { nac, digits: rest.replace(/\D/g, ""), isChild: false, depNum: "1" };
+}
+
+// Dígitos BASE de una cédula almacenada (sin V/E ni sufijo de dependiente). Úsalo
+// para COMPARAR cédulas entre módulos (censo ↔ VZLA Renace) sin falsos desajustes.
+export function cedulaBaseDigits(ced: string | null | undefined): string {
+  return parseCedula(ced).digits;
+}

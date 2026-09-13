@@ -28,6 +28,7 @@ import {
   markRenacePlanteamientoPermanentError,
 } from "@/lib/db";
 import { apiFetch } from "@/lib/apiFetch";
+import { safeSetItem } from "@/lib/safeStorage";
 import { syncActivityLogs } from "@/lib/activityLog";
 import { installErrorReporter } from "@/lib/clientErrors";
 import { enablePush, pushSupported, pushPermission } from "@/lib/pushClient";
@@ -216,7 +217,7 @@ export default function Home() {
       .then((data) => {
         if (data?.refugios) {
           setRefugiosList(data.refugios);
-          localStorage.setItem("sismo_cached_refugios_v1", JSON.stringify(data.refugios));
+          safeSetItem("sismo_cached_refugios_v1", JSON.stringify(data.refugios));
         }
       })
       .catch(() => {});
@@ -247,11 +248,11 @@ export default function Home() {
   );
 
   useEffect(() => {
-    localStorage.setItem("customCuartos", JSON.stringify(customCuartos));
+    safeSetItem("customCuartos", JSON.stringify(customCuartos));
   }, [customCuartos]);
 
   useEffect(() => {
-    localStorage.setItem("roomCapacities", JSON.stringify(roomCapacities));
+    safeSetItem("roomCapacities", JSON.stringify(roomCapacities));
   }, [roomCapacities]);
 
   // Sellado por refugio: en un dispositivo compartido, si el cache de salones es
@@ -1056,7 +1057,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.patologias) {
           setPatologias(data.patologias);
-          localStorage.setItem(
+          safeSetItem(
             "sismo_cached_patologias_v2",
             JSON.stringify(data.patologias),
           );
@@ -1081,7 +1082,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.comunidades) {
           setComunidades(data.comunidades);
-          localStorage.setItem("sismo_cached_comunidades_v2", JSON.stringify(data.comunidades));
+          safeSetItem("sismo_cached_comunidades_v2", JSON.stringify(data.comunidades));
         }
       }
     } catch (err) { console.error("Error al obtener comunidades:", err); }
@@ -1099,7 +1100,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.tiposCarpa) {
           setTiposCarpa(data.tiposCarpa);
-          localStorage.setItem("sismo_cached_tipos_carpa_v1", JSON.stringify(data.tiposCarpa));
+          safeSetItem("sismo_cached_tipos_carpa_v1", JSON.stringify(data.tiposCarpa));
         }
       }
     } catch (err) { console.error("Error al obtener tipos de carpa:", err); }
@@ -1126,7 +1127,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.tiposLesion) {
           setTiposLesion(data.tiposLesion);
-          localStorage.setItem(
+          safeSetItem(
             "sismo_cached_tipos_lesion_v1",
             JSON.stringify(data.tiposLesion),
           );
@@ -1160,7 +1161,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.medicamentos) {
           setPredefinedMedicamentos(data.medicamentos);
-          localStorage.setItem(
+          safeSetItem(
             "sismo_cached_predefined_medicamentos",
             JSON.stringify(data.medicamentos),
           );
@@ -1195,7 +1196,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.opciones) {
           setCaracterizacionOpciones(data.opciones);
-          localStorage.setItem(
+          safeSetItem(
             "sismo_cached_caracterizacion_opciones_v1",
             JSON.stringify(data.opciones),
           );
@@ -1237,7 +1238,7 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.consultas) {
           setConsultas(data.consultas);
-          localStorage.setItem(
+          safeSetItem(
             "cached_consultas_v2",
             JSON.stringify(data.consultas),
           );
@@ -1839,7 +1840,7 @@ export default function Home() {
       if (data.success) {
         setStats(data.stats);
         if (typeof window !== "undefined") {
-          localStorage.setItem("cached_stats", JSON.stringify(data.stats));
+          safeSetItem("cached_stats", JSON.stringify(data.stats));
           if (currentUser) localStorage.setItem("cached_owner", currentUser.id);
         }
       }
@@ -1893,7 +1894,7 @@ export default function Home() {
       const newRegs = data.registros ?? [];
       setRegistros(newRegs);
       if (typeof window !== "undefined") {
-        localStorage.setItem("cached_registros", JSON.stringify(newRegs));
+        safeSetItem("cached_registros", JSON.stringify(newRegs));
         if (currentUser) localStorage.setItem("cached_owner", currentUser.id);
       }
     } catch (err: any) {

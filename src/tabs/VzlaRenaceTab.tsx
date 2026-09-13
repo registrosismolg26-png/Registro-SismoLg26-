@@ -13,21 +13,53 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
+import { safeSetItem } from "@/lib/safeStorage";
 import { getAllLocalRenacePlanteamientos } from "@/lib/db";
 import { normalizeText } from "@/lib/helpers";
 import { canImportRenace, canExportRenace, canEditRenace, isMaster, isRenaceMaster, canViewRenaceGraficas } from "@/lib/permissions";
 import Pagination from "@/components/Pagination";
+import StyledSelect from "@/components/StyledSelect";
 import RenacePlanModal from "@/components/RenacePlanModal";
 import RenaceEditModal from "@/components/RenaceEditModal";
+import RenaceRetiroModal from "@/components/RenaceRetiroModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import RenaceGraficas from "@/components/RenaceGraficas";
-import type { RenaceJefe, RenaceMiembro } from "@/types";
+import RowActionsMenu, { type RowAction } from "@/components/RowActionsMenu";
+import { RENACE_PLANTEAMIENTO_TIPOS, RENACE_MODALIDAD_PLAN } from "@/lib/constants";
+import type { RenaceJefe, RenaceMiembro, RenacePlanteamiento } from "@/types";
+
+// Resumen legible del planteamiento que se está aprobando (qué se aprueba).
+const tipoPlanLabel = (t: string) => RENACE_PLANTEAMIENTO_TIPOS.find((x) => x.value === t)?.label || t;
+const modPlanLabel = (m: string) => RENACE_MODALIDAD_PLAN.find((x) => x.value === m)?.label || m;
+function PlanResumen({ plan }: { plan: RenacePlanteamiento | null | undefined }) {
+  if (plan === undefined) return <p className="renace-aprob-cargando">Cargando planteamiento…</p>;
+  if (!plan) return <p className="renace-aprob-cargando">No se pudo cargar el detalle del planteamiento.</p>;
+  const esCA = plan.tipo === "COMPRA" || plan.tipo === "ALQUILER";
+  const dir = [plan.estado, plan.municipio, plan.parroquia, plan.direccionEspecifica].filter(Boolean).join(", ");
+  return (
+    <dl className="renace-aprob-resumen">
+      <div><dt>Planteamiento</dt><dd>{tipoPlanLabel(plan.tipo)}</dd></div>
+      {esCA && <>
+        <div><dt>{plan.tipo === "ALQUILER" ? "Cánon" : "Precio"}</dt><dd>{plan.precioOCanon ? `$ ${plan.precioOCanon}` : "—"}</dd></div>
+        <div><dt>{plan.tipo === "ALQUILER" ? "Arrendatario" : "Vendedor"}</dt><dd>{plan.nombreContraparte || "—"}</dd></div>
+        {dir && <div className="renace-aprob-resumen__wide"><dt>Dirección</dt><dd>{dir}</dd></div>}
+      </>}
+      {plan.tipo === "GMVV_INTERIOR" && <div><dt>Estado de preferencia</dt><dd>{plan.estadoPreferencia || "—"}</dd></div>}
+      {plan.tipo === "PLAN_RENACE" && <div><dt>Modalidad</dt><dd>{plan.modalidadPlan ? modPlanLabel(plan.modalidadPlan) : "—"}</dd></div>}
+      {plan.observacion && <div className="renace-aprob-resumen__wide"><dt>Observación</dt><dd>{plan.observacion}</dd></div>}
+    </dl>
+  );
+}
 
 // Caches SEPARADOS por volatilidad: jefes/miembros (casi estáticos, solo cambian al
 // importar) y planteamientos (calientes) tienen su propia clave + ETag → guardar un
 // plan no re-descarga las ~1000 filas de jefes/miembros.
 const JM_CACHE_KEY = "renace_jm_v1";
 const PLAN_CACHE_KEY = "renace_plan_v1";
+const ESTADO_CACHE_KEY = "renace_estado_v1";
+
+// Ciclo de vida del núcleo (se deriva del planteamiento + la tabla de estado).
+type CicloEstado = "SIN_PLAN" | "CON_PLAN" | "APROBADO" | "RETIRADO";
 
 // ── Parseo del Excel en el cliente (exceljs perezoso) ────────────────────────
 // Devuelve filas CRUDAS (strings); el backend normaliza a MAYÚSCULA + sexo + ints.
@@ -183,6 +215,18 @@ function SkelRows({ widths, n = 6 }: { widths: (string | number)[]; n?: number }
   );
 }
 
+// Insignia pill del ciclo de vida del núcleo (Sin plan / Con plan / Aprobado / Retirada).
+function EstadoBadge({ estado }: { estado: "SIN_PLAN" | "CON_PLAN" | "APROBADO" | "RETIRADO" }) {
+  const map = {
+    SIN_PLAN: { cls: "sin", label: "Sin plan" },
+    CON_PLAN: { cls: "plan", label: "Con plan" },
+    APROBADO: { cls: "aprobado", label: "Aprobada" },
+    RETIRADO: { cls: "retirado", label: "Retirada" },
+  } as const;
+  const m = map[estado];
+  return <span className={`renace-estado-badge renace-estado-badge--${m.cls}`}>{m.label}</span>;
+}
+
 export default function VzlaRenaceTab() {
   const { currentUser, showToast, effectiveRefugio } = useAppContext();
   const puedeImportar = canImportRenace(currentUser?.role || "");
@@ -207,6 +251,16 @@ export default function VzlaRenaceTab() {
   const [serverPlanCeds, setServerPlanCeds] = useState<Set<string>>(new Set());
   const [localPlanNros, setLocalPlanNros] = useState<Set<number>>(new Set());
   const [localPlanCeds, setLocalPlanCeds] = useState<Set<string>>(new Set());
+  // Estado/ciclo de vida (aprobado/retirado) — servidor, por cédula (respaldo NRO).
+  const [aprobadoNros, setAprobadoNros] = useState<Set<number>>(new Set());
+  const [aprobadoCeds, setAprobadoCeds] = useState<Set<string>>(new Set());
+  const [retiradoNros, setRetiradoNros] = useState<Set<number>>(new Set());
+  const [retiradoCeds, setRetiradoCeds] = useState<Set<string>>(new Set());
+  // tipo de planteamiento por cédula (dígitos) — para el filtro por planteamiento.
+  const [serverPlanTipos, setServerPlanTipos] = useState<Map<string, string>>(new Map());
+  // Panel de filtros (botón "Filtrar" muestra/oculta) + filtros aplicados.
+  const [showFiltros, setShowFiltros] = useState(false);
+  const [filtros, setFiltros] = useState({ estado: "activas", tipo: "", estadoProc: "", parroquiaProc: "", sexo: "" });
   const [loadingList, setLoadingList] = useState(false);
   const [dirTab, setDirTab] = useState<"jefes" | "miembros">("jefes");
   const [jq, setJq] = useState(""); const [jPage, setJPage] = useState(1); const [jSize, setJSize] = useState(20);
@@ -219,6 +273,8 @@ export default function VzlaRenaceTab() {
     | null
   >(null);
   const [confirmMiembro, setConfirmMiembro] = useState<RenaceMiembro | null>(null);
+  const [retirando, setRetirando] = useState<RenaceJefe | null>(null);
+  const [confirmCiclo, setConfirmCiclo] = useState<{ accion: "aprobar" | "revertir"; jefe: RenaceJefe; estado: CicloEstado; plan?: RenacePlanteamiento | null } | null>(null);
 
   // Semáforo/KPI = servidor ∪ pendientes locales (optimista, sin esperar la sync).
   // Cédula → SOLO DÍGITOS (para comparar sin importar formato/cache viejo).
@@ -227,9 +283,17 @@ export default function VzlaRenaceTab() {
   const planCeds = useMemo(() => new Set<string>([...serverPlanCeds, ...localPlanCeds]), [serverPlanCeds, localPlanCeds]);
   // ¿El jefe tiene planteamiento? Por CÉDULA (la que manda) o, de respaldo, por NRO.
   const tienePlan = (j: RenaceJefe) => planCeds.has(cedDigits(j.cedula)) || planNros.has(j.nro);
+  // Ciclo de vida del núcleo: retirado > aprobado > con plan > sin plan.
+  const estadoDe = (j: RenaceJefe): CicloEstado => {
+    const d = cedDigits(j.cedula);
+    if (retiradoCeds.has(d) || retiradoNros.has(j.nro)) return "RETIRADO";
+    if (aprobadoCeds.has(d) || aprobadoNros.has(j.nro)) return "APROBADO";
+    return tienePlan(j) ? "CON_PLAN" : "SIN_PLAN";
+  };
 
   const jmCacheKey = `${JM_CACHE_KEY}::${effectiveRefugio || "all"}`;
   const planCacheKey = `${PLAN_CACHE_KEY}::${effectiveRefugio || "all"}`;
+  const estadoCacheKey = `${ESTADO_CACHE_KEY}::${effectiveRefugio || "all"}`;
 
   // Jefes + miembros: casi estáticos (solo cambian al importar) → casi siempre 304.
   const loadJM = async (force = false) => {
@@ -248,7 +312,7 @@ export default function VzlaRenaceTab() {
         const etag = res.headers.get("ETag");
         const data = await res.json();
         setJefes(data.jefes || []); setMiembros(data.miembros || []);
-        try { localStorage.setItem(jmCacheKey, JSON.stringify({ etag, jefes: data.jefes, miembros: data.miembros })); } catch { /* cuota */ }
+        safeSetItem(jmCacheKey, JSON.stringify({ etag, jefes: data.jefes, miembros: data.miembros }));
       }
     } catch (e) { console.error(e); }
     finally { setLoadingList(false); }
@@ -258,7 +322,11 @@ export default function VzlaRenaceTab() {
   const loadPlans = async (force = false) => {
     let cached: any = null;
     try { cached = JSON.parse(localStorage.getItem(planCacheKey) || "null"); } catch { /* ignore */ }
-    if (cached && !force) { setServerPlanNros(new Set(cached.planteamientoNros || [])); setServerPlanCeds(new Set((cached.planteamientoCedulas || []).map(cedDigits))); }
+    const tiposToMap = (arr: any[]) => new Map<string, string>((arr || []).map((t: any) => [cedDigits(t.cedula), t.tipo]));
+    if (cached && !force) {
+      setServerPlanNros(new Set(cached.planteamientoNros || [])); setServerPlanCeds(new Set((cached.planteamientoCedulas || []).map(cedDigits)));
+      setServerPlanTipos(tiposToMap(cached.planteamientoTipos));
+    }
     if (!navigator.onLine) return;
     try {
       const headers: Record<string, string> = {};
@@ -271,7 +339,33 @@ export default function VzlaRenaceTab() {
         const data = await res.json();
         setServerPlanNros(new Set(data.planteamientoNros || []));
         setServerPlanCeds(new Set((data.planteamientoCedulas || []).map(cedDigits)));
-        try { localStorage.setItem(planCacheKey, JSON.stringify({ etag, planteamientoNros: data.planteamientoNros, planteamientoCedulas: data.planteamientoCedulas })); } catch { /* cuota */ }
+        setServerPlanTipos(tiposToMap(data.planteamientoTipos));
+        safeSetItem(planCacheKey, JSON.stringify({ etag, planteamientoNros: data.planteamientoNros, planteamientoCedulas: data.planteamientoCedulas, planteamientoTipos: data.planteamientoTipos }));
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  // Estados (aprobado/retirado): payload chico con su propio ETag → barato de refrescar.
+  const loadEstados = async (force = false) => {
+    let cached: any = null;
+    try { cached = JSON.parse(localStorage.getItem(estadoCacheKey) || "null"); } catch { /* ignore */ }
+    if (cached && !force) {
+      setAprobadoNros(new Set(cached.aprobadoNros || [])); setAprobadoCeds(new Set((cached.aprobadoCedulas || []).map(cedDigits)));
+      setRetiradoNros(new Set(cached.retiradoNros || [])); setRetiradoCeds(new Set((cached.retiradoCedulas || []).map(cedDigits)));
+    }
+    if (!navigator.onLine) return;
+    try {
+      const headers: Record<string, string> = {};
+      if (cached?.etag && !force) headers["If-None-Match"] = cached.etag;
+      const q = effectiveRefugio ? `?refugio=${encodeURIComponent(effectiveRefugio)}` : "";
+      const res = await apiFetch(`/api/vzlarenace/estados${q}`, { headers });
+      if (res.status === 304) return;
+      if (res.ok) {
+        const etag = res.headers.get("ETag");
+        const data = await res.json();
+        setAprobadoNros(new Set(data.aprobadoNros || [])); setAprobadoCeds(new Set((data.aprobadoCedulas || []).map(cedDigits)));
+        setRetiradoNros(new Set(data.retiradoNros || [])); setRetiradoCeds(new Set((data.retiradoCedulas || []).map(cedDigits)));
+        safeSetItem(estadoCacheKey, JSON.stringify({ etag, aprobadoNros: data.aprobadoNros, aprobadoCedulas: data.aprobadoCedulas, retiradoNros: data.retiradoNros, retiradoCedulas: data.retiradoCedulas }));
       }
     } catch (e) { console.error(e); }
   };
@@ -294,19 +388,20 @@ export default function VzlaRenaceTab() {
     } catch { /* ignore */ }
   };
 
-  const reloadAll = (force = false) => { loadJM(force); loadPlans(force); refreshLocalPlanNros(); };
+  const reloadAll = (force = false) => { loadJM(force); loadPlans(force); loadEstados(force); refreshLocalPlanNros(); };
 
   // Recarga al abrir y cada vez que cambie el campamento (Master).
   useEffect(() => {
     setJefes([]); setMiembros([]);
     setServerPlanNros(new Set()); setServerPlanCeds(new Set()); setLocalPlanNros(new Set()); setLocalPlanCeds(new Set());
+    setAprobadoNros(new Set()); setAprobadoCeds(new Set()); setRetiradoNros(new Set()); setRetiradoCeds(new Set()); setServerPlanTipos(new Map());
     if (esRenaceMaster) return; // Master Renace solo ve Gráficas → no baja el directorio (~1000 filas)
     reloadAll();
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [effectiveRefugio]);
   // Cuando llegan los jefes, re-filtra los pendientes locales por su refugioId.
   useEffect(() => { refreshLocalPlanNros(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [jefes]);
-  useEffect(() => { setJPage(1); }, [jq, jSize]);
+  useEffect(() => { setJPage(1); }, [jq, jSize, filtros]);
   useEffect(() => { setMPage(1); }, [mq, mSize]);
 
   const jefesF = useMemo(() => {
@@ -314,12 +409,40 @@ export default function VzlaRenaceTab() {
     if (!n) return jefes;
     return jefes.filter((j) => normalizeText(`${j.nombres} ${j.cedula} ${j.nro}`).includes(n));
   }, [jefes, jq]);
+  // Opciones de procedencia (estado/parroquia) derivadas de los jefes cargados.
+  const uniqueSorted = (arr: (string | null)[]) => Array.from(new Set(arr.filter((s): s is string => !!s && s.trim() !== ""))).sort((a, b) => a.localeCompare(b));
+  const estadoProcOpts = useMemo(() => uniqueSorted(jefes.map((j) => j.estadoProcedencia)), [jefes]);
+  const parroquiaProcOpts = useMemo(() => uniqueSorted(jefes.map((j) => j.parroquiaProcedencia)), [jefes]);
+  const sexoOpts = useMemo(() => uniqueSorted(jefes.map((j) => j.sexo)), [jefes]);
+  const activeFilterCount =
+    (filtros.estado !== "activas" ? 1 : 0) + (filtros.tipo ? 1 : 0) +
+    (filtros.estadoProc ? 1 : 0) + (filtros.parroquiaProc ? 1 : 0) + (filtros.sexo ? 1 : 0);
+  const limpiarFiltros = () => setFiltros({ estado: "activas", tipo: "", estadoProc: "", parroquiaProc: "", sexo: "" });
+
+  // Aplica TODOS los filtros: estado del ciclo, tipo de planteamiento y procedencia/sexo.
+  const jefesFE = useMemo(() => {
+    return jefesF.filter((j) => {
+      const es = estadoDe(j);
+      if (filtros.estado === "activas" && es === "RETIRADO") return false;
+      if (filtros.estado === "sinplan" && es !== "SIN_PLAN") return false;
+      if (filtros.estado === "conplan" && es !== "CON_PLAN") return false;
+      if (filtros.estado === "aprobada" && es !== "APROBADO") return false;
+      if (filtros.estado === "retirada" && es !== "RETIRADO") return false;
+      if (filtros.tipo === "SIN" && tienePlan(j)) return false;
+      if (filtros.tipo && filtros.tipo !== "SIN" && serverPlanTipos.get(cedDigits(j.cedula)) !== filtros.tipo) return false;
+      if (filtros.estadoProc && (j.estadoProcedencia || "") !== filtros.estadoProc) return false;
+      if (filtros.parroquiaProc && (j.parroquiaProcedencia || "") !== filtros.parroquiaProc) return false;
+      if (filtros.sexo && (j.sexo || "") !== filtros.sexo) return false;
+      return true;
+    });
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [jefesF, filtros, serverPlanTipos, aprobadoCeds, aprobadoNros, retiradoCeds, retiradoNros, planCeds, planNros]);
   const miembrosF = useMemo(() => {
     const n = normalizeText(mq.trim());
     if (!n) return miembros;
     return miembros.filter((m) => normalizeText(`${m.nombres} ${m.cedula} ${m.jefeNro} ${m.parentesco || ""}`).includes(n));
   }, [miembros, mq]);
-  const jefesPage = jefesF.slice((jPage - 1) * jSize, jPage * jSize);
+  const jefesPage = jefesFE.slice((jPage - 1) * jSize, jPage * jSize);
   const miembrosPage = miembrosF.slice((mPage - 1) * mSize, mPage * mSize);
 
   // Conteo REAL de miembros por núcleo (desde los `RenaceMiembro` cargados), NO el valor
@@ -366,6 +489,46 @@ export default function VzlaRenaceTab() {
     const data = await res.json().catch(() => ({}));
     if (res.ok && data?.success) { showToast("Miembro eliminado.", "success"); reloadAll(true); }
     else { showToast(data?.error || "No se pudo eliminar el miembro.", "error"); throw new Error("delete failed"); }
+  };
+
+  // Abre la confirmación de aprobar cargando el DETALLE del planteamiento (qué se aprueba).
+  const openAprobar = async (j: RenaceJefe, estado: CicloEstado) => {
+    setConfirmCiclo({ accion: "aprobar", jefe: j, estado, plan: undefined }); // undefined = cargando
+    try {
+      const r = await apiFetch(`/api/vzlarenace/planteamiento?jefeNro=${j.nro}&jefeCedula=${encodeURIComponent(j.cedula || "")}&refugioId=${encodeURIComponent(j.refugioId)}`);
+      const data = r.ok ? await r.json() : null;
+      setConfirmCiclo((c) => (c && c.accion === "aprobar" && c.jefe.id === j.id ? { ...c, plan: data?.planteamiento ?? null } : c));
+    } catch {
+      setConfirmCiclo((c) => (c && c.accion === "aprobar" && c.jefe.id === j.id ? { ...c, plan: null } : c));
+    }
+  };
+
+  // Aprobar un núcleo (con planteamiento). La CONFIRMACIÓN la hace ConfirmModal; esta
+  // función solo ejecuta el POST y lanza si falla (para que el modal permanezca).
+  const doAprobar = async (j: RenaceJefe) => {
+    if (!navigator.onLine) { showToast("Necesitas conexión para aprobar.", "warning"); throw new Error("offline"); }
+    const res = await apiFetch("/api/vzlarenace/estado", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accion: "aprobar", jefeNro: j.nro, jefeCedula: j.cedula, refugioId: j.refugioId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data?.success) { showToast("Familia aprobada.", "success"); loadEstados(true); }
+    else { showToast(data?.error || "No se pudo aprobar.", "error"); throw new Error("aprobar failed"); }
+  };
+
+  // Revertir (solo Master): quita la aprobación o deshace el retiro (reactivando el censo).
+  const doRevertir = async (j: RenaceJefe) => {
+    if (!navigator.onLine) { showToast("Necesitas conexión para revertir.", "warning"); throw new Error("offline"); }
+    const res = await apiFetch("/api/vzlarenace/estado", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accion: "revertir", jefeNro: j.nro, jefeCedula: j.cedula, refugioId: j.refugioId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data?.success) {
+      const conf = Array.isArray(data.conflictos) ? data.conflictos.length : 0;
+      showToast(conf > 0 ? `Revertido. ${conf} ficha(s) no se reactivaron (activas en otro campamento).` : "Estado revertido.", conf > 0 ? "warning" : "success");
+      loadEstados(true); loadJM(true);
+    } else { showToast(data?.error || "No se pudo revertir.", "error"); throw new Error("revertir failed"); }
   };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -417,6 +580,7 @@ export default function VzlaRenaceTab() {
         jefes,
         miembros,
         planteamientos: data.planteamientos || [],
+        estados: data.estados || [],
         refugio: effectiveRefugio || "Todos los campamentos",
         generadoEn: new Date().toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
       });
@@ -479,12 +643,16 @@ export default function VzlaRenaceTab() {
         const totalFamilias = jefes.length;
         const conPlan = jefes.filter(tienePlan).length;
         const sinPlan = Math.max(0, totalFamilias - conPlan);
+        const aprobadas = jefes.filter((j) => estadoDe(j) === "APROBADO").length;
+        const retiradas = jefes.filter((j) => estadoDe(j) === "RETIRADO").length;
         const pct = (n: number) => (totalFamilias ? `${Math.round((n / totalFamilias) * 100)}%` : "0%");
         const fmt = (n: number) => n.toLocaleString("es-VE");
         const kpis = [
           { label: "Familias", value: totalFamilias, accent: "#1e3a8a", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18" /><path d="M5 21V7l7-4 7 4v14" /><path d="M9 21v-6h6v6" /></svg>) },
           { label: "Con planteamiento", value: conPlan, sub: pct(conPlan), accent: "#059669", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335" /><path d="m9 11 3 3L22 4" /></svg>) },
           { label: "Sin planteamiento", value: sinPlan, sub: pct(sinPlan), accent: "#d97706", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>) },
+          { label: "Aprobadas", value: aprobadas, sub: pct(aprobadas), accent: "#059669", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>) },
+          { label: "Retiradas", value: retiradas, sub: pct(retiradas), accent: "#64748b", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>) },
           { label: "Miembros", value: miembros.length, accent: "#0284c7", icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>) },
         ];
         return (
@@ -508,59 +676,95 @@ export default function VzlaRenaceTab() {
 
       {dirTab === "jefes" && (
         <div className="renace-block">
-          <div className="pill-form renace-search">
-            <input className="morb-control" placeholder="Buscar jefe por nombre, cédula o N°…" value={jq} onChange={(e) => setJq(e.target.value)} />
+          <div className="renace-dir-tools">
+            <div className="pill-form renace-search">
+              <input className="morb-control" placeholder="Buscar jefe por nombre, cédula o N°…" value={jq} onChange={(e) => setJq(e.target.value)} />
+            </div>
+            <button type="button" className={`toolbar-btn renace-filter-btn${showFiltros ? " is-active" : ""}`} onClick={() => setShowFiltros((v) => !v)}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+              Filtrar{activeFilterCount > 0 && <span className="renace-filter-badge">{activeFilterCount}</span>}
+            </button>
           </div>
+          {showFiltros && (
+            <div className="pill-form renace-filtros-panel">
+              <div className="renace-filtros-head">
+                <span className="renace-filtros-title">Filtros</span>
+                <button type="button" className="renace-filtros-close" onClick={() => setShowFiltros(false)} aria-label="Cerrar filtros">×</button>
+              </div>
+              <div className="renace-filtros-grid">
+                <label className="carac-field">
+                  <span>Estado</span>
+                  <StyledSelect value={filtros.estado} onChange={(v) => setFiltros((f) => ({ ...f, estado: v }))} ariaLabel="Estado"
+                    options={[{ value: "activas", label: "Activas (sin retiradas)" }, { value: "todas", label: "Todas" }, { value: "sinplan", label: "Sin plan" }, { value: "conplan", label: "Con plan" }, { value: "aprobada", label: "Aprobadas" }, { value: "retirada", label: "Retiradas" }]} />
+                </label>
+                <label className="carac-field">
+                  <span>Planteamiento</span>
+                  <StyledSelect value={filtros.tipo} onChange={(v) => setFiltros((f) => ({ ...f, tipo: v }))} ariaLabel="Planteamiento"
+                    options={[{ value: "", label: "Todos" }, { value: "SIN", label: "Sin planteamiento" }, ...RENACE_PLANTEAMIENTO_TIPOS.map((t) => ({ value: t.value, label: t.label }))]} />
+                </label>
+                <label className="carac-field">
+                  <span>Estado de procedencia</span>
+                  <StyledSelect value={filtros.estadoProc} onChange={(v) => setFiltros((f) => ({ ...f, estadoProc: v }))} ariaLabel="Estado de procedencia"
+                    options={[{ value: "", label: "Todos" }, ...estadoProcOpts.map((s) => ({ value: s, label: s }))]} />
+                </label>
+                <label className="carac-field">
+                  <span>Parroquia de procedencia</span>
+                  <StyledSelect value={filtros.parroquiaProc} onChange={(v) => setFiltros((f) => ({ ...f, parroquiaProc: v }))} ariaLabel="Parroquia de procedencia"
+                    options={[{ value: "", label: "Todas" }, ...parroquiaProcOpts.map((s) => ({ value: s, label: s }))]} />
+                </label>
+                <label className="carac-field">
+                  <span>Sexo</span>
+                  <StyledSelect value={filtros.sexo} onChange={(v) => setFiltros((f) => ({ ...f, sexo: v }))} ariaLabel="Sexo"
+                    options={[{ value: "", label: "Todos" }, ...sexoOpts.map((s) => ({ value: s, label: s }))]} />
+                </label>
+              </div>
+              <div className="renace-filtros-foot">
+                <span className="renace-filtros-count">{activeFilterCount > 0 ? `${activeFilterCount} filtro${activeFilterCount === 1 ? "" : "s"} · ${jefesFE.length} resultado${jefesFE.length === 1 ? "" : "s"}` : `${jefesFE.length} resultado${jefesFE.length === 1 ? "" : "s"}`}</span>
+                <button type="button" className="renace-filtros-clear" onClick={limpiarFiltros} disabled={activeFilterCount === 0}>Limpiar</button>
+              </div>
+            </div>
+          )}
           <div className="registro-table-wrapper">
             <table className="registro-table">
-              <thead><tr><th className="col-num">N°</th><th className="col-sem">Plan</th><th>Nombre</th><th>Cédula</th><th>Miembros</th><th>Procedencia</th><th className="col-action"></th></tr></thead>
+              <thead><tr><th className="col-num">N°</th><th className="col-restado">Estado</th><th className="col-grow">Nombre</th><th>Cédula</th><th>Miembros</th><th>Procedencia</th><th className="col-action col-action--min">Acciones</th></tr></thead>
               <tbody>
                 {loadingList && jefes.length === 0 ? (
-                  <SkelRows widths={[24, 32, "60%", 90, 30, 130, 72]} />
+                  <SkelRows widths={[24, 78, "55%", 90, 30, 120, 120]} />
                 ) : jefesPage.length === 0 ? (
                   <tr><td colSpan={7} className="renace-td-empty">Sin resultados.</td></tr>
-                ) : jefesPage.map((j) => (
+                ) : jefesPage.map((j) => {
+                  const es = estadoDe(j);
+                  return (
                   <tr key={j.id}>
                     <td className="col-num">{j.nro}</td>
-                    <td className="col-sem" data-label="Plan">
-                      {tienePlan(j) ? (
-                        <span className="renace-sem renace-sem--ok" data-tip="Con planteamiento" aria-label="Con planteamiento">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335" /><path d="m9 11 3 3L22 4" /></svg>
-                        </span>
-                      ) : (
-                        <span className="renace-sem renace-sem--no" data-tip="Sin planteamiento" aria-label="Sin planteamiento">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
-                        </span>
-                      )}
-                    </td>
-                    <td>{j.nombres}</td>
+                    <td className="col-restado" data-label="Estado"><EstadoBadge estado={es} /></td>
+                    <td className="col-grow" data-label="Nombre">{j.nombres}</td>
                     <td>{j.cedula || "—"}</td>
                     <td>{memberCount(j)}</td>
                     <td>{[j.estadoProcedencia, j.parroquiaProcedencia].filter(Boolean).join(" / ") || "—"}</td>
-                    <td className="col-action">
-                      <div className="row-actions">
-                        {puedeEditar && (
-                          <button type="button" className="btn-ver btn-ver--edit" onClick={() => setEditando({ modo: "editar", tipo: "jefe", record: j })} data-tip="Editar datos del jefe" aria-label="Editar jefe">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                          </button>
-                        )}
-                        {puedeEditar && (
-                          <button type="button" className="btn-ver btn-ver--room" onClick={() => setEditando({ modo: "crear", jefeFijo: j })} data-tip="Agregar miembro a este núcleo" aria-label="Agregar miembro">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" x2="19" y1="8" y2="14" /><line x1="22" x2="16" y1="11" y2="11" /></svg>
-                          </button>
-                        )}
-                        <button type="button" className="btn-planear" onClick={() => setPlaneando(j)} data-tip="Plantear solución del núcleo">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-                          <span className="btn-planear__txt">Plantear</span>
-                        </button>
-                      </div>
+                    <td className="col-action col-action--min" data-label="Acciones">
+                      <RowActionsMenu title={j.nombres} actions={[
+                        { key: "plantear", label: "Plantear solución", tone: "primary", onClick: () => setPlaneando(j),
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg> },
+                        ...(puedeEditar && es === "CON_PLAN" ? [{ key: "aprobar", label: "Aprobar", tone: "success", onClick: () => openAprobar(j, es),
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg> } as RowAction] : []),
+                        ...(puedeEditar && es === "APROBADO" ? [{ key: "retirar", label: "Retirar familia", tone: "danger", onClick: () => setRetirando(j),
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg> } as RowAction] : []),
+                        ...(esMaster && (es === "APROBADO" || es === "RETIRADO") ? [{ key: "revertir", label: es === "RETIRADO" ? "Revertir retiro" : "Revertir aprobación", tone: "neutral", onClick: () => setConfirmCiclo({ accion: "revertir", jefe: j, estado: es }),
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></svg> } as RowAction] : []),
+                        ...(puedeEditar ? [{ key: "editar", label: "Editar jefe", tone: "warning", onClick: () => setEditando({ modo: "editar", tipo: "jefe", record: j }),
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg> } as RowAction] : []),
+                        ...(puedeEditar ? [{ key: "agregar", label: "Agregar miembro", tone: "default", onClick: () => setEditando({ modo: "crear", jefeFijo: j }),
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" x2="19" y1="8" y2="14" /><line x1="22" x2="16" y1="11" y2="11" /></svg> } as RowAction] : []),
+                      ]} />
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          <Pagination total={jefesF.length} page={jPage} pageSize={jSize} onPageChange={setJPage} onPageSizeChange={setJSize} itemLabel="jefes" />
+          <Pagination total={jefesFE.length} page={jPage} pageSize={jSize} onPageChange={setJPage} onPageSizeChange={setJSize} itemLabel="jefes" />
         </div>
       )}
 
@@ -648,6 +852,41 @@ export default function VzlaRenaceTab() {
           highlight={confirmMiembro.nombres}
           onConfirm={() => doDeleteMiembro(confirmMiembro)}
           onClose={() => setConfirmMiembro(null)}
+        />
+      )}
+
+      {retirando && (
+        <RenaceRetiroModal
+          jefe={retirando}
+          familia={[
+            { nombres: retirando.nombres, cedula: retirando.cedula, rol: "Jefe de familia" },
+            ...miembros
+              .filter((m) => (m.jefeCedula ? cedDigits(m.jefeCedula) === cedDigits(retirando.cedula) : m.jefeNro === retirando.nro))
+              .map((m) => ({ nombres: m.nombres, cedula: m.cedula, rol: m.parentesco || "Miembro" })),
+          ]}
+          onClose={() => setRetirando(null)}
+          onSaved={() => { loadEstados(true); loadJM(true); }}
+          showToast={showToast}
+        />
+      )}
+
+      {confirmCiclo && (
+        <ConfirmModal
+          tone="primary"
+          title={confirmCiclo.accion === "aprobar" ? "Confirmar aprobación" : "Confirmar reversión"}
+          confirmLabel={confirmCiclo.accion === "aprobar" ? "Sí, aprobar" : "Sí, revertir"}
+          busyLabel={confirmCiclo.accion === "aprobar" ? "Aprobando" : "Revirtiendo"}
+          note={confirmCiclo.accion === "aprobar" ? "Esta acción se puede revertir." : "Esta acción se puede volver a aplicar."}
+          message={
+            confirmCiclo.accion === "aprobar"
+              ? <>¿Aprobar este planteamiento del núcleo? Luego podrás registrar su retiro.<PlanResumen plan={confirmCiclo.plan} /></>
+              : confirmCiclo.estado === "RETIRADO"
+                ? <>¿Revertir el retiro de esta familia? Se reactivarán sus fichas en el censo (las que no estén activas en otro campamento).</>
+                : <>¿Revertir la aprobación de este núcleo?</>
+          }
+          highlight={confirmCiclo.jefe.nombres}
+          onConfirm={() => (confirmCiclo.accion === "aprobar" ? doAprobar(confirmCiclo.jefe) : doRevertir(confirmCiclo.jefe))}
+          onClose={() => setConfirmCiclo(null)}
         />
       )}
     </div>
