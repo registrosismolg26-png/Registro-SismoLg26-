@@ -103,6 +103,12 @@ export const canManageCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedic
 // (Cuando se abra a más roles, ampliar aquí + en el gating de la pestaña y el POST.)
 export const canManageCaracterizacion = (u: AuthUser) => ["MASTER"].includes(u.role);
 
+// ── Planteamiento Sala (Master y Planteamiento Master) ───────────────────────
+// Rol EXCLUSIVO "Planteamiento Master": solo el módulo Planteamiento Sala.
+export const isPlanteamientoMaster = (u: AuthUser) => u.role === "PLANTEAMIENTO_MASTER";
+export const isPlanteamientoOnly   = (u: AuthUser) => u.role === "PLANTEAMIENTO_MASTER";
+export const canManagePlanteamientoSala = (u: AuthUser) => isMaster(u) || isPlanteamientoMaster(u);
+
 /** ¿Puede el usuario actuar sobre datos de este refugio? Master: cualquiera. */
 export const canActOnRefugio = (u: AuthUser, refugio: string) =>
   isMaster(u) || u.refugio === refugio;

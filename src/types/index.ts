@@ -84,6 +84,19 @@ export type IntegranteDraft = {
 // Tipos de notificación toast
 export type ToastType = "success" | "error" | "info" | "warning";
 
+// Roles disponibles en el sistema
+export type Role =
+  | "MASTER"
+  | "ADMIN"
+  | "REGISTRADOR"
+  | "VISUALIZADOR"
+  | "RENACE"
+  | "RENACE_MASTER"
+  | "PLANTEAMIENTO_MASTER"
+  | "AdminMedico"
+  | "OperadorMedico"
+  | "AsistenteMedico";
+
 // Usuario/operador autenticado
 export interface CurrentUser {
   id: string;
@@ -94,7 +107,77 @@ export interface CurrentUser {
 }
 
 // Vista de pestaña activa
-export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad" | "balance" | "historial" | "caracterizacion" | "monitoreo" | "mapa" | "vzlarenace";
+export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad" | "balance" | "historial" | "caracterizacion" | "monitoreo" | "mapa" | "vzlarenace" | "planteamientosala";
+
+// ── PLANTEAMIENTO SALA (Solo Master / Planteamiento Master) ───────────────────
+export type TituloCasaTipo = "NINGUNO" | "TITULO_PROPIEDAD" | "TITULO_SUPLETORIO" | "COMPRA_VENTA";
+export type PlanteamientoSalaEstatus = "CREDITO ENTREGADO" | "EN PROCESO" | "CARPETA RETORNADA" | "CON NOVEDAD EN LA SEDE";
+
+export interface PlanteamientoSalaItem {
+  id: string;
+  refugioId?: string | null;
+  refugio: string;
+  cedula: string;
+  nombreApellido: string;
+  telefono?: string | null;
+  registroId?: string | null;
+  planillaCaracterizacion: "SI" | "NO";
+  cedulaCatastral: "SI" | "NO";
+  tituloCasa: TituloCasaTipo;
+  referenciaBancariaVendedor: "SI" | "NO";
+  qrHabitatVivienda: "SI" | "NO";
+  cedulaVendedor: "SI" | "NO";
+  cedulaComprador: "SI" | "NO";
+  fotosVivienda: "SI" | "NO";
+  cantidadFotos: number;
+  vendedorPoseePatria: "SI" | "NO";
+  porcentajeProgreso: number;
+  estatus: PlanteamientoSalaEstatus;
+  observacion?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlanteamientoSalaStats {
+  global: {
+    totalPersonas: number;
+    promedioProgreso: number;
+    porEstatus: Record<PlanteamientoSalaEstatus, number>;
+    porRequisito: {
+      planillaCaracterizacion: number;
+      cedulaCatastral: number;
+      conTituloCasa: number;
+      referenciaBancariaVendedor: number;
+      qrHabitatVivienda: number;
+      cedulaVendedor: number;
+      cedulaComprador: number;
+      fotosVivienda: number;
+      vendedorPoseePatria: number;
+    };
+    titulosCasaDesglose: Record<TituloCasaTipo, number>;
+  };
+  campamentos: {
+    refugio: string;
+    refugioId?: string | null;
+    totalPersonas: number;
+    promedioProgreso: number;
+    porEstatus: Record<PlanteamientoSalaEstatus, number>;
+    porRequisito: {
+      planillaCaracterizacion: number;
+      cedulaCatastral: number;
+      conTituloCasa: number;
+      referenciaBancariaVendedor: number;
+      qrHabitatVivienda: number;
+      cedulaVendedor: number;
+      cedulaComprador: number;
+      fotosVivienda: number;
+      vendedorPoseePatria: number;
+    };
+    titulosCasaDesglose: Record<TituloCasaTipo, number>;
+  }[];
+}
+
 
 // ── VZLA RENACE (Venezuela Renace) — módulo independiente del censo ─────────
 // Espejo cliente de los modelos Prisma (RenaceJefe / RenaceMiembro / RenacePlanteamiento).

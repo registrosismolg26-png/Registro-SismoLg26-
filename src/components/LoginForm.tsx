@@ -64,6 +64,8 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, the
             setActiveTab("dashboard");
           } else if (userSession.role === "RENACE" || userSession.role === "RENACE_MASTER") {
             setActiveTab("vzlarenace");
+          } else if (userSession.role === "PLANTEAMIENTO_MASTER") {
+            setActiveTab("planteamientosala");
           } else {
             setActiveTab("censo");
           }
@@ -102,6 +104,8 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, the
           setActiveTab("dashboard");
         } else if (data.user.role === "RENACE" || data.user.role === "RENACE_MASTER") {
           setActiveTab("vzlarenace");
+        } else if (data.user.role === "PLANTEAMIENTO_MASTER") {
+          setActiveTab("planteamientosala");
         } else {
           setActiveTab("censo");
         }

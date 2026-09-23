@@ -14,6 +14,8 @@ import {
   canManageMorbilidad,
   canRegister,
   isMaster,
+  canManagePlanteamientoSala,
+  isPlanteamientoOnly,
 } from "@/lib/permissions";
 
 export interface NavItem {
@@ -66,7 +68,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     tab: "asignaciones",
     label: "Registrados",
-    show: (r) => !isMedico(r) && !isRenaceOnly(r),
+    show: (r) => !isMedico(r) && !isRenaceOnly(r) && !isPlanteamientoOnly(r),
     icon: sv(
       <>
 <path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/>
@@ -80,6 +82,18 @@ export const NAV_ITEMS: NavItem[] = [
     icon: sv(
       <>
 <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
+      </>,
+    ),
+  },
+  {
+    tab: "planteamientosala",
+    label: "Planteamiento Sala",
+    show: (r) => canManagePlanteamientoSala(r),
+    icon: sv(
+      <>
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+        <path d="m9 14 2 2 4-4" />
       </>,
     ),
   },
@@ -193,7 +207,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: "/buscar",
     label: "Buscar",
-    show: (r) => !isMedico(r) && !isRenaceOnly(r),
+    show: (r) => !isMedico(r) && !isRenaceOnly(r) && !isPlanteamientoOnly(r),
     icon: sv(
       <>
         <circle cx="11" cy="11" r="8" />

@@ -41,6 +41,8 @@ import {
   isMedico,
   isRenaceOnly,
   canUseRenace,
+  canManagePlanteamientoSala,
+  isPlanteamientoOnly,
 } from "@/lib/permissions";
 import type {
   ToastType,
@@ -67,6 +69,7 @@ import DashboardTab from "@/tabs/DashboardTab";
 import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CaracterizacionTab from "@/tabs/CaracterizacionTab";
+import PlanteamientoSalaTab from "@/tabs/PlanteamientoSalaTab";
 import MonitoreoTab from "@/tabs/MonitoreoTab";
 import VzlaRenaceTab from "@/tabs/VzlaRenaceTab";
 import CensoTab from "@/tabs/CensoTab";
@@ -336,6 +339,13 @@ export default function Home() {
   useEffect(() => {
     if (!isRenaceOnly(currentUser?.role || "")) return;
     if (!["vzlarenace", "config"].includes(activeTab)) setActiveTab("vzlarenace");
+  }, [currentUser, activeTab]);
+
+  // El rol EXCLUSIVO "Planteamiento Master" solo puede estar en su módulo o en Config (su perfil);
+  // cualquier otra pestaña (incl. el default "censo") los devuelve a Planteamiento Sala.
+  useEffect(() => {
+    if (!isPlanteamientoOnly(currentUser?.role || "")) return;
+    if (!["planteamientosala", "config"].includes(activeTab)) setActiveTab("planteamientosala");
   }, [currentUser, activeTab]);
 
   // Persistir la pestaña activa para restaurarla al recargar (solo tras el arranque,
@@ -2168,12 +2178,15 @@ export default function Home() {
               secciones admin van gateadas dentro de ConfigTab (cada rol ve lo suyo). */}
           {activeTab === "config" && <ConfigTab />}
 
-          {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos ni roles RENACE */}
-          {activeTab === "asignaciones" && !isMedico(currentUser.role) && !isRenaceOnly(currentUser.role) && (
+          {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos ni roles RENACE ni Planteamiento Master */}
+          {activeTab === "asignaciones" && !isMedico(currentUser.role) && !isRenaceOnly(currentUser.role) && !isPlanteamientoOnly(currentUser.role) && (
             <AsignacionesTab />
           )}
           {activeTab === "caracterizacion" && isMaster(currentUser.role) && (
             <CaracterizacionTab />
+          )}
+          {activeTab === "planteamientosala" && canManagePlanteamientoSala(currentUser.role) && (
+            <PlanteamientoSalaTab />
           )}
           {activeTab === "monitoreo" && isMaster(currentUser.role) && (
             <MonitoreoTab />

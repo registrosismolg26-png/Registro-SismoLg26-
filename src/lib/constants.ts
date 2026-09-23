@@ -280,3 +280,50 @@ export const CARAC_CAMPOS: CaracCampoMeta[] = [
   { modulo: "SOCIOECONOMICO", campo: "accesoPatria", label: "Acceso al Sistema Patria", nivel: "hogar", fase: 2 },
   { modulo: "SOCIOECONOMICO", campo: "bonoContingencia", label: "Bono de contingencia", nivel: "hogar", fase: 2 },
 ];
+
+// ── Planteamiento Sala (Solo Master) ─────────────────────────────────────────
+export const TITULO_CASA_OPTIONS = [
+  { value: "NINGUNO", label: "No posee título" },
+  { value: "TITULO_PROPIEDAD", label: "Título de Propiedad" },
+  { value: "TITULO_SUPLETORIO", label: "Título Supletorio" },
+  { value: "COMPRA_VENTA", label: "Compra y Venta" },
+];
+
+export const ESTATUS_SALA_OPTIONS = [
+  { value: "EN PROCESO", label: "EN PROCESO", color: "#2563eb", bg: "rgba(37, 99, 235, 0.12)" },
+  { value: "CREDITO ENTREGADO", label: "CRÉDITO ENTREGADO", color: "#059669", bg: "rgba(5, 150, 105, 0.12)" },
+  { value: "CARPETA RETORNADA", label: "CARPETA RETORNADA", color: "#d97706", bg: "rgba(217, 119, 6, 0.12)" },
+  { value: "CON NOVEDAD EN LA SEDE", label: "CON NOVEDAD EN LA SEDE", color: "#dc2626", bg: "rgba(220, 38, 38, 0.12)" },
+] as const;
+
+// ── Planteamiento Sala (26 Campamentos Oficiales) ───────────────────────────
+export const CAMPAMENTOS_PLANTEAMIENTO_SALA = [
+  "Liceo Nacional Lorenzo González",
+  "Liceo Armando Reverón (Sector Oeste)",
+  "CANES Escuela de Grumetes (Sector Oeste)",
+  "Escuela Guaicamacuto",
+  "Narciso Gonell (Sector Oeste)",
+  "Juan Germán Roscio",
+  "Liceo Panamá",
+  "Escuela Estadal La Guaira",
+  "U.E. Oliva Andrade (Sector Oeste)",
+  "Escuela José Ángel Valero Hostos (Sector Oeste)",
+  "Escuela Básica Juan Aranaga",
+  "Unidad Educativa 10 de Marzo",
+  "C.E.I Manuel Gual (Sector Oeste)",
+  "C.E. Antonio José de Sucre (Sector Oeste)",
+  "Univ. Marítima del Caribe (Sector Oeste)",
+  "ET Licenciado Aranda",
+  "Gustavo Olivares Bosque (Sector Oeste)",
+  "Universidad Simón Bolivar",
+  "Fundación Sol de Vargas",
+  "Refugio para adultos y adultas mayores (Esc. Santa Eduviges) Sector Oeste",
+  "Ciudad Vacacional Los Caracas",
+  "Escuela Alberto Ravell",
+  "UE REPUBLICA DEL SALVADOR",
+  "MARTIN LUTHER KING",
+  "U E E LEON TRUJILLO",
+  "Campamento Transitorio para niños, niñas y adolescentes (Sector Oeste)",
+] as const;
+
+

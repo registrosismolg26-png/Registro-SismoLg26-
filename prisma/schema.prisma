@@ -547,3 +547,43 @@ model RenaceEstado {
   @@unique([jefeCedula, refugioId])
   @@index([refugioId])
 }
+
+// ── PLANTEAMIENTO SALA (Solo Master) ─────────────────────────────────────────
+// Expedientes y requisitos documentales por persona anclada al campamento.
+// 9 requisitos con cálculo de progreso + 4 estados posibles + observaciones.
+model PlanteamientoSala {
+  id                         String    @id @default(uuid())
+  refugioId                  String?
+  refugio                    String    // Nombre del campamento
+  cedula                     String    // Cédula de la persona (solo dígitos normalizados)
+  nombreApellido             String
+  telefono                   String?
+  registroId                 String?   // UID opcional enlazado a Registro
+
+  // 9 Requisitos Documentales
+  planillaCaracterizacion    String    @default("NO") // "SI" | "NO"
+  cedulaCatastral            String    @default("NO") // "SI" | "NO"
+  tituloCasa                 String    @default("NINGUNO") // "NINGUNO" | "TITULO_PROPIEDAD" | "TITULO_SUPLETORIO" | "COMPRA_VENTA"
+  referenciaBancariaVendedor String    @default("NO") // "SI" | "NO"
+  qrHabitatVivienda          String    @default("NO") // "SI" | "NO"
+  cedulaVendedor             String    @default("NO") // "SI" | "NO"
+  cedulaComprador            String    @default("NO") // "SI" | "NO"
+  fotosVivienda              String    @default("NO") // "SI" | "NO"
+  cantidadFotos              Int       @default(0)
+  vendedorPoseePatria        String    @default("NO") // "SI" | "NO"
+
+  // Progreso y Estatus
+  porcentajeProgreso         Int       @default(0) // 0 a 100
+  estatus                    String    @default("EN PROCESO") // "CREDITO ENTREGADO" | "EN PROCESO" | "CARPETA RETORNADA" | "CON NOVEDAD EN LA SEDE"
+  observacion                String?
+
+  createdBy                  String?   // Email o nombre de quien cargó/modificó
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+
+  @@unique([cedula, refugio])
+  @@index([refugio])
+  @@index([cedula])
+  @@index([estatus])
+}
+
