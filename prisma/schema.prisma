@@ -558,9 +558,18 @@ model PlanteamientoSala {
   cedula                     String    // Cédula de la persona (solo dígitos normalizados)
   nombreApellido             String
   telefono                   String?
+  genero                     String?   // "MASCULINO" | "FEMENINO"
+  fechaNacimiento            String?   // YYYY-MM-DD
+  edad                       Int?
   registroId                 String?   // UID opcional enlazado a Registro
 
-  // 9 Requisitos Documentales
+  // Carga Familiar (Lista de integrantes dependientes en formato JSON)
+  cargaFamiliar              Json?     @default("[]")
+
+  // Modalidad / Tipo de Opción
+  tipoOpcion                 String    @default("MERCADO_SECUNDARIO") // "MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE"
+
+  // 1. Mercado Secundario (10 Requisitos Documentales)
   planillaCaracterizacion    String    @default("NO") // "SI" | "NO"
   cedulaCatastral            String    @default("NO") // "SI" | "NO"
   tituloCasa                 String    @default("NINGUNO") // "NINGUNO" | "TITULO_PROPIEDAD" | "TITULO_SUPLETORIO" | "COMPRA_VENTA"
@@ -571,11 +580,34 @@ model PlanteamientoSala {
   fotosVivienda              String    @default("NO") // "SI" | "NO"
   cantidadFotos              Int       @default(0)
   vendedorPoseePatria        String    @default("NO") // "SI" | "NO"
+  qrColapsoVivienda          String    @default("NO") // "SI" | "NO"
+
+  // 2. Alquiler (7 Requisitos)
+  cartaCompromiso            String    @default("NO") // "SI" | "NO"
+  fotosAlquiler              String    @default("NO") // "SI" | "NO"
+  cantidadFotosAlquiler      Int       @default(0)
+  referenciaBancariaAlquiler String    @default("NO") // "SI" | "NO"
+  cedulaArrendador           String    @default("NO") // "SI" | "NO"
+  cedulaArrendatario         String    @default("NO") // "SI" | "NO"
+  rifArrendador              String    @default("NO") // "SI" | "NO"
+  rifArrendatario            String    @default("NO") // "SI" | "NO"
+
+  // 3. Plan Venezuela Renace (Requisitos y Materiales)
+  rifViviendaDanos           String    @default("NO") // "SI" | "NO"
+  fotosViviendaRenace        String    @default("NO") // "SI" | "NO"
+  cantidadFotosRenace        Int       @default(0)
+  sacosCemento               Int       @default(0)
+  metrosArena                Float     @default(0)
+  bloques                    Int       @default(0)
+  cabillas                   Int       @default(0)
+  pego                       Int       @default(0)
 
   // Progreso y Estatus
   porcentajeProgreso         Int       @default(0) // 0 a 100
   estatus                    String    @default("EN PROCESO") // "CREDITO ENTREGADO" | "EN PROCESO" | "CARPETA RETORNADA" | "CON NOVEDAD EN LA SEDE"
   observacion                String?
+  fechaEntregaCarpeta        String?   // YYYY-MM-DD (fecha en que se carga/entrega la carpeta)
+  fechaEntregaSubsidio       String?   // YYYY-MM-DD (fecha en que se entrega el subsidio / crédito)
 
   createdBy                  String?   // Email o nombre de quien cargó/modificó
   createdAt                  DateTime  @default(now())
@@ -585,5 +617,6 @@ model PlanteamientoSala {
   @@index([refugio])
   @@index([cedula])
   @@index([estatus])
+  @@index([tipoOpcion])
 }
 

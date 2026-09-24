@@ -31,6 +31,9 @@ export async function GET(req: Request) {
     });
 
     if (matchRegistro) {
+      const fn = matchRegistro.fechaNacimiento
+        ? matchRegistro.fechaNacimiento.toISOString().slice(0, 10)
+        : "";
       return NextResponse.json({
         found: true,
         source: "censo",
@@ -39,6 +42,9 @@ export async function GET(req: Request) {
           cedula: digits,
           nombreApellido: matchRegistro.nombreApellido,
           telefono: matchRegistro.telefono || "",
+          genero: matchRegistro.genero || "",
+          fechaNacimiento: fn,
+          edad: matchRegistro.edad ?? null,
           refugio: matchRegistro.refugio,
           parroquia: matchRegistro.parroquia,
           cuarto: matchRegistro.cuarto || "",
@@ -54,6 +60,20 @@ export async function GET(req: Request) {
     });
 
     if (matchPadron) {
+      const fn = matchPadron.fechaNacimiento
+        ? matchPadron.fechaNacimiento.toISOString().slice(0, 10)
+        : "";
+      let edad: number | null = null;
+      if (fn) {
+        const d = new Date(fn + "T00:00:00");
+        if (!isNaN(d.getTime())) {
+          const t = new Date();
+          let age = t.getFullYear() - d.getFullYear();
+          const m = t.getMonth() - d.getMonth();
+          if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
+          if (age >= 0) edad = age;
+        }
+      }
       return NextResponse.json({
         found: true,
         source: "padron",
@@ -62,11 +82,80 @@ export async function GET(req: Request) {
           cedula: digits,
           nombreApellido: matchPadron.nombreCompleto,
           telefono: "",
+          genero: matchPadron.sexo === "M" || matchPadron.sexo === "MASCULINO" ? "MASCULINO" : "FEMENINO",
+          fechaNacimiento: fn,
+          edad,
           refugio: "",
           parroquia: matchPadron.parroquia || "",
           cuarto: "",
         },
       });
+    }
+
+    // 3) Fallback: Buscar en REP externo (api.cedula.com.ve)
+    if (digits.length >= 5) {
+      try {
+        const API_BASE = "https://api.cedula.com.ve/api/v1";
+        const DEFAULT_APP_ID = "9306";
+        const DEFAULT_TOKEN = "089a0ac861dadfe75a4c7ce0af5f94b0";
+        const appId = process.env.CEDULA_API_APP_ID || DEFAULT_APP_ID;
+        const token = process.env.CEDULA_API_TOKEN || DEFAULT_TOKEN;
+
+        const apiUrl = `${API_BASE}?app_id=${encodeURIComponent(appId)}&token=${encodeURIComponent(token)}&nacionalidad=V&cedula=${digits}`;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        let json: any = null;
+        try {
+          const res = await fetch(apiUrl, { signal: controller.signal, headers: { Accept: "application/json" } });
+          json = await res.json().catch(() => null);
+        } finally {
+          clearTimeout(timer);
+        }
+
+        const data = json && json.error === false ? json.data : null;
+        if (data) {
+          const nombreApellido = [data.primer_nombre, data.segundo_nombre, data.primer_apellido, data.segundo_apellido]
+            .map((s: any) => (s == null ? "" : String(s).trim()))
+            .filter(Boolean)
+            .join(" ");
+
+          const sexoRaw = String(data.sexo ?? data.genero ?? "").trim().toUpperCase();
+          const genero = sexoRaw.startsWith("F") ? "FEMENINO" : sexoRaw.startsWith("M") ? "MASCULINO" : "";
+          const fn = String(data.fecha_nac ?? "").trim().slice(0, 10);
+          let edad: number | null = null;
+          if (fn) {
+            const d = new Date(fn + "T00:00:00");
+            if (!isNaN(d.getTime())) {
+              const t = new Date();
+              let age = t.getFullYear() - d.getFullYear();
+              const m = t.getMonth() - d.getMonth();
+              if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
+              if (age >= 0) edad = age;
+            }
+          }
+
+          if (nombreApellido) {
+            return NextResponse.json({
+              found: true,
+              source: "rep",
+              persona: {
+                registroId: null,
+                cedula: digits,
+                nombreApellido,
+                telefono: "",
+                genero,
+                fechaNacimiento: fn,
+                edad,
+                refugio: "",
+                parroquia: "",
+                cuarto: "",
+              },
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("Error en fallback REP para PlanteamientoSala:", e);
+      }
     }
 
     return NextResponse.json({ found: false });

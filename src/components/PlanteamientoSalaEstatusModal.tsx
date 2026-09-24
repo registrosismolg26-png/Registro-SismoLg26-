@@ -27,25 +27,44 @@ export default function PlanteamientoSalaEstatusModal({
 
   const [estatus, setEstatus] = useState<PlanteamientoSalaEstatus>("EN PROCESO");
   const [observacion, setObservacion] = useState("");
+  const [fechaEntregaSubsidio, setFechaEntregaSubsidio] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen && item) {
       setEstatus(item.estatus || "EN PROCESO");
       setObservacion(item.observacion || "");
+      setFechaEntregaSubsidio(
+        item.fechaEntregaSubsidio ||
+        (item.estatus === "CREDITO ENTREGADO" ? new Date().toISOString().slice(0, 10) : "")
+      );
     }
   }, [isOpen, item]);
 
   if (!modal.mounted || !item) return null;
 
+  const handleEstatusChange = (val: PlanteamientoSalaEstatus) => {
+    setEstatus(val);
+    if (val === "CREDITO ENTREGADO" && !fechaEntregaSubsidio) {
+      setFechaEntregaSubsidio(new Date().toISOString().slice(0, 10));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const payload: any = { estatus, observacion };
+      if (estatus === "CREDITO ENTREGADO") {
+        payload.fechaEntregaSubsidio = fechaEntregaSubsidio || new Date().toISOString().slice(0, 10);
+      } else {
+        payload.fechaEntregaSubsidio = null;
+      }
+
       const res = await apiFetch(`/api/planteamiento-sala/${encodeURIComponent(item.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estatus, observacion }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.success) {
@@ -89,9 +108,12 @@ export default function PlanteamientoSalaEstatusModal({
             className="toolbar-btn"
             onClick={onClose}
             aria-label="Cerrar modal"
-            style={{ width: "32px", height: "32px", padding: 0 }}
+            style={{ width: "32px", height: "32px", padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
           >
-            ✕
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
@@ -100,11 +122,29 @@ export default function PlanteamientoSalaEstatusModal({
             <label>Estatus</label>
             <StyledSelect
               value={estatus}
-              onChange={(v) => setEstatus(v as PlanteamientoSalaEstatus)}
+              onChange={(v) => handleEstatusChange(v as PlanteamientoSalaEstatus)}
               ariaLabel="Estatus del expediente"
               options={ESTATUS_SALA_OPTIONS.map((e) => ({ value: e.value, label: e.label }))}
             />
           </div>
+
+          {estatus === "CREDITO ENTREGADO" && (
+            <div className="form-group" style={{ marginBottom: "1rem" }}>
+              <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Fecha de Entrega de Subsidio</span>
+                <span style={{ fontSize: "0.72rem", color: "#059669", fontWeight: 700 }}>
+                  (Crédito Entregado)
+                </span>
+              </label>
+              <input
+                type="date"
+                value={fechaEntregaSubsidio || new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setFechaEntregaSubsidio(e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                required
+              />
+            </div>
+          )}
 
           <div className="form-group" style={{ marginBottom: "1.5rem" }}>
             <label>Observación</label>

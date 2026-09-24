@@ -112,6 +112,18 @@ export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignac
 // ── PLANTEAMIENTO SALA (Solo Master / Planteamiento Master) ───────────────────
 export type TituloCasaTipo = "NINGUNO" | "TITULO_PROPIEDAD" | "TITULO_SUPLETORIO" | "COMPRA_VENTA";
 export type PlanteamientoSalaEstatus = "CREDITO ENTREGADO" | "EN PROCESO" | "CARPETA RETORNADA" | "CON NOVEDAD EN LA SEDE";
+export type TipoOpcionPlanteamiento = "MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE";
+
+export interface PlanteamientoCargaFamiliarItem {
+  id: string;
+  cedula: string;
+  nombreApellido: string;
+  parentesco: string;
+  genero?: string | null;
+  fechaNacimiento?: string | null;
+  edad?: number | null;
+  telefono?: string | null;
+}
 
 export interface PlanteamientoSalaItem {
   id: string;
@@ -120,7 +132,16 @@ export interface PlanteamientoSalaItem {
   cedula: string;
   nombreApellido: string;
   telefono?: string | null;
+  genero?: string | null;
+  fechaNacimiento?: string | null;
+  edad?: number | null;
   registroId?: string | null;
+  cargaFamiliar?: PlanteamientoCargaFamiliarItem[] | null;
+
+  // Modalidad / Tipo de Opción
+  tipoOpcion: TipoOpcionPlanteamiento;
+
+  // 1. Mercado Secundario (10 Requisitos)
   planillaCaracterizacion: "SI" | "NO";
   cedulaCatastral: "SI" | "NO";
   tituloCasa: TituloCasaTipo;
@@ -131,50 +152,123 @@ export interface PlanteamientoSalaItem {
   fotosVivienda: "SI" | "NO";
   cantidadFotos: number;
   vendedorPoseePatria: "SI" | "NO";
+  qrColapsoVivienda?: "SI" | "NO";
+
+  // 2. Alquiler (7 Requisitos)
+  cartaCompromiso?: "SI" | "NO";
+  fotosAlquiler?: "SI" | "NO";
+  cantidadFotosAlquiler?: number;
+  referenciaBancariaAlquiler?: "SI" | "NO";
+  cedulaArrendador?: "SI" | "NO";
+  cedulaArrendatario?: "SI" | "NO";
+  rifArrendador?: "SI" | "NO";
+  rifArrendatario?: "SI" | "NO";
+
+  // 3. Plan Venezuela Renace (Requisitos y Materiales)
+  rifViviendaDanos?: "SI" | "NO";
+  fotosViviendaRenace?: "SI" | "NO";
+  cantidadFotosRenace?: number;
+  sacosCemento?: number;
+  metrosArena?: number;
+  bloques?: number;
+  cabillas?: number;
+  pego?: number;
+
   porcentajeProgreso: number;
   estatus: PlanteamientoSalaEstatus;
   observacion?: string | null;
+  fechaEntregaCarpeta?: string | null;
+  fechaEntregaSubsidio?: string | null;
   createdBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface PlanteamientoSalaStats {
-  global: {
-    totalPersonas: number;
-    promedioProgreso: number;
-    porEstatus: Record<PlanteamientoSalaEstatus, number>;
-    porRequisito: {
-      planillaCaracterizacion: number;
-      cedulaCatastral: number;
-      conTituloCasa: number;
-      referenciaBancariaVendedor: number;
-      qrHabitatVivienda: number;
-      cedulaVendedor: number;
-      cedulaComprador: number;
-      fotosVivienda: number;
-      vendedorPoseePatria: number;
-    };
-    titulosCasaDesglose: Record<TituloCasaTipo, number>;
+export interface PlanteamientoDemografiaStats {
+  generoTitulares: { femenino: number; masculino: number; noEspecificado: number };
+  generoTotal: { femenino: number; masculino: number; noEspecificado: number };
+  gruposEdad: {
+    ninosAdolescentes: number; // 0-17
+    jovenes: number;           // 18-29
+    adultos: number;           // 30-59
+    adultosMayores: number;    // 60+
+    sinDato: number;
   };
-  campamentos: {
+  parentescos: Record<string, number>;
+}
+
+export interface PlanteamientoRequisitosMercadoSecundario {
+  total: number;
+  porRequisito: {
+    planillaCaracterizacion: number;
+    cedulaCatastral: number;
+    conTituloCasa: number;
+    referenciaBancariaVendedor: number;
+    qrHabitatVivienda: number;
+    cedulaVendedor: number;
+    cedulaComprador: number;
+    fotosVivienda: number;
+    vendedorPoseePatria: number;
+    qrColapsoVivienda: number;
+  };
+  titulosCasaDesglose: Record<TituloCasaTipo, number>;
+}
+
+export interface PlanteamientoRequisitosAlquiler {
+  total: number;
+  porRequisito: {
+    cartaCompromiso: number;
+    fotosAlquiler: number;
+    referenciaBancariaAlquiler: number;
+    cedulaArrendador: number;
+    cedulaArrendatario: number;
+    rifArrendador: number;
+    rifArrendatario: number;
+  };
+}
+
+export interface PlanteamientoRequisitosVenezuelaRenace {
+  total: number;
+  porRequisito: {
+    rifViviendaDanos: number;
+    fotosViviendaRenace: number;
+    conMateriales: number;
+  };
+  materialesTotales: {
+    sacosCemento: number;
+    metrosArena: number;
+    bloques: number;
+    cabillas: number;
+    pego: number;
+  };
+}
+
+export interface PlanteamientoSalaStatsScope {
+  totalPersonas: number;
+  totalCargaFamiliar: number;
+  totalPoblacion: number;
+  promedioProgreso: number;
+  porEstatus: Record<PlanteamientoSalaEstatus, number>;
+  porTipoOpcion: Record<TipoOpcionPlanteamiento, number>;
+  demografia: PlanteamientoDemografiaStats;
+  mercadoSecundario: PlanteamientoRequisitosMercadoSecundario;
+  alquiler: PlanteamientoRequisitosAlquiler;
+  venezuelaRenace: PlanteamientoRequisitosVenezuelaRenace;
+  // Compatibilidad hacia atrás
+  porRequisito: PlanteamientoRequisitosMercadoSecundario["porRequisito"];
+  titulosCasaDesglose: Record<TituloCasaTipo, number>;
+}
+
+export interface PlanteamientoSalaStats {
+  global: PlanteamientoSalaStatsScope;
+  campamentos: (PlanteamientoSalaStatsScope & {
     refugio: string;
     refugioId?: string | null;
-    totalPersonas: number;
-    promedioProgreso: number;
-    porEstatus: Record<PlanteamientoSalaEstatus, number>;
-    porRequisito: {
-      planillaCaracterizacion: number;
-      cedulaCatastral: number;
-      conTituloCasa: number;
-      referenciaBancariaVendedor: number;
-      qrHabitatVivienda: number;
-      cedulaVendedor: number;
-      cedulaComprador: number;
-      fotosVivienda: number;
-      vendedorPoseePatria: number;
-    };
-    titulosCasaDesglose: Record<TituloCasaTipo, number>;
+  })[];
+  avanceTemporal?: {
+    mes: string;
+    carpetas: number;
+    creditos: number;
   }[];
 }
 

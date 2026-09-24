@@ -296,6 +296,37 @@ export const ESTATUS_SALA_OPTIONS = [
   { value: "CON NOVEDAD EN LA SEDE", label: "CON NOVEDAD EN LA SEDE", color: "#dc2626", bg: "rgba(220, 38, 38, 0.12)" },
 ] as const;
 
+export const TIPO_OPCION_PLANTEAMIENTO_OPTIONS = [
+  {
+    value: "MERCADO_SECUNDARIO",
+    label: "MERCADO SECUNDARIO",
+    shortLabel: "Mercado Secundario",
+    color: "#2563eb",
+    bg: "rgba(37, 99, 235, 0.12)",
+    border: "rgba(37, 99, 235, 0.3)",
+    requisitosCount: 10,
+  },
+  {
+    value: "ALQUILER",
+    label: "ALQUILER",
+    shortLabel: "Alquiler",
+    color: "#059669",
+    bg: "rgba(5, 150, 105, 0.12)",
+    border: "rgba(5, 150, 105, 0.3)",
+    requisitosCount: 7,
+  },
+  {
+    value: "PLAN_VENEZUELA_RENACE",
+    label: "PLAN VENEZUELA RENACE",
+    shortLabel: "Plan Vzla Renace",
+    color: "#7c3aed",
+    bg: "rgba(124, 58, 237, 0.12)",
+    border: "rgba(124, 58, 237, 0.3)",
+    requisitosCount: 3,
+  },
+] as const;
+
+
 // ── Planteamiento Sala (26 Campamentos Oficiales) ───────────────────────────
 export const CAMPAMENTOS_PLANTEAMIENTO_SALA = [
   "Liceo Nacional Lorenzo González",

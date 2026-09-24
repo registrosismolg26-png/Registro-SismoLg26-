@@ -14658,3 +14658,92 @@ select.morb-control {
     padding-right: 1rem;
   }
 }
+
+/* ── PLANTEAMIENTO SALA — Tabla Responsiva con Columna de Acciones Fija ─────────── */
+.sala-table-wrapper {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.sala-table {
+  width: 100%;
+  min-width: 1020px;
+  border-collapse: collapse;
+}
+
+.sala-table th {
+  padding: 0.9rem 1rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-color) !important;
+  white-space: nowrap;
+}
+
+.sala-table td {
+  padding: 0.85rem 1rem !important;
+  vertical-align: middle !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.sala-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.sala-table tbody tr:hover {
+  background-color: rgba(37, 99, 235, 0.03) !important;
+}
+
+.sala-col-action {
+  width: 175px !important;
+  min-width: 175px !important;
+  max-width: 175px !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 2 !important;
+  background-color: var(--card-bg, var(--bg-primary)) !important;
+  box-shadow: -8px 0 16px rgba(0, 0, 0, 0.12) !important;
+  border-left: 1px solid var(--border-color) !important;
+}
+
+.sala-table thead th.sala-col-action {
+  background-color: var(--color-primary-light, #1e293b) !important;
+  z-index: 3 !important;
+}
+
+.sala-table tbody tr:hover td.sala-col-action {
+  background-color: var(--color-primary-light, #1e293b) !important;
+}
+
+.sala-actions-group {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+}
+
+.sala-btn-action {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.1s ease, background-color 0.15s ease !important;
+}
+
+.sala-btn-action:hover {
+  transform: translateY(-1px);
+}
