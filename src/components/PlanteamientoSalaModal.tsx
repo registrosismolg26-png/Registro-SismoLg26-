@@ -20,6 +20,8 @@ import type {
 } from "@/types";
 
 const TIPO_FAMILIAR_OPTIONS = [
+  "Padre",
+  "Madre",
   "Esposa",
   "Esposo",
   "Hermano",
@@ -1151,9 +1153,9 @@ export default function PlanteamientoSalaModal({
                                   type="button"
                                   onClick={() => {
                                     let newGen = fam.genero;
-                                    if (["Esposa", "Hermana", "Hija", "Nieta"].includes(tipo)) {
+                                    if (["Madre", "Esposa", "Hermana", "Hija", "Nieta"].includes(tipo)) {
                                       newGen = "FEMENINO";
-                                    } else if (["Esposo", "Hermano", "Hijo", "Nieto"].includes(tipo)) {
+                                    } else if (["Padre", "Esposo", "Hermano", "Hijo", "Nieto"].includes(tipo)) {
                                       newGen = "MASCULINO";
                                     }
                                     updateFamiliarRow(fam.id, { parentesco: tipo, genero: newGen });

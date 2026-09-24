@@ -24,6 +24,9 @@ function formatDateDisplay(dStr?: string | null): string {
 
 const getParentescoStyle = (parentesco: string) => {
   const p = (parentesco || "").toUpperCase();
+  if (["PADRE", "MADRE", "PAPA", "MAMA"].includes(p)) {
+    return { bg: "rgba(124, 58, 237, 0.12)", color: "#7c3aed", border: "rgba(124, 58, 237, 0.25)" };
+  }
   if (["ESPOSA", "ESPOSO", "CONYUGE"].includes(p)) {
     return { bg: "rgba(236, 72, 153, 0.12)", color: "#db2777", border: "rgba(236, 72, 153, 0.25)" };
   }
