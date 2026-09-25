@@ -392,6 +392,7 @@ export default function AsignacionesTab() {
   const [filterEstadoFisico, setFilterEstadoFisico] = useState("");
   const [filterCuarto, setFilterCuarto] = useState("");
   const [filterRetirado, setFilterRetirado] = useState("NO");
+  const [filterEstatusFamiliar, setFilterEstatusFamiliar] = useState("");
   const [filterRazon, setFilterRazon] = useState(""); // tipo base de la razón de retiro (solo aplica a egresados)
   const [filterRegistrador, setFilterRegistrador] = useState(""); // operador que censó
   const [filterDesde, setFilterDesde] = useState(""); // yyyy-mm-dd (fecha de registro)
@@ -424,6 +425,21 @@ export default function AsignacionesTab() {
       finally { setPendingSelectId(null); fetchSelectRef.current = null; }
     })();
   }, [registros, pendingSelectId]);
+
+  // Cédula o ID base para agrupar familias (mismo criterio en listado, dashboard y exports)
+  const famKeyOf = (r: any) =>
+    cedulaFamilia(r.jefeFamilia === "SI" ? r.cedula : r.cedulaJefeFamilia || r.cedula) ||
+    r.id;
+
+  // Conteo de integrantes por grupo familiar en el censo actual
+  const familyGroupCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    registros.forEach((r: any) => {
+      const k = famKeyOf(r);
+      counts.set(k, (counts.get(k) || 0) + 1);
+    });
+    return counts;
+  }, [registros]);
 
   const filteredRegistros = useMemo(() => {
     let result = registros;
@@ -489,6 +505,28 @@ export default function AsignacionesTab() {
     if (filterRetirado) {
       result = result.filter((r) => (r.retirado || "NO") === filterRetirado);
     }
+    // Filtro de Estatus Familiar: Jefe de Familia, Personas Solas, Integrante de Familia
+    if (filterEstatusFamiliar) {
+      result = result.filter((r) => {
+        const famSize = familyGroupCounts.get(famKeyOf(r)) || 1;
+        if (filterEstatusFamiliar === "JEFE") {
+          return (
+            (r.jefeFamilia === "SI" && r.perteneceNucleo !== "NO") ||
+            (r.jefeFamilia === "SI" && famSize >= 2)
+          );
+        }
+        if (filterEstatusFamiliar === "SOLO") {
+          return r.perteneceNucleo === "NO" || famSize === 1;
+        }
+        if (filterEstatusFamiliar === "INTEGRANTE") {
+          return (
+            r.jefeFamilia !== "SI" &&
+            (r.perteneceNucleo === "SI" || famSize >= 2)
+          );
+        }
+        return true;
+      });
+    }
     // Razón de retiro: empareja por el TIPO base (ignora la especificación), así el
     // filtro sigue siendo "inteligente" aunque cada egreso tenga su propio texto.
     // "Otra" agrupa todo lo que no cae en un tipo canónico (incluye texto libre viejo).
@@ -527,6 +565,8 @@ export default function AsignacionesTab() {
     filterEstadoFisico,
     filterCuarto,
     filterRetirado,
+    filterEstatusFamiliar,
+    familyGroupCounts,
     filterRazon,
     filterRegistrador,
     filterDesde,
@@ -537,9 +577,6 @@ export default function AsignacionesTab() {
   // JEFE primero y luego los integrantes (alfabético). Las familias conservan el
   // orden de aparición (más reciente primero). Este orden se usa tanto en pantalla
   // (paginado) como en el Excel de registrados → "JEFE / INTEGRANTE / INTEGRANTE".
-  const famKeyOf = (r: any) =>
-    cedulaFamilia(r.jefeFamilia === "SI" ? r.cedula : r.cedulaJefeFamilia || r.cedula) ||
-    r.id;
   // Iniciales para el avatar (primer + último nombre); respaldo "?".
   const initialsOf = (name: string) => {
     const parts = String(name || "")
@@ -605,6 +642,7 @@ export default function AsignacionesTab() {
     filterEstadoFisico,
     filterCuarto,
     filterRetirado,
+    filterEstatusFamiliar,
     filterRazon,
     filterRegistrador,
     filterDesde,
@@ -1024,6 +1062,9 @@ export default function AsignacionesTab() {
     if (filterCuarto) parts.push(`Habitación: ${filterCuarto === "sin_asignar" ? "Sin asignar" : formatRoomLabel(filterCuarto)}`);
     if (filterRetirado === "SI") parts.push("Estatus: Egresados / Retirados");
     else if (filterRetirado === "") parts.push("Estatus: Todos (presentes y egresados)");
+    if (filterEstatusFamiliar === "JEFE") parts.push("Estatus familiar: Jefe de Familia");
+    else if (filterEstatusFamiliar === "SOLO") parts.push("Estatus familiar: Personas Solas");
+    else if (filterEstatusFamiliar === "INTEGRANTE") parts.push("Estatus familiar: Integrante de Familia");
     if (filterRazon) parts.push(`Razón de retiro: ${filterRazon}`);
     if (filterRegistrador) parts.push(`Registrador: ${filterRegistrador}`);
     if (filterDesde) parts.push(`Desde ${dmy(filterDesde)}`);
@@ -1522,6 +1563,7 @@ export default function AsignacionesTab() {
               filterEstadoFisico ||
               filterCuarto ||
               filterRetirado !== "NO" ||
+              filterEstatusFamiliar ||
               filterRazon ||
               filterRegistrador ||
               filterDesde ||
@@ -1538,6 +1580,7 @@ export default function AsignacionesTab() {
                   setFilterEstadoFisico("");
                   setFilterCuarto("");
                   setFilterRetirado("NO");
+                  setFilterEstatusFamiliar("");
                   setFilterRazon("");
                   setFilterRegistrador("");
                   setFilterDesde("");
@@ -1673,6 +1716,21 @@ export default function AsignacionesTab() {
                     { value: "", label: "Todos (Presentes y Egresados)" },
                     { value: "NO", label: "Presentes actualmente" },
                     { value: "SI", label: "Egresados / Retirados" },
+                  ]}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Estatus Familiar</label>
+                <StyledSelect
+                  value={filterEstatusFamiliar}
+                  onChange={setFilterEstatusFamiliar}
+                  ariaLabel="Estatus Familiar"
+                  options={[
+                    { value: "", label: "Todos" },
+                    { value: "JEFE", label: "Jefe de Familia" },
+                    { value: "SOLO", label: "Personas Solas" },
+                    { value: "INTEGRANTE", label: "Integrante de Familia" },
                   ]}
                 />
               </div>
