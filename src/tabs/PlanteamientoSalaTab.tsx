@@ -111,6 +111,9 @@ export default function PlanteamientoSalaTab() {
       if (normalizeText(it.nombreApellido).includes(q)) return true;
       if (it.cedula.includes(qDigits)) return true;
       if (normalizeText(it.refugio).includes(q)) return true;
+      if (it.viviendaEdificacion && normalizeText(it.viviendaEdificacion).includes(q)) return true;
+      if (it.viviendaDireccion && normalizeText(it.viviendaDireccion).includes(q)) return true;
+      if (it.viviendaCircuitoComunal && normalizeText(it.viviendaCircuitoComunal).includes(q)) return true;
       if (it.observacion && normalizeText(it.observacion).includes(q)) return true;
       return false;
     });

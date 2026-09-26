@@ -566,6 +566,18 @@ model PlanteamientoSala {
   // Carga Familiar (Lista de integrantes dependientes en formato JSON)
   cargaFamiliar              Json?     @default("[]")
 
+  // Datos de Vivienda Censada (vía QR de Colapso / Hábitat)
+  viviendaTipo               String?   // "Apartamento", "Casa", etc.
+  viviendaEdificacion        String?   // "Edificio OPPPE 26-B"
+  viviendaPisoApto           String?   // "9 / 03"
+  viviendaDireccion          String?   // "Vargas, La Guaira, 11, Venezuela"
+  viviendaZona               String?   // "CARABALLEDA, VARGAS, LA GUAIRA"
+  viviendaCircuitoComunal    String?   // "Circuito Tanaguarena Fabricio Ojeda"
+  viviendaGps                String?   // "10.615410, -66.840420"
+  viviendaQrUrl              String?   // URL del QR escaneado
+  viviendaQrFamilia          Json?     @default("[]") // [{ nombre, cedula }]
+  viviendaOperador           String?   // Operador de censo que levantó la información
+
   // Modalidad / Tipo de Opción
   tipoOpcion                 String    @default("MERCADO_SECUNDARIO") // "MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE"
 

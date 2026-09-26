@@ -125,6 +125,11 @@ export interface PlanteamientoCargaFamiliarItem {
   telefono?: string | null;
 }
 
+export interface ViviendaQrFamiliarMember {
+  nombre: string;
+  cedula: string;
+}
+
 export interface PlanteamientoSalaItem {
   id: string;
   refugioId?: string | null;
@@ -137,6 +142,18 @@ export interface PlanteamientoSalaItem {
   edad?: number | null;
   registroId?: string | null;
   cargaFamiliar?: PlanteamientoCargaFamiliarItem[] | null;
+
+  // Datos de Vivienda Censada (vía QR de Colapso / Hábitat)
+  viviendaTipo?: string | null;
+  viviendaEdificacion?: string | null;
+  viviendaPisoApto?: string | null;
+  viviendaDireccion?: string | null;
+  viviendaZona?: string | null;
+  viviendaCircuitoComunal?: string | null;
+  viviendaGps?: string | null;
+  viviendaQrUrl?: string | null;
+  viviendaQrFamilia?: ViviendaQrFamiliarMember[] | null;
+  viviendaOperador?: string | null;
 
   // Modalidad / Tipo de Opción
   tipoOpcion: TipoOpcionPlanteamiento;

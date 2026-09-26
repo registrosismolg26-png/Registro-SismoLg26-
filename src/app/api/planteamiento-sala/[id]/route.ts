@@ -106,6 +106,28 @@ export async function PATCH(
       updateData.cargaFamiliar = JSON.parse(JSON.stringify(updateData.cargaFamiliar));
     }
 
+    const viviendaFields = [
+      "viviendaTipo",
+      "viviendaEdificacion",
+      "viviendaPisoApto",
+      "viviendaDireccion",
+      "viviendaZona",
+      "viviendaCircuitoComunal",
+      "viviendaGps",
+      "viviendaQrUrl",
+      "viviendaOperador",
+    ];
+    for (const vf of viviendaFields) {
+      if (body[vf] !== undefined) {
+        updateData[vf] = body[vf] ? String(body[vf]).trim() : null;
+      }
+    }
+    if (body.viviendaQrFamilia !== undefined) {
+      updateData.viviendaQrFamilia = Array.isArray(body.viviendaQrFamilia)
+        ? JSON.parse(JSON.stringify(body.viviendaQrFamilia))
+        : [];
+    }
+
     // Si se enviaron requisitos o modalidad, actualizarlos y recalcular progreso
     const reqFields = [
       "tipoOpcion",

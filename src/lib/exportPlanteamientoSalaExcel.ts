@@ -101,7 +101,16 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
-  // Definición de columnas según modalidad
+  const viviendaCols: [string, number][] = [
+    ["Tipo Vivienda", 15],
+    ["Edificación", 24],
+    ["Piso / Apto", 14],
+    ["Dirección", 28],
+    ["Zona", 24],
+    ["Circuito Comunal", 24],
+    ["GPS", 18],
+  ];
+
   let cols: [string, number][] = [];
 
   if (modalidad === "MERCADO_SECUNDARIO") {
@@ -116,6 +125,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       ["Teléfono", 15],
       ["Cant. Carga", 12],
       ["Carga Familiar", 35],
+      ...viviendaCols,
       ["F. Entrega Carpeta", 18],
       ["Estatus", 19],
       ["F. Entrega Subsidio", 18],
@@ -147,6 +157,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       ["Teléfono", 15],
       ["Cant. Carga", 12],
       ["Carga Familiar", 35],
+      ...viviendaCols,
       ["F. Entrega Carpeta", 18],
       ["Estatus", 19],
       ["F. Entrega Subsidio", 18],
@@ -176,6 +187,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       ["Teléfono", 15],
       ["Cant. Carga", 12],
       ["Carga Familiar", 35],
+      ...viviendaCols,
       ["F. Entrega Carpeta", 18],
       ["Estatus", 19],
       ["F. Entrega Subsidio", 18],
@@ -300,6 +312,13 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       item.telefono || "—",
       cantCarga,
       detalleCarga,
+      item.viviendaTipo || "—",
+      item.viviendaEdificacion || "—",
+      item.viviendaPisoApto || "—",
+      item.viviendaDireccion || "—",
+      item.viviendaZona || "—",
+      item.viviendaCircuitoComunal || "—",
+      item.viviendaGps || "—",
       formatDateDisplay(item.fechaEntregaCarpeta || item.createdAt),
       item.estatus || "EN PROCESO",
       formatDateDisplay(item.fechaEntregaSubsidio),
@@ -370,7 +389,21 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       };
 
       // Alineación
-      if (cIdx === 0 || cIdx === 2 || cIdx === 4 || cIdx === 5 || cIdx === 6 || cIdx === 8 || cIdx === 10 || cIdx === 12 || cIdx === 13) {
+      if (
+        cIdx === 0 || // N°
+        cIdx === 2 || // Cédula
+        cIdx === 4 || // Género
+        cIdx === 5 || // Fecha Nac
+        cIdx === 6 || // Edad
+        cIdx === 8 || // Cant. Carga
+        cIdx === 10 || // Tipo Vivienda
+        cIdx === 12 || // Piso / Apto
+        cIdx === 16 || // GPS
+        cIdx === 17 || // F. Entrega Carpeta
+        cIdx === 18 || // Estatus
+        cIdx === 19 || // F. Entrega Subsidio
+        cIdx === 20 // Progreso
+      ) {
         cell.alignment = { vertical: "middle", horizontal: "center" };
       } else if (typeof v === "number" || v === "SI" || v === "NO") {
         cell.alignment = { vertical: "middle", horizontal: "center" };
@@ -386,7 +419,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       }
 
       // Resalte de estatus
-      if (cIdx === 11) {
+      if (cIdx === 18) {
         if (v === "CREDITO ENTREGADO") {
           cell.font = { name: "Arial", size: 8.5, bold: true, color: { argb: "059669" } };
         } else if (v === "EN PROCESO") {

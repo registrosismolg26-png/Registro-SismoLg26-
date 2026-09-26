@@ -11,6 +11,7 @@ import {
 } from "@/lib/constants";
 import { apiFetch } from "@/lib/apiFetch";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
+import PlanteamientoSalaQrScannerModal from "@/components/PlanteamientoSalaQrScannerModal";
 import type {
   PlanteamientoSalaItem,
   TituloCasaTipo,
@@ -127,6 +128,19 @@ export default function PlanteamientoSalaModal({
   const [saving, setSaving] = useState(false);
   const [lookupMessage, setLookupMessage] = useState("");
 
+  // Dirección y Vivienda Censada (vía QR)
+  const [viviendaTipo, setViviendaTipo] = useState("");
+  const [viviendaEdificacion, setViviendaEdificacion] = useState("");
+  const [viviendaPisoApto, setViviendaPisoApto] = useState("");
+  const [viviendaDireccion, setViviendaDireccion] = useState("");
+  const [viviendaZona, setViviendaZona] = useState("");
+  const [viviendaCircuitoComunal, setViviendaCircuitoComunal] = useState("");
+  const [viviendaGps, setViviendaGps] = useState("");
+  const [viviendaQrUrl, setViviendaQrUrl] = useState("");
+  const [viviendaQrFamilia, setViviendaQrFamilia] = useState<Array<{ nombre: string; cedula: string }>>([]);
+  const [viviendaOperador, setViviendaOperador] = useState("");
+  const [showQrScanner, setShowQrScanner] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       if (itemToEdit) {
@@ -192,6 +206,17 @@ export default function PlanteamientoSalaModal({
         );
         setFechaEntregaSubsidio(itemToEdit.fechaEntregaSubsidio || "");
 
+        setViviendaTipo(itemToEdit.viviendaTipo || "");
+        setViviendaEdificacion(itemToEdit.viviendaEdificacion || "");
+        setViviendaPisoApto(itemToEdit.viviendaPisoApto || "");
+        setViviendaDireccion(itemToEdit.viviendaDireccion || "");
+        setViviendaZona(itemToEdit.viviendaZona || "");
+        setViviendaCircuitoComunal(itemToEdit.viviendaCircuitoComunal || "");
+        setViviendaGps(itemToEdit.viviendaGps || "");
+        setViviendaQrUrl(itemToEdit.viviendaQrUrl || "");
+        setViviendaQrFamilia(Array.isArray(itemToEdit.viviendaQrFamilia) ? (itemToEdit.viviendaQrFamilia as any) : []);
+        setViviendaOperador(itemToEdit.viviendaOperador || "");
+
         const famList: PlanteamientoCargaFamiliarItem[] = Array.isArray(itemToEdit.cargaFamiliar)
           ? (itemToEdit.cargaFamiliar as PlanteamientoCargaFamiliarItem[])
           : [];
@@ -210,6 +235,17 @@ export default function PlanteamientoSalaModal({
         setFechaEntregaSubsidio("");
         setRegistroId(null);
         setTipoOpcion("MERCADO_SECUNDARIO");
+
+        setViviendaTipo("");
+        setViviendaEdificacion("");
+        setViviendaPisoApto("");
+        setViviendaDireccion("");
+        setViviendaZona("");
+        setViviendaCircuitoComunal("");
+        setViviendaGps("");
+        setViviendaQrUrl("");
+        setViviendaQrFamilia([]);
+        setViviendaOperador("");
 
         setCargaFamiliar([]);
         setSearchingRows({});
@@ -539,6 +575,20 @@ export default function PlanteamientoSalaModal({
     }
   };
 
+  const handleQrSuccess = (extracted: any) => {
+    setViviendaTipo(extracted.tipo || "");
+    setViviendaEdificacion(extracted.edificacion || "");
+    setViviendaPisoApto(extracted.pisoApto || "");
+    setViviendaDireccion(extracted.direccion || "");
+    setViviendaZona(extracted.zona || "");
+    setViviendaCircuitoComunal(extracted.circuitoComunal || "");
+    setViviendaGps(extracted.gps || "");
+    setViviendaQrUrl(extracted.qrUrl || "");
+    setViviendaQrFamilia(Array.isArray(extracted.grupoFamiliar) ? extracted.grupoFamiliar : []);
+    setViviendaOperador(extracted.operadorCenso || "");
+    setQrColapsoVivienda("SI");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanCedula = cedula.replace(/\D/g, "");
@@ -584,6 +634,16 @@ export default function PlanteamientoSalaModal({
         fechaNacimiento: fechaNacimiento || null,
         edad: edad ? parseInt(edad, 10) : null,
         cargaFamiliar: validCargaFamiliar,
+        viviendaTipo: viviendaTipo || null,
+        viviendaEdificacion: viviendaEdificacion || null,
+        viviendaPisoApto: viviendaPisoApto || null,
+        viviendaDireccion: viviendaDireccion || null,
+        viviendaZona: viviendaZona || null,
+        viviendaCircuitoComunal: viviendaCircuitoComunal || null,
+        viviendaGps: viviendaGps || null,
+        viviendaQrUrl: viviendaQrUrl || null,
+        viviendaQrFamilia: viviendaQrFamilia,
+        viviendaOperador: viviendaOperador || null,
         fechaEntregaCarpeta: fechaEntregaCarpeta || new Date().toISOString().slice(0, 10),
         fechaEntregaSubsidio: estatus === "CREDITO ENTREGADO" ? (fechaEntregaSubsidio || new Date().toISOString().slice(0, 10)) : null,
         registroId,
@@ -904,6 +964,380 @@ export default function PlanteamientoSalaModal({
                 {lookupMessage}
               </p>
             )}
+
+            {/* SUB-SECCIÓN: DIRECCIÓN DE LA PERSONA / VIVIENDA CENSADA (VÍA QR) */}
+            <div
+              style={{
+                marginTop: "1.25rem",
+                background: "var(--bg-secondary)",
+                border: viviendaDireccion || viviendaTipo ? "1.5px solid #2563eb" : "1px solid var(--border-color)",
+                borderRadius: "14px",
+                padding: "1rem 1.15rem",
+                transition: "all 0.2s ease",
+              }}
+            >
+              {/* Cabecera de la Vivienda Censada */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "1rem",
+                  flexWrap: "wrap",
+                  marginBottom: "1rem",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "10px",
+                      background: viviendaDireccion || viviendaTipo ? "rgba(37,99,235,0.12)" : "rgba(0,0,0,0.05)",
+                      color: viviendaDireccion || viviendaTipo ? "#2563eb" : "var(--text-secondary)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 800, fontSize: "0.98rem", color: "var(--text-primary)" }}>
+                        Dirección de la Persona (Vivienda Censada)
+                      </span>
+                      {viviendaDireccion || viviendaTipo ? (
+                        <span
+                          style={{
+                            background: "#16a34a",
+                            color: "#fff",
+                            fontSize: "0.72rem",
+                            padding: "2px 9px",
+                            borderRadius: "999px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Cargado vía QR
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            background: "rgba(220,38,38,0.08)",
+                            color: "#dc2626",
+                            fontSize: "0.72rem",
+                            padding: "2px 8px",
+                            borderRadius: "999px",
+                            fontWeight: 600,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          🔒 Bloqueado · Requiere QR
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: "2px 0 0", fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                      Estos renglones están protegidos. Escanee el código QR para extraer automáticamente la información del censo.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <button
+                    type="button"
+                    className="toolbar-btn"
+                    style={{
+                      background: "#2563eb",
+                      color: "#ffffff",
+                      border: "none",
+                      fontWeight: 700,
+                      fontSize: "0.84rem",
+                      padding: "0.5rem 1.15rem",
+                      borderRadius: "8px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      boxShadow: "0 2px 6px rgba(37,99,235,0.25)",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => setShowQrScanner(true)}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                    <span>{viviendaDireccion || viviendaTipo ? "Re-escanear QR" : "Escanear QR de Vivienda"}</span>
+                  </button>
+
+                  {(viviendaDireccion || viviendaTipo) && (
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      style={{
+                        color: "var(--text-secondary)",
+                        padding: "0.5rem 0.8rem",
+                        fontSize: "0.8rem",
+                        borderRadius: "8px",
+                      }}
+                      onClick={() => {
+                        setViviendaTipo("");
+                        setViviendaEdificacion("");
+                        setViviendaPisoApto("");
+                        setViviendaDireccion("");
+                        setViviendaZona("");
+                        setViviendaCircuitoComunal("");
+                        setViviendaGps("");
+                        setViviendaQrUrl("");
+                        setViviendaQrFamilia([]);
+                        setViviendaOperador("");
+                      }}
+                      title="Limpiar datos de vivienda escaneados"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Renglones Bloqueados (readOnly) */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0.75rem" }}>
+                {/* 1. Tipo */}
+                <div className="form-group">
+                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
+                    <span>Tipo</span>
+                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={viviendaTipo}
+                    readOnly
+                    placeholder="Se completa vía QR (ej. Apartamento)"
+                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
+                  />
+                </div>
+
+                {/* 2. Edificación */}
+                <div className="form-group">
+                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
+                    <span>Edificación</span>
+                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={viviendaEdificacion}
+                    readOnly
+                    placeholder="Se completa vía QR (ej. Edificio OPPPE 26-B)"
+                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
+                  />
+                </div>
+
+                {/* 3. Piso / Apto */}
+                <div className="form-group">
+                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
+                    <span>Piso / Apto</span>
+                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={viviendaPisoApto}
+                    readOnly
+                    placeholder="Se completa vía QR (ej. 9 / 03)"
+                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
+                  />
+                </div>
+
+                {/* 4. Dirección */}
+                <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
+                    <span>Dirección</span>
+                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={viviendaDireccion}
+                    readOnly
+                    placeholder="Se completa vía QR (ej. Vargas, La Guaira, 11, Venezuela)"
+                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
+                  />
+                </div>
+
+                {/* 5. Zona */}
+                <div className="form-group">
+                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
+                    <span>Zona</span>
+                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={viviendaZona}
+                    readOnly
+                    placeholder="Se completa vía QR (ej. CARABALLEDA, VARGAS...)"
+                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
+                  />
+                </div>
+
+                {/* 6. Circuito comunal */}
+                <div className="form-group">
+                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
+                    <span>Circuito Comunal</span>
+                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={viviendaCircuitoComunal}
+                    readOnly
+                    placeholder="Se completa vía QR (ej. Circuito Tanaguarena...)"
+                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
+                  />
+                </div>
+
+                {/* 7. GPS */}
+                <div className="form-group">
+                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
+                    <span>GPS</span>
+                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={viviendaGps}
+                    readOnly
+                    placeholder="Se completa vía QR (ej. 10.615410, -66.840420)"
+                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
+                  />
+                </div>
+              </div>
+
+              {/* Visualización del Grupo Familiar extraído del QR para verificar coincidencia */}
+              {viviendaQrFamilia.length > 0 ? (
+                <div
+                  style={{
+                    marginTop: "1.1rem",
+                    padding: "1rem 1.15rem",
+                    background: "var(--bg-primary)",
+                    borderRadius: "12px",
+                    border: "1.5px solid #2563eb",
+                    boxShadow: "0 2px 8px rgba(37,99,235,0.08)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                      marginBottom: "0.75rem",
+                      paddingBottom: "0.55rem",
+                      borderBottom: "1px solid var(--border-color)",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontWeight: 800, fontSize: "0.94rem", color: "var(--text-primary)" }}>
+                        Grupo familiar ({viviendaQrFamilia.length} {viviendaQrFamilia.length === 1 ? "persona" : "personas"})
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "0.74rem",
+                        color: "#2563eb",
+                        fontWeight: 700,
+                        background: "#eff6ff",
+                        padding: "3px 9px",
+                        borderRadius: "6px",
+                        border: "1px solid rgba(37,99,235,0.25)",
+                      }}
+                    >
+                      Información extraída del QR para verificar coincidencia
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {viviendaQrFamilia.map((fam, fIdx) => (
+                      <div
+                        key={fIdx}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: "0.86rem",
+                          padding: "6px 8px",
+                          background: "var(--bg-secondary)",
+                          borderRadius: "6px",
+                          border: "1px solid var(--border-color)",
+                        }}
+                      >
+                        <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+                          {fIdx + 1}. {fam.nombre}
+                        </span>
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontWeight: 800,
+                            color: "#2563eb",
+                            fontSize: "0.85rem",
+                            background: "rgba(37,99,235,0.08)",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {fam.cedula}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {viviendaOperador && (
+                    <div
+                      style={{
+                        marginTop: "0.85rem",
+                        paddingTop: "0.6rem",
+                        borderTop: "1px dashed var(--border-color)",
+                        fontSize: "0.8rem",
+                        color: "var(--text-secondary)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <b style={{ color: "var(--text-primary)" }}>Operador de censo:</b>
+                      <span>Nombre: {viviendaOperador}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    marginTop: "0.85rem",
+                    padding: "0.75rem",
+                    background: "var(--bg-primary)",
+                    borderRadius: "8px",
+                    border: "1px dashed var(--border-color)",
+                    fontSize: "0.78rem",
+                    color: "var(--text-secondary)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: "#2563eb" }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <span>
+                    Al escanear el QR, se desplegará aquí el <b>Grupo familiar</b> censado en la vivienda para contrastar que coincida con el titular y sus cargas familiares.
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* SECCIÓN CARGA FAMILIAR POR ÍTEM / RENGLÓN */}
             <div
@@ -1853,6 +2287,13 @@ export default function PlanteamientoSalaModal({
           </div>
         </form>
       </div>
+
+      <PlanteamientoSalaQrScannerModal
+        isOpen={showQrScanner}
+        onClose={() => setShowQrScanner(false)}
+        onSuccess={handleQrSuccess}
+        showToast={showToast}
+      />
     </div>
   );
 }

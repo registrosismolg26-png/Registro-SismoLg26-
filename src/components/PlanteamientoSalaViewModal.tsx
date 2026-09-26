@@ -481,6 +481,129 @@ export default function PlanteamientoSalaViewModal({
           </div>
         </div>
 
+        {/* VIVIENDA CENSADA (DATOS EXTRAÍDOS VÍA QR) */}
+        {(item.viviendaDireccion || item.viviendaTipo || item.viviendaEdificacion) && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+              gap: "1rem",
+              marginBottom: "1.25rem",
+            }}
+          >
+            {/* Card 1: Vivienda censada */}
+            <div
+              style={{
+                background: "var(--bg-primary)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "14px",
+                padding: "1.1rem 1.25rem",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem" }}>
+                <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "var(--text-primary)" }}>
+                  Vivienda censada
+                </h4>
+                <span style={{ fontSize: "0.72rem", background: "rgba(37,99,235,0.1)", color: "#2563eb", fontWeight: 700, padding: "2px 8px", borderRadius: "6px" }}>
+                  Código QR
+                </span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem", fontSize: "0.86rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Tipo</span>
+                  <span style={{ fontWeight: 700, color: "var(--text-primary)", textAlign: "right" }}>{item.viviendaTipo || "—"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Edificación</span>
+                  <span style={{ fontWeight: 700, color: "var(--text-primary)", textAlign: "right" }}>{item.viviendaEdificacion || "—"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Piso / Apto</span>
+                  <span style={{ fontWeight: 700, color: "var(--text-primary)", textAlign: "right" }}>{item.viviendaPisoApto || "—"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Dirección</span>
+                  <span style={{ fontWeight: 600, color: "var(--text-primary)", textAlign: "right" }}>{item.viviendaDireccion || "—"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Zona</span>
+                  <span style={{ fontWeight: 600, color: "var(--text-primary)", textAlign: "right" }}>{item.viviendaZona || "—"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Circuito comunal</span>
+                  <span style={{ fontWeight: 600, color: "var(--text-primary)", textAlign: "right" }}>{item.viviendaCircuitoComunal || "—"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>GPS</span>
+                  <span style={{ fontWeight: 700, color: "var(--text-primary)", fontFamily: "monospace", textAlign: "right" }}>{item.viviendaGps || "—"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Grupo familiar del QR */}
+            {Array.isArray(item.viviendaQrFamilia) && item.viviendaQrFamilia.length > 0 && (
+              <div
+                style={{
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "14px",
+                  padding: "1.1rem 1.25rem",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem" }}>
+                  <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "var(--text-primary)" }}>
+                    Grupo familiar ({item.viviendaQrFamilia.length} {item.viviendaQrFamilia.length === 1 ? "persona" : "personas"})
+                  </h4>
+                  <span style={{ fontSize: "0.72rem", background: "#f1f5f9", color: "var(--text-secondary)", fontWeight: 700, padding: "2px 8px", borderRadius: "6px" }}>
+                    Censo de Vivienda
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {item.viviendaQrFamilia.map((fam: any, fIdx: number) => (
+                    <div
+                      key={fIdx}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "0.85rem",
+                        padding: "5px 0",
+                        borderBottom: fIdx < item.viviendaQrFamilia!.length - 1 ? "1px dashed var(--border-color)" : "none",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                        {fIdx + 1}. {fam.nombre}
+                      </span>
+                      <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--text-secondary)", fontSize: "0.82rem" }}>
+                        {fam.cedula}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {item.viviendaOperador && (
+                  <div
+                    style={{
+                      marginTop: "1rem",
+                      paddingTop: "0.75rem",
+                      borderTop: "1px solid var(--border-color)",
+                      fontSize: "0.82rem",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    <b style={{ color: "var(--text-primary)" }}>Operador de censo:</b>
+                    <div>Nombre: {item.viviendaOperador}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Carga Familiar */}
         {Array.isArray(item.cargaFamiliar) && item.cargaFamiliar.length > 0 && (
           <div
