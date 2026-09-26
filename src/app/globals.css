@@ -14834,7 +14834,28 @@ select.morb-control {
 
 .sala-table .col-campamento {
   white-space: nowrap;
-  width: 1%;
+  width: auto;
+  min-width: 170px;
+  max-width: 250px;
+}
+
+.sala-table .col-campamento .camp-pill-badge {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 4px 12px;
+  border-radius: 999px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  vertical-align: middle;
+}
+
+[data-theme="dark"] .sala-table .col-campamento .camp-pill-badge {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sala-table .col-progreso {
@@ -14846,6 +14867,13 @@ select.morb-control {
   white-space: nowrap;
   text-align: center;
   width: 1%;
+}
+
+.sala-table .col-estatus .col-estatus-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
 }
 
 .sala-table .col-action {
@@ -14864,10 +14892,56 @@ select.morb-control {
     text-align: right !important;
     white-space: normal !important;
   }
+  .sala-table .col-campamento .camp-pill-badge {
+    max-width: 100% !important;
+  }
   .sala-table .col-progreso > div {
     align-items: flex-end;
     min-width: 160px;
   }
+  .sala-table .col-estatus .col-estatus-wrap {
+    align-items: flex-end !important;
+  }
+}
+
+/* ── Planteamiento de Sala: Gráficas y Analítica ── */
+.sala-graficas {
+  --bal-radius: 20px;
+  --ctl-h: 42px;
+  --morb-h: 42px;
+  --morb-ctl-radius: 999px;
+  width: 100%;
+}
+
+.sala-graficas-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  background: var(--bg-secondary);
+  padding: 0.65rem 1.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .sala-graficas-toolbar {
+    border-radius: 20px;
+    padding: 1rem;
+  }
+}
+
+.sala-graficas .bal-card {
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  box-shadow: 0 4px 18px -10px rgba(0, 0, 0, 0.12);
+}
+
+.sala-graficas .dashboard-card {
+  border-radius: 20px !important;
 }
 
 /* ── Modales de Planteamiento Sala: 100% Pill, Centrados en PC y Bottom-Sheet / Full-Screen en Móvil ── */

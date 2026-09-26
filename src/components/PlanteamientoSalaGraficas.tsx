@@ -96,20 +96,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
   return (
     <div className="sala-graficas" style={{ display: "flex", flexDirection: "column", gap: "1.35rem" }}>
       {/* ── BARRA DE CONTROLES: Selector de Campamento y Actualizar ────────── */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "0.75rem",
-          background: "var(--bg-secondary)",
-          padding: "0.85rem 1.15rem",
-          borderRadius: "16px",
-          border: "1px solid var(--border-color)",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.03)",
-        }}
-      >
+      <div className="sala-graficas-toolbar">
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap", flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#2563eb" }}>
@@ -133,7 +120,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
               type="button"
               className="toolbar-btn"
               onClick={() => setSelectedCampamento("TODOS")}
-              style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem", height: "34px", fontWeight: 600 }}
+              style={{ fontSize: "0.8rem", padding: "0 1rem", height: "42px", borderRadius: "999px", fontWeight: 600 }}
             >
               Ver Consolidado General
             </button>
@@ -145,24 +132,23 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
           className="toolbar-btn"
           onClick={loadStats}
           disabled={loading}
-          style={{ height: "36px", padding: "0 1rem", fontWeight: 600 }}
+          style={{ height: "42px", padding: "0 1.25rem", borderRadius: "999px", fontWeight: 700, gap: "6px" }}
         >
           <svg
-            width="14"
-            height="14"
+            width="15"
+            height="15"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ marginRight: "6px" }}
           >
             <polyline points="23 4 23 10 17 10" />
             <polyline points="1 20 1 14 7 14" />
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
           </svg>
-          Actualizar Analítica
+          <span>Actualizar Analítica</span>
         </button>
       </div>
 
@@ -175,8 +161,8 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
             justifyContent: "space-between",
             background: "rgba(37, 99, 235, 0.08)",
             border: "1px solid rgba(37, 99, 235, 0.25)",
-            borderRadius: "14px",
-            padding: "0.75rem 1.15rem",
+            borderRadius: "999px",
+            padding: "0.65rem 1.25rem",
             fontSize: "0.88rem",
             flexWrap: "wrap",
             gap: "0.5rem",
