@@ -902,25 +902,47 @@ export default function PlanteamientoSalaModal({
 
               <div className="form-group">
                 <label>Cédula de la Persona</label>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
+                <div className="cedula-search-wrap">
                   <input
                     type="text"
+                    inputMode="numeric"
                     placeholder="Ej. 12345678"
                     value={cedula}
                     onChange={(e) => setCedula(e.target.value.replace(/\D/g, ""))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (cedula.replace(/\D/g, "").length >= 4) handleLookup();
+                      }
+                    }}
                     onBlur={() => {
-                      if (cedula.length >= 4 && !nombreApellido) handleLookup();
+                      const clean = cedula.replace(/\D/g, "");
+                      if (clean.length >= 4) handleLookup();
                     }}
                     required
                   />
                   <button
                     type="button"
-                    className="btn-secondary"
+                    className="cedula-search-btn"
                     onClick={() => handleLookup()}
                     disabled={searchingCedula}
-                    style={{ flexShrink: 0, padding: "0 1rem", width: "auto" }}
+                    title="Buscar en censo / CNE / REP"
+                    aria-label="Buscar cédula"
                   >
-                    {searchingCedula ? "Buscando…" : "Buscar"}
+                    <svg
+                      className={searchingCedula ? "spin-icon" : ""}
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -1321,9 +1343,9 @@ export default function PlanteamientoSalaModal({
                     <span
                       style={{
                         fontSize: "0.74rem",
-                        color: "#2563eb",
+                        color: "var(--color-primary, #2563eb)",
                         fontWeight: 700,
-                        background: "#eff6ff",
+                        background: "var(--color-primary-light, rgba(37,99,235,0.12))",
                         padding: "3px 10px",
                         borderRadius: "999px",
                         border: "1px solid rgba(37,99,235,0.25)",
@@ -1571,13 +1593,13 @@ export default function PlanteamientoSalaModal({
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                             <span
                               style={{
-                                background: "#eff6ff",
-                                color: "#2563eb",
+                                background: "var(--color-primary-light, rgba(37,99,235,0.12))",
+                                color: "var(--color-primary, #2563eb)",
                                 fontWeight: 800,
                                 fontSize: "0.76rem",
                                 padding: "2px 10px",
                                 borderRadius: "999px",
-                                border: "1px solid rgba(37,99,235,0.2)",
+                                border: "1px solid rgba(37,99,235,0.25)",
                               }}
                             >
                               Familiar #{idx + 1}
@@ -1593,7 +1615,7 @@ export default function PlanteamientoSalaModal({
                                   padding: "1px 8px",
                                   borderRadius: "999px",
                                   background: "rgba(37,99,235,0.1)",
-                                  color: "#2563eb",
+                                  color: "var(--color-primary, #2563eb)",
                                 }}
                               >
                                 {fam.parentesco}
@@ -1651,27 +1673,50 @@ export default function PlanteamientoSalaModal({
                           {/* Cédula */}
                           <div className="form-group">
                             <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Cédula de Identidad</label>
-                            <div style={{ display: "flex", gap: "0.4rem" }}>
+                            <div className="cedula-search-wrap">
                               <input
                                 type="text"
+                                inputMode="numeric"
                                 placeholder="Ej. 25123456"
                                 value={fam.cedula || ""}
                                 onChange={(e) => updateFamiliarRow(fam.id, { cedula: e.target.value.replace(/\D/g, "") })}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    if ((fam.cedula || "").replace(/\D/g, "").length >= 4) {
+                                      handleRowLookup(fam.id);
+                                    }
+                                  }
+                                }}
                                 onBlur={() => {
-                                  if ((fam.cedula || "").length >= 4 && !fam.nombreApellido) {
+                                  const clean = (fam.cedula || "").replace(/\D/g, "");
+                                  if (clean.length >= 4) {
                                     handleRowLookup(fam.id);
                                   }
                                 }}
                               />
                               <button
                                 type="button"
-                                className="toolbar-btn"
+                                className="cedula-search-btn"
                                 onClick={() => handleRowLookup(fam.id)}
                                 disabled={isSearching}
-                                style={{ flexShrink: 0, padding: "0 0.85rem", fontSize: "0.76rem", borderRadius: "999px" }}
-                                title="Buscar en CNE / REP"
+                                title="Buscar en censo / CNE / REP"
+                                aria-label="Buscar cédula del familiar"
                               >
-                                {isSearching ? "…" : "Buscar CNE"}
+                                <svg
+                                  className={isSearching ? "spin-icon" : ""}
+                                  width="15"
+                                  height="15"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <circle cx="11" cy="11" r="8" />
+                                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                </svg>
                               </button>
                             </div>
                           </div>

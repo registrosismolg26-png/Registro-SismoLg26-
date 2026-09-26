@@ -304,12 +304,11 @@ export default function RenaceEditModal({ modo = "editar", tipo = "miembro", rec
                 <div className="renace-ced-input">
                   <input className={`morb-control${errors.cedula ? " has-error" : ""}`} inputMode="numeric" value={f.cedula}
                     onChange={(e) => set("cedula", e.target.value.replace(/\D/g, "").slice(0, 8))}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarCedula(); } }} />
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (f.cedula.length >= 6) buscarCedula(); } }}
+                    onBlur={() => { if (f.cedula.length >= 6 && !f.nombres) buscarCedula(); }} />
                   <button type="button" className="renace-ced-btn" onClick={buscarCedula} disabled={buscando}
                     data-tip="Buscar en el padrón / API" aria-label="Buscar cédula">
-                    {buscando ? <span className="spinner spinner-sm" aria-hidden /> : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                    )}
+                    <svg className={buscando ? "spin-icon" : ""} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                   </button>
                 </div>
                 <div className="error-container">{errors.cedula && <span className="field-error-message">{errors.cedula}</span>}</div>

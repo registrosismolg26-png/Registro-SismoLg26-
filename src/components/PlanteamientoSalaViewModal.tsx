@@ -687,8 +687,8 @@ export default function PlanteamientoSalaViewModal({
                           fontWeight: 700,
                           padding: "1px 7px",
                           borderRadius: "999px",
-                          background: "#eff6ff",
-                          color: "#2563eb",
+                          background: "var(--color-primary-light, rgba(37,99,235,0.12))",
+                          color: "var(--color-primary, #2563eb)",
                           whiteSpace: "nowrap",
                         }}
                       >

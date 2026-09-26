@@ -14538,27 +14538,56 @@ select.morb-control {
 }
 
 /* Input de cédula con LUPA incorporada (buscar en padrón/API) */
-.renace-ced-input { position: relative; }
-.renace-ced-input .morb-control { padding-right: 2.7rem; width: 100%; }
-.renace-ced-btn {
+.renace-ced-input,
+.cedula-search-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.renace-ced-input .morb-control,
+.renace-ced-input input,
+.cedula-search-wrap input {
+  padding-right: 2.85rem !important;
+  width: 100%;
+}
+.renace-ced-btn,
+.cedula-search-btn {
   position: absolute;
-  right: 0.3rem;
+  right: 0.35rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 2rem;
-  height: 2rem;
+  width: 2.1rem;
+  height: 2.1rem;
   border-radius: 50%;
   border: none;
-  background: var(--color-primary-light, #eff6ff);
-  color: var(--color-primary);
+  background: var(--color-primary-light, rgba(37,99,235,0.12));
+  color: var(--color-primary, #2563eb);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
 }
-.renace-ced-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff; }
-.renace-ced-btn:disabled { opacity: 0.55; cursor: default; }
+.renace-ced-btn:hover:not(:disabled),
+.cedula-search-btn:hover:not(:disabled) {
+  background: var(--color-primary, #2563eb);
+  color: #fff;
+}
+.renace-ced-btn:disabled,
+.cedula-search-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+.cedula-search-btn .spin-icon,
+.renace-ced-btn .spin-icon {
+  animation: cedulaSearchSpin 0.75s linear infinite;
+}
+@keyframes cedulaSearchSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
 /* Barra "Agregar miembro" en la vista Grupo familiar */
 .renace-miembros-tools { margin-bottom: 0.6rem; }
