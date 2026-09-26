@@ -188,7 +188,10 @@ export default function PlanteamientoSalaModal({
         setCedulaCatastral(itemToEdit.cedulaCatastral || "NO");
         setTituloCasa(itemToEdit.tituloCasa || "NINGUNO");
         setReferenciaBancariaVendedor(itemToEdit.referenciaBancariaVendedor || "NO");
-        setQrHabitatVivienda(itemToEdit.qrHabitatVivienda || "NO");
+        setQrHabitatVivienda(
+          itemToEdit.qrHabitatVivienda ||
+            (itemToEdit.viviendaQrUrl || itemToEdit.viviendaEdificacion ? "SI" : "NO")
+        );
         setCedulaVendedor(itemToEdit.cedulaVendedor || "NO");
         setCedulaComprador(itemToEdit.cedulaComprador || "NO");
         setFotosVivienda(itemToEdit.fotosVivienda || "NO");
@@ -609,7 +612,7 @@ export default function PlanteamientoSalaModal({
     setViviendaQrUrl(extracted.qrUrl || "");
     setViviendaQrFamilia(Array.isArray(extracted.grupoFamiliar) ? extracted.grupoFamiliar : []);
     setViviendaOperador(extracted.operadorCenso || "");
-    setQrColapsoVivienda("SI");
+    setQrHabitatVivienda("SI");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1180,6 +1183,7 @@ export default function PlanteamientoSalaModal({
                         setViviendaQrUrl("");
                         setViviendaQrFamilia([]);
                         setViviendaOperador("");
+                        setQrHabitatVivienda("NO");
                       }}
                       title="Limpiar datos de vivienda escaneados"
                     >
@@ -1931,15 +1935,21 @@ export default function PlanteamientoSalaModal({
 
                 <div className="form-group">
                   <label>5. QR de Hábitat y Vivienda</label>
-                  <StyledSelect
-                    value={qrHabitatVivienda}
-                    onChange={(v) => setQrHabitatVivienda(v as "SI" | "NO")}
-                    ariaLabel="QR de Hábitat y Vivienda"
-                    options={[
-                      { value: "SI", label: "Sí posee" },
-                      { value: "NO", label: "No posee" },
-                    ]}
-                  />
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={qrHabitatVivienda === "SI" ? "Sí posee" : "No posee"}
+                      readOnly
+                      style={{
+                        background: "rgba(0,0,0,0.03)",
+                        fontWeight: 600,
+                        color: qrHabitatVivienda === "SI" ? "#059669" : "var(--text-secondary)",
+                      }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se actualiza al escanear o limpiar el QR
+                    </span>
+                  </div>
                 </div>
 
                 <div className="form-group">
