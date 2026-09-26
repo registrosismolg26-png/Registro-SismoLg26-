@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import { apiFetch } from "@/lib/apiFetch";
 import { exportPlanteamientoModalidadExcel } from "@/lib/exportPlanteamientoSalaExcel";
@@ -24,7 +25,7 @@ export default function PlanteamientoSalaExportModal({
   const modal = useAnimatedModal(isOpen);
   const [exporting, setExporting] = useState<string | null>(null);
 
-  if (!modal.mounted) return null;
+  if (!modal.mounted || typeof document === "undefined") return null;
 
   // Conteo local rápido de expedientes por modalidad para la vista actual
   const countCompra = items.filter((it) => it.tipoOpcion === "MERCADO_SECUNDARIO").length;
@@ -85,47 +86,44 @@ export default function PlanteamientoSalaExportModal({
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
+      className={`modal-overlay modal-overlay--sala${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className={`modal-content pill-form${modal.closing ? " modal-content--closing" : ""}`}
+        className={`modal-content pill-form sala-export-modal${modal.closing ? " modal-content--closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: "480px" }}
       >
-        <div className="modal-header" style={{ marginBottom: "0.5rem" }}>
-          <h3 className="modal-title" style={{ fontSize: "1.2rem", fontWeight: 800 }}>
-            Descargar Excel
-          </h3>
-          <button
-            type="button"
-            className="modal-close"
-            onClick={onClose}
-            aria-label="Cerrar modal"
-            style={{ width: "32px", height: "32px", padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+        <div className="sala-modal__head">
+          <div className="msheet__grip" aria-hidden />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", width: "100%" }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 800, color: "var(--text-primary)" }}>
+                Descargar Excel
+              </h3>
+              <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                Elige la modalidad a exportar{selectedRefugio !== "TODOS" ? ` (${selectedRefugio})` : ""}:
+              </p>
+            </div>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={onClose}
+              aria-label="Cerrar modal"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <p
-          style={{
-            fontSize: "0.85rem",
-            color: "var(--text-secondary)",
-            margin: "0 0 1.25rem",
-          }}
-        >
-          Elige qué exportar{selectedRefugio !== "TODOS" ? ` (${selectedRefugio})` : ""}:
-        </p>
-
-        <div className="export-options">
+        <div className="sala-modal__body">
+          <div className="export-options">
           {/* Opción 1: Compra de Vivienda */}
           <button
             type="button"
@@ -240,7 +238,9 @@ export default function PlanteamientoSalaExportModal({
             </span>
           </button>
         </div>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

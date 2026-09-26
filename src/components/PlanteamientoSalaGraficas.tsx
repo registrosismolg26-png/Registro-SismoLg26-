@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "@/lib/apiFetch";
-import StyledSelect from "@/components/StyledSelect";
+import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import { ESTATUS_SALA_OPTIONS } from "@/lib/constants";
 import type { PlanteamientoSalaStats } from "@/types";
 
@@ -16,6 +16,11 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
   const [loading, setLoading] = useState(true);
   const [selectedCampamento, setSelectedCampamento] = useState<string>("TODOS");
   const [requisitosTab, setRequisitosTab] = useState<"MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE">("MERCADO_SECUNDARIO");
+
+  const campamentoOptions = useMemo(() => [
+    { value: "TODOS", label: "Consolidado Global (Todos los Campamentos)" },
+    ...campamentosList.map((c) => ({ value: c.nombre, label: c.nombre })),
+  ], [campamentosList]);
 
   const loadStats = async () => {
     setLoading(true);
@@ -114,14 +119,12 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
           </div>
 
           <div style={{ minWidth: "280px", flex: "1 1 300px" }}>
-            <StyledSelect
+            <SearchableSingleSelect
               value={selectedCampamento}
               onChange={setSelectedCampamento}
               ariaLabel="Filtrar métricas por campamento"
-              options={[
-                { value: "TODOS", label: "Consolidado Global (Todos los Campamentos)" },
-                ...campamentosList.map((c) => ({ value: c.nombre, label: c.nombre })),
-              ]}
+              placeholder="Buscar campamento..."
+              options={campamentoOptions}
             />
           </div>
 

@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import StyledSelect from "@/components/StyledSelect";
+import SearchableSingleSelect from "@/components/SearchableSingleSelect";
+import DatePicker from "@/components/DatePicker";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import {
   TITULO_CASA_OPTIONS,
   ESTATUS_SALA_OPTIONS,
   TIPO_OPCION_PLANTEAMIENTO_OPTIONS,
+  TELEFONO_CODIGOS,
 } from "@/lib/constants";
 import { apiFetch } from "@/lib/apiFetch";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
@@ -33,6 +37,17 @@ const TIPO_FAMILIAR_OPTIONS = [
   "Nieta",
   "Otro",
 ] as const;
+
+// Descompone un string de teléfono en código de área y número de 7 dígitos
+function parsePhone(s: string | null | undefined): { cod: string; num: string } {
+  const digits = String(s ?? "").replace(/\D/g, "");
+  if (digits.length >= 4) {
+    const cod = digits.slice(0, 4);
+    if ((TELEFONO_CODIGOS as readonly string[]).includes(cod)) return { cod, num: digits.slice(4, 11) };
+  }
+  return { cod: TELEFONO_CODIGOS[0] || "0412", num: digits.slice(0, 7) };
+}
+const combinePhone = (cod: string, num: string) => (num ? `${cod}-${num}` : "");
 
 // Edad (a hoy) a partir de una fecha yyyy-mm-dd
 const computeEdad = (ymd: string): string => {
@@ -71,7 +86,8 @@ export default function PlanteamientoSalaModal({
   const [refugio, setRefugio] = useState(defaultRefugio || campamentosList[0]?.nombre || "");
   const [cedula, setCedula] = useState("");
   const [nombreApellido, setNombreApellido] = useState("");
-  const [telefono, setTelefono] = useState("");
+  const [telefonoCod, setTelefonoCod] = useState(TELEFONO_CODIGOS[0] || "0412");
+  const [telefonoNum, setTelefonoNum] = useState("");
   const [genero, setGenero] = useState<"MASCULINO" | "FEMENINO" | "">("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [edad, setEdad] = useState("");
@@ -147,7 +163,9 @@ export default function PlanteamientoSalaModal({
         setRefugio(itemToEdit.refugio || defaultRefugio || "");
         setCedula(itemToEdit.cedula || "");
         setNombreApellido(itemToEdit.nombreApellido || "");
-        setTelefono(itemToEdit.telefono || "");
+        const pPhone = parsePhone(itemToEdit.telefono);
+        setTelefonoCod(pPhone.cod);
+        setTelefonoNum(pPhone.num);
         setGenero(
           itemToEdit.genero === "FEMENINO" || itemToEdit.genero === "MASCULINO"
             ? itemToEdit.genero
@@ -227,7 +245,8 @@ export default function PlanteamientoSalaModal({
         setRefugio(defaultRefugio || (campamentosList[0]?.nombre || ""));
         setCedula("");
         setNombreApellido("");
-        setTelefono("");
+        setTelefonoCod(TELEFONO_CODIGOS[0] || "0412");
+        setTelefonoNum("");
         setGenero("");
         setFechaNacimiento("");
         setEdad("");
@@ -398,7 +417,11 @@ export default function PlanteamientoSalaModal({
       if (res.ok && data?.found && data?.persona) {
         const p = data.persona;
         if (p.nombreApellido) setNombreApellido(p.nombreApellido);
-        if (p.telefono) setTelefono(p.telefono);
+        if (p.telefono) {
+          const ph = parsePhone(p.telefono);
+          setTelefonoCod(ph.cod);
+          setTelefonoNum(ph.num);
+        }
         if (p.registroId) setRegistroId(p.registroId);
         if (p.refugio && (!refugio || refugio === "TODOS")) {
           setRefugio(p.refugio);
@@ -610,16 +633,20 @@ export default function PlanteamientoSalaModal({
 
     // Filtrar renglones que tengan al menos cédula o nombre
     const validCargaFamiliar = cargaFamiliar
-      .map((fam) => ({
-        id: fam.id || crypto.randomUUID(),
-        cedula: (fam.cedula || "").replace(/\D/g, ""),
-        nombreApellido: (fam.nombreApellido || "").trim().toUpperCase(),
-        parentesco: (fam.parentesco || "Otro").trim(),
-        genero: fam.genero || null,
-        fechaNacimiento: fam.fechaNacimiento ? fam.fechaNacimiento.slice(0, 10) : null,
-        edad: fam.edad != null && !isNaN(Number(fam.edad)) ? Number(fam.edad) : null,
-        telefono: fam.telefono ? fam.telefono.trim() : null,
-      }))
+      .map((fam) => {
+        const pPhone = parsePhone(fam.telefono);
+        const cleanTel = pPhone.num ? `${pPhone.cod}-${pPhone.num}` : null;
+        return {
+          id: fam.id || crypto.randomUUID(),
+          cedula: (fam.cedula || "").replace(/\D/g, ""),
+          nombreApellido: (fam.nombreApellido || "").trim().toUpperCase(),
+          parentesco: (fam.parentesco || "Otro").trim(),
+          genero: fam.genero || null,
+          fechaNacimiento: fam.fechaNacimiento ? fam.fechaNacimiento.slice(0, 10) : null,
+          edad: fam.edad != null && !isNaN(Number(fam.edad)) ? Number(fam.edad) : null,
+          telefono: cleanTel,
+        };
+      })
       .filter((fam) => fam.cedula || fam.nombreApellido);
 
     setSaving(true);
@@ -629,7 +656,7 @@ export default function PlanteamientoSalaModal({
         refugioId,
         cedula: cleanCedula,
         nombreApellido,
-        telefono,
+        telefono: combinePhone(telefonoCod, telefonoNum) || null,
         genero: genero || null,
         fechaNacimiento: fechaNacimiento || null,
         edad: edad ? parseInt(edad, 10) : null,
@@ -710,15 +737,15 @@ export default function PlanteamientoSalaModal({
     }
   };
 
-  if (!modal.mounted) return null;
+  if (!modal.mounted || typeof document === "undefined") return null;
 
   const currentOpcionMeta =
     TIPO_OPCION_PLANTEAMIENTO_OPTIONS.find((o) => o.value === tipoOpcion) ||
     TIPO_OPCION_PLANTEAMIENTO_OPTIONS[0];
 
-  return (
+  return createPortal(
     <div
-      className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
+      className={`modal-overlay modal-overlay--sala${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -726,30 +753,34 @@ export default function PlanteamientoSalaModal({
       <div
         className={`modal-content pill-form sala-modal${modal.closing ? " modal-content--closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: "700px", maxHeight: "90vh", overflowY: "auto" }}
       >
-        <div className="modal-header" style={{ marginBottom: "1rem" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>
-              {itemToEdit ? "Editar Planteamiento" : "Cargar Persona en Planteamiento Sala"}
-            </h3>
-            <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-              Gestión de expedientes con checklist dinámico según la modalidad habitacional seleccionada.
-            </p>
+        <div className="sala-modal__head">
+          <div className="msheet__grip" aria-hidden />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", width: "100%" }}>
+            <div>
+              <span className="modal-title" style={{ fontSize: "1.15rem", fontWeight: 800 }}>
+                {itemToEdit ? "Editar Planteamiento" : "Cargar Persona en Planteamiento Sala"}
+              </span>
+              <p className="sala-modal__sub" style={{ margin: "3px 0 0", fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+                Gestión de expedientes con checklist dinámico según la modalidad habitacional seleccionada.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={onClose}
+              aria-label="Cerrar modal"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
-          <button
-            type="button"
-            className="toolbar-btn"
-            onClick={onClose}
-            aria-label="Cerrar modal"
-            style={{ width: "32px", height: "32px", padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
         </div>
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", height: "100%", minHeight: 0, overflow: "hidden" }}>
+          <div className="sala-modal__body">
 
         {/* Tarjeta Visual de Progreso Dinámico */}
         <div
@@ -758,64 +789,83 @@ export default function PlanteamientoSalaModal({
             background: "var(--bg-secondary)",
             border: "1px solid var(--border-color)",
             borderRadius: "16px",
-            padding: "0.9rem 1.1rem",
+            padding: "0.85rem 1.1rem",
             marginBottom: "1.25rem",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>
-                Progreso de Requisitos: <b>{cumplidos} de {total}</b>
-              </span>
-              <span
-                style={{
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  padding: "2px 8px",
-                  borderRadius: "999px",
-                  background: currentOpcionMeta.bg,
-                  color: currentOpcionMeta.color,
-                  border: `1px solid ${currentOpcionMeta.border}`,
-                }}
-              >
-                {currentOpcionMeta.shortLabel}
-              </span>
-            </div>
+          {/* Fila 1: Título de Progreso + Contador + Píldora de Modalidad */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              flexWrap: "wrap",
+              marginBottom: "8px",
+            }}
+          >
+            <span style={{ fontSize: "0.86rem", fontWeight: 700, color: "var(--text-primary)" }}>
+              Progreso de Requisitos:
+            </span>
+            <span style={{ fontSize: "0.84rem", fontWeight: 800, color: "var(--color-primary)" }}>
+              {cumplidos} de {total}
+            </span>
             <span
               style={{
-                fontSize: "0.95rem",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                padding: "2px 9px",
+                borderRadius: "999px",
+                background: currentOpcionMeta.bg,
+                color: currentOpcionMeta.color,
+                border: `1px solid ${currentOpcionMeta.border}`,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {currentOpcionMeta.shortLabel}
+            </span>
+          </div>
+
+          {/* Fila 2: Barra de Progreso + Porcentaje en la misma fila */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
+            <div
+              style={{
+                flex: "1 1 auto",
+                minWidth: 0,
+                height: "8px",
+                borderRadius: "999px",
+                background: "var(--border-color)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${porcentaje}%`,
+                  height: "100%",
+                  background:
+                    porcentaje === 100
+                      ? "linear-gradient(90deg, #10b981, #059669)"
+                      : "linear-gradient(90deg, #3b82f6, #2563eb)",
+                  borderRadius: "999px",
+                  transition: "width 0.3s ease",
+                }}
+              />
+            </div>
+
+            <span
+              style={{
+                fontSize: "0.92rem",
                 fontWeight: 800,
                 color: porcentaje === 100 ? "#059669" : porcentaje >= 50 ? "#2563eb" : "#d97706",
+                flexShrink: 0,
+                minWidth: "38px",
+                textAlign: "right",
               }}
             >
               {porcentaje}%
             </span>
           </div>
-          <div
-            style={{
-              width: "100%",
-              height: "10px",
-              borderRadius: "999px",
-              background: "var(--border-color)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${porcentaje}%`,
-                height: "100%",
-                background:
-                  porcentaje === 100
-                    ? "linear-gradient(90deg, #10b981, #059669)"
-                    : "linear-gradient(90deg, #3b82f6, #2563eb)",
-                borderRadius: "999px",
-                transition: "width 0.3s ease",
-              }}
-            />
-          </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
           {/* SECCIÓN 1: Información de la Persona y Modalidad */}
           <div style={{ marginBottom: "1.25rem" }}>
             <div className="detail-section-title" style={{ marginBottom: "0.75rem" }}>
@@ -825,11 +875,14 @@ export default function PlanteamientoSalaModal({
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0.75rem" }}>
               <div className="form-group">
                 <label>Campamento</label>
-                <StyledSelect
+                <SearchableSingleSelect
                   value={refugio}
                   onChange={setRefugio}
-                  ariaLabel="Campamento"
                   options={campamentosList.map((c) => ({ value: c.nombre, label: c.nombre }))}
+                  placeholder="Seleccionar campamento…"
+                  searchPlaceholder="Buscar campamento…"
+                  clearLabel={null}
+                  ariaLabel="Campamento"
                 />
               </div>
 
@@ -862,10 +915,10 @@ export default function PlanteamientoSalaModal({
                   />
                   <button
                     type="button"
-                    className="toolbar-btn"
+                    className="btn-secondary"
                     onClick={() => handleLookup()}
                     disabled={searchingCedula}
-                    style={{ flexShrink: 0, padding: "0 1rem" }}
+                    style={{ flexShrink: 0, padding: "0 1rem", width: "auto" }}
                   >
                     {searchingCedula ? "Buscando…" : "Buscar"}
                   </button>
@@ -885,12 +938,23 @@ export default function PlanteamientoSalaModal({
 
               <div className="form-group">
                 <label>Teléfono de Contacto (opcional)</label>
-                <input
-                  type="text"
-                  placeholder="Ej. 04121234567"
-                  value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
-                />
+                <div className="field-row-phone">
+                  <StyledSelect
+                    value={telefonoCod}
+                    onChange={(v) => setTelefonoCod(v)}
+                    ariaLabel="Código de teléfono"
+                    options={TELEFONO_CODIGOS.map((c) => ({ value: c, label: c }))}
+                  />
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="7 dígitos"
+                    maxLength={7}
+                    value={telefonoNum}
+                    onChange={(e) => setTelefonoNum(e.target.value.replace(/\D/g, "").slice(0, 7))}
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -909,29 +973,26 @@ export default function PlanteamientoSalaModal({
 
               <div className="form-group">
                 <label>Fecha de Nacimiento</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={fechaNacimiento}
-                  onChange={(e) => handleFechaNacimientoChange(e.target.value)}
-                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={handleFechaNacimientoChange}
                 />
               </div>
 
               <div className="form-group">
-                <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>Edad</span>
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 400 }}>
-                    (Auto-calculada)
+                <label>Edad</label>
+                <div className="readonly-tip-wrap">
+                  <input
+                    type="text"
+                    placeholder="Ej. 35"
+                    value={edad}
+                    readOnly
+                    style={{ background: "rgba(0,0,0,0.03)", fontWeight: 600, color: "var(--text-primary)" }}
+                  />
+                  <span className="readonly-bubble" role="tooltip">
+                    Se autocalcula con la fech. Nac
                   </span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="130"
-                  placeholder="Ej. 35"
-                  value={edad}
-                  onChange={(e) => setEdad(e.target.value.replace(/\D/g, ""))}
-                />
+                </div>
               </div>
 
               <div className="form-group">
@@ -941,12 +1002,10 @@ export default function PlanteamientoSalaModal({
                     (Fecha de Carga)
                   </span>
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={fechaEntregaCarpeta}
-                  onChange={(e) => setFechaEntregaCarpeta(e.target.value)}
-                  max={new Date().toISOString().slice(0, 10)}
-                  required
+                  onChange={setFechaEntregaCarpeta}
+                  defaultToday
                 />
               </div>
             </div>
@@ -1027,44 +1086,43 @@ export default function PlanteamientoSalaModal({
                       ) : (
                         <span
                           style={{
-                            background: "rgba(220,38,38,0.08)",
-                            color: "#dc2626",
+                            background: "rgba(37,99,235,0.08)",
+                            color: "#2563eb",
                             fontSize: "0.72rem",
                             padding: "2px 8px",
                             borderRadius: "999px",
                             fontWeight: 600,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
                           }}
                         >
-                          🔒 Bloqueado · Requiere QR
+                          Completado vía QR
                         </span>
                       )}
                     </div>
                     <p style={{ margin: "2px 0 0", fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-                      Estos renglones están protegidos. Escanee el código QR para extraer automáticamente la información del censo.
+                      Datos de ubicación completados automáticamente mediante el escaneo del código QR.
                     </p>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "6px" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   <button
                     type="button"
-                    className="toolbar-btn"
+                    className="btn-submit"
                     style={{
                       background: "#2563eb",
                       color: "#ffffff",
                       border: "none",
                       fontWeight: 700,
                       fontSize: "0.84rem",
-                      padding: "0.5rem 1.15rem",
-                      borderRadius: "8px",
+                      height: "var(--ctl-h, 38px)",
+                      padding: "0 1.25rem",
+                      borderRadius: "999px",
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "6px",
                       boxShadow: "0 2px 6px rgba(37,99,235,0.25)",
                       cursor: "pointer",
+                      width: "auto",
                     }}
                     onClick={() => setShowQrScanner(true)}
                   >
@@ -1080,12 +1138,14 @@ export default function PlanteamientoSalaModal({
                   {(viviendaDireccion || viviendaTipo) && (
                     <button
                       type="button"
-                      className="toolbar-btn"
+                      className="btn-secondary"
                       style={{
                         color: "var(--text-secondary)",
-                        padding: "0.5rem 0.8rem",
+                        padding: "0 1rem",
                         fontSize: "0.8rem",
-                        borderRadius: "8px",
+                        height: "var(--ctl-h, 38px)",
+                        borderRadius: "999px",
+                        width: "auto",
                       }}
                       onClick={() => {
                         setViviendaTipo("");
@@ -1107,111 +1167,125 @@ export default function PlanteamientoSalaModal({
                 </div>
               </div>
 
-              {/* Renglones Bloqueados (readOnly) */}
+              {/* Renglones automáticos (readOnly) */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0.75rem" }}>
                 {/* 1. Tipo */}
                 <div className="form-group">
-                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
-                    <span>Tipo</span>
-                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={viviendaTipo}
-                    readOnly
-                    placeholder="Se completa vía QR (ej. Apartamento)"
-                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
-                  />
+                  <label>Tipo</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={viviendaTipo}
+                      readOnly
+                      placeholder="Automático vía QR (ej. Apartamento)"
+                      style={{ background: "rgba(0,0,0,0.03)", fontWeight: 600, color: "var(--text-primary)" }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se completa automáticamente escaneando el código QR
+                    </span>
+                  </div>
                 </div>
 
                 {/* 2. Edificación */}
                 <div className="form-group">
-                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
-                    <span>Edificación</span>
-                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={viviendaEdificacion}
-                    readOnly
-                    placeholder="Se completa vía QR (ej. Edificio OPPPE 26-B)"
-                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
-                  />
+                  <label>Edificación</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={viviendaEdificacion}
+                      readOnly
+                      placeholder="Automático vía QR (ej. Edificio OPPPE 26-B)"
+                      style={{ background: "rgba(0,0,0,0.03)", fontWeight: 600, color: "var(--text-primary)" }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se completa automáticamente escaneando el código QR
+                    </span>
+                  </div>
                 </div>
 
                 {/* 3. Piso / Apto */}
                 <div className="form-group">
-                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
-                    <span>Piso / Apto</span>
-                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={viviendaPisoApto}
-                    readOnly
-                    placeholder="Se completa vía QR (ej. 9 / 03)"
-                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
-                  />
+                  <label>Piso / Apto</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={viviendaPisoApto}
+                      readOnly
+                      placeholder="Automático vía QR (ej. 9 / 03)"
+                      style={{ background: "rgba(0,0,0,0.03)", fontWeight: 600, color: "var(--text-primary)" }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se completa automáticamente escaneando el código QR
+                    </span>
+                  </div>
                 </div>
 
                 {/* 4. Dirección */}
                 <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
-                    <span>Dirección</span>
-                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={viviendaDireccion}
-                    readOnly
-                    placeholder="Se completa vía QR (ej. Vargas, La Guaira, 11, Venezuela)"
-                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
-                  />
+                  <label>Dirección</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={viviendaDireccion}
+                      readOnly
+                      placeholder="Automático vía QR (ej. Vargas, La Guaira, 11, Venezuela)"
+                      style={{ background: "rgba(0,0,0,0.03)", fontWeight: 600, color: "var(--text-primary)" }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se completa automáticamente escaneando el código QR
+                    </span>
+                  </div>
                 </div>
 
                 {/* 5. Zona */}
                 <div className="form-group">
-                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
-                    <span>Zona</span>
-                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={viviendaZona}
-                    readOnly
-                    placeholder="Se completa vía QR (ej. CARABALLEDA, VARGAS...)"
-                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
-                  />
+                  <label>Zona</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={viviendaZona}
+                      readOnly
+                      placeholder="Automático vía QR (ej. CARABALLEDA, VARGAS...)"
+                      style={{ background: "rgba(0,0,0,0.03)", fontWeight: 600, color: "var(--text-primary)" }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se completa automáticamente escaneando el código QR
+                    </span>
+                  </div>
                 </div>
 
                 {/* 6. Circuito comunal */}
                 <div className="form-group">
-                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
-                    <span>Circuito Comunal</span>
-                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={viviendaCircuitoComunal}
-                    readOnly
-                    placeholder="Se completa vía QR (ej. Circuito Tanaguarena...)"
-                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
-                  />
+                  <label>Circuito Comunal</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={viviendaCircuitoComunal}
+                      readOnly
+                      placeholder="Automático vía QR (ej. Circuito Tanaguarena...)"
+                      style={{ background: "rgba(0,0,0,0.03)", fontWeight: 600, color: "var(--text-primary)" }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se completa automáticamente escaneando el código QR
+                    </span>
+                  </div>
                 </div>
 
                 {/* 7. GPS */}
                 <div className="form-group">
-                  <label style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 700 }}>
-                    <span>GPS</span>
-                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>🔒 Bloqueado</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={viviendaGps}
-                    readOnly
-                    placeholder="Se completa vía QR (ej. 10.615410, -66.840420)"
-                    style={{ background: "rgba(0,0,0,0.03)", cursor: "not-allowed", fontWeight: 600, color: "var(--text-primary)" }}
-                  />
+                  <label>GPS</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={viviendaGps}
+                      readOnly
+                      placeholder="Automático vía QR (ej. 10.615410, -66.840420)"
+                      style={{ background: "rgba(0,0,0,0.03)", fontWeight: 600, color: "var(--text-primary)" }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se completa automáticamente escaneando el código QR
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1250,8 +1324,8 @@ export default function PlanteamientoSalaModal({
                         color: "#2563eb",
                         fontWeight: 700,
                         background: "#eff6ff",
-                        padding: "3px 9px",
-                        borderRadius: "6px",
+                        padding: "3px 10px",
+                        borderRadius: "999px",
                         border: "1px solid rgba(37,99,235,0.25)",
                       }}
                     >
@@ -1268,9 +1342,9 @@ export default function PlanteamientoSalaModal({
                           justifyContent: "space-between",
                           alignItems: "center",
                           fontSize: "0.86rem",
-                          padding: "6px 8px",
+                          padding: "6px 12px",
                           background: "var(--bg-secondary)",
-                          borderRadius: "6px",
+                          borderRadius: "999px",
                           border: "1px solid var(--border-color)",
                         }}
                       >
@@ -1284,8 +1358,8 @@ export default function PlanteamientoSalaModal({
                             color: "#2563eb",
                             fontSize: "0.85rem",
                             background: "rgba(37,99,235,0.08)",
-                            padding: "2px 8px",
-                            borderRadius: "4px",
+                            padding: "2px 10px",
+                            borderRadius: "999px",
                           }}
                         >
                           {fam.cedula}
@@ -1431,7 +1505,7 @@ export default function PlanteamientoSalaModal({
                     fontWeight: 700,
                     fontSize: "0.84rem",
                     padding: "0.45rem 1.1rem",
-                    borderRadius: "8px",
+                    borderRadius: "999px",
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "6px",
@@ -1456,7 +1530,7 @@ export default function PlanteamientoSalaModal({
                     padding: "1rem",
                     textAlign: "center",
                     background: "var(--bg-primary)",
-                    borderRadius: "10px",
+                    borderRadius: "14px",
                     border: "1px dashed var(--border-color)",
                     color: "var(--text-secondary)",
                     fontSize: "0.82rem",
@@ -1476,7 +1550,7 @@ export default function PlanteamientoSalaModal({
                         style={{
                           background: "var(--bg-primary)",
                           border: "1.5px solid var(--border-color)",
-                          borderRadius: "12px",
+                          borderRadius: "14px",
                           padding: "1rem 1.15rem",
                           boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
                         }}
@@ -1501,8 +1575,8 @@ export default function PlanteamientoSalaModal({
                                 color: "#2563eb",
                                 fontWeight: 800,
                                 fontSize: "0.76rem",
-                                padding: "2px 8px",
-                                borderRadius: "6px",
+                                padding: "2px 10px",
+                                borderRadius: "999px",
                                 border: "1px solid rgba(37,99,235,0.2)",
                               }}
                             >
@@ -1532,10 +1606,10 @@ export default function PlanteamientoSalaModal({
                             className="toolbar-btn"
                             style={{
                               color: "#dc2626",
-                              padding: "4px 10px",
+                              padding: "4px 12px",
                               fontSize: "0.74rem",
                               fontWeight: 700,
-                              borderRadius: "6px",
+                              borderRadius: "999px",
                               border: "1px solid rgba(220,38,38,0.25)",
                               background: "rgba(220,38,38,0.06)",
                               display: "inline-flex",
@@ -1553,69 +1627,27 @@ export default function PlanteamientoSalaModal({
                           </button>
                         </div>
 
-                        {/* BARRA PARA ESPECIFICAR QUÉ TIPO DE FAMILIAR ES */}
-                        <div style={{ marginBottom: "0.85rem" }}>
-                          <label
-                            style={{
-                              display: "block",
-                              fontSize: "0.78rem",
-                              fontWeight: 700,
-                              marginBottom: "6px",
-                              color: "var(--text-secondary)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.3px",
-                            }}
-                          >
-                            Especificar Tipo de Familiar:
-                          </label>
-                          <div
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "5px",
-                              background: "var(--bg-secondary)",
-                              padding: "6px",
-                              borderRadius: "10px",
-                              border: "1px solid var(--border-color)",
-                            }}
-                          >
-                            {TIPO_FAMILIAR_OPTIONS.map((tipo) => {
-                              const isSelected = (fam.parentesco || "").toUpperCase() === tipo.toUpperCase();
-                              return (
-                                <button
-                                  key={tipo}
-                                  type="button"
-                                  onClick={() => {
-                                    let newGen = fam.genero;
-                                    if (["Madre", "Esposa", "Hermana", "Hija", "Nieta"].includes(tipo)) {
-                                      newGen = "FEMENINO";
-                                    } else if (["Padre", "Esposo", "Hermano", "Hijo", "Nieto"].includes(tipo)) {
-                                      newGen = "MASCULINO";
-                                    }
-                                    updateFamiliarRow(fam.id, { parentesco: tipo, genero: newGen });
-                                  }}
-                                  style={{
-                                    border: isSelected ? "1px solid #2563eb" : "1px solid transparent",
-                                    background: isSelected ? "#2563eb" : "var(--bg-primary)",
-                                    color: isSelected ? "#ffffff" : "var(--text-primary)",
-                                    fontWeight: isSelected ? 700 : 500,
-                                    fontSize: "0.78rem",
-                                    padding: "5px 12px",
-                                    borderRadius: "7px",
-                                    cursor: "pointer",
-                                    transition: "all 0.15s ease",
-                                    boxShadow: isSelected ? "0 1px 3px rgba(37,99,235,0.3)" : "none",
-                                  }}
-                                >
-                                  {tipo}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
                         {/* CAMPOS DE DATOS PERSONALES DEL FAMILIAR */}
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "0.75rem" }}>
+                          {/* Parentesco (Pill StyledSelect) */}
+                          <div className="form-group">
+                            <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Parentesco</label>
+                            <StyledSelect
+                              value={fam.parentesco || ""}
+                              onChange={(tipo) => {
+                                let newGen = fam.genero;
+                                if (["Madre", "Esposa", "Hermana", "Hija", "Nieta"].includes(tipo)) {
+                                  newGen = "FEMENINO";
+                                } else if (["Padre", "Esposo", "Hermano", "Hijo", "Nieto"].includes(tipo)) {
+                                  newGen = "MASCULINO";
+                                }
+                                updateFamiliarRow(fam.id, { parentesco: tipo, genero: newGen });
+                              }}
+                              ariaLabel="Parentesco del familiar"
+                              placeholder="Seleccionar parentesco…"
+                              options={TIPO_FAMILIAR_OPTIONS.map((t) => ({ value: t, label: t }))}
+                            />
+                          </div>
                           {/* Cédula */}
                           <div className="form-group">
                             <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Cédula de Identidad</label>
@@ -1636,7 +1668,7 @@ export default function PlanteamientoSalaModal({
                                 className="toolbar-btn"
                                 onClick={() => handleRowLookup(fam.id)}
                                 disabled={isSearching}
-                                style={{ flexShrink: 0, padding: "0 0.75rem", fontSize: "0.76rem" }}
+                                style={{ flexShrink: 0, padding: "0 0.85rem", fontSize: "0.76rem", borderRadius: "999px" }}
                                 title="Buscar en CNE / REP"
                               >
                                 {isSearching ? "…" : "Buscar CNE"}
@@ -1673,44 +1705,63 @@ export default function PlanteamientoSalaModal({
                           {/* Fecha de Nacimiento */}
                           <div className="form-group">
                             <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Fecha de Nacimiento</label>
-                            <input
-                              type="date"
+                            <DatePicker
                               value={fam.fechaNacimiento || ""}
-                              onChange={(e) => handleRowFechaNacimientoChange(fam.id, e.target.value)}
-                              max={new Date().toISOString().slice(0, 10)}
+                              onChange={(val) => handleRowFechaNacimientoChange(fam.id, val)}
                             />
                           </div>
 
                           {/* Edad */}
                           <div className="form-group">
-                            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", fontWeight: 600 }}>
-                              <span>Edad</span>
-                              <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 400 }}>
-                                (Auto-calculada)
+                            <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Edad</label>
+                            <div className="readonly-tip-wrap">
+                              <input
+                                type="text"
+                                placeholder="Ej. 24"
+                                value={fam.edad != null ? String(fam.edad) : ""}
+                                readOnly
+                                style={{ background: "rgba(0,0,0,0.03)", fontWeight: 600, color: "var(--text-primary)" }}
+                              />
+                              <span className="readonly-bubble" role="tooltip">
+                                Se autocalcula con la fech. Nac
                               </span>
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="130"
-                              placeholder="Ej. 24"
-                              value={fam.edad != null ? String(fam.edad) : ""}
-                              onChange={(e) => {
-                                const v = e.target.value.replace(/\D/g, "");
-                                updateFamiliarRow(fam.id, { edad: v ? parseInt(v, 10) : null });
-                              }}
-                            />
+                            </div>
                           </div>
 
                           {/* Teléfono */}
                           <div className="form-group">
                             <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Teléfono (opcional)</label>
-                            <input
-                              type="text"
-                              placeholder="Ej. 04121234567"
-                              value={fam.telefono || ""}
-                              onChange={(e) => updateFamiliarRow(fam.id, { telefono: e.target.value })}
-                            />
+                            {(() => {
+                              const famPhone = parsePhone(fam.telefono);
+                              return (
+                                <div className="field-row-phone">
+                                  <StyledSelect
+                                    value={famPhone.cod}
+                                    onChange={(newCod) => {
+                                      updateFamiliarRow(fam.id, {
+                                        telefono: `${newCod}-${famPhone.num}`,
+                                      });
+                                    }}
+                                    options={TELEFONO_CODIGOS.map((c) => ({ value: c, label: c }))}
+                                    ariaLabel="Código de teléfono"
+                                  />
+                                  <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    placeholder="7 dígitos"
+                                    maxLength={7}
+                                    value={famPhone.num}
+                                    onChange={(e) => {
+                                      const nextNum = e.target.value.replace(/\D/g, "").slice(0, 7);
+                                      updateFamiliarRow(fam.id, {
+                                        telefono: `${famPhone.cod}-${nextNum}`,
+                                      });
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
 
@@ -1743,7 +1794,7 @@ export default function PlanteamientoSalaModal({
                         fontWeight: 700,
                         fontSize: "0.84rem",
                         padding: "0.6rem 1.4rem",
-                        borderRadius: "10px",
+                        borderRadius: "999px",
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "6px",
@@ -2245,12 +2296,10 @@ export default function PlanteamientoSalaModal({
                     (Crédito Entregado)
                   </span>
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={fechaEntregaSubsidio || new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setFechaEntregaSubsidio(e.target.value)}
-                  max={new Date().toISOString().slice(0, 10)}
-                  required
+                  onChange={setFechaEntregaSubsidio}
+                  defaultToday
                 />
               </div>
             )}
@@ -2265,22 +2314,17 @@ export default function PlanteamientoSalaModal({
               />
             </div>
           </div>
+          </div>
 
           {/* Botones de acción */}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-            <button type="button" className="toolbar-btn" onClick={onClose} disabled={saving}>
+          <div className="sala-modal__foot">
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>
               Cancelar
             </button>
             <button
               type="submit"
-              className="toolbar-btn toolbar-btn--primary"
+              className="btn-submit"
               disabled={saving}
-              style={{
-                background: "var(--color-primary)",
-                color: "#fff",
-                fontWeight: 600,
-                padding: "0 1.25rem",
-              }}
             >
               {saving ? "Guardando…" : itemToEdit ? "Actualizar Planteamiento" : "Guardar Planteamiento"}
             </button>
@@ -2294,6 +2338,8 @@ export default function PlanteamientoSalaModal({
         onSuccess={handleQrSuccess}
         showToast={showToast}
       />
-    </div>
+    </div>,
+    document.body
   );
 }
+

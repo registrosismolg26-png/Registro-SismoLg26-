@@ -147,7 +147,7 @@ export default function DatePicker({ value, onChange, disabled = false, minYear 
       position: "fixed",
       left,
       width: w,
-      zIndex: 4000,
+      zIndex: 9500,
       ...(openUp
         ? { bottom: window.innerHeight - rect.top + DP_MARGIN, top: "auto" }
         : { top: rect.bottom + DP_MARGIN }),

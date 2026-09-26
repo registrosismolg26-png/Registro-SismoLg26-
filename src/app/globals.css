@@ -1376,10 +1376,12 @@ label {
 
 /* Inputs, selects and buttons have EXACT shared height variable */
 input[type="text"],
+input[type="tel"],
 input[type="number"],
 input[type="date"],
 input[type="email"],
 input[type="password"],
+input[type="search"],
 select {
   width: 100%;
   height: var(--element-height);
@@ -1416,10 +1418,12 @@ textarea {
 }
 
 input[type="text"]:focus,
+input[type="tel"]:focus,
 input[type="number"]:focus,
 input[type="date"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
+input[type="search"]:focus,
 select:focus,
 textarea:focus {
   border-color: var(--color-primary);
@@ -4399,6 +4403,17 @@ h2.dashboard-section-title {
   gap: 0.625rem;
   align-items: start;
 }
+.field-row-cedula input,
+.field-row-phone input {
+  height: var(--ctl-h, var(--element-height, 48px));
+  min-height: var(--ctl-h, var(--element-height, 48px));
+  border-radius: var(--ctl-radius, 999px);
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0 1.15rem;
+  box-sizing: border-box;
+}
 
 /* --- Wizard step wrapper (dot + line) --- */
 .wizard-step-wrapper {
@@ -5004,9 +5019,9 @@ h2.dashboard-section-title {
   align-items: center;
   gap: 0.85rem;
   width: 100%;
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 1.15rem;
   border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border-radius: 18px;
   background: var(--bg-primary);
   color: var(--text-primary);
   cursor: pointer;
@@ -5026,9 +5041,9 @@ h2.dashboard-section-title {
 }
 .export-option__icon {
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
   display: grid;
   place-items: center;
   background: color-mix(in srgb, var(--color-primary) 14%, transparent);
@@ -10797,14 +10812,18 @@ select.morb-control {
 /* Control base pill: inputs de texto/número + triggers no-nativos (.morb-control:
    StyledSelect / DatePicker / SearchableSelect). Misma altura, radio, padding. */
 .censo-form input[type="text"],
+.censo-form input[type="tel"],
 .censo-form input[type="number"],
 .censo-form input[type="email"],
 .censo-form input[type="password"],
+.censo-form input[type="search"],
 .censo-form .morb-control,
 .pill-form input[type="text"],
+.pill-form input[type="tel"],
 .pill-form input[type="number"],
 .pill-form input[type="email"],
 .pill-form input[type="password"],
+.pill-form input[type="search"],
 .pill-form .morb-control {
   height: var(--ctl-h);
   min-height: var(--ctl-h);
@@ -10814,10 +10833,18 @@ select.morb-control {
   box-sizing: border-box;
 }
 .censo-form input[type="text"]:focus,
+.censo-form input[type="tel"]:focus,
 .censo-form input[type="number"]:focus,
+.censo-form input[type="email"]:focus,
+.censo-form input[type="password"]:focus,
+.censo-form input[type="search"]:focus,
 .censo-form .morb-control:focus,
 .pill-form input[type="text"]:focus,
+.pill-form input[type="tel"]:focus,
 .pill-form input[type="number"]:focus,
+.pill-form input[type="email"]:focus,
+.pill-form input[type="password"]:focus,
+.pill-form input[type="search"]:focus,
 .pill-form .morb-control:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-ring);
@@ -11055,7 +11082,7 @@ select.morb-control {
 .msheet-overlay {
   position: fixed;
   inset: 0;
-  z-index: 6000;
+  z-index: 9600;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -14659,27 +14686,92 @@ select.morb-control {
   }
 }
 
-/* ── PLANTEAMIENTO SALA — Tabla Responsiva con Columna de Acciones Fija ─────────── */
+/* ── PLANTEAMIENTO SALA — Tabla Responsiva sin scroll forzado y 100% Pill ─────────── */
+.sala-toolbar-card {
+  background: var(--bg-secondary);
+  border-radius: 18px;
+  padding: 0.85rem 1.15rem;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.sala-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.sala-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  width: 100%;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.sala-badge-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 0.4rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+}
+
+.sala-badge-refugio {
+  font-size: 0.78rem;
+  color: var(--color-primary);
+  font-weight: 700;
+  background: rgba(37, 99, 235, 0.08);
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
 .sala-table-wrapper {
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
+  width: 100%;
   max-width: 100%;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
+  box-shadow:
+    0 4px 20px -4px rgba(0, 0, 0, 0.08),
+    0 1px 4px rgba(0, 0, 0, 0.04);
+  overflow-x: clip;
+}
+
+@media (max-width: 1023px) {
+  .sala-table-wrapper {
+    overflow-x: visible;
+    box-shadow: none;
+    border: none;
+    background: transparent;
+  }
 }
 
 .sala-table {
   width: 100%;
-  min-width: 1020px;
   border-collapse: collapse;
+  table-layout: auto;
 }
 
 .sala-table th {
-  padding: 0.9rem 1rem !important;
-  font-size: 0.75rem !important;
+  padding: 0.85rem 1rem !important;
+  font-size: 0.74rem !important;
   font-weight: 800 !important;
-  letter-spacing: 0.05em !important;
+  letter-spacing: 0.04em !important;
   text-transform: uppercase;
   color: var(--text-secondary);
   border-bottom: 2px solid var(--border-color) !important;
@@ -14696,54 +14788,457 @@ select.morb-control {
   transition: background-color 0.15s ease;
 }
 
-.sala-table tbody tr:hover {
-  background-color: rgba(37, 99, 235, 0.03) !important;
+.sala-table tbody tr:hover td {
+  background-color: rgba(37, 99, 235, 0.035) !important;
 }
 
-.sala-col-action {
-  width: 175px !important;
-  min-width: 175px !important;
-  max-width: 175px !important;
-  text-align: center !important;
-  white-space: nowrap !important;
-  position: sticky !important;
-  right: 0 !important;
-  z-index: 2 !important;
-  background-color: var(--card-bg, var(--bg-primary)) !important;
-  box-shadow: -8px 0 16px rgba(0, 0, 0, 0.12) !important;
-  border-left: 1px solid var(--border-color) !important;
+.sala-table .col-num {
+  width: 2.5rem;
+  text-align: center;
 }
 
-.sala-table thead th.sala-col-action {
-  background-color: var(--color-primary-light, #1e293b) !important;
-  z-index: 3 !important;
+.sala-table .col-modalidad {
+  white-space: nowrap;
+  text-align: center;
+  width: 1%;
 }
 
-.sala-table tbody tr:hover td.sala-col-action {
-  background-color: var(--color-primary-light, #1e293b) !important;
+.sala-table .col-campamento {
+  white-space: nowrap;
+  width: 1%;
 }
 
-.sala-actions-group {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 6px !important;
-  flex-wrap: nowrap !important;
+.sala-table .col-progreso {
+  min-width: 155px;
+  width: 165px;
 }
 
-.sala-btn-action {
-  width: 30px !important;
-  height: 30px !important;
-  min-width: 30px !important;
+.sala-table .col-estatus {
+  white-space: nowrap;
+  text-align: center;
+  width: 1%;
+}
+
+.sala-table .col-action {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+  padding: 0.4rem !important;
+}
+
+@media (max-width: 1023px) {
+  .sala-table .col-modalidad,
+  .sala-table .col-campamento,
+  .sala-table .col-progreso,
+  .sala-table .col-estatus {
+    width: auto !important;
+    text-align: right !important;
+    white-space: normal !important;
+  }
+  .sala-table .col-progreso > div {
+    align-items: flex-end;
+    min-width: 160px;
+  }
+}
+
+/* ── Modales de Planteamiento Sala: 100% Pill, Centrados en PC y Bottom-Sheet / Full-Screen en Móvil ── */
+.modal-overlay--sala {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+  padding: 1.5rem;
+}
+
+.modal-content.sala-modal,
+.modal-content.sala-view-modal,
+.modal-content.sala-grupo-familiar-modal,
+.modal-content.sala-status-modal,
+.modal-content.sala-export-modal,
+.modal-content.sala-qr-modal {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   padding: 0 !important;
-  border-radius: 8px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex-shrink: 0 !important;
-  transition: transform 0.1s ease, background-color 0.15s ease !important;
+  overflow: hidden !important;
+  margin: auto;
+  border-radius: 22px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.3);
 }
 
-.sala-btn-action:hover {
-  transform: translateY(-1px);
+.modal-content.sala-modal {
+  width: min(1360px, 96vw);
+  max-width: min(1360px, 96vw);
 }
+
+.modal-content.sala-view-modal {
+  width: min(1280px, 96vw);
+  max-width: min(1280px, 96vw);
+}
+
+.modal-content.sala-grupo-familiar-modal {
+  width: min(1120px, 96vw);
+  max-width: min(1120px, 96vw);
+}
+
+.modal-content.sala-status-modal {
+  width: min(620px, 96vw);
+  max-width: min(620px, 96vw);
+}
+
+.modal-content.sala-export-modal {
+  width: min(580px, 96vw);
+  max-width: min(580px, 96vw);
+}
+
+.modal-content.sala-qr-modal {
+  width: min(620px, 96vw);
+  max-width: min(620px, 96vw);
+}
+
+.sala-modal__head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  padding: 1.1rem 1.4rem 0.9rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  flex-shrink: 0;
+}
+
+.sala-modal__head .msheet__grip {
+  display: none !important;
+}
+
+.sala-head-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.sala-head-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.sala-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.sala-head-name {
+  margin: 0.15rem 0 0.1rem 0;
+  font-size: 1.22rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.25;
+  letter-spacing: -0.2px;
+  word-break: break-word;
+}
+
+.sala-head-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  flex-wrap: wrap;
+}
+
+.sala-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.77rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.sala-chip strong,
+.sala-chip b {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.sala-chip--accent {
+  color: var(--color-primary);
+  border-color: rgba(37, 99, 235, 0.3);
+  background: rgba(37, 99, 235, 0.08);
+  font-weight: 600;
+}
+
+.sala-modal__body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 1.25rem 1.4rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.sala-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.95rem 1.4rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.sala-modal__foot .btn-submit,
+.sala-modal__foot .btn-secondary,
+.sala-modal__foot .btn-back {
+  width: auto !important;
+  flex: 0 0 auto;
+  padding-inline: 1.5rem;
+  height: var(--ctl-h, 38px);
+  border-radius: 999px;
+}
+
+/* ── Adaptación Full-Screen / Bottom Sheet para Teléfonos Móviles (≤768px) ── */
+@media (max-width: 768px) {
+  .modal-overlay--sala,
+  .modal-overlay:has(.sala-modal),
+  .modal-overlay:has(.sala-view-modal),
+  .modal-overlay:has(.sala-grupo-familiar-modal),
+  .modal-overlay:has(.sala-status-modal),
+  .modal-overlay:has(.sala-export-modal) {
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    z-index: 2500 !important;
+  }
+
+  .modal-overlay:has(.sala-qr-modal) {
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    z-index: 9000 !important;
+  }
+
+  /* Modales Grandes (Creación, Visualización, Grupo Familiar) → Pantalla Completa Limpia */
+  .modal-content.sala-modal,
+  .modal-content.sala-view-modal,
+  .modal-content.sala-grupo-familiar-modal,
+  .modal-content.pill-form.sala-modal,
+  .modal-content.pill-form.sala-view-modal,
+  .modal-content.pill-form.sala-grupo-familiar-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 100dvh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    animation: msheetIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  }
+
+  /* Modales Compactos (Estatus, Exportar, Escáner QR) → Bottom Sheet Elegante */
+  .modal-content.sala-status-modal,
+  .modal-content.sala-export-modal,
+  .modal-content.sala-qr-modal,
+  .modal-content.pill-form.sala-status-modal,
+  .modal-content.pill-form.sala-export-modal,
+  .modal-content.pill-form.sala-qr-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 100vw !important;
+    max-height: 90dvh !important;
+    min-height: auto !important;
+    border-radius: 24px 24px 0 0 !important;
+    margin: 0 !important;
+    border: 1px solid var(--border-color) !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    box-shadow: 0 -18px 48px -12px rgba(0, 0, 0, 0.45) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    animation: msheetIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  }
+
+  .modal-content.sala-status-modal .sala-modal__head .msheet__grip,
+  .modal-content.sala-export-modal .sala-modal__head .msheet__grip,
+  .modal-content.sala-qr-modal .sala-modal__head .msheet__grip {
+    display: block !important;
+    width: 44px !important;
+    height: 5px !important;
+    border-radius: 999px !important;
+    background: var(--text-muted, #94a3b8) !important;
+    opacity: 0.5 !important;
+    margin: 0 auto 0.5rem !important;
+  }
+
+  .modal-content.sala-modal.modal-content--closing,
+  .modal-content.sala-view-modal.modal-content--closing,
+  .modal-content.sala-grupo-familiar-modal.modal-content--closing,
+  .modal-content.sala-status-modal.modal-content--closing,
+  .modal-content.sala-export-modal.modal-content--closing,
+  .modal-content.sala-qr-modal.modal-content--closing {
+    animation: msheetOut 0.19s ease both !important;
+  }
+
+  .sala-modal__head {
+    padding: 0.75rem 1rem 0.65rem !important;
+    flex-shrink: 0 !important;
+    gap: 0.35rem !important;
+  }
+
+  .sala-head-name {
+    font-size: 1.08rem !important;
+    margin: 0.1rem 0 !important;
+    line-height: 1.22 !important;
+  }
+
+  .sala-head-chips {
+    gap: 0.25rem 0.35rem !important;
+  }
+
+  .sala-chip {
+    font-size: 0.72rem !important;
+    padding: 0.15rem 0.45rem !important;
+  }
+
+  .sala-modal__body {
+    padding: 1rem !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .sala-modal__foot {
+    padding: 0.75rem 1rem max(0.85rem, env(safe-area-inset-bottom, 0px)) !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .sala-modal__foot .btn-submit,
+  .sala-modal__foot .btn-secondary,
+  .sala-modal__foot .btn-back {
+    flex: 1 1 auto !important;
+    min-width: 120px !important;
+    height: var(--ctl-h, 38px) !important;
+  }
+}
+
+/* ── Tablets (769px a 900px) ── */
+@media (min-width: 769px) and (max-width: 900px) {
+  .modal-overlay--sala {
+    align-items: flex-end !important;
+    padding: 0 !important;
+    z-index: 2500 !important;
+  }
+
+  .modal-content.sala-modal,
+  .modal-content.sala-view-modal,
+  .modal-content.sala-grupo-familiar-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 94dvh !important;
+    max-height: 94dvh !important;
+    border-radius: 24px 24px 0 0 !important;
+  }
+
+  .modal-content.sala-status-modal,
+  .modal-content.sala-export-modal,
+  .modal-content.sala-qr-modal {
+    width: min(640px, 94vw) !important;
+    max-height: 88dvh !important;
+    border-radius: 22px !important;
+    margin: auto !important;
+  }
+}
+
+/* ── Tooltips flotantes interactivos para campos readOnly (auto-calculados y QR) ── */
+.readonly-tip-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.readonly-tip-wrap input[readonly] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.readonly-bubble {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--text-primary, #0f172a);
+  color: var(--bg-primary, #ffffff);
+  padding: 5px 11px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  z-index: 9999;
+  text-align: center;
+}
+
+.readonly-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px 5px 0 5px;
+  border-style: solid;
+  border-color: var(--text-primary, #0f172a) transparent transparent transparent;
+}
+
+.readonly-tip-wrap:focus-within .readonly-bubble,
+.readonly-tip-wrap:active .readonly-bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (hover: hover) {
+  .readonly-tip-wrap:hover .readonly-bubble {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+

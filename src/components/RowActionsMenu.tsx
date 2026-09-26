@@ -68,7 +68,7 @@ export default function RowActionsMenu({ actions, title = "Acciones" }: {
     const top = openUp ? Math.max(8, rect.top - 6 - estH) : rect.bottom + 6;
     const left = Math.max(8, rect.left + rect.width - W);
     portal = createPortal(
-      <div ref={menuRef} className="rowmenu__portal" style={{ position: "fixed", top, left, width: W, zIndex: 5000 }}>
+      <div ref={menuRef} className="rowmenu__portal" style={{ position: "fixed", top, left, width: W, zIndex: 9500 }}>
         {list}
       </div>,
       document.body,

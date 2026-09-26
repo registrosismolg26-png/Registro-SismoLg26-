@@ -71,7 +71,7 @@ export default function StyledSelect({ value, onChange, options, placeholder = "
       right: "auto",
       maxHeight,
       overflowY: "auto",
-      zIndex: 4000,
+      zIndex: 9500,
       ...(openUp
         ? { bottom: window.innerHeight - rect.top + MENU_MARGIN, top: "auto" }
         : { top: rect.bottom + MENU_MARGIN }),
