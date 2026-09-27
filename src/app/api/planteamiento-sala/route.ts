@@ -79,7 +79,7 @@ export function calcularProgreso(item: {
   return Math.min(100, Math.max(0, Math.round((count / 10) * 100)));
 }
 
-// GET — Master o Planteamiento Master. Lista todos los registros o los filtra por campamento (?refugio=) y/o tipoOpcion (?tipoOpcion=)
+// GET — Master o Planteamiento Master. Lista registros con soporte de búsqueda en servidor y paginación
 export async function GET(req: Request) {
   try {
     const auth = await getAuthUser(req);
@@ -90,6 +90,12 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const refugio = (searchParams.get("refugio") || "").trim();
     const tipoOpcion = (searchParams.get("tipoOpcion") || "").trim();
+    const search = (searchParams.get("search") || searchParams.get("q") || "").trim();
+    const noPagination =
+      searchParams.get("noPagination") === "true" ||
+      searchParams.get("all") === "true" ||
+      searchParams.get("export") === "true";
+
     const where: any = {};
     if (refugio && refugio !== "TODOS") {
       where.refugio = refugio;
@@ -98,12 +104,65 @@ export async function GET(req: Request) {
       where.tipoOpcion = tipoOpcion;
     }
 
-    const items = await prisma.planteamientoSala.findMany({
-      where,
-      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-    });
+    if (search) {
+      const searchDigits = search.replace(/\D/g, "");
+      const orConditions: any[] = [
+        { nombreApellido: { contains: search, mode: "insensitive" } },
+        { telefono: { contains: search, mode: "insensitive" } },
+        { observacion: { contains: search, mode: "insensitive" } },
+        { viviendaEdificacion: { contains: search, mode: "insensitive" } },
+        { viviendaDireccion: { contains: search, mode: "insensitive" } },
+        { viviendaCircuitoComunal: { contains: search, mode: "insensitive" } },
+        { refugio: { contains: search, mode: "insensitive" } },
+      ];
+      if (searchDigits.length > 0) {
+        orConditions.push({ cedula: { contains: searchDigits } });
+      } else {
+        orConditions.push({ cedula: { contains: search, mode: "insensitive" } });
+      }
+      where.OR = orConditions;
+    }
 
-    return NextResponse.json({ success: true, items });
+    if (noPagination) {
+      const items = await prisma.planteamientoSala.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      });
+      return NextResponse.json({
+        success: true,
+        items,
+        total: items.length,
+        page: 1,
+        pageSize: items.length,
+        totalPages: 1,
+      });
+    }
+
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const pageSize = Math.max(1, Math.min(200, parseInt(searchParams.get("pageSize") || searchParams.get("limit") || "20", 10) || 20));
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+
+    const [total, items] = await Promise.all([
+      prisma.planteamientoSala.count({ where }),
+      prisma.planteamientoSala.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+        skip,
+        take,
+      }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return NextResponse.json({
+      success: true,
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    });
   } catch (error: any) {
     console.error("Error en GET /api/planteamiento-sala:", error);
     return NextResponse.json({ error: "Error al obtener planteamientos" }, { status: 500 });

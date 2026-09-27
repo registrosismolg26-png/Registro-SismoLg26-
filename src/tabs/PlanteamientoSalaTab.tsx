@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { normalizeText } from "@/lib/helpers";
 import StyledSelect from "@/components/StyledSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
+import Pagination from "@/components/Pagination";
 import RowActionsMenu from "@/components/RowActionsMenu";
 import ConfirmModal from "@/components/ConfirmModal";
 import PlanteamientoSalaModal from "@/components/PlanteamientoSalaModal";
@@ -69,9 +69,14 @@ export default function PlanteamientoSalaTab() {
   // Filtro por Modalidad / Tipo de Opción
   const [selectedTipoOpcion, setSelectedTipoOpcion] = useState<string>("TODOS");
 
+  // Paginación y búsqueda en servidor
   const [items, setItems] = useState<PlanteamientoSalaItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Modales
   const [showModal, setShowModal] = useState(false);
@@ -83,21 +88,36 @@ export default function PlanteamientoSalaTab() {
   const [itemToView, setItemToView] = useState<PlanteamientoSalaItem | null>(null);
   const [itemForGrupoFamiliar, setItemForGrupoFamiliar] = useState<PlanteamientoSalaItem | null>(null);
 
-  const loadItems = async () => {
+  // Debounce de 300ms para la búsqueda en servidor
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  const loadItems = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("pageSize", String(pageSize));
       if (selectedRefugio && selectedRefugio !== "TODOS") {
         params.set("refugio", selectedRefugio);
       }
       if (selectedTipoOpcion && selectedTipoOpcion !== "TODOS") {
         params.set("tipoOpcion", selectedTipoOpcion);
       }
+      if (debouncedSearch) {
+        params.set("search", debouncedSearch);
+      }
       const q = params.toString() ? `?${params.toString()}` : "";
       const res = await apiFetch(`/api/planteamiento-sala${q}`);
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.success && Array.isArray(data.items)) {
         setItems(data.items);
+        setTotal(typeof data.total === "number" ? data.total : data.items.length);
       } else {
         showToast(data?.error || "Error al cargar planteamientos.", "error");
       }
@@ -107,28 +127,21 @@ export default function PlanteamientoSalaTab() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, debouncedSearch, selectedRefugio, selectedTipoOpcion, showToast]);
 
   useEffect(() => {
     loadItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRefugio, selectedTipoOpcion]);
+  }, [loadItems]);
 
-  const filteredItems = useMemo(() => {
-    if (!search.trim()) return items;
-    const q = normalizeText(search);
-    const qDigits = search.replace(/\D/g, "");
-    return items.filter((it) => {
-      if (normalizeText(it.nombreApellido).includes(q)) return true;
-      if (it.cedula.includes(qDigits)) return true;
-      if (normalizeText(it.refugio).includes(q)) return true;
-      if (it.viviendaEdificacion && normalizeText(it.viviendaEdificacion).includes(q)) return true;
-      if (it.viviendaDireccion && normalizeText(it.viviendaDireccion).includes(q)) return true;
-      if (it.viviendaCircuitoComunal && normalizeText(it.viviendaCircuitoComunal).includes(q)) return true;
-      if (it.observacion && normalizeText(it.observacion).includes(q)) return true;
-      return false;
-    });
-  }, [items, search]);
+  const handleRefugioChange = (val: string) => {
+    setSelectedRefugio(val);
+    setPage(1);
+  };
+
+  const handleTipoOpcionChange = (val: string) => {
+    setSelectedTipoOpcion(val);
+    setPage(1);
+  };
 
   const handleDeleteConfirm = async () => {
     if (!itemToDelete) return;
@@ -140,7 +153,11 @@ export default function PlanteamientoSalaTab() {
       if (res.ok && data?.success) {
         showToast("Expediente eliminado.", "success");
         setItemToDelete(null);
-        loadItems();
+        if (items.length === 1 && page > 1) {
+          setPage((p) => p - 1);
+        } else {
+          loadItems();
+        }
       } else {
         showToast(data?.error || "No se pudo eliminar el expediente.", "error");
       }
@@ -175,8 +192,8 @@ export default function PlanteamientoSalaTab() {
         }}
       >
         <div>
-          <div className="dashboard-section-title" style={{ fontSize: "1.35rem", fontWeight: 800 }}>
-            Planteamiento Sala
+          <div className="dashboard-section-title" style={{ fontSize: "1.35rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            PLANTEAMIENTO SALA
           </div>
           <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
             Módulo exclusivo de supervisión y gestión de recaudos documentales por campamento.
@@ -274,7 +291,7 @@ export default function PlanteamientoSalaTab() {
               <div style={{ minWidth: "220px", flex: "1 1 240px" }}>
                 <SearchableSingleSelect
                   value={selectedRefugio}
-                  onChange={setSelectedRefugio}
+                  onChange={handleRefugioChange}
                   ariaLabel="Selector de campamento"
                   placeholder="Todos los Campamentos (26)"
                   options={campamentoFilterOptions}
@@ -285,7 +302,7 @@ export default function PlanteamientoSalaTab() {
               <div style={{ minWidth: "190px", flex: "1 1 210px" }}>
                 <StyledSelect
                   value={selectedTipoOpcion}
-                  onChange={setSelectedTipoOpcion}
+                  onChange={handleTipoOpcionChange}
                   ariaLabel="Selector de modalidad"
                   options={[
                     { value: "TODOS", label: "Todas las Modalidades" },
@@ -321,6 +338,13 @@ export default function PlanteamientoSalaTab() {
                   placeholder="Buscar por cédula, nombre u obs…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      setDebouncedSearch(search.trim());
+                      setPage(1);
+                    }
+                  }}
                   style={{
                     width: "100%",
                     height: "var(--ctl-h, 38px)",
@@ -334,7 +358,11 @@ export default function PlanteamientoSalaTab() {
                 {search && (
                   <button
                     type="button"
-                    onClick={() => setSearch("")}
+                    onClick={() => {
+                      setSearch("");
+                      setDebouncedSearch("");
+                      setPage(1);
+                    }}
                     title="Limpiar búsqueda"
                     style={{
                       position: "absolute",
@@ -372,7 +400,7 @@ export default function PlanteamientoSalaTab() {
                     <polyline points="10 9 9 9 8 9" />
                   </svg>
                   <span>
-                    Mostrando <b>{filteredItems.length}</b> de <b>{items.length}</b> expedientes
+                    Mostrando <b>{items.length}</b> de <b>{total}</b> expedientes
                   </span>
                 </span>
 
@@ -383,113 +411,150 @@ export default function PlanteamientoSalaTab() {
                 )}
               </div>
 
-              {/* Botonera de Acciones Agrupada */}
+              {/* Botonera de Acciones (Botones independientes en píldora con separación) */}
               <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", flexWrap: "wrap" }}>
-                {/* Grupo Segmentado: Descargar + Actualizar */}
-                <div className="btn-seg-group">
-                  <button
-                    type="button"
-                    className="toolbar-btn"
-                    onClick={() => setShowExportModal(true)}
-                    title="Descargar archivo Excel con opciones por modalidad"
-                    style={{ height: "var(--ctl-h, 38px)" }}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#16a34a"
-                      strokeWidth="2.3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                      <line x1="8" y1="13" x2="16" y2="13" />
-                      <line x1="8" y1="17" x2="16" y2="17" />
-                      <polyline points="10 9 9 9 8 9" />
-                    </svg>
-                    <span className="btn-txt-collapsible">Descargar Excel</span>
-                  </button>
-
-                  {/* Botón Carga Masiva con Carga Familiar */}
-                  <button
-                    type="button"
-                    className="toolbar-btn"
-                    onClick={() => setShowBulkModal(true)}
-                    title="Carga masiva de personas y grupo familiar mediante plantilla Excel"
-                    style={{ height: "var(--ctl-h, 38px)" }}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth="2.3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span className="btn-txt-collapsible">Carga Masiva</span>
-                  </button>
-
-                  {/* Botón Actualizar */}
-                  <button
-                    type="button"
-                    className="toolbar-btn"
-                    onClick={loadItems}
-                    disabled={loading}
-                    title="Actualizar listado"
-                    style={{ height: "var(--ctl-h, 38px)" }}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="23 4 23 10 17 10" />
-                      <polyline points="1 20 1 14 7 14" />
-                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Botón Cargar Persona (Pill Primario) */}
+                {/* Botón Descargar Excel */}
                 <button
                   type="button"
-                  className="btn-submit"
+                  className="toolbar-btn"
+                  onClick={() => setShowExportModal(true)}
+                  title="Descargar archivo Excel con opciones por modalidad"
+                  style={{
+                    height: "var(--ctl-h, 38px)",
+                    borderRadius: "999px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "0 1.15rem",
+                    border: "1px solid var(--border-color)",
+                    background: "var(--bg-primary)",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#16a34a"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="8" y1="13" x2="16" y2="13" />
+                    <line x1="8" y1="17" x2="16" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
+                  <span className="btn-txt-collapsible">Descargar Excel</span>
+                </button>
+
+                {/* Botón Carga Masiva con Carga Familiar */}
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={() => setShowBulkModal(true)}
+                  title="Carga masiva de personas y grupo familiar mediante plantilla Excel"
+                  style={{
+                    height: "var(--ctl-h, 38px)",
+                    borderRadius: "999px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "0 1.15rem",
+                    border: "1px solid var(--border-color)",
+                    background: "var(--bg-primary)",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span className="btn-txt-collapsible">Carga Masiva</span>
+                </button>
+
+                {/* Botón Actualizar (Solo ícono) */}
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={loadItems}
+                  disabled={loading}
+                  title="Actualizar listado"
+                  style={{
+                    height: "var(--ctl-h, 38px)",
+                    width: "var(--ctl-h, 38px)",
+                    minWidth: "var(--ctl-h, 38px)",
+                    borderRadius: "999px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    border: "1px solid var(--border-color)",
+                    background: "var(--bg-primary)",
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="23 4 23 10 17 10" />
+                    <polyline points="1 20 1 14 7 14" />
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                  </svg>
+                </button>
+
+                {/* Botón Cargar Persona (Azul Marino Sólido + CARGAR PERSONA) */}
+                <button
+                  type="button"
                   onClick={() => {
                     setEditingItem(null);
                     setShowModal(true);
                   }}
+                  title="Cargar nuevo expediente con checklist dinámico"
                   style={{
-                    width: "auto",
                     height: "var(--ctl-h, 38px)",
-                    padding: "0 1.25rem",
-                    fontSize: "0.85rem",
-                    fontWeight: 700,
+                    padding: "0 1.35rem",
+                    fontSize: "0.82rem",
+                    fontWeight: 800,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "6px",
                     borderRadius: "999px",
-                    boxShadow: "0 2px 6px rgba(37,99,235,0.22)",
+                    background: "#1e3a8a",
+                    color: "#ffffff",
+                    border: "none",
+                    boxShadow: "0 2px 8px rgba(30, 58, 138, 0.25)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
-                  <span>Cargar Persona</span>
+                  <span>CARGAR PERSONA</span>
                 </button>
               </div>
             </div>
@@ -501,41 +566,46 @@ export default function PlanteamientoSalaTab() {
               <span className="spinner" style={{ width: "28px", height: "28px", margin: "0 auto 1rem" }} />
               <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>Cargando expedientes…</p>
             </div>
-          ) : filteredItems.length === 0 ? (
+          ) : total === 0 ? (
             <div className="reg-empty-state" style={{ padding: "3rem 1rem" }}>
               <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
               </svg>
-              <p>No hay personas cargadas {selectedRefugio !== "TODOS" ? `en ${selectedRefugio}` : ""}</p>
+              <p>
+                {debouncedSearch || selectedRefugio !== "TODOS" || selectedTipoOpcion !== "TODOS"
+                  ? "No se encontraron expedientes con los filtros aplicados"
+                  : `No hay personas cargadas ${selectedRefugio !== "TODOS" ? `en ${selectedRefugio}` : ""}`}
+              </p>
               <span>Usa el botón "+ Cargar Persona" para ingresar una nueva ficha con su checklist de requisitos.</span>
             </div>
           ) : (
-            <div className="registro-table-wrapper sala-table-wrapper">
-              <table className="registro-table sala-table">
-                <thead>
-                  <tr>
-                    <th className="col-num">#</th>
-                    <th className="col-grow">Persona</th>
-                    <th className="col-modalidad">Modalidad</th>
-                    <th className="col-campamento">Campamento</th>
-                    <th className="col-progreso">Progreso / Carpeta</th>
-                    <th className="col-estatus">Estatus / Subsidio</th>
-                    <th className="col-action col-action--min"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredItems.map((item, idx) => {
-                    const meta = getEstatusMeta(item.estatus);
-                    const opcionMeta =
-                      TIPO_OPCION_PLANTEAMIENTO_OPTIONS.find((o) => o.value === item.tipoOpcion) ||
-                      TIPO_OPCION_PLANTEAMIENTO_OPTIONS[0];
-                    const totalReq = opcionMeta.requisitosCount;
-                    const cumplidos = Math.round((item.porcentajeProgreso / 100) * totalReq);
+            <>
+              <div className="registro-table-wrapper sala-table-wrapper">
+                <table className="registro-table sala-table">
+                  <thead>
+                    <tr>
+                      <th className="col-num" style={{ textTransform: "uppercase" }}>#</th>
+                      <th className="col-grow" style={{ textTransform: "uppercase" }}>PERSONA</th>
+                      <th className="col-modalidad" style={{ textTransform: "uppercase" }}>MODALIDAD</th>
+                      <th className="col-campamento" style={{ textTransform: "uppercase" }}>CAMPAMENTO</th>
+                      <th className="col-progreso" style={{ textTransform: "uppercase" }}>PROGRESO / CARPETA</th>
+                      <th className="col-estatus" style={{ textTransform: "uppercase" }}>ESTATUS / SUBSIDIO</th>
+                      <th className="col-action col-action--min"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item, idx) => {
+                      const meta = getEstatusMeta(item.estatus);
+                      const opcionMeta =
+                        TIPO_OPCION_PLANTEAMIENTO_OPTIONS.find((o) => o.value === item.tipoOpcion) ||
+                        TIPO_OPCION_PLANTEAMIENTO_OPTIONS[0];
+                      const totalReq = opcionMeta.requisitosCount;
+                      const cumplidos = Math.round((item.porcentajeProgreso / 100) * totalReq);
 
-                    return (
-                      <tr key={item.id} className="reg-row-enter">
-                        <td className="col-num" data-label="#">{idx + 1}</td>
+                      return (
+                        <tr key={item.id} className="reg-row-enter">
+                          <td className="col-num" data-label="#">{(page - 1) * pageSize + idx + 1}</td>
 
                         {/* Persona (Datos personales limpios y legibles) */}
                         <td className="col-persona col-grow" data-label="Persona">
@@ -789,9 +859,23 @@ export default function PlanteamientoSalaTab() {
                 </tbody>
               </table>
             </div>
-          )}
-        </>
-      )}
+
+            <Pagination
+              total={total}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={(p) => setPage(p)}
+              onPageSizeChange={(s) => {
+                setPageSize(s);
+                setPage(1);
+              }}
+              pageSizeOptions={[10, 20, 50, 100]}
+              itemLabel="expedientes"
+            />
+          </>
+        )}
+      </>
+    )}
 
       {/* Modal de Carga / Edición Completa */}
       <PlanteamientoSalaModal

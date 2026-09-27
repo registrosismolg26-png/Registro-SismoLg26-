@@ -871,13 +871,26 @@ export default function PlanteamientoSalaModal({
 
           {/* SECCIÓN 1: Información de la Persona y Modalidad */}
           <div style={{ marginBottom: "1.25rem" }}>
-            <div className="detail-section-title" style={{ marginBottom: "0.75rem" }}>
-              Información de la Persona y Modalidad
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "0.85rem" }}>
+              <span style={{ width: "3.5px", height: "16px", background: "var(--color-primary, #2563eb)", borderRadius: "2px", display: "inline-block" }} />
+              <span style={{ fontSize: "0.82rem", fontWeight: 800, color: "var(--color-primary, #1e3a8a)", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                INFORMACIÓN DE LA PERSONA Y MODALIDAD
+              </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0.75rem" }}>
+            {/* Fila 1: 5 Campos */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: "0.75rem",
+                marginBottom: "0.75rem",
+              }}
+            >
               <div className="form-group">
-                <label>Campamento</label>
+                <label style={{ textTransform: "uppercase", fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Campamento
+                </label>
                 <SearchableSingleSelect
                   value={refugio}
                   onChange={setRefugio}
@@ -891,7 +904,9 @@ export default function PlanteamientoSalaModal({
 
               {/* Selector de Tipo de Opción */}
               <div className="form-group">
-                <label>Tipo de Opción (Modalidad)</label>
+                <label style={{ textTransform: "uppercase", fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Tipo de Opción (Modalidad)
+                </label>
                 <StyledSelect
                   value={tipoOpcion}
                   onChange={(v) => setTipoOpcion(v as TipoOpcionPlanteamiento)}
@@ -904,7 +919,9 @@ export default function PlanteamientoSalaModal({
               </div>
 
               <div className="form-group">
-                <label>Cédula de la Persona</label>
+                <label style={{ textTransform: "uppercase", fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Cédula de la Persona
+                </label>
                 <div className="cedula-search-wrap">
                   <input
                     type="text"
@@ -951,7 +968,9 @@ export default function PlanteamientoSalaModal({
               </div>
 
               <div className="form-group">
-                <label>Nombre y Apellido</label>
+                <label style={{ textTransform: "uppercase", fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Nombre y Apellido
+                </label>
                 <input
                   type="text"
                   placeholder="Nombre completo"
@@ -962,7 +981,9 @@ export default function PlanteamientoSalaModal({
               </div>
 
               <div className="form-group">
-                <label>Teléfono de Contacto (opcional)</label>
+                <label style={{ textTransform: "uppercase", fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Teléfono de Contacto (Opcional)
+                </label>
                 <div className="field-row-phone">
                   <StyledSelect
                     value={telefonoCod}
@@ -981,9 +1002,20 @@ export default function PlanteamientoSalaModal({
                   />
                 </div>
               </div>
+            </div>
 
+            {/* Fila 2: 4 Campos */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: "0.75rem",
+              }}
+            >
               <div className="form-group">
-                <label>Género</label>
+                <label style={{ textTransform: "uppercase", fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Género
+                </label>
                 <StyledSelect
                   value={genero}
                   onChange={(v) => setGenero(v as "MASCULINO" | "FEMENINO" | "")}
@@ -997,7 +1029,9 @@ export default function PlanteamientoSalaModal({
               </div>
 
               <div className="form-group">
-                <label>Fecha de Nacimiento</label>
+                <label style={{ textTransform: "uppercase", fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Fecha de Nacimiento
+                </label>
                 <DatePicker
                   value={fechaNacimiento}
                   onChange={handleFechaNacimientoChange}
@@ -1005,7 +1039,9 @@ export default function PlanteamientoSalaModal({
               </div>
 
               <div className="form-group">
-                <label>Edad</label>
+                <label style={{ textTransform: "uppercase", fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Edad
+                </label>
                 <div className="readonly-tip-wrap">
                   <input
                     type="text"
@@ -1021,9 +1057,9 @@ export default function PlanteamientoSalaModal({
               </div>
 
               <div className="form-group">
-                <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", textTransform: "uppercase", fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                   <span>Fecha de Entrega de Carpeta</span>
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 400 }}>
+                  <span style={{ fontSize: "0.7rem", color: "var(--text-secondary)", fontWeight: 400, textTransform: "none" }}>
                     (Fecha de Carga)
                   </span>
                 </label>
@@ -1157,7 +1193,7 @@ export default function PlanteamientoSalaModal({
                       <rect x="14" y="14" width="7" height="7" />
                       <rect x="3" y="14" width="7" height="7" />
                     </svg>
-                    <span>{viviendaDireccion || viviendaTipo ? "Re-escanear QR" : "Escanear QR de Vivienda"}</span>
+                    <span>{viviendaDireccion || viviendaTipo ? "RE-ESCANEAR QR" : "ESCANEAR QR DE VIVIENDA"}</span>
                   </button>
 
                   {(viviendaDireccion || viviendaTipo) && (
@@ -2372,16 +2408,46 @@ export default function PlanteamientoSalaModal({
           </div>
 
           {/* Botones de acción */}
-          <div className="sala-modal__foot">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>
+          <div className="sala-modal__foot" style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", padding: "1rem 1.4rem", borderTop: "1px solid var(--border-color)", background: "var(--bg-primary)" }}>
+            <button
+              type="button"
+              className="toolbar-btn"
+              onClick={onClose}
+              disabled={saving}
+              style={{
+                borderRadius: "999px",
+                padding: "0 1.5rem",
+                height: "var(--ctl-h, 38px)",
+                fontWeight: 700,
+                fontSize: "0.85rem",
+                textTransform: "uppercase",
+                border: "1.5px solid #1e3a8a",
+                color: "#1e3a8a",
+                background: "#ffffff",
+                cursor: "pointer",
+              }}
+            >
               Cancelar
             </button>
             <button
               type="submit"
-              className="btn-submit"
               disabled={saving}
+              style={{
+                width: "auto",
+                borderRadius: "999px",
+                padding: "0 1.5rem",
+                height: "var(--ctl-h, 38px)",
+                fontWeight: 700,
+                fontSize: "0.85rem",
+                textTransform: "uppercase",
+                background: "#1e3a8a",
+                color: "#ffffff",
+                border: "none",
+                boxShadow: "0 2px 8px rgba(30, 58, 138, 0.25)",
+                cursor: "pointer",
+              }}
             >
-              {saving ? "Guardando…" : itemToEdit ? "Actualizar Planteamiento" : "Guardar Planteamiento"}
+              {saving ? "Guardando…" : itemToEdit ? "ACTUALIZAR PLANTEAMIENTO" : "GUARDAR PLANTEAMIENTO"}
             </button>
           </div>
         </form>

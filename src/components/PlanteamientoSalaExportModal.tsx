@@ -11,7 +11,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   selectedRefugio: string;
-  items: PlanteamientoSalaItem[];
+  items?: PlanteamientoSalaItem[];
   showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void;
 }
 
@@ -19,18 +19,11 @@ export default function PlanteamientoSalaExportModal({
   isOpen,
   onClose,
   selectedRefugio,
-  items,
+  items = [],
   showToast,
 }: Props) {
   const modal = useAnimatedModal(isOpen);
   const [exporting, setExporting] = useState<string | null>(null);
-
-  if (!modal.mounted || typeof document === "undefined") return null;
-
-  // Conteo local rápido de expedientes por modalidad para la vista actual
-  const countCompra = items.filter((it) => it.tipoOpcion === "MERCADO_SECUNDARIO").length;
-  const countAlquiler = items.filter((it) => it.tipoOpcion === "ALQUILER").length;
-  const countRenace = items.filter((it) => it.tipoOpcion === "PLAN_VENEZUELA_RENACE").length;
 
   const handleExport = async (modalidad: TipoOpcionPlanteamiento) => {
     setExporting(modalidad);
@@ -38,6 +31,7 @@ export default function PlanteamientoSalaExportModal({
       // Consultamos los datos de esa modalidad (respetando el campamento activo si aplica)
       const params = new URLSearchParams();
       params.set("tipoOpcion", modalidad);
+      params.set("noPagination", "true");
       if (selectedRefugio && selectedRefugio !== "TODOS") {
         params.set("refugio", selectedRefugio);
       }
@@ -158,7 +152,7 @@ export default function PlanteamientoSalaExportModal({
             <span className="export-option__text">
               <strong>Compra de Vivienda</strong>
               <small>
-                Mercado Secundario: 9 recaudos documentales, titularidad, estatus y fechas de avance ({countCompra}).
+                Mercado Secundario: 9 recaudos documentales, titularidad, estatus y fechas de avance.
               </small>
             </span>
           </button>
@@ -197,7 +191,7 @@ export default function PlanteamientoSalaExportModal({
             <span className="export-option__text">
               <strong>Alquiler</strong>
               <small>
-                Arrendamiento: 7 recaudos (carta compromiso, fotos, arrendador, arrendatario) y fechas ({countAlquiler}).
+                Arrendamiento: 7 recaudos (carta compromiso, fotos, arrendador, arrendatario) y fechas.
               </small>
             </span>
           </button>
@@ -234,7 +228,7 @@ export default function PlanteamientoSalaExportModal({
             <span className="export-option__text">
               <strong>Venezuela Renace</strong>
               <small>
-                Plan Venezuela Renace: recaudos de daños, fotos y desglose de materiales ({countRenace}).
+                Plan Venezuela Renace: recaudos de daños, fotos y desglose de materiales.
               </small>
             </span>
           </button>

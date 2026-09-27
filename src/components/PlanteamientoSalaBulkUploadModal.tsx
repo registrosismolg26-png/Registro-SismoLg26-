@@ -186,7 +186,7 @@ export default function PlanteamientoSalaBulkUploadModal({
 
   return createPortal(
     <div
-      className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
+      className={`modal-overlay modal-overlay--sala${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
