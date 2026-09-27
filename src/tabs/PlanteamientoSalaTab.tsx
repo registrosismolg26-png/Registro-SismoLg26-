@@ -5,6 +5,8 @@ import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { normalizeText } from "@/lib/helpers";
 import StyledSelect from "@/components/StyledSelect";
+import SearchableSingleSelect from "@/components/SearchableSingleSelect";
+import RowActionsMenu from "@/components/RowActionsMenu";
 import ConfirmModal from "@/components/ConfirmModal";
 import PlanteamientoSalaModal from "@/components/PlanteamientoSalaModal";
 import PlanteamientoSalaEstatusModal from "@/components/PlanteamientoSalaEstatusModal";
@@ -49,6 +51,13 @@ export default function PlanteamientoSalaTab() {
       id: nombre,
       nombre,
     }));
+  }, []);
+
+  const campamentoFilterOptions = useMemo(() => {
+    return [
+      { value: "TODOS", label: "Todos los Campamentos (26)" },
+      ...CAMPAMENTOS_PLANTEAMIENTO_SALA.map((c) => ({ value: c, label: c })),
+    ];
   }, []);
 
   // Submódulos: "informacion" (gestión de personas por campamento) y "graficas"
@@ -230,27 +239,16 @@ export default function PlanteamientoSalaTab() {
       ) : (
         <>
           {/* Barra de Acciones del Submódulo Información */}
-          <div
-            className="sala-toolbar"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.85rem",
-              background: "var(--bg-secondary)",
-              padding: "1rem 1.15rem",
-              borderRadius: "16px",
-              border: "1px solid var(--border-color)",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.03)",
-            }}
-          >
+          {/* ── BARRA DE HERRAMIENTAS Y FILTROS (100% PILL Y RESPONSIVA) ── */}
+          <div className="pill-form sala-toolbar-card">
             {/* Nivel 1: Filtros de Selección y Buscador */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flexWrap: "wrap", width: "100%" }}>
+            <div className="sala-filter-row">
               <div
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
-                  fontSize: "0.85rem",
+                  fontSize: "0.84rem",
                   fontWeight: 700,
                   color: "var(--text-secondary)",
                   whiteSpace: "nowrap",
@@ -273,20 +271,18 @@ export default function PlanteamientoSalaTab() {
               </div>
 
               {/* Selector de Campamento */}
-              <div style={{ minWidth: "260px", flex: "1 1 280px" }}>
-                <StyledSelect
+              <div style={{ minWidth: "220px", flex: "1 1 240px" }}>
+                <SearchableSingleSelect
                   value={selectedRefugio}
                   onChange={setSelectedRefugio}
                   ariaLabel="Selector de campamento"
-                  options={[
-                    { value: "TODOS", label: "Todos los Campamentos (26)" },
-                    ...campamentosSalaList.map((c) => ({ value: c.nombre, label: c.nombre })),
-                  ]}
+                  placeholder="Todos los Campamentos (26)"
+                  options={campamentoFilterOptions}
                 />
               </div>
 
               {/* Selector de Modalidad */}
-              <div style={{ minWidth: "220px", flex: "1 1 240px" }}>
+              <div style={{ minWidth: "190px", flex: "1 1 210px" }}>
                 <StyledSelect
                   value={selectedTipoOpcion}
                   onChange={setSelectedTipoOpcion}
@@ -302,11 +298,11 @@ export default function PlanteamientoSalaTab() {
               </div>
 
               {/* Buscador en la tabla */}
-              <div style={{ position: "relative", minWidth: "240px", flex: "1 1 260px" }}>
+              <div style={{ position: "relative", minWidth: "220px", flex: "1 1 240px" }}>
                 <div
                   style={{
                     position: "absolute",
-                    left: "12px",
+                    left: "14px",
                     top: "50%",
                     transform: "translateY(-50%)",
                     pointerEvents: "none",
@@ -328,8 +324,8 @@ export default function PlanteamientoSalaTab() {
                   style={{
                     width: "100%",
                     height: "var(--ctl-h, 38px)",
-                    borderRadius: "10px",
-                    padding: "0 2rem 0 2.2rem",
+                    borderRadius: "999px",
+                    padding: "0 2rem 0 2.25rem",
                     border: "1px solid var(--border-color)",
                     background: "var(--bg-primary)",
                     fontSize: "0.85rem",
@@ -342,7 +338,7 @@ export default function PlanteamientoSalaTab() {
                     title="Limpiar búsqueda"
                     style={{
                       position: "absolute",
-                      right: "8px",
+                      right: "10px",
                       top: "50%",
                       transform: "translateY(-50%)",
                       background: "transparent",
@@ -363,35 +359,11 @@ export default function PlanteamientoSalaTab() {
               </div>
             </div>
 
-            {/* Nivel 2: Contador de Resultados y Botonera de Acciones Espaciosa */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "0.85rem",
-                width: "100%",
-                paddingTop: "0.75rem",
-                borderTop: "1px solid var(--border-color)",
-              }}
-            >
+            {/* Nivel 2: Contador de Resultados y Botonera Agrupada */}
+            <div className="sala-actions-row">
               {/* Contador de Expedientes */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    fontSize: "0.82rem",
-                    fontWeight: 600,
-                    color: "var(--text-secondary)",
-                    background: "var(--bg-primary)",
-                    padding: "5px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border-color)",
-                  }}
-                >
+                <span className="sala-badge-count">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--color-primary)" }}>
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
@@ -405,149 +377,111 @@ export default function PlanteamientoSalaTab() {
                 </span>
 
                 {selectedRefugio !== "TODOS" && (
-                  <span
-                    style={{
-                      fontSize: "0.78rem",
-                      color: "var(--color-primary)",
-                      fontWeight: 700,
-                      background: "rgba(37,99,235,0.08)",
-                      padding: "3px 10px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(37,99,235,0.2)",
-                    }}
-                  >
+                  <span className="sala-badge-refugio">
                     {selectedRefugio}
                   </span>
                 )}
               </div>
 
-              {/* Botonera de Acciones */}
+              {/* Botonera de Acciones Agrupada */}
               <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", flexWrap: "wrap" }}>
-                {/* Botón Descargar Excel */}
-                <button
-                  type="button"
-                  className="toolbar-btn"
-                  onClick={() => setShowExportModal(true)}
-                  title="Descargar archivo Excel con opciones por modalidad"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "7px",
-                    fontWeight: 600,
-                    fontSize: "0.84rem",
-                    padding: "0.45rem 1rem",
-                    borderRadius: "9px",
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
-                  }}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#16a34a"
-                    strokeWidth="2.3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                {/* Grupo Segmentado: Descargar + Actualizar */}
+                <div className="btn-seg-group">
+                  <button
+                    type="button"
+                    className="toolbar-btn"
+                    onClick={() => setShowExportModal(true)}
+                    title="Descargar archivo Excel con opciones por modalidad"
+                    style={{ height: "var(--ctl-h, 38px)" }}
                   >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="8" y1="13" x2="16" y2="13" />
-                    <line x1="8" y1="17" x2="16" y2="17" />
-                    <polyline points="10 9 9 9 8 9" />
-                  </svg>
-                  <span>Descargar Excel</span>
-                </button>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#16a34a"
+                      strokeWidth="2.3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="8" y1="13" x2="16" y2="13" />
+                      <line x1="8" y1="17" x2="16" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="btn-txt-collapsible">Descargar Excel</span>
+                  </button>
 
-                {/* Botón Carga Masiva con Carga Familiar */}
-                <button
-                  type="button"
-                  className="toolbar-btn"
-                  onClick={() => setShowBulkModal(true)}
-                  title="Carga masiva de personas y grupo familiar mediante plantilla Excel"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "7px",
-                    fontWeight: 600,
-                    fontSize: "0.84rem",
-                    padding: "0.45rem 1rem",
-                    borderRadius: "9px",
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
-                  }}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#2563eb"
-                    strokeWidth="2.3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  {/* Botón Carga Masiva con Carga Familiar */}
+                  <button
+                    type="button"
+                    className="toolbar-btn"
+                    onClick={() => setShowBulkModal(true)}
+                    title="Carga masiva de personas y grupo familiar mediante plantilla Excel"
+                    style={{ height: "var(--ctl-h, 38px)" }}
                   >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  <span>Carga Masiva</span>
-                </button>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth="2.3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span className="btn-txt-collapsible">Carga Masiva</span>
+                  </button>
 
-                {/* Botón Actualizar */}
-                <button
-                  type="button"
-                  className="toolbar-btn"
-                  onClick={loadItems}
-                  disabled={loading}
-                  title="Actualizar listado"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "36px",
-                    height: "36px",
-                    padding: 0,
-                    borderRadius: "9px",
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-color)",
-                  }}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  {/* Botón Actualizar */}
+                  <button
+                    type="button"
+                    className="toolbar-btn"
+                    onClick={loadItems}
+                    disabled={loading}
+                    title="Actualizar listado"
+                    style={{ height: "var(--ctl-h, 38px)" }}
                   >
-                    <polyline points="23 4 23 10 17 10" />
-                    <polyline points="1 20 1 14 7 14" />
-                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                  </svg>
-                </button>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="23 4 23 10 17 10" />
+                      <polyline points="1 20 1 14 7 14" />
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                  </button>
+                </div>
 
-                {/* Botón Cargar Persona */}
+                {/* Botón Cargar Persona (Pill Primario) */}
                 <button
                   type="button"
-                  className="toolbar-btn toolbar-btn--primary"
+                  className="btn-submit"
                   onClick={() => {
                     setEditingItem(null);
                     setShowModal(true);
                   }}
                   style={{
-                    background: "var(--color-primary)",
-                    color: "#fff",
-                    fontWeight: 700,
+                    width: "auto",
+                    height: "var(--ctl-h, 38px)",
+                    padding: "0 1.25rem",
                     fontSize: "0.85rem",
-                    padding: "0.45rem 1.15rem",
-                    borderRadius: "9px",
+                    fontWeight: 700,
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "6px",
+                    borderRadius: "999px",
                     boxShadow: "0 2px 6px rgba(37,99,235,0.22)",
                   }}
                 >
@@ -581,13 +515,13 @@ export default function PlanteamientoSalaTab() {
               <table className="registro-table sala-table">
                 <thead>
                   <tr>
-                    <th className="col-num" style={{ width: "40px", textAlign: "center" }}>#</th>
-                    <th style={{ minWidth: "210px" }}>Persona</th>
-                    <th style={{ width: "140px", minWidth: "140px", textAlign: "center" }}>Modalidad</th>
-                    <th style={{ minWidth: "170px", maxWidth: "220px" }}>Campamento</th>
-                    <th style={{ width: "155px", minWidth: "155px" }}>Progreso / Carpeta</th>
-                    <th style={{ width: "155px", minWidth: "155px", textAlign: "center" }}>Estatus / Subsidio</th>
-                    <th className="sala-col-action" style={{ width: "175px", minWidth: "175px", textAlign: "center" }}>Acciones</th>
+                    <th className="col-num">#</th>
+                    <th className="col-grow">Persona</th>
+                    <th className="col-modalidad">Modalidad</th>
+                    <th className="col-campamento">Campamento</th>
+                    <th className="col-progreso">Progreso / Carpeta</th>
+                    <th className="col-estatus">Estatus / Subsidio</th>
+                    <th className="col-action col-action--min"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -601,10 +535,10 @@ export default function PlanteamientoSalaTab() {
 
                     return (
                       <tr key={item.id} className="reg-row-enter">
-                        <td className="col-num" style={{ textAlign: "center" }}>{idx + 1}</td>
+                        <td className="col-num" data-label="#">{idx + 1}</td>
 
                         {/* Persona (Datos personales limpios y legibles) */}
-                        <td className="col-persona" style={{ minWidth: "210px" }}>
+                        <td className="col-persona col-grow" data-label="Persona">
                           <div className="person-cell" style={{ gap: "10px" }}>
                             <span className="person-avatar" aria-hidden="true" style={{ width: "34px", height: "34px", minWidth: "34px", fontSize: "0.78rem" }}>
                               {initialsOf(item.nombreApellido)}
@@ -632,8 +566,8 @@ export default function PlanteamientoSalaTab() {
                                       fontSize: "0.68rem",
                                       background: "rgba(37,99,235,0.09)",
                                       color: "#2563eb",
-                                      padding: "1px 6px",
-                                      borderRadius: "4px",
+                                      padding: "1px 8px",
+                                      borderRadius: "999px",
                                       fontWeight: 700,
                                       whiteSpace: "nowrap",
                                       border: "1px solid rgba(37,99,235,0.2)",
@@ -649,7 +583,7 @@ export default function PlanteamientoSalaTab() {
                         </td>
 
                         {/* Modalidad */}
-                        <td style={{ textAlign: "center", width: "140px", minWidth: "140px" }}>
+                        <td className="col-modalidad" data-label="Modalidad">
                           <span
                             style={{
                               display: "inline-block",
@@ -668,18 +602,9 @@ export default function PlanteamientoSalaTab() {
                         </td>
 
                         {/* Campamento */}
-                        <td style={{ fontSize: "0.8rem", fontWeight: 600, minWidth: "170px", maxWidth: "220px", lineHeight: "1.3" }}>
+                        <td className="col-campamento" data-label="Campamento">
                           <span
-                            style={{
-                              display: "inline-block",
-                              background: "rgba(0,0,0,0.05)",
-                              padding: "3px 8px",
-                              borderRadius: "6px",
-                              maxWidth: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "normal",
-                            }}
+                            className="camp-pill-badge"
                             title={item.refugio}
                           >
                             {item.refugio}
@@ -687,7 +612,7 @@ export default function PlanteamientoSalaTab() {
                         </td>
 
                         {/* Progreso / Carpeta */}
-                        <td style={{ width: "155px", minWidth: "155px" }}>
+                        <td className="col-progreso" data-label="Progreso">
                           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.74rem" }}>
                               <span style={{ fontWeight: 600 }}>
@@ -742,129 +667,121 @@ export default function PlanteamientoSalaTab() {
                           </div>
                         </td>
 
-                        {/* Estatus / Subsidio */}
-                        <td style={{ textAlign: "center", width: "155px", minWidth: "155px" }}>
-                          <button
-                            type="button"
-                            onClick={() => setItemForStatus(item)}
-                            title="Haz clic para cambiar estatus y observación"
-                            style={{
-                              border: "none",
-                              cursor: "pointer",
-                              padding: "3px 9px",
-                              borderRadius: "999px",
-                              fontSize: "0.72rem",
-                              fontWeight: 700,
-                              background: meta.bg,
-                              color: meta.color,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            <span>{meta.label}</span>
-                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                          </button>
-                          {item.estatus === "CREDITO ENTREGADO" && (item.fechaEntregaSubsidio || item.updatedAt) && (
-                            <div
-                              style={{ fontSize: "0.68rem", color: "#059669", fontWeight: 700, marginTop: "2px", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                              title="Fecha de entrega de subsidio"
+                        {/* Estatus / Subsidio (apilados en vertical) */}
+                        <td className="col-estatus" data-label="Estatus">
+                          <div className="col-estatus-wrap">
+                            <button
+                              type="button"
+                              onClick={() => setItemForStatus(item)}
+                              title="Haz clic para cambiar estatus y observación"
+                              style={{
+                                border: "none",
+                                cursor: "pointer",
+                                padding: "3px 10px",
+                                borderRadius: "999px",
+                                fontSize: "0.72rem",
+                                fontWeight: 700,
+                                background: meta.bg,
+                                color: meta.color,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                whiteSpace: "nowrap",
+                              }}
                             >
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                                <line x1="1" y1="10" x2="23" y2="10" />
+                              <span>{meta.label}</span>
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                               </svg>
-                              <span>{formatDateDisplay(item.fechaEntregaSubsidio || item.updatedAt)}</span>
-                            </div>
-                          )}
+                            </button>
+                            {item.estatus === "CREDITO ENTREGADO" && (item.fechaEntregaSubsidio || item.updatedAt) && (
+                              <div
+                                style={{ fontSize: "0.68rem", color: "#059669", fontWeight: 700, marginTop: "1px", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
+                                title="Fecha de entrega de subsidio"
+                              >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                                  <line x1="1" y1="10" x2="23" y2="10" />
+                                </svg>
+                                <span>{formatDateDisplay(item.fechaEntregaSubsidio || item.updatedAt)}</span>
+                              </div>
+                            )}
+                          </div>
                         </td>
 
                         {/* Acciones */}
-                        <td className="sala-col-action">
-                          <div className="sala-actions-group">
-                            {/* Visualizar Avance del Planteamiento */}
-                            <button
-                              type="button"
-                              className="btn-ver btn-ver--view sala-btn-action"
-                              aria-label="Ver avance del planteamiento"
-                              data-tip="Ver Avance"
-                              onClick={() => setItemToView(item)}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                <circle cx="12" cy="12" r="3" />
-                              </svg>
-                            </button>
-
-                            {/* Ver Grupo Familiar */}
-                            <button
-                              type="button"
-                              className="btn-ver btn-ver--view sala-btn-action"
-                              aria-label="Ver grupo familiar de la persona"
-                              data-tip="Ver Grupo Familiar"
-                              onClick={() => setItemForGrupoFamiliar(item)}
-                              style={{
-                                color: Array.isArray(item.cargaFamiliar) && item.cargaFamiliar.length > 0 ? "#2563eb" : undefined,
-                              }}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                <circle cx="9" cy="7" r="4" />
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                              </svg>
-                            </button>
-
-                            {/* Cambiar Estatus */}
-                            <button
-                              type="button"
-                              className="btn-ver btn-ver--view sala-btn-action"
-                              aria-label="Cambiar estatus y observación"
-                              data-tip="Estatus / Obs"
-                              onClick={() => setItemForStatus(item)}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10" />
-                                <polyline points="12 6 12 12 16 14" />
-                              </svg>
-                            </button>
-
-                            {/* Editar Requisitos */}
-                            <button
-                              type="button"
-                              className="btn-ver btn-ver--edit sala-btn-action"
-                              aria-label="Editar requisitos documentales"
-                              data-tip="Editar Requisitos"
-                              onClick={() => {
-                                setEditingItem(item);
-                                setShowModal(true);
-                              }}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 20h9" />
-                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                              </svg>
-                            </button>
-
-                            {/* Eliminar */}
-                            <button
-                              type="button"
-                              className="btn-ver sala-btn-action"
-                              aria-label="Eliminar expediente"
-                              data-tip="Eliminar"
-                              style={{ color: "var(--color-danger)" }}
-                              onClick={() => setItemToDelete(item)}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                              </svg>
-                            </button>
-                          </div>
+                        <td className="col-action col-action--min" data-label="Acciones">
+                          <RowActionsMenu
+                            title={item.nombreApellido}
+                            actions={[
+                              {
+                                key: "view",
+                                label: "Ver Avance y Requisitos",
+                                tone: "primary",
+                                icon: (
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                  </svg>
+                                ),
+                                onClick: () => setItemToView(item),
+                              },
+                              {
+                                key: "familia",
+                                label: `Grupo Familiar (${Array.isArray(item.cargaFamiliar) ? item.cargaFamiliar.length : 0})`,
+                                tone: "default",
+                                icon: (
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                    <circle cx="9" cy="7" r="4" />
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                  </svg>
+                                ),
+                                onClick: () => setItemForGrupoFamiliar(item),
+                              },
+                              {
+                                key: "status",
+                                label: "Cambiar Estatus / Obs",
+                                tone: "primary",
+                                icon: (
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="12 6 12 12 16 14" />
+                                  </svg>
+                                ),
+                                onClick: () => setItemForStatus(item),
+                              },
+                              {
+                                key: "edit",
+                                label: "Editar Expediente",
+                                tone: "warning",
+                                icon: (
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                  </svg>
+                                ),
+                                onClick: () => {
+                                  setEditingItem(item);
+                                  setShowModal(true);
+                                },
+                              },
+                              {
+                                key: "delete",
+                                label: "Eliminar Expediente",
+                                tone: "danger",
+                                icon: (
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                ),
+                                onClick: () => setItemToDelete(item),
+                              },
+                            ]}
+                          />
                         </td>
                       </tr>
                     );

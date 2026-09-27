@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import StyledSelect from "@/components/StyledSelect";
+import DatePicker from "@/components/DatePicker";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { ESTATUS_SALA_OPTIONS } from "@/lib/constants";
 import { apiFetch } from "@/lib/apiFetch";
@@ -24,7 +25,8 @@ export default function PlanteamientoSalaEstatusModal({
   item,
   showToast,
 }: Props) {
-  const modal = useAnimatedModal(isOpen);
+  const modal = useAnimatedModal(isOpen && item ? item : null);
+  const activeItem = modal.data;
 
   const [estatus, setEstatus] = useState<PlanteamientoSalaEstatus>("EN PROCESO");
   const [observacion, setObservacion] = useState("");
@@ -42,7 +44,7 @@ export default function PlanteamientoSalaEstatusModal({
     }
   }, [isOpen, item]);
 
-  if (!modal.mounted || !item) return null;
+  if (!modal.mounted || !activeItem || typeof document === "undefined") return null;
 
   const handleEstatusChange = (val: PlanteamientoSalaEstatus) => {
     setEstatus(val);
@@ -62,7 +64,7 @@ export default function PlanteamientoSalaEstatusModal({
         payload.fechaEntregaSubsidio = null;
       }
 
-      const res = await apiFetch(`/api/planteamiento-sala/${encodeURIComponent(item.id)}`, {
+      const res = await apiFetch(`/api/planteamiento-sala/${encodeURIComponent(activeItem.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -84,95 +86,89 @@ export default function PlanteamientoSalaEstatusModal({
   };
 
   if (!modal.mounted || typeof document === "undefined") return null;
-
   return createPortal(
     <div
-      className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
+      className={`modal-overlay modal-overlay--sala${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className={`modal-content pill-form${modal.closing ? " modal-content--closing" : ""}`}
+        className={`modal-content pill-form sala-status-modal${modal.closing ? " modal-content--closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: "480px" }}
       >
-        <div className="modal-header" style={{ marginBottom: "1rem" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>
-              Actualizar Estatus del Expediente
-            </h3>
-            <p style={{ margin: "3px 0 0", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-              {item.nombreApellido} · C.I. {item.cedula}
-            </p>
+        <div className="sala-modal__head">
+          <div className="msheet__grip" aria-hidden />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", width: "100%" }}>
+            <div>
+              <span className="modal-title" style={{ fontSize: "1.1rem", fontWeight: 800 }}>
+                Actualizar Estatus del Expediente
+              </span>
+              <p className="sala-modal__sub" style={{ margin: "3px 0 0", fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+                {activeItem.nombreApellido} · C.I. {activeItem.cedula}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={onClose}
+              aria-label="Cerrar modal"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
-          <button
-            type="button"
-            className="toolbar-btn"
-            onClick={onClose}
-            aria-label="Cerrar modal"
-            style={{ width: "32px", height: "32px", padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
-            <label>Estatus</label>
-            <StyledSelect
-              value={estatus}
-              onChange={(v) => handleEstatusChange(v as PlanteamientoSalaEstatus)}
-              ariaLabel="Estatus del expediente"
-              options={ESTATUS_SALA_OPTIONS.map((e) => ({ value: e.value, label: e.label }))}
-            />
-          </div>
-
-          {estatus === "CREDITO ENTREGADO" && (
-            <div className="form-group" style={{ marginBottom: "1rem" }}>
-              <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span>Fecha de Entrega de Subsidio</span>
-                <span style={{ fontSize: "0.72rem", color: "#059669", fontWeight: 700 }}>
-                  (Crédito Entregado)
-                </span>
-              </label>
-              <input
-                type="date"
-                value={fechaEntregaSubsidio || new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setFechaEntregaSubsidio(e.target.value)}
-                max={new Date().toISOString().slice(0, 10)}
-                required
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+          <div className="sala-modal__body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div className="form-group">
+              <label>Estatus</label>
+              <StyledSelect
+                value={estatus}
+                onChange={(v) => handleEstatusChange(v as PlanteamientoSalaEstatus)}
+                ariaLabel="Estatus del expediente"
+                options={ESTATUS_SALA_OPTIONS.map((e) => ({ value: e.value, label: e.label }))}
               />
             </div>
-          )}
 
-          <div className="form-group" style={{ marginBottom: "1.5rem" }}>
-            <label>Observación</label>
-            <AutoGrowTextarea
-              placeholder="Indica observaciones, motivos de retorno o novedades…"
-              value={observacion}
-              onChange={(e) => setObservacion(e.target.value)}
-              minRows={3}
-            />
+            {estatus === "CREDITO ENTREGADO" && (
+              <div className="form-group">
+                <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Fecha de Entrega de Subsidio</span>
+                  <span style={{ fontSize: "0.72rem", color: "#059669", fontWeight: 700 }}>
+                    (Crédito Entregado)
+                  </span>
+                </label>
+                <DatePicker
+                  value={fechaEntregaSubsidio || new Date().toISOString().slice(0, 10)}
+                  onChange={setFechaEntregaSubsidio}
+                  defaultToday
+                />
+              </div>
+            )}
+
+            <div className="form-group">
+              <label>Observación</label>
+              <AutoGrowTextarea
+                placeholder="Indica observaciones, motivos de retorno o novedades…"
+                value={observacion}
+                onChange={(e) => setObservacion(e.target.value)}
+                minRows={3}
+              />
+            </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-            <button type="button" className="toolbar-btn" onClick={onClose} disabled={saving}>
+          <div className="sala-modal__foot">
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>
               Cancelar
             </button>
             <button
               type="submit"
-              className="toolbar-btn toolbar-btn--primary"
+              className="btn-submit"
               disabled={saving}
-              style={{
-                background: "var(--color-primary)",
-                color: "#fff",
-                fontWeight: 600,
-                padding: "0 1.25rem",
-              }}
             >
               {saving ? "Guardando…" : "Actualizar"}
             </button>
