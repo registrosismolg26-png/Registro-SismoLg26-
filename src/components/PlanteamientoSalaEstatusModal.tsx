@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import StyledSelect from "@/components/StyledSelect";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
@@ -82,7 +83,9 @@ export default function PlanteamientoSalaEstatusModal({
     }
   };
 
-  return (
+  if (!modal.mounted || typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={onClose}
@@ -176,6 +179,7 @@ export default function PlanteamientoSalaEstatusModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

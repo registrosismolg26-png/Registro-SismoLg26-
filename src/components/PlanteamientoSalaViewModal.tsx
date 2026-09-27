@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import {
   ESTATUS_SALA_OPTIONS,
@@ -232,7 +233,9 @@ export default function PlanteamientoSalaViewModal({
     window.print();
   };
 
-  return (
+  if (!modal.mounted || !item || typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={onClose}
@@ -919,6 +922,7 @@ export default function PlanteamientoSalaViewModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

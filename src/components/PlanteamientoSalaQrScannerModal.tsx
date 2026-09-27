@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import { apiFetch } from "@/lib/apiFetch";
 import jsQR from "jsqr";
@@ -202,7 +203,9 @@ export default function PlanteamientoSalaQrScannerModal({
 
   if (!modal.mounted) return null;
 
-  return (
+  if (!modal.mounted || typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={() => {
@@ -518,6 +521,7 @@ export default function PlanteamientoSalaQrScannerModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

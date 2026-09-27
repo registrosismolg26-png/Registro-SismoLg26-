@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import type { PlanteamientoSalaItem, PlanteamientoCargaFamiliarItem } from "@/types";
 import { TIPO_OPCION_PLANTEAMIENTO_OPTIONS } from "@/lib/constants";
@@ -60,7 +61,9 @@ export default function PlanteamientoSalaGrupoFamiliarModal({
     TIPO_OPCION_PLANTEAMIENTO_OPTIONS.find((o) => o.value === item.tipoOpcion) ||
     TIPO_OPCION_PLANTEAMIENTO_OPTIONS[0];
 
-  return (
+  if (!modal.mounted || !item || typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={onClose}
@@ -492,6 +495,7 @@ export default function PlanteamientoSalaGrupoFamiliarModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -6,6 +6,7 @@
 // muestra el spinner y se cierra solo al terminar. Pensado para borrados.
 
 import { useState, useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 
 export default function ConfirmModal({
@@ -47,8 +48,8 @@ export default function ConfirmModal({
     finally { setBusy(false); }
   };
 
-  if (!modal.mounted) return null;
-  return (
+  if (!modal.mounted || typeof document === "undefined") return null;
+  return createPortal(
     <div className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`} onClick={close}>
       <div className={`modal-content modal-content--detail${modal.closing ? " modal-content--closing" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "400px" }}>
         <div className="modal-header">
@@ -75,6 +76,7 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

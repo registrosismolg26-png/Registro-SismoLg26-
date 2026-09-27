@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import { apiFetch } from "@/lib/apiFetch";
 import { exportPlanteamientoModalidadExcel } from "@/lib/exportPlanteamientoSalaExcel";
@@ -85,7 +86,9 @@ export default function PlanteamientoSalaExportModal({
     }
   };
 
-  return (
+  if (!modal.mounted || typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={onClose}
@@ -241,6 +244,7 @@ export default function PlanteamientoSalaExportModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

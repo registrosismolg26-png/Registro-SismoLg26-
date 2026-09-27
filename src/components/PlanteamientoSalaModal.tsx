@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import StyledSelect from "@/components/StyledSelect";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
@@ -710,13 +711,13 @@ export default function PlanteamientoSalaModal({
     }
   };
 
-  if (!modal.mounted) return null;
+  if (!modal.mounted || typeof document === "undefined") return null;
 
   const currentOpcionMeta =
     TIPO_OPCION_PLANTEAMIENTO_OPTIONS.find((o) => o.value === tipoOpcion) ||
     TIPO_OPCION_PLANTEAMIENTO_OPTIONS[0];
 
-  return (
+  return createPortal(
     <div
       className={`modal-overlay${modal.closing ? " modal-overlay--closing" : ""}`}
       onClick={onClose}
@@ -2294,6 +2295,7 @@ export default function PlanteamientoSalaModal({
         onSuccess={handleQrSuccess}
         showToast={showToast}
       />
-    </div>
+    </div>,
+    document.body
   );
 }

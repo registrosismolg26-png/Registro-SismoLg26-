@@ -12,6 +12,7 @@ import PlanteamientoSalaViewModal from "@/components/PlanteamientoSalaViewModal"
 import PlanteamientoSalaGraficas from "@/components/PlanteamientoSalaGraficas";
 import PlanteamientoSalaExportModal from "@/components/PlanteamientoSalaExportModal";
 import PlanteamientoSalaGrupoFamiliarModal from "@/components/PlanteamientoSalaGrupoFamiliarModal";
+import PlanteamientoSalaBulkUploadModal from "@/components/PlanteamientoSalaBulkUploadModal";
 import {
   ESTATUS_SALA_OPTIONS,
   CAMPAMENTOS_PLANTEAMIENTO_SALA,
@@ -66,6 +67,7 @@ export default function PlanteamientoSalaTab() {
   // Modales
   const [showModal, setShowModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [editingItem, setEditingItem] = useState<PlanteamientoSalaItem | null>(null);
   const [itemForStatus, setItemForStatus] = useState<PlanteamientoSalaItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<PlanteamientoSalaItem | null>(null);
@@ -456,6 +458,41 @@ export default function PlanteamientoSalaTab() {
                     <polyline points="10 9 9 9 8 9" />
                   </svg>
                   <span>Descargar Excel</span>
+                </button>
+
+                {/* Botón Carga Masiva con Carga Familiar */}
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={() => setShowBulkModal(true)}
+                  title="Carga masiva de personas y grupo familiar mediante plantilla Excel"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "7px",
+                    fontWeight: 600,
+                    fontSize: "0.84rem",
+                    padding: "0.45rem 1rem",
+                    borderRadius: "9px",
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span>Carga Masiva</span>
                 </button>
 
                 {/* Botón Actualizar */}
@@ -891,6 +928,16 @@ export default function PlanteamientoSalaTab() {
         onClose={() => setShowExportModal(false)}
         selectedRefugio={selectedRefugio}
         items={items}
+        showToast={showToast}
+      />
+
+      {/* Modal de Carga Masiva con Carga Familiar y Plantilla Excel */}
+      <PlanteamientoSalaBulkUploadModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        currentRefugio={selectedRefugio !== "TODOS" ? selectedRefugio : ""}
+        campamentosList={campamentosSalaList}
+        onSuccess={loadItems}
         showToast={showToast}
       />
 
