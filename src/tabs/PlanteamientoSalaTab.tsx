@@ -121,13 +121,15 @@ export default function PlanteamientoSalaTab() {
       } else {
         showToast(data?.error || "Error al cargar planteamientos.", "error");
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.name === "AbortError" || e?.message?.includes("aborted")) return;
       console.error(e);
       showToast("Error de conexión al obtener datos.", "error");
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, selectedRefugio, selectedTipoOpcion, showToast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, debouncedSearch, selectedRefugio, selectedTipoOpcion]);
 
   useEffect(() => {
     loadItems();
