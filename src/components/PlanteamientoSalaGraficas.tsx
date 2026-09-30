@@ -15,7 +15,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
   const [stats, setStats] = useState<PlanteamientoSalaStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCampamento, setSelectedCampamento] = useState<string>("TODOS");
-  const [requisitosTab, setRequisitosTab] = useState<"MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE" | "CAMPAMENTO_MAYOR_PERMANENCIA">("MERCADO_SECUNDARIO");
+  const [requisitosTab, setRequisitosTab] = useState<"MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE" | "CAMPAMENTO_MAYOR_PERMANENCIA" | "ASIGNACION_GMVV">("MERCADO_SECUNDARIO");
 
   const campamentoOptions = useMemo(() => [
     { value: "TODOS", label: "Consolidado Global (Todos los Campamentos)" },
@@ -465,6 +465,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                 { key: "ALQUILER", color: "#059669", val: porTipoOpcion?.["ALQUILER"] || 0 },
                 { key: "PLAN_VENEZUELA_RENACE", color: "#7c3aed", val: porTipoOpcion?.["PLAN_VENEZUELA_RENACE"] || 0 },
                 { key: "CAMPAMENTO_MAYOR_PERMANENCIA", color: "#ea580c", val: porTipoOpcion?.["CAMPAMENTO_MAYOR_PERMANENCIA"] || 0 },
+                { key: "ASIGNACION_GMVV", color: "#0891b2", val: porTipoOpcion?.["ASIGNACION_GMVV"] || 0 },
               ].map((m) => {
                 const pct = totalPersonas ? (m.val / totalPersonas) * 100 : 0;
                 if (pct <= 0) return null;
@@ -624,6 +625,42 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                   </div>
                   <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                     {pctStr(porTipoOpcion?.["CAMPAMENTO_MAYOR_PERMANENCIA"] || 0, totalPersonas)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Asignación GMVV */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "12px",
+                  background: "rgba(8, 145, 178, 0.06)",
+                  border: "1px solid rgba(8, 145, 178, 0.2)",
+                  cursor: "pointer",
+                }}
+                onClick={() => setRequisitosTab("ASIGNACION_GMVV")}
+                title="Ver información de Asignación GMVV"
+              >
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ width: "9px", height: "9px", borderRadius: "50%", background: "#0891b2" }} />
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#0e7490" }}>
+                      Asignación GMVV
+                    </span>
+                  </div>
+                  <span style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginLeft: "15px" }}>
+                    Gran Misión Vivienda Venezuela
+                  </span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#0e7490" }}>
+                    {fmt(porTipoOpcion?.["ASIGNACION_GMVV"] || 0)}
+                  </div>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                    {pctStr(porTipoOpcion?.["ASIGNACION_GMVV"] || 0, totalPersonas)}
                   </span>
                 </div>
               </div>
@@ -891,6 +928,13 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                 onClick={() => setRequisitosTab("CAMPAMENTO_MAYOR_PERMANENCIA")}
               >
                 <span>Mayor Permanencia</span>
+              </button>
+              <button
+                type="button"
+                className={`toolbar-btn${requisitosTab === "ASIGNACION_GMVV" ? " is-active" : ""}`}
+                onClick={() => setRequisitosTab("ASIGNACION_GMVV")}
+              >
+                <span>Asignación GMVV</span>
               </button>
             </div>
           </div>
@@ -1351,6 +1395,65 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                 </h5>
                 <p style={{ margin: "0 auto", maxWidth: "600px", fontSize: "0.84rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                   Los expedientes clasificados en esta modalidad representan núcleos familiares atendidos de forma integral en campamentos transitorios de mayor permanencia. No requieren trámite de compraventa, arrendamiento comercial ni materiales del Plan Renace.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: ASIGNACION GMVV */}
+          {requisitosTab === "ASIGNACION_GMVV" && (
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: "rgba(8, 145, 178, 0.07)",
+                  border: "1px solid rgba(8, 145, 178, 0.2)",
+                  borderRadius: "10px",
+                  padding: "0.6rem 1rem",
+                  marginBottom: "1rem",
+                  fontSize: "0.85rem",
+                }}
+              >
+                <span>
+                  Evaluando <b>{fmt(porTipoOpcion?.["ASIGNACION_GMVV"] || 0)}</b> expedientes de <b>Asignación GMVV</b>.
+                </span>
+                <span style={{ fontWeight: 700, color: "#0891b2" }}>Adjudicación directa GMVV</span>
+              </div>
+
+              <div
+                style={{
+                  padding: "1.5rem",
+                  borderRadius: "12px",
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "12px",
+                    background: "rgba(8, 145, 178, 0.12)",
+                    color: "#0891b2",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 12px",
+                  }}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                  </svg>
+                </div>
+                <h5 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                  Adjudicación de Soluciones Habitacionales GMVV
+                </h5>
+                <p style={{ margin: "0 auto", maxWidth: "600px", fontSize: "0.84rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                  Los expedientes clasificados en esta modalidad representan núcleos familiares seleccionados para adjudicación directa de viviendas por parte de la Gran Misión Vivienda Venezuela. No requieren trámite de compraventa privada, arrendamiento comercial ni materiales del Plan Renace.
                 </p>
               </div>
             </div>

@@ -333,6 +333,15 @@ export const TIPO_OPCION_PLANTEAMIENTO_OPTIONS = [
     border: "rgba(234, 88, 12, 0.3)",
     requisitosCount: 0,
   },
+  {
+    value: "ASIGNACION_GMVV",
+    label: "ASIGNACIÓN GMVV",
+    shortLabel: "Asignación GMVV",
+    color: "#0891b2",
+    bg: "rgba(8, 145, 178, 0.12)",
+    border: "rgba(8, 145, 178, 0.3)",
+    requisitosCount: 0,
+  },
 ] as const;
 
 

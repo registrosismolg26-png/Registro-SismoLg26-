@@ -848,6 +848,8 @@ export default function PlanteamientoSalaBulkUploadModal({
                                           ? "rgba(124, 58, 237, 0.1)"
                                           : tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA"
                                           ? "rgba(234, 88, 12, 0.1)"
+                                          : tit.tipoOpcion === "ASIGNACION_GMVV"
+                                          ? "rgba(8, 145, 178, 0.1)"
                                           : "rgba(37, 99, 235, 0.1)",
                                       color:
                                         tit.tipoOpcion === "ALQUILER"
@@ -856,10 +858,16 @@ export default function PlanteamientoSalaBulkUploadModal({
                                           ? "#7c3aed"
                                           : tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA"
                                           ? "#ea580c"
+                                          : tit.tipoOpcion === "ASIGNACION_GMVV"
+                                          ? "#0891b2"
                                           : "#2563eb",
                                     }}
                                   >
-                                    {tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA" ? "MAYOR PERMANENCIA" : tit.tipoOpcion}
+                                    {tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA"
+                                      ? "MAYOR PERMANENCIA"
+                                      : tit.tipoOpcion === "ASIGNACION_GMVV"
+                                      ? "ASIGNACIÓN GMVV"
+                                      : tit.tipoOpcion}
                                   </span>
                                 </td>
                                 <td style={{ padding: "7px 10px" }}>

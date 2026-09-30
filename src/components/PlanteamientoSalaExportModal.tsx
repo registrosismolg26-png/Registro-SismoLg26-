@@ -272,6 +272,44 @@ export default function PlanteamientoSalaExportModal({
               </small>
             </span>
           </button>
+
+          {/* Opción 5: Asignación GMVV */}
+          <button
+            type="button"
+            className="export-option"
+            onClick={() => handleExport("ASIGNACION_GMVV")}
+            disabled={exporting !== null}
+          >
+            <span
+              className="export-option__icon"
+              style={{
+                background: "rgba(8, 145, 178, 0.12)",
+                color: "#0891b2",
+              }}
+            >
+              {exporting === "ASIGNACION_GMVV" ? (
+                <span className="spinner spinner-sm" style={{ width: "18px", height: "18px" }} />
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              )}
+            </span>
+            <span className="export-option__text">
+              <strong>Asignación GMVV</strong>
+              <small>
+                Gran Misión Vivienda Venezuela: soluciones habitacionales asignadas directamente.
+              </small>
+            </span>
+          </button>
         </div>
         </div>
       </div>

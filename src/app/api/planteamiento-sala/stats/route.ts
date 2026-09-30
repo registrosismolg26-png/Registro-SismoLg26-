@@ -32,6 +32,7 @@ function createScopeStats(): PlanteamientoSalaStatsScope {
       ALQUILER: 0,
       PLAN_VENEZUELA_RENACE: 0,
       CAMPAMENTO_MAYOR_PERMANENCIA: 0,
+      ASIGNACION_GMVV: 0,
     },
     demografia: {
       generoTitulares: { femenino: 0, masculino: 0, noEspecificado: 0 },
@@ -236,8 +237,8 @@ function processItemInScope(scope: PlanteamientoSalaStatsScope, it: any) {
     scope.venezuelaRenace.materialesTotales.bloques += Math.max(0, Number(it.bloques || 0));
     scope.venezuelaRenace.materialesTotales.cabillas += Math.max(0, Number(it.cabillas || 0));
     scope.venezuelaRenace.materialesTotales.pego += Math.max(0, Number(it.pego || 0));
-  } else if (tipo === "CAMPAMENTO_MAYOR_PERMANENCIA") {
-    // CAMPAMENTO_MAYOR_PERMANENCIA no requiere recaudos de compraventa ni arrendamiento
+  } else if (tipo === "CAMPAMENTO_MAYOR_PERMANENCIA" || tipo === "ASIGNACION_GMVV") {
+    // CAMPAMENTO_MAYOR_PERMANENCIA y ASIGNACION_GMVV no requieren recaudos de compraventa privada ni arrendamiento
   } else {
     // MERCADO_SECUNDARIO
     scope.mercadoSecundario.total++;

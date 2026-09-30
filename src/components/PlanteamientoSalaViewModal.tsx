@@ -170,6 +170,17 @@ export default function PlanteamientoSalaViewModal({
       },
     ];
     cumplidosCount = 1;
+  } else if (tipo === "ASIGNACION_GMVV") {
+    totalRequisitos = 1;
+    requisitos = [
+      {
+        num: 1,
+        label: "Asignación de Vivienda GMVV",
+        cumplido: true,
+        desc: `Adjudicación directa por la Gran Misión Vivienda Venezuela (${activeItem.refugio})`,
+      },
+    ];
+    cumplidosCount = 1;
   } else {
     // MERCADO_SECUNDARIO
     totalRequisitos = 10;

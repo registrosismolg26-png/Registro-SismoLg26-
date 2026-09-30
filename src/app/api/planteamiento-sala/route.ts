@@ -37,7 +37,7 @@ export function calcularProgreso(item: {
 }): number {
   const tipo = item.tipoOpcion || "MERCADO_SECUNDARIO";
 
-  if (tipo === "CAMPAMENTO_MAYOR_PERMANENCIA") {
+  if (tipo === "CAMPAMENTO_MAYOR_PERMANENCIA" || tipo === "ASIGNACION_GMVV") {
     return 100;
   }
 
@@ -193,7 +193,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const tiposValidos = ["MERCADO_SECUNDARIO", "ALQUILER", "PLAN_VENEZUELA_RENACE", "CAMPAMENTO_MAYOR_PERMANENCIA"];
+    const tiposValidos = ["MERCADO_SECUNDARIO", "ALQUILER", "PLAN_VENEZUELA_RENACE", "CAMPAMENTO_MAYOR_PERMANENCIA", "ASIGNACION_GMVV"];
     const tipoOpcion = tiposValidos.includes(body.tipoOpcion) ? body.tipoOpcion : "MERCADO_SECUNDARIO";
 
     // 1. Mercado Secundario

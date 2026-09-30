@@ -2418,6 +2418,65 @@ export default function PlanteamientoSalaModal({
             </div>
           )}
 
+          {/* CASO E: ASIGNACION GMVV */}
+          {tipoOpcion === "ASIGNACION_GMVV" && (
+            <div style={{ marginBottom: "1.25rem" }}>
+              <div
+                className="detail-section-title"
+                style={{
+                  marginBottom: "0.75rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span>Modalidad: Asignación GMVV</span>
+                <span style={{ fontSize: "0.75rem", color: "#0891b2", fontWeight: 700 }}>
+                  Gran Misión Vivienda Venezuela
+                </span>
+              </div>
+
+              <div
+                style={{
+                  padding: "1.1rem 1.25rem",
+                  borderRadius: "12px",
+                  background: "rgba(8, 145, 178, 0.06)",
+                  border: "1px solid rgba(8, 145, 178, 0.2)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "14px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "10px",
+                    background: "rgba(8, 145, 178, 0.15)",
+                    color: "#0891b2",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "#0e7490", marginBottom: "4px" }}>
+                    Núcleo Familiar Asignado por la GMVV
+                  </div>
+                  <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    Esta modalidad aplica a los titulares y núcleos familiares seleccionados para adjudicación directa de soluciones habitacionales por parte de la Gran Misión Vivienda Venezuela. No requiere recaudos comerciales de compra/venta privada, contrato de arrendamiento ni materiales del Plan Renace.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SECCIÓN 3: Estatus y Observación */}
           <div style={{ marginBottom: "1.5rem" }}>
             <div className="detail-section-title" style={{ marginBottom: "0.75rem" }}>

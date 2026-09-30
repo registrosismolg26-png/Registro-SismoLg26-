@@ -248,7 +248,7 @@ export async function POST(req: Request) {
         }
       }
 
-      const tipoOpcionValida = ["MERCADO_SECUNDARIO", "ALQUILER", "PLAN_VENEZUELA_RENACE", "CAMPAMENTO_MAYOR_PERMANENCIA"].includes(item.tipoOpcion)
+      const tipoOpcionValida = ["MERCADO_SECUNDARIO", "ALQUILER", "PLAN_VENEZUELA_RENACE", "CAMPAMENTO_MAYOR_PERMANENCIA", "ASIGNACION_GMVV"].includes(item.tipoOpcion)
         ? item.tipoOpcion
         : "MERCADO_SECUNDARIO";
 

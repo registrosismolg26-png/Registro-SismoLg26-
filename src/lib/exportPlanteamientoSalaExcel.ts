@@ -98,6 +98,10 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
     sheetName = "Mayor Permanencia";
     modalidadLabel = "Campamento Mayor Permanencia";
     filePrefix = "planteamiento_campamento_permanencia";
+  } else if (modalidad === "ASIGNACION_GMVV") {
+    sheetName = "Asignación GMVV";
+    modalidadLabel = "Asignación GMVV (Gran Misión Vivienda Venezuela)";
+    filePrefix = "planteamiento_asignacion_gmvv";
   }
 
   const ws = wb.addWorksheet(sheetName, {
