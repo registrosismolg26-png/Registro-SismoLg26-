@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, ChangeEvent, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import { apiFetch } from "@/lib/apiFetch";
@@ -54,12 +54,12 @@ export default function PlanteamientoSalaBulkUploadModal({
     refugio: string;
   } | null>(null);
 
-  // Si cambia currentRefugio y el selector local está vacío
-  useMemo(() => {
-    if (currentRefugio && !selectedRefugio) {
+  // Sincronizar selectedRefugio cuando cambia currentRefugio o se abre el modal
+  useEffect(() => {
+    if (isOpen && currentRefugio && !selectedRefugio) {
       setSelectedRefugio(currentRefugio);
     }
-  }, [currentRefugio]);
+  }, [isOpen, currentRefugio, selectedRefugio]);
 
   // Limpieza completa del estado y archivo
   const handleReset = () => {
@@ -81,11 +81,13 @@ export default function PlanteamientoSalaBulkUploadModal({
     onClose();
   };
 
-  // Cada vez que se cierra el modal, reseteamos para que nunca queden datos pendientes
+  // Solo cuando el modal pasa de abierto a cerrado reseteamos el estado
+  const wasOpenRef = useRef(isOpen);
   useEffect(() => {
-    if (!isOpen) {
+    if (wasOpenRef.current && !isOpen) {
       handleReset();
     }
+    wasOpenRef.current = isOpen;
   }, [isOpen]);
 
   const countTitularesHoja1 = useMemo(() => {
@@ -104,8 +106,6 @@ export default function PlanteamientoSalaBulkUploadModal({
   const effectiveTotalFamiliares = useMemo(() => {
     return effectiveTitulares.reduce((acc, t) => acc + (t.cargaFamiliar?.length || 0), 0);
   }, [effectiveTitulares]);
-
-  if (!modal.mounted) return null;
 
   const handleDownloadTemplate = async () => {
     try {
@@ -794,7 +794,7 @@ export default function PlanteamientoSalaBulkUploadModal({
                         {filteredPreview.map((tit, idx) => {
                           const isExpanded = Boolean(expandedRows[tit.cedula]);
                           return (
-                            <tbody key={tit.cedula}>
+                            <Fragment key={tit.cedula}>
                               <tr
                                 style={{
                                   borderBottom: "1px solid var(--border-color)",
@@ -943,7 +943,7 @@ export default function PlanteamientoSalaBulkUploadModal({
                                   </td>
                                 </tr>
                               )}
-                            </tbody>
+                            </Fragment>
                           );
                         })}
                       </tbody>
