@@ -37,6 +37,10 @@ export function calcularProgreso(item: {
 }): number {
   const tipo = item.tipoOpcion || "MERCADO_SECUNDARIO";
 
+  if (tipo === "CAMPAMENTO_MAYOR_PERMANENCIA") {
+    return 100;
+  }
+
   if (tipo === "ALQUILER") {
     let count = 0;
     if (item.cartaCompromiso === "SI") count++;
@@ -189,7 +193,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const tiposValidos = ["MERCADO_SECUNDARIO", "ALQUILER", "PLAN_VENEZUELA_RENACE"];
+    const tiposValidos = ["MERCADO_SECUNDARIO", "ALQUILER", "PLAN_VENEZUELA_RENACE", "CAMPAMENTO_MAYOR_PERMANENCIA"];
     const tipoOpcion = tiposValidos.includes(body.tipoOpcion) ? body.tipoOpcion : "MERCADO_SECUNDARIO";
 
     // 1. Mercado Secundario

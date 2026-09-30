@@ -324,6 +324,15 @@ export const TIPO_OPCION_PLANTEAMIENTO_OPTIONS = [
     border: "rgba(124, 58, 237, 0.3)",
     requisitosCount: 3,
   },
+  {
+    value: "CAMPAMENTO_MAYOR_PERMANENCIA",
+    label: "CAMPAMENTO MAYOR PERMANENCIA",
+    shortLabel: "Mayor Permanencia",
+    color: "#ea580c",
+    bg: "rgba(234, 88, 12, 0.12)",
+    border: "rgba(234, 88, 12, 0.3)",
+    requisitosCount: 0,
+  },
 ] as const;
 
 

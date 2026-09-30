@@ -159,6 +159,17 @@ export default function PlanteamientoSalaViewModal({
       },
     ];
     cumplidosCount = requisitos.filter((r) => r.cumplido).length;
+  } else if (tipo === "CAMPAMENTO_MAYOR_PERMANENCIA") {
+    totalRequisitos = 1;
+    requisitos = [
+      {
+        num: 1,
+        label: "Permanencia en Campamento",
+        cumplido: true,
+        desc: `Asignado en ${activeItem.refugio}`,
+      },
+    ];
+    cumplidosCount = 1;
   } else {
     // MERCADO_SECUNDARIO
     totalRequisitos = 10;

@@ -579,7 +579,7 @@ model PlanteamientoSala {
   viviendaOperador           String?   // Operador de censo que levantó la información
 
   // Modalidad / Tipo de Opción
-  tipoOpcion                 String    @default("MERCADO_SECUNDARIO") // "MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE"
+  tipoOpcion                 String    @default("MERCADO_SECUNDARIO") // "MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE" | "CAMPAMENTO_MAYOR_PERMANENCIA"
 
   // 1. Mercado Secundario (10 Requisitos Documentales)
   planillaCaracterizacion    String    @default("NO") // "SI" | "NO"

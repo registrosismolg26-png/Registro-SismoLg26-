@@ -103,7 +103,7 @@ export async function descargarPlantillaPlanteamientoSala(refugioNombre?: string
   wsGuia.getCell(`B${startCat}`).font = { name: "Arial", size: 11, bold: true, color: { argb: BRAND } };
 
   const catalogos = [
-    ["Modalidades:", "MERCADO_SECUNDARIO (por defecto), ALQUILER, o PLAN_VENEZUELA_RENACE"],
+    ["Modalidades:", "MERCADO_SECUNDARIO (por defecto), ALQUILER, PLAN_VENEZUELA_RENACE, o CAMPAMENTO_MAYOR_PERMANENCIA"],
     ["Parentescos:", "Hijo, Hija, Esposa, Esposo, Madre, Padre, Hermano, Hermana, Nieto, Nieta, Otro"],
     ["Géneros:", "MASCULINO o FEMENINO (si se omite, se infiere del parentesco o del CNE)"],
     ["Fechas:", "Formato AAAA-MM-DD (ej: 1990-08-25) o DD/MM/AAAA (ej: 25/08/1990)"],
@@ -328,6 +328,7 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
 
   const normModalidad = (raw: string): string => {
     const up = cleanText(raw).toUpperCase();
+    if (up.includes("PERMANENCIA") || up.includes("CAMPAMENTO")) return "CAMPAMENTO_MAYOR_PERMANENCIA";
     if (up.includes("ALQUILER")) return "ALQUILER";
     if (up.includes("RENACE")) return "PLAN_VENEZUELA_RENACE";
     return "MERCADO_SECUNDARIO";

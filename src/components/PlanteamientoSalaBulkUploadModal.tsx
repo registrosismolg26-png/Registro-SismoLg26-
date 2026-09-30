@@ -845,17 +845,21 @@ export default function PlanteamientoSalaBulkUploadModal({
                                         tit.tipoOpcion === "ALQUILER"
                                           ? "rgba(16, 185, 129, 0.1)"
                                           : tit.tipoOpcion === "PLAN_VENEZUELA_RENACE"
-                                          ? "rgba(217, 119, 6, 0.1)"
+                                          ? "rgba(124, 58, 237, 0.1)"
+                                          : tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA"
+                                          ? "rgba(234, 88, 12, 0.1)"
                                           : "rgba(37, 99, 235, 0.1)",
                                       color:
                                         tit.tipoOpcion === "ALQUILER"
                                           ? "#10b981"
                                           : tit.tipoOpcion === "PLAN_VENEZUELA_RENACE"
-                                          ? "#d97706"
+                                          ? "#7c3aed"
+                                          : tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA"
+                                          ? "#ea580c"
                                           : "#2563eb",
                                     }}
                                   >
-                                    {tit.tipoOpcion}
+                                    {tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA" ? "MAYOR PERMANENCIA" : tit.tipoOpcion}
                                   </span>
                                 </td>
                                 <td style={{ padding: "7px 10px" }}>

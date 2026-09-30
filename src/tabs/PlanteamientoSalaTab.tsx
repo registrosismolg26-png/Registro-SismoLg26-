@@ -688,7 +688,7 @@ export default function PlanteamientoSalaTab() {
                           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.74rem" }}>
                               <span style={{ fontWeight: 600 }}>
-                                {cumplidos} de {totalReq}
+                                {totalReq > 0 ? `${cumplidos} de ${totalReq}` : "Asignado"}
                               </span>
                               <span
                                 style={{

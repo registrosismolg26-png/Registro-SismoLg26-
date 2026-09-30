@@ -94,6 +94,10 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
     sheetName = "Venezuela Renace";
     modalidadLabel = "Plan Venezuela Renace";
     filePrefix = "planteamiento_venezuela_renace";
+  } else if (modalidad === "CAMPAMENTO_MAYOR_PERMANENCIA") {
+    sheetName = "Mayor Permanencia";
+    modalidadLabel = "Campamento Mayor Permanencia";
+    filePrefix = "planteamiento_campamento_permanencia";
   }
 
   const ws = wb.addWorksheet(sheetName, {
@@ -174,8 +178,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       ["Registrado por", 22],
       ["Fecha de Registro", 18],
     ];
-  } else {
-    // PLAN_VENEZUELA_RENACE
+  } else if (modalidad === "PLAN_VENEZUELA_RENACE") {
     cols = [
       ["N°", 6],
       ["Campamento", 26],
@@ -200,6 +203,28 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       ["Bloques", 12],
       ["Cabillas", 12],
       ["Pego (sacos)", 13],
+      ["Observaciones", 32],
+      ["Registrado por", 22],
+      ["Fecha de Registro", 18],
+    ];
+  } else {
+    // CAMPAMENTO_MAYOR_PERMANENCIA
+    cols = [
+      ["N°", 6],
+      ["Campamento", 26],
+      ["Cédula", 14],
+      ["Nombre y Apellido", 28],
+      ["Género", 12],
+      ["Fecha de Nacimiento", 18],
+      ["Edad", 7],
+      ["Teléfono", 15],
+      ["Cant. Carga", 12],
+      ["Carga Familiar", 35],
+      ...viviendaCols,
+      ["F. Entrega Carpeta", 18],
+      ["Estatus", 19],
+      ["F. Entrega Subsidio", 18],
+      ["Progreso", 11],
       ["Observaciones", 32],
       ["Registrado por", 22],
       ["Fecha de Registro", 18],
@@ -358,8 +383,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
         item.createdBy || "—",
         formatDateTimeDisplay(item.createdAt),
       ];
-    } else {
-      // PLAN_VENEZUELA_RENACE
+    } else if (modalidad === "PLAN_VENEZUELA_RENACE") {
       values = [
         ...baseValues,
         item.rifViviendaDanos || "NO",
@@ -370,6 +394,14 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
         item.bloques || 0,
         item.cabillas || 0,
         item.pego || 0,
+        item.observacion || "—",
+        item.createdBy || "—",
+        formatDateTimeDisplay(item.createdAt),
+      ];
+    } else {
+      // CAMPAMENTO_MAYOR_PERMANENCIA
+      values = [
+        ...baseValues,
         item.observacion || "—",
         item.createdBy || "—",
         formatDateTimeDisplay(item.createdAt),

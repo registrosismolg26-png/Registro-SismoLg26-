@@ -2357,6 +2357,67 @@ export default function PlanteamientoSalaModal({
             </div>
           )}
 
+          {/* CASO D: CAMPAMENTO MAYOR PERMANENCIA */}
+          {tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA" && (
+            <div style={{ marginBottom: "1.25rem" }}>
+              <div
+                className="detail-section-title"
+                style={{
+                  marginBottom: "0.75rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span>Modalidad: Campamento de Mayor Permanencia</span>
+                <span style={{ fontSize: "0.75rem", color: "#ea580c", fontWeight: 700 }}>
+                  Permanencia / Reubicación en Campamento
+                </span>
+              </div>
+
+              <div
+                style={{
+                  padding: "1.1rem 1.25rem",
+                  borderRadius: "12px",
+                  background: "rgba(234, 88, 12, 0.06)",
+                  border: "1px solid rgba(234, 88, 12, 0.2)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "14px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "10px",
+                    background: "rgba(234, 88, 12, 0.15)",
+                    color: "#ea580c",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "#9a3412", marginBottom: "4px" }}>
+                    Núcleo Familiar en Campamento de Mayor Permanencia
+                  </div>
+                  <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    Esta modalidad aplica a los titulares y núcleos familiares asignados para estadía prolongada o reubicación en campamentos oficiales. No requiere recaudos comerciales de compra/venta, contrato de arrendamiento ni asignación de materiales.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SECCIÓN 3: Estatus y Observación */}
           <div style={{ marginBottom: "1.5rem" }}>
             <div className="detail-section-title" style={{ marginBottom: "0.75rem" }}>

@@ -15,7 +15,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
   const [stats, setStats] = useState<PlanteamientoSalaStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCampamento, setSelectedCampamento] = useState<string>("TODOS");
-  const [requisitosTab, setRequisitosTab] = useState<"MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE">("MERCADO_SECUNDARIO");
+  const [requisitosTab, setRequisitosTab] = useState<"MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE" | "CAMPAMENTO_MAYOR_PERMANENCIA">("MERCADO_SECUNDARIO");
 
   const campamentoOptions = useMemo(() => [
     { value: "TODOS", label: "Consolidado Global (Todos los Campamentos)" },
@@ -464,6 +464,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                 { key: "MERCADO_SECUNDARIO", color: "#2563eb", val: porTipoOpcion?.["MERCADO_SECUNDARIO"] || 0 },
                 { key: "ALQUILER", color: "#059669", val: porTipoOpcion?.["ALQUILER"] || 0 },
                 { key: "PLAN_VENEZUELA_RENACE", color: "#7c3aed", val: porTipoOpcion?.["PLAN_VENEZUELA_RENACE"] || 0 },
+                { key: "CAMPAMENTO_MAYOR_PERMANENCIA", color: "#ea580c", val: porTipoOpcion?.["CAMPAMENTO_MAYOR_PERMANENCIA"] || 0 },
               ].map((m) => {
                 const pct = totalPersonas ? (m.val / totalPersonas) * 100 : 0;
                 if (pct <= 0) return null;
@@ -587,6 +588,42 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                   </div>
                   <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                     {pctStr(porTipoOpcion?.["PLAN_VENEZUELA_RENACE"] || 0, totalPersonas)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Campamento Mayor Permanencia */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "12px",
+                  background: "rgba(234, 88, 12, 0.06)",
+                  border: "1px solid rgba(234, 88, 12, 0.2)",
+                  cursor: "pointer",
+                }}
+                onClick={() => setRequisitosTab("CAMPAMENTO_MAYOR_PERMANENCIA")}
+                title="Ver información de Campamento de Mayor Permanencia"
+              >
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ width: "9px", height: "9px", borderRadius: "50%", background: "#ea580c" }} />
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#9a3412" }}>
+                      Campamento Mayor Permanencia
+                    </span>
+                  </div>
+                  <span style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginLeft: "15px" }}>
+                    Permanencia y reubicación en campamentos oficiales
+                  </span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#9a3412" }}>
+                    {fmt(porTipoOpcion?.["CAMPAMENTO_MAYOR_PERMANENCIA"] || 0)}
+                  </div>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                    {pctStr(porTipoOpcion?.["CAMPAMENTO_MAYOR_PERMANENCIA"] || 0, totalPersonas)}
                   </span>
                 </div>
               </div>
@@ -847,6 +884,13 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                 onClick={() => setRequisitosTab("PLAN_VENEZUELA_RENACE")}
               >
                 <span>Venezuela Renace</span>
+              </button>
+              <button
+                type="button"
+                className={`toolbar-btn${requisitosTab === "CAMPAMENTO_MAYOR_PERMANENCIA" ? " is-active" : ""}`}
+                onClick={() => setRequisitosTab("CAMPAMENTO_MAYOR_PERMANENCIA")}
+              >
+                <span>Mayor Permanencia</span>
               </button>
             </div>
           </div>
@@ -1248,6 +1292,67 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* TAB 4: CAMPAMENTO MAYOR PERMANENCIA */}
+          {requisitosTab === "CAMPAMENTO_MAYOR_PERMANENCIA" && (
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: "rgba(234, 88, 12, 0.07)",
+                  border: "1px solid rgba(234, 88, 12, 0.2)",
+                  borderRadius: "10px",
+                  padding: "0.6rem 1rem",
+                  marginBottom: "1rem",
+                  fontSize: "0.85rem",
+                }}
+              >
+                <span>
+                  Evaluando <b>{fmt(porTipoOpcion?.["CAMPAMENTO_MAYOR_PERMANENCIA"] || 0)}</b> expedientes de <b>Campamento Mayor Permanencia</b>.
+                </span>
+                <span style={{ fontWeight: 700, color: "#ea580c" }}>Sin recaudos comerciales</span>
+              </div>
+
+              <div
+                style={{
+                  padding: "1.5rem",
+                  borderRadius: "12px",
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "12px",
+                    background: "rgba(234, 88, 12, 0.12)",
+                    color: "#ea580c",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 12px",
+                  }}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <h5 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                  Asignación y Estadía en Campamento Oficial
+                </h5>
+                <p style={{ margin: "0 auto", maxWidth: "600px", fontSize: "0.84rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                  Los expedientes clasificados en esta modalidad representan núcleos familiares atendidos de forma integral en campamentos transitorios de mayor permanencia. No requieren trámite de compraventa, arrendamiento comercial ni materiales del Plan Renace.
+                </p>
+              </div>
             </div>
           )}
         </div>
