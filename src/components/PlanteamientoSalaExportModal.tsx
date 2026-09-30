@@ -4,7 +4,10 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import { apiFetch } from "@/lib/apiFetch";
-import { exportPlanteamientoModalidadExcel } from "@/lib/exportPlanteamientoSalaExcel";
+import {
+  exportPlanteamientoModalidadExcel,
+  exportPlanteamientoTodasModalidadesExcel,
+} from "@/lib/exportPlanteamientoSalaExcel";
 import type { PlanteamientoSalaItem, TipoOpcionPlanteamiento } from "@/types";
 
 interface Props {
@@ -24,6 +27,58 @@ export default function PlanteamientoSalaExportModal({
 }: Props) {
   const modal = useAnimatedModal(isOpen);
   const [exporting, setExporting] = useState<string | null>(null);
+
+  const handleExportTodas = async () => {
+    setExporting("TODAS");
+    try {
+      const params = new URLSearchParams();
+      params.set("noPagination", "true");
+      if (selectedRefugio && selectedRefugio !== "TODOS") {
+        params.set("refugio", selectedRefugio);
+      }
+
+      const res = await apiFetch(`/api/planteamiento-sala?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      const expedientes: PlanteamientoSalaItem[] =
+        res.ok && data?.success && Array.isArray(data.items)
+          ? data.items
+          : items;
+
+      if (expedientes.length === 0) {
+        showToast("No hay registros en este campamento para exportar.", "warning");
+        setExporting(null);
+        return;
+      }
+
+      const generadoEn = new Date().toLocaleString("es-VE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const filtrosDesc =
+        selectedRefugio !== "TODOS"
+          ? `Campamento: ${selectedRefugio}`
+          : "Todos los Campamentos (26)";
+
+      await exportPlanteamientoTodasModalidadesExcel({
+        items: expedientes,
+        refugio: selectedRefugio !== "TODOS" ? selectedRefugio : "Todos los Campamentos",
+        generadoEn,
+        filtros: filtrosDesc,
+      });
+
+      showToast("Archivo Excel con las 5 hojas descargado exitosamente.", "success");
+      onClose();
+    } catch (err) {
+      console.error("Error al exportar Excel consolidado:", err);
+      showToast("Error al generar el archivo Excel consolidado.", "error");
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const handleExport = async (modalidad: TipoOpcionPlanteamiento) => {
     setExporting(modalidad);
@@ -119,6 +174,71 @@ export default function PlanteamientoSalaExportModal({
 
         <div className="sala-modal__body">
           <div className="export-options">
+          {/* Opción Destacada: Todas las Modalidades (5 Hojas) */}
+          <button
+            type="button"
+            className="export-option"
+            onClick={handleExportTodas}
+            disabled={exporting !== null}
+            style={{
+              background: "rgba(37, 99, 235, 0.05)",
+              borderColor: "rgba(37, 99, 235, 0.35)",
+              borderWidth: "1.5px",
+            }}
+          >
+            <span
+              className="export-option__icon"
+              style={{
+                background: "linear-gradient(135deg, #1e3a8a, #2563eb)",
+                color: "#ffffff",
+                boxShadow: "0 2px 6px rgba(37,99,235,0.25)",
+              }}
+            >
+              {exporting === "TODAS" ? (
+                <span
+                  className="spinner spinner-sm"
+                  style={{ width: "18px", height: "18px", borderColor: "#ffffff", borderTopColor: "transparent" }}
+                />
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                  <polyline points="2 17 12 22 22 17" />
+                  <polyline points="2 12 12 17 22 12" />
+                </svg>
+              )}
+            </span>
+            <span className="export-option__text" style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+                <strong style={{ color: "#1e3a8a", fontSize: "0.93rem" }}>
+                  Descargar Todas las Modalidades
+                </strong>
+                <span
+                  style={{
+                    fontSize: "0.68rem",
+                    fontWeight: 800,
+                    background: "#2563eb",
+                    color: "#ffffff",
+                    padding: "2px 7px",
+                    borderRadius: "5px",
+                    letterSpacing: "0.3px",
+                  }}
+                >
+                  5 HOJAS
+                </span>
+              </div>
+              <small>
+                Descarga un solo archivo Excel con las 5 hojas: <b>Alquiler</b>, <b>Mercado Secundario</b>, <b>Asignación GMVV</b>, <b>Venezuela Renace</b> y <b>Campamento Mayor Permanencia</b>.
+              </small>
+            </span>
+          </button>
+
           {/* Opción 1: Compra de Vivienda */}
           <button
             type="button"

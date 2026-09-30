@@ -1,9 +1,11 @@
 // ── Exportación XLSX para Planteamiento Sala ──────────────────────────────────
 // Genera archivos Excel institucionales con membrete, estilos, anchos optimizados,
-// bordes y formato zebra para cada modalidad:
-// 1. Compra de Vivienda (Mercado Secundario)
-// 2. Alquiler
-// 3. Plan Venezuela Renace
+// bordes y formato zebra para cada modalidad y para el reporte consolidado de 5 hojas:
+// 1. Alquiler
+// 2. Mercado Secundario
+// 3. Asignación GMVV
+// 4. Venezuela Renace
+// 5. Campamento Mayor Permanencia
 // exceljs se carga dinámicamente de forma perezosa.
 
 import type { PlanteamientoSalaItem, TipoOpcionPlanteamiento } from "@/types";
@@ -68,41 +70,52 @@ const formatCargaFamiliarSummary = (carga?: any[] | null): string => {
     .join(" ; ");
 };
 
-interface ExportPlanteamientoOpts {
+export const TODAS_MODALIDADES_CONFIG: {
+  modalidad: TipoOpcionPlanteamiento;
+  sheetName: string;
+  modalidadLabel: string;
+}[] = [
+  {
+    modalidad: "ALQUILER",
+    sheetName: "Alquiler",
+    modalidadLabel: "Alquiler (Arrendamiento)",
+  },
+  {
+    modalidad: "MERCADO_SECUNDARIO",
+    sheetName: "Mercado Secundario",
+    modalidadLabel: "Compra de Vivienda (Mercado Secundario)",
+  },
+  {
+    modalidad: "ASIGNACION_GMVV",
+    sheetName: "Asignación GMVV",
+    modalidadLabel: "Asignación GMVV (Gran Misión Vivienda Venezuela)",
+  },
+  {
+    modalidad: "PLAN_VENEZUELA_RENACE",
+    sheetName: "Venezuela Renace",
+    modalidadLabel: "Plan Venezuela Renace",
+  },
+  {
+    modalidad: "CAMPAMENTO_MAYOR_PERMANENCIA",
+    sheetName: "Campamento Mayor Permanencia",
+    modalidadLabel: "Campamento Mayor Permanencia",
+  },
+];
+
+interface BuildWorksheetParams {
+  wb: any;
   items: PlanteamientoSalaItem[];
   modalidad: TipoOpcionPlanteamiento;
+  sheetName: string;
+  modalidadLabel: string;
   refugio: string;
   generadoEn: string;
   filtros?: string;
+  imageId?: number | null;
 }
 
-export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamientoOpts): Promise<void> {
-  const { items, modalidad, refugio, generadoEn, filtros } = opts;
-  const ExcelJS = (await import("exceljs")).default;
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "Registro-SismoLg26";
-
-  let sheetName = "Compra de Vivienda";
-  let modalidadLabel = "Compra de Vivienda (Mercado Secundario)";
-  let filePrefix = "planteamiento_compra_vivienda";
-
-  if (modalidad === "ALQUILER") {
-    sheetName = "Alquiler";
-    modalidadLabel = "Alquiler";
-    filePrefix = "planteamiento_alquiler";
-  } else if (modalidad === "PLAN_VENEZUELA_RENACE") {
-    sheetName = "Venezuela Renace";
-    modalidadLabel = "Plan Venezuela Renace";
-    filePrefix = "planteamiento_venezuela_renace";
-  } else if (modalidad === "CAMPAMENTO_MAYOR_PERMANENCIA") {
-    sheetName = "Mayor Permanencia";
-    modalidadLabel = "Campamento Mayor Permanencia";
-    filePrefix = "planteamiento_campamento_permanencia";
-  } else if (modalidad === "ASIGNACION_GMVV") {
-    sheetName = "Asignación GMVV";
-    modalidadLabel = "Asignación GMVV (Gran Misión Vivienda Venezuela)";
-    filePrefix = "planteamiento_asignacion_gmvv";
-  }
+function buildModalidadWorksheet(params: BuildWorksheetParams) {
+  const { wb, items, modalidad, sheetName, modalidadLabel, refugio, generadoEn, filtros, imageId } = params;
 
   const ws = wb.addWorksheet(sheetName, {
     views: [{ state: "frozen", ySplit: 5 }],
@@ -212,7 +225,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       ["Fecha de Registro", 18],
     ];
   } else {
-    // CAMPAMENTO_MAYOR_PERMANENCIA
+    // CAMPAMENTO_MAYOR_PERMANENCIA y ASIGNACION_GMVV
     cols = [
       ["N°", 6],
       ["Campamento", 26],
@@ -257,7 +270,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
   t2.alignment = { vertical: "middle", horizontal: "left" };
 
   const t3 = ws.getCell("C3");
-  t3.value = `Campamento: ${refugio || "Todos los campamentos"}   ·   Generado: ${generadoEn}   ·   Total de expedientes: ${items.length}`;
+  t3.value = `Campamento: ${refugio || "Todos los campamentos"}   ·   Generado: ${generadoEn}   ·   Total de expedientes en esta hoja: ${items.length}`;
   t3.font = { name: "Arial", size: 9, color: { argb: "6B7280" } };
   t3.alignment = { vertical: "middle", horizontal: "left" };
 
@@ -270,7 +283,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
           { text: filtrosTxt, font: { name: "Arial", size: 9, color: { argb: "374151" } } },
         ],
       }
-    : { richText: [{ text: "Reporte consolidado completo", font: { name: "Arial", size: 9, italic: true, color: { argb: "9CA3AF" } } }] };
+    : { richText: [{ text: "Reporte institucional completo", font: { name: "Arial", size: 9, italic: true, color: { argb: "9CA3AF" } } }] };
   t4.alignment = { vertical: "middle", horizontal: "left" };
 
   for (let r = 1; r <= 4; r++) {
@@ -282,22 +295,16 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
     }
   }
 
-  // Intento de logo institucional
-  try {
-    const res = await fetch("/logo_gob_push.png");
-    if (res.ok) {
-      const imgBuffer = await res.arrayBuffer();
-      const imageId = wb.addImage({
-        buffer: imgBuffer,
-        extension: "png",
-      });
+  // Logo institucional si está disponible
+  if (imageId != null) {
+    try {
       ws.addImage(imageId, {
         tl: { col: 0.15, row: 0.2 },
         ext: { width: 95, height: 60 },
       });
+    } catch {
+      // Ignorar fallo de inserción de imagen
     }
-  } catch {
-    // Si no carga el logo, continúa limpiamente
   }
 
   // ── Encabezado de la Tabla (Fila 5) ─────────────────────────────────────────
@@ -403,7 +410,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
         formatDateTimeDisplay(item.createdAt),
       ];
     } else {
-      // CAMPAMENTO_MAYOR_PERMANENCIA
+      // CAMPAMENTO_MAYOR_PERMANENCIA y ASIGNACION_GMVV
       values = [
         ...baseValues,
         item.observacion || "—",
@@ -447,7 +454,7 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
         cell.alignment = { vertical: "middle", horizontal: "left" };
       }
 
-      // Resalte si es SI
+      // Resalte si es SI / NO
       if (v === "SI") {
         cell.font = { name: "Arial", size: 8.5, bold: true, color: { argb: "059669" } };
       } else if (v === "NO") {
@@ -476,8 +483,73 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
       to: { row: items.length + 5, column: nCols },
     };
   }
+}
 
-  // ── Descargar Blob ────────────────────────────────────────────────────────
+interface ExportPlanteamientoOpts {
+  items: PlanteamientoSalaItem[];
+  modalidad: TipoOpcionPlanteamiento;
+  refugio: string;
+  generadoEn: string;
+  filtros?: string;
+}
+
+/**
+ * Exporta un archivo Excel con UNA sola modalidad.
+ */
+export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamientoOpts): Promise<void> {
+  const { items, modalidad, refugio, generadoEn, filtros } = opts;
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Registro-SismoLg26";
+
+  let sheetName = "Compra de Vivienda";
+  let modalidadLabel = "Compra de Vivienda (Mercado Secundario)";
+  let filePrefix = "planteamiento_compra_vivienda";
+
+  if (modalidad === "ALQUILER") {
+    sheetName = "Alquiler";
+    modalidadLabel = "Alquiler";
+    filePrefix = "planteamiento_alquiler";
+  } else if (modalidad === "PLAN_VENEZUELA_RENACE") {
+    sheetName = "Venezuela Renace";
+    modalidadLabel = "Plan Venezuela Renace";
+    filePrefix = "planteamiento_venezuela_renace";
+  } else if (modalidad === "CAMPAMENTO_MAYOR_PERMANENCIA") {
+    sheetName = "Campamento Mayor Permanencia";
+    modalidadLabel = "Campamento Mayor Permanencia";
+    filePrefix = "planteamiento_campamento_permanencia";
+  } else if (modalidad === "ASIGNACION_GMVV") {
+    sheetName = "Asignación GMVV";
+    modalidadLabel = "Asignación GMVV (Gran Misión Vivienda Venezuela)";
+    filePrefix = "planteamiento_asignacion_gmvv";
+  }
+
+  let imageId: number | null = null;
+  try {
+    const res = await fetch("/logo_gob_push.png");
+    if (res.ok) {
+      const imgBuffer = await res.arrayBuffer();
+      imageId = wb.addImage({
+        buffer: imgBuffer,
+        extension: "png",
+      });
+    }
+  } catch {
+    // Si no carga el logo, continúa limpiamente
+  }
+
+  buildModalidadWorksheet({
+    wb,
+    items,
+    modalidad,
+    sheetName,
+    modalidadLabel,
+    refugio,
+    generadoEn,
+    filtros,
+    imageId,
+  });
+
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -488,6 +560,70 @@ export async function exportPlanteamientoModalidadExcel(opts: ExportPlanteamient
   const nowStr = new Date().toISOString().slice(0, 10);
   a.href = url;
   a.download = `${filePrefix}_${safeCamp}_${nowStr}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Exporta un archivo Excel consolidado con las 5 MODALIDADES en pestañas/hojas separadas:
+ * 1. Alquiler
+ * 2. Mercado Secundario
+ * 3. Asignación GMVV
+ * 4. Venezuela Renace
+ * 5. Campamento Mayor Permanencia
+ */
+export async function exportPlanteamientoTodasModalidadesExcel(opts: {
+  items: PlanteamientoSalaItem[];
+  refugio: string;
+  generadoEn: string;
+  filtros?: string;
+}): Promise<void> {
+  const { items, refugio, generadoEn, filtros } = opts;
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Registro-SismoLg26";
+
+  let imageId: number | null = null;
+  try {
+    const res = await fetch("/logo_gob_push.png");
+    if (res.ok) {
+      const imgBuffer = await res.arrayBuffer();
+      imageId = wb.addImage({
+        buffer: imgBuffer,
+        extension: "png",
+      });
+    }
+  } catch {
+    // Si no carga el logo, continúa limpiamente
+  }
+
+  for (const config of TODAS_MODALIDADES_CONFIG) {
+    const modalidadItems = items.filter((it) => it.tipoOpcion === config.modalidad);
+    buildModalidadWorksheet({
+      wb,
+      items: modalidadItems,
+      modalidad: config.modalidad,
+      sheetName: config.sheetName,
+      modalidadLabel: config.modalidadLabel,
+      refugio,
+      generadoEn,
+      filtros,
+      imageId,
+    });
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const safeCamp = (refugio || "todos").replace(/[^\p{L}\p{N}]+/gu, "_").slice(0, 30);
+  const nowStr = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `planteamiento_todas_las_modalidades_${safeCamp}_${nowStr}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
