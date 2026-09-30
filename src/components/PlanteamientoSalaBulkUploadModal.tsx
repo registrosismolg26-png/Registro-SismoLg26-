@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import { apiFetch } from "@/lib/apiFetch";
@@ -42,6 +42,7 @@ export default function PlanteamientoSalaBulkUploadModal({
   const [fileWarnings, setFileWarnings] = useState<string[]>([]);
   const [previewFilter, setPreviewFilter] = useState<string>("");
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [includeExtraTitulares, setIncludeExtraTitulares] = useState<boolean>(true);
 
   // Resultado tras procesar
   const [uploadResult, setUploadResult] = useState<{
@@ -59,6 +60,50 @@ export default function PlanteamientoSalaBulkUploadModal({
       setSelectedRefugio(currentRefugio);
     }
   }, [currentRefugio]);
+
+  // Limpieza completa del estado y archivo
+  const handleReset = () => {
+    setParsedTitulares([]);
+    setTotalFamiliares(0);
+    setFileName("");
+    setFileWarnings([]);
+    setUploadResult(null);
+    setExpandedRows({});
+    setPreviewFilter("");
+    setIncludeExtraTitulares(true);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleClose = () => {
+    handleReset();
+    onClose();
+  };
+
+  // Cada vez que se cierra el modal, reseteamos para que nunca queden datos pendientes
+  useEffect(() => {
+    if (!isOpen) {
+      handleReset();
+    }
+  }, [isOpen]);
+
+  const countTitularesHoja1 = useMemo(() => {
+    return parsedTitulares.filter((t) => t.origen !== "HOJA_FAMILIA").length;
+  }, [parsedTitulares]);
+
+  const countTitularesExtra = useMemo(() => {
+    return parsedTitulares.filter((t) => t.origen === "HOJA_FAMILIA").length;
+  }, [parsedTitulares]);
+
+  const effectiveTitulares = useMemo(() => {
+    if (includeExtraTitulares) return parsedTitulares;
+    return parsedTitulares.filter((t) => t.origen !== "HOJA_FAMILIA");
+  }, [parsedTitulares, includeExtraTitulares]);
+
+  const effectiveTotalFamiliares = useMemo(() => {
+    return effectiveTitulares.reduce((acc, t) => acc + (t.cargaFamiliar?.length || 0), 0);
+  }, [effectiveTitulares]);
 
   if (!modal.mounted) return null;
 
@@ -112,21 +157,12 @@ export default function PlanteamientoSalaBulkUploadModal({
     }));
   };
 
-  const handleReset = () => {
-    setParsedTitulares([]);
-    setTotalFamiliares(0);
-    setFileName("");
-    setFileWarnings([]);
-    setUploadResult(null);
-    setExpandedRows({});
-  };
-
   const handleStartUpload = async () => {
     if (!selectedRefugio) {
       showToast("Por favor selecciona el campamento de destino.", "warning");
       return;
     }
-    if (parsedTitulares.length === 0) {
+    if (effectiveTitulares.length === 0) {
       showToast("No hay registros válidos para cargar.", "warning");
       return;
     }
@@ -138,7 +174,7 @@ export default function PlanteamientoSalaBulkUploadModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           refugio: selectedRefugio,
-          items: parsedTitulares,
+          items: effectiveTitulares,
         }),
       });
 
@@ -166,28 +202,30 @@ export default function PlanteamientoSalaBulkUploadModal({
   };
 
   // Filtrado de la vista previa
-  const filteredPreview = parsedTitulares.filter((tit) => {
-    if (!previewFilter.trim()) return true;
-    const q = previewFilter.toLowerCase();
-    const matchTit =
-      tit.cedula.includes(q) ||
-      tit.nombreApellido.toLowerCase().includes(q) ||
-      (tit.telefono && tit.telefono.includes(q));
-    const matchFam = tit.cargaFamiliar.some(
-      (fam) =>
-        fam.cedula.includes(q) ||
-        fam.nombreApellido.toLowerCase().includes(q) ||
-        fam.parentesco.toLowerCase().includes(q)
-    );
-    return matchTit || matchFam;
-  });
+  const filteredPreview = useMemo(() => {
+    return effectiveTitulares.filter((tit) => {
+      if (!previewFilter.trim()) return true;
+      const q = previewFilter.toLowerCase();
+      const matchTit =
+        tit.cedula.includes(q) ||
+        tit.nombreApellido.toLowerCase().includes(q) ||
+        (tit.telefono && tit.telefono.includes(q));
+      const matchFam = tit.cargaFamiliar.some(
+        (fam) =>
+          fam.cedula.includes(q) ||
+          fam.nombreApellido.toLowerCase().includes(q) ||
+          fam.parentesco.toLowerCase().includes(q)
+      );
+      return matchTit || matchFam;
+    });
+  }, [effectiveTitulares, previewFilter]);
 
   if (!modal.mounted || typeof document === "undefined") return null;
 
   return createPortal(
     <div
       className={`modal-overlay modal-overlay--sala${modal.closing ? " modal-overlay--closing" : ""}`}
-      onClick={onClose}
+      onClick={handleClose}
       role="dialog"
       aria-modal="true"
     >
@@ -248,7 +286,7 @@ export default function PlanteamientoSalaBulkUploadModal({
           <button
             type="button"
             className="modal-close"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Cerrar modal"
             style={{
               background: "transparent",
@@ -348,7 +386,7 @@ export default function PlanteamientoSalaBulkUploadModal({
                 <button
                   type="button"
                   className="toolbar-btn toolbar-btn--primary"
-                  onClick={onClose}
+                  onClick={handleClose}
                   style={{ padding: "0.6rem 1.5rem", borderRadius: "9px", fontWeight: 700 }}
                 >
                   Aceptar y Ver Expedientes
@@ -480,8 +518,8 @@ export default function PlanteamientoSalaBulkUploadModal({
                 {/* Dropzone para Subir Archivo Excel */}
                 <div
                   style={{
-                    background: "var(--bg-primary)",
-                    border: "2px dashed var(--border-color)",
+                    background: fileName ? "rgba(16, 185, 129, 0.04)" : "var(--bg-primary)",
+                    border: fileName ? "2px solid #10b981" : "2px dashed var(--border-color)",
                     borderRadius: "14px",
                     padding: "1rem 1.15rem",
                     display: "flex",
@@ -491,6 +529,7 @@ export default function PlanteamientoSalaBulkUploadModal({
                     textAlign: "center",
                     gap: "0.65rem",
                     cursor: "pointer",
+                    position: "relative",
                     transition: "all 0.15s ease",
                   }}
                   onClick={() => fileInputRef.current?.click()}
@@ -508,8 +547,8 @@ export default function PlanteamientoSalaBulkUploadModal({
                       width: "42px",
                       height: "42px",
                       borderRadius: "50%",
-                      background: "rgba(16, 185, 129, 0.12)",
-                      color: "#10b981",
+                      background: fileName ? "#10b981" : "rgba(16, 185, 129, 0.12)",
+                      color: fileName ? "#ffffff" : "#10b981",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -524,13 +563,49 @@ export default function PlanteamientoSalaBulkUploadModal({
                   </div>
 
                   <div>
-                    <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                    <div style={{ fontSize: "0.9rem", fontWeight: 700, color: fileName ? "#047857" : "var(--text-primary)" }}>
                       {parsing ? "Leyendo archivo..." : fileName ? fileName : "Seleccionar o arrastrar archivo Excel"}
                     </div>
                     <p style={{ margin: "2px 0 0", fontSize: "0.76rem", color: "var(--text-secondary)" }}>
-                      Haz clic para subir la plantilla completada (.xlsx)
+                      {fileName
+                        ? "Archivo cargado. Haz clic para cambiarlo por otro archivo."
+                        : "Haz clic para subir la plantilla completada (.xlsx)"}
                     </p>
                   </div>
+
+                  {fileName && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReset();
+                        showToast("Archivo y previsualización descartados.", "info");
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: "10px",
+                        right: "10px",
+                        background: "rgba(239, 68, 68, 0.1)",
+                        color: "#dc2626",
+                        border: "1px solid rgba(239, 68, 68, 0.25)",
+                        borderRadius: "8px",
+                        padding: "4px 9px",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                      }}
+                      title="Quitar y descartar este archivo"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                      <span>Quitar</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -586,7 +661,7 @@ export default function PlanteamientoSalaBulkUploadModal({
                           borderRadius: "7px",
                         }}
                       >
-                        {parsedTitulares.length} Titulares
+                        {effectiveTitulares.length} Titulares
                       </span>
                       <span
                         style={{
@@ -598,8 +673,39 @@ export default function PlanteamientoSalaBulkUploadModal({
                           borderRadius: "7px",
                         }}
                       >
-                        {totalFamiliares} Familiares Vinculados
+                        {effectiveTotalFamiliares} Familiares Vinculados
                       </span>
+
+                      {/* Botón para borrar/descartar la carga masiva */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleReset();
+                          showToast("Carga masiva descartada.", "info");
+                        }}
+                        title="Borrar y descartar este archivo para empezar de nuevo"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          background: "rgba(239, 68, 68, 0.1)",
+                          color: "#dc2626",
+                          border: "1px solid rgba(239, 68, 68, 0.3)",
+                          borderRadius: "7px",
+                          padding: "3px 9px",
+                          fontSize: "0.76rem",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                        <span>Descartar Carga</span>
+                      </button>
                     </div>
 
                     <input
@@ -617,6 +723,50 @@ export default function PlanteamientoSalaBulkUploadModal({
                       }}
                     />
                   </div>
+
+                  {/* Panel de control si hay titulares adicionales detectados solo en la hoja familiar */}
+                  {countTitularesExtra > 0 && (
+                    <div
+                      style={{
+                        background: "rgba(245, 158, 11, 0.08)",
+                        border: "1px solid rgba(245, 158, 11, 0.3)",
+                        borderRadius: "9px",
+                        padding: "0.55rem 0.85rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: "0.6rem",
+                        fontSize: "0.78rem",
+                      }}
+                    >
+                      <div style={{ color: "#92400e" }}>
+                        ℹ️ La Hoja 1 tiene <b>{countTitularesHoja1}</b> titulares definidos. En la Hoja Familiar se detectaron <b>{countTitularesExtra}</b> cédulas de titulares adicionales.
+                      </div>
+                      <label
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          color: "#78350f",
+                          background: "var(--bg-primary)",
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          border: "1px solid rgba(245, 158, 11, 0.3)",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={includeExtraTitulares}
+                          onChange={(e) => setIncludeExtraTitulares(e.target.checked)}
+                          style={{ cursor: "pointer", width: "15px", height: "15px" }}
+                        />
+                        <span>Cargar los {countTitularesExtra} adicionales</span>
+                      </label>
+                    </div>
+                  )}
 
                   {/* Tabla interactiva de Vista Previa */}
                   <div
@@ -652,7 +802,26 @@ export default function PlanteamientoSalaBulkUploadModal({
                                 }}
                               >
                                 <td style={{ padding: "7px 10px", color: "var(--text-secondary)" }}>{idx + 1}</td>
-                                <td style={{ padding: "7px 10px", fontWeight: 700 }}>V-{tit.cedula}</td>
+                                <td style={{ padding: "7px 10px", fontWeight: 700 }}>
+                                  <span>V-{tit.cedula}</span>
+                                  {tit.origen === "HOJA_FAMILIA" && (
+                                    <span
+                                      style={{
+                                        display: "inline-block",
+                                        marginLeft: "6px",
+                                        fontSize: "0.68rem",
+                                        fontWeight: 700,
+                                        color: "#b45309",
+                                        background: "rgba(245, 158, 11, 0.12)",
+                                        padding: "1px 6px",
+                                        borderRadius: "4px",
+                                      }}
+                                      title="Este titular se originó en la Hoja de Carga Familiar"
+                                    >
+                                      Hoja Familia
+                                    </span>
+                                  )}
+                                </td>
                                 <td style={{ padding: "7px 10px" }}>
                                   {tit.nombreApellido ? (
                                     <span>{tit.nombreApellido}</span>
@@ -801,21 +970,54 @@ export default function PlanteamientoSalaBulkUploadModal({
               gap: "0.75rem",
             }}
           >
-            <button
-              type="button"
-              className="toolbar-btn"
-              onClick={onClose}
-              disabled={uploading}
-              style={{ padding: "0.5rem 1.15rem", borderRadius: "9px" }}
-            >
-              Cancelar
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button
+                type="button"
+                className="toolbar-btn"
+                onClick={handleClose}
+                disabled={uploading}
+                style={{ padding: "0.5rem 1.15rem", borderRadius: "9px" }}
+              >
+                Cancelar y Cerrar
+              </button>
+
+              {parsedTitulares.length > 0 && (
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={() => {
+                    handleReset();
+                    showToast("Carga masiva descartada.", "info");
+                  }}
+                  disabled={uploading}
+                  style={{
+                    padding: "0.5rem 1rem",
+                    borderRadius: "9px",
+                    background: "rgba(239, 68, 68, 0.08)",
+                    color: "#dc2626",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    <line x1="10" y1="11" x2="10" y2="17" />
+                    <line x1="14" y1="11" x2="14" y2="17" />
+                  </svg>
+                  <span>Descartar Archivo</span>
+                </button>
+              )}
+            </div>
 
             <button
               type="button"
               className="toolbar-btn toolbar-btn--primary"
               onClick={handleStartUpload}
-              disabled={uploading || parsedTitulares.length === 0 || !selectedRefugio}
+              disabled={uploading || effectiveTitulares.length === 0 || !selectedRefugio}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -838,8 +1040,8 @@ export default function PlanteamientoSalaBulkUploadModal({
                     <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
                   <span>
-                    Iniciar Carga Masiva ({parsedTitulares.length}{" "}
-                    {parsedTitulares.length === 1 ? "expediente" : "expedientes"})
+                    Iniciar Carga Masiva ({effectiveTitulares.length}{" "}
+                    {effectiveTitulares.length === 1 ? "expediente" : "expedientes"})
                   </span>
                 </>
               )}

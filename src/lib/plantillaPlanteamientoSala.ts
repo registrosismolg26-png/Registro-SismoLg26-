@@ -9,6 +9,7 @@ export interface BulkTitularParsed {
   telefono: string;
   tipoOpcion: string;
   observacion?: string;
+  origen?: "HOJA_TITULARES" | "HOJA_FAMILIA";
   cargaFamiliar: BulkFamiliarParsed[];
 }
 
@@ -25,6 +26,8 @@ export interface BulkFamiliarParsed {
 
 export interface ParseResult {
   titulares: BulkTitularParsed[];
+  countTitularesHoja1: number;
+  countTitularesExtra: number;
   totalFamiliares: number;
   warnings: string[];
 }
@@ -474,6 +477,7 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
           telefono: normalizePhone(rawTel),
           tipoOpcion: normModalidad(rawMod),
           observacion: rawObs || undefined,
+          origen: "HOJA_TITULARES",
           cargaFamiliar: [],
         });
       }
@@ -557,13 +561,14 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
         telefono: normalizePhone(rawTel),
       };
 
-      // Si el titular no estaba en la hoja de titulares, lo registramos automáticamente para no perder a su familia
+      // Si el titular no estaba en la hoja de titulares, lo registramos con origen HOJA_FAMILIA
       if (!titularesMap.has(cedulaTitular)) {
         titularesMap.set(cedulaTitular, {
           cedula: cedulaTitular,
           nombreApellido: "",
           telefono: "",
           tipoOpcion: "MERCADO_SECUNDARIO",
+          origen: "HOJA_FAMILIA",
           cargaFamiliar: [familiarObj],
         });
       } else {
@@ -574,12 +579,17 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
   }
 
   const titulares = Array.from(titularesMap.values());
+  const countTitularesHoja1 = titulares.filter((t) => t.origen !== "HOJA_FAMILIA").length;
+  const countTitularesExtra = titulares.filter((t) => t.origen === "HOJA_FAMILIA").length;
+
   if (titulares.length === 0) {
     warnings.push("No se encontraron registros de cédula válidos en el archivo.");
   }
 
   return {
     titulares,
+    countTitularesHoja1,
+    countTitularesExtra,
     totalFamiliares,
     warnings,
   };
