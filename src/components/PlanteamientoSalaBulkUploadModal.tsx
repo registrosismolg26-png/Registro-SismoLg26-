@@ -9,6 +9,8 @@ import {
   parsePlanteamientoSalaXlsx,
   BulkTitularParsed,
 } from "@/lib/plantillaPlanteamientoSala";
+import { TIPO_OPCION_PLANTEAMIENTO_OPTIONS } from "@/lib/constants";
+import type { TipoOpcionPlanteamiento } from "@/types";
 
 interface Props {
   isOpen: boolean;
@@ -41,6 +43,8 @@ export default function PlanteamientoSalaBulkUploadModal({
   const [fileName, setFileName] = useState<string>("");
   const [fileWarnings, setFileWarnings] = useState<string[]>([]);
   const [previewFilter, setPreviewFilter] = useState<string>("");
+  const [selectedModalidadFilter, setSelectedModalidadFilter] = useState<string>("TODOS");
+  const [batchModalidad, setBatchModalidad] = useState<string>("");
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [includeExtraTitulares, setIncludeExtraTitulares] = useState<boolean>(true);
 
@@ -70,6 +74,8 @@ export default function PlanteamientoSalaBulkUploadModal({
     setUploadResult(null);
     setExpandedRows({});
     setPreviewFilter("");
+    setSelectedModalidadFilter("TODOS");
+    setBatchModalidad("");
     setIncludeExtraTitulares(true);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -79,6 +85,24 @@ export default function PlanteamientoSalaBulkUploadModal({
   const handleClose = () => {
     handleReset();
     onClose();
+  };
+
+  // Actualizar la modalidad de un titular específico en la vista previa
+  const handleUpdateTitularModalidad = (cedula: string, newModalidad: string) => {
+    setParsedTitulares((prev) =>
+      prev.map((t) => (t.cedula === cedula ? { ...t, tipoOpcion: newModalidad } : t))
+    );
+  };
+
+  // Asignar una modalidad masivamente a todos los titulares en la vista previa
+  const handleApplyModalidadToAll = (newModalidad: string) => {
+    if (!newModalidad) return;
+    setParsedTitulares((prev) =>
+      prev.map((t) => ({ ...t, tipoOpcion: newModalidad }))
+    );
+    const optLabel = TIPO_OPCION_PLANTEAMIENTO_OPTIONS.find((o) => o.value === newModalidad)?.label || newModalidad;
+    showToast(`Modalidad '${optLabel}' asignada a todos los titulares.`, "info");
+    setBatchModalidad("");
   };
 
   // Solo cuando el modal pasa de abierto a cerrado reseteamos el estado
@@ -105,6 +129,23 @@ export default function PlanteamientoSalaBulkUploadModal({
 
   const effectiveTotalFamiliares = useMemo(() => {
     return effectiveTitulares.reduce((acc, t) => acc + (t.cargaFamiliar?.length || 0), 0);
+  }, [effectiveTitulares]);
+
+  // Conteo de expedientes por cada una de las 5 modalidades
+  const countsByModalidad = useMemo(() => {
+    const acc: Record<string, number> = {
+      MERCADO_SECUNDARIO: 0,
+      ALQUILER: 0,
+      PLAN_VENEZUELA_RENACE: 0,
+      CAMPAMENTO_MAYOR_PERMANENCIA: 0,
+      ASIGNACION_GMVV: 0,
+    };
+    effectiveTitulares.forEach((t) => {
+      if (acc[t.tipoOpcion] !== undefined) {
+        acc[t.tipoOpcion]++;
+      }
+    });
+    return acc;
   }, [effectiveTitulares]);
 
   const handleDownloadTemplate = async () => {
@@ -201,15 +242,19 @@ export default function PlanteamientoSalaBulkUploadModal({
     }
   };
 
-  // Filtrado de la vista previa
+  // Filtrado de la vista previa por texto y por modalidad seleccionada
   const filteredPreview = useMemo(() => {
     return effectiveTitulares.filter((tit) => {
+      if (selectedModalidadFilter !== "TODOS" && tit.tipoOpcion !== selectedModalidadFilter) {
+        return false;
+      }
       if (!previewFilter.trim()) return true;
       const q = previewFilter.toLowerCase();
       const matchTit =
         tit.cedula.includes(q) ||
         tit.nombreApellido.toLowerCase().includes(q) ||
-        (tit.telefono && tit.telefono.includes(q));
+        (tit.telefono && tit.telefono.includes(q)) ||
+        tit.tipoOpcion.toLowerCase().includes(q);
       const matchFam = tit.cargaFamiliar.some(
         (fam) =>
           fam.cedula.includes(q) ||
@@ -218,7 +263,7 @@ export default function PlanteamientoSalaBulkUploadModal({
       );
       return matchTit || matchFam;
     });
-  }, [effectiveTitulares, previewFilter]);
+  }, [effectiveTitulares, previewFilter, selectedModalidadFilter]);
 
   if (!modal.mounted || typeof document === "undefined") return null;
 
@@ -481,8 +526,26 @@ export default function PlanteamientoSalaBulkUploadModal({
                     </div>
                     <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-secondary)", lineHeight: 1.45 }}>
                       Incluye la hoja de <b>Titulares</b>, la hoja de <b>Carga Familiar</b> y una guía detallada con los
-                      parentescos y modalidades válidas. Si dejas los nombres vacíos, el sistema los consultará en CNE.
+                      parentescos y las <b>5 modalidades válidas</b>. Si dejas los nombres vacíos, el sistema los consultará en CNE.
                     </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "0.45rem" }}>
+                      {TIPO_OPCION_PLANTEAMIENTO_OPTIONS.map((opt) => (
+                        <span
+                          key={opt.value}
+                          style={{
+                            fontSize: "0.68rem",
+                            fontWeight: 700,
+                            padding: "2px 7px",
+                            borderRadius: "5px",
+                            background: opt.bg,
+                            color: opt.color,
+                            border: `1px solid ${opt.border}`,
+                          }}
+                        >
+                          {opt.label}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
                   <button
@@ -724,6 +787,112 @@ export default function PlanteamientoSalaBulkUploadModal({
                     />
                   </div>
 
+                  {/* Barra de Filtros por Modalidad y Asignación Masiva */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "0.5rem",
+                      background: "rgba(0,0,0,0.025)",
+                      padding: "0.45rem 0.65rem",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", marginRight: "2px" }}>
+                        Filtrar modalidad:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedModalidadFilter("TODOS")}
+                        style={{
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: "6px",
+                          border: "1px solid",
+                          borderColor: selectedModalidadFilter === "TODOS" ? "#2563eb" : "var(--border-color)",
+                          background: selectedModalidadFilter === "TODOS" ? "#2563eb" : "var(--bg-primary)",
+                          color: selectedModalidadFilter === "TODOS" ? "#ffffff" : "var(--text-primary)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        TODAS ({effectiveTitulares.length})
+                      </button>
+                      {TIPO_OPCION_PLANTEAMIENTO_OPTIONS.map((opt) => {
+                        const count = countsByModalidad[opt.value] || 0;
+                        const isSelected = selectedModalidadFilter === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setSelectedModalidadFilter(isSelected ? "TODOS" : opt.value)}
+                            style={{
+                              fontSize: "0.72rem",
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                              border: `1px solid ${isSelected ? opt.color : opt.border}`,
+                              background: isSelected ? opt.color : opt.bg,
+                              color: isSelected ? "#ffffff" : opt.color,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <span>{opt.shortLabel}</span>
+                            <span
+                              style={{
+                                fontSize: "0.66rem",
+                                padding: "0 4px",
+                                borderRadius: "4px",
+                                background: isSelected ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.06)",
+                              }}
+                            >
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Selector de asignación en lote a todos los titulares */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "auto" }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--text-secondary)" }}>
+                        Asignar a todos ({effectiveTitulares.length}):
+                      </span>
+                      <select
+                        value={batchModalidad}
+                        onChange={(e) => {
+                          const val = e.target.value as TipoOpcionPlanteamiento;
+                          if (val) {
+                            handleApplyModalidadToAll(val);
+                          }
+                        }}
+                        style={{
+                          fontSize: "0.74rem",
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          border: "1px solid var(--border-color)",
+                          background: "var(--bg-primary)",
+                          color: "var(--text-primary)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <option value="">-- Seleccionar --</option>
+                        {TIPO_OPCION_PLANTEAMIENTO_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   {/* Panel de control si hay titulares adicionales detectados solo en la hoja familiar */}
                   {countTitularesExtra > 0 && (
                     <div
@@ -835,40 +1004,49 @@ export default function PlanteamientoSalaBulkUploadModal({
                                   {tit.telefono || "—"}
                                 </td>
                                 <td style={{ padding: "7px 10px" }}>
-                                  <span
-                                    style={{
-                                      fontSize: "0.72rem",
-                                      fontWeight: 700,
-                                      padding: "1px 7px",
-                                      borderRadius: "5px",
-                                      background:
-                                        tit.tipoOpcion === "ALQUILER"
-                                          ? "rgba(16, 185, 129, 0.1)"
-                                          : tit.tipoOpcion === "PLAN_VENEZUELA_RENACE"
-                                          ? "rgba(124, 58, 237, 0.1)"
-                                          : tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA"
-                                          ? "rgba(234, 88, 12, 0.1)"
-                                          : tit.tipoOpcion === "ASIGNACION_GMVV"
-                                          ? "rgba(8, 145, 178, 0.1)"
-                                          : "rgba(37, 99, 235, 0.1)",
-                                      color:
-                                        tit.tipoOpcion === "ALQUILER"
-                                          ? "#10b981"
-                                          : tit.tipoOpcion === "PLAN_VENEZUELA_RENACE"
-                                          ? "#7c3aed"
-                                          : tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA"
-                                          ? "#ea580c"
-                                          : tit.tipoOpcion === "ASIGNACION_GMVV"
-                                          ? "#0891b2"
-                                          : "#2563eb",
-                                    }}
-                                  >
-                                    {tit.tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA"
-                                      ? "MAYOR PERMANENCIA"
-                                      : tit.tipoOpcion === "ASIGNACION_GMVV"
-                                      ? "ASIGNACIÓN GMVV"
-                                      : tit.tipoOpcion}
-                                  </span>
+                                  {(() => {
+                                    const meta =
+                                      TIPO_OPCION_PLANTEAMIENTO_OPTIONS.find((o) => o.value === tit.tipoOpcion) ||
+                                      TIPO_OPCION_PLANTEAMIENTO_OPTIONS[0];
+                                    return (
+                                      <select
+                                        value={tit.tipoOpcion}
+                                        onChange={(e) =>
+                                          handleUpdateTitularModalidad(
+                                            tit.cedula,
+                                            e.target.value as TipoOpcionPlanteamiento
+                                          )
+                                        }
+                                        title="Cambiar modalidad de este titular"
+                                        style={{
+                                          fontSize: "0.72rem",
+                                          fontWeight: 700,
+                                          padding: "3px 6px",
+                                          borderRadius: "6px",
+                                          background: meta.bg,
+                                          color: meta.color,
+                                          border: `1px solid ${meta.border}`,
+                                          cursor: "pointer",
+                                          outline: "none",
+                                          maxWidth: "185px",
+                                        }}
+                                      >
+                                        {TIPO_OPCION_PLANTEAMIENTO_OPTIONS.map((opt) => (
+                                          <option
+                                            key={opt.value}
+                                            value={opt.value}
+                                            style={{
+                                              background: "var(--bg-primary)",
+                                              color: "var(--text-primary)",
+                                              fontWeight: 500,
+                                            }}
+                                          >
+                                            {opt.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    );
+                                  })()}
                                 </td>
                                 <td style={{ padding: "7px 10px" }}>
                                   {tit.cargaFamiliar.length > 0 ? (

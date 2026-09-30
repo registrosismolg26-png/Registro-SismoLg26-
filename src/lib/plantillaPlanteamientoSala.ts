@@ -165,11 +165,13 @@ export async function descargarPlantillaPlanteamientoSala(refugioNombre?: string
     cell.border = thinBorder;
   });
 
-  // Filas de Ejemplo
+  // Filas de Ejemplo con las 5 opciones de Modalidad
   const ejemplosTitulares = [
-    ["1446136", "", "04142493493", "MERCADO_SECUNDARIO", "Caso prioridad sector oeste"],
-    ["18324248", "MARIA JOSEFINA PEREZ", "04149016903", "ALQUILER", ""],
+    ["1446136", "", "04142493493", "MERCADO_SECUNDARIO", "Compra mercado secundario"],
+    ["18324248", "MARIA JOSEFINA PEREZ", "04149016903", "ALQUILER", "Arrendamiento"],
     ["12459271", "", "04241463602", "PLAN_VENEZUELA_RENACE", "Vivienda con afectación"],
+    ["16543210", "", "04121234567", "CAMPAMENTO_MAYOR_PERMANENCIA", "Estadía prolongada en campamento"],
+    ["19876543", "", "04169876543", "ASIGNACION_GMVV", "Asignación directa GMVV"],
   ];
 
   ejemplosTitulares.forEach((rowVals, idx) => {
@@ -184,6 +186,18 @@ export async function descargarPlantillaPlanteamientoSala(refugioNombre?: string
       }
     });
   });
+
+  // Validación de lista desplegable con las 5 opciones para la columna D (Modalidad)
+  for (let rowIdx = 3; rowIdx <= 1000; rowIdx++) {
+    wsTitulares.getCell(`D${rowIdx}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: ['"MERCADO_SECUNDARIO,ALQUILER,PLAN_VENEZUELA_RENACE,CAMPAMENTO_MAYOR_PERMANENCIA,ASIGNACION_GMVV"'],
+      showErrorMessage: true,
+      errorTitle: "Modalidad no válida",
+      error: "Por favor selecciona una de las 5 modalidades válidas de la lista.",
+    };
+  }
 
   // ──────────────────────────────────────────────────────────────────────────
   // HOJA 3: CARGA FAMILIAR
