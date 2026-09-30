@@ -154,14 +154,19 @@ export async function POST(req: Request) {
     // 5. Fallback para los que aún falten (API REP Externa con throttle)
     const externalRepMap = new Map<string, any>();
     const missingStill = missingFromPadron.filter((c) => !registroMap.has(c) && c.length >= 5);
-    // Limitar llamadas externas para no demorar indefinidamente
+    // Limitar llamadas externas para no demorar indefinidamente (procesar en lotes paralelos de 5)
     const maxExternal = Math.min(missingStill.length, 50);
-    for (let i = 0; i < maxExternal; i++) {
-      const c = missingStill[i];
-      const rep = await fetchRepExterno(c);
-      if (rep && rep.nombreApellido) {
-        externalRepMap.set(c, rep);
-      }
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < maxExternal; i += BATCH_SIZE) {
+      const slice = missingStill.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        slice.map(async (c) => {
+          const rep = await fetchRepExterno(c);
+          if (rep && rep.nombreApellido) {
+            externalRepMap.set(c, rep);
+          }
+        })
+      );
     }
 
     // Helper para resolver identidad

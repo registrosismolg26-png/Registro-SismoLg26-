@@ -277,8 +277,22 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
   await wb.xlsx.load(await file.arrayBuffer());
 
   const warnings: string[] = [];
-  const cleanDigits = (v: any) => String(v ?? "").replace(/\D/g, "");
-  const cleanText = (v: any) => String(v ?? "").trim();
+
+  const cleanText = (v: any): string => {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "object") {
+      if (Array.isArray(v.richText)) {
+        return v.richText.map((t: any) => t.text || "").join("").trim();
+      }
+      if (v.text !== undefined && v.text !== null) return String(v.text).trim();
+      if (v.result !== undefined && v.result !== null) return String(v.result).trim();
+    }
+    return String(v).trim();
+  };
+
+  const cleanDigits = (v: any): string => {
+    return cleanText(v).replace(/\D/g, "");
+  };
 
   const normalizePhone = (raw: string): string => {
     const d = cleanDigits(raw);
@@ -297,10 +311,10 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
       const d = new Date(Math.round((val - 25569) * 86400 * 1000));
       if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
     }
-    const s = String(val).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const s = cleanText(val);
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
     const parts = s.split(/[\/\-\.]/);
-    if (parts.length === 3) {
+    if (parts.length >= 3) {
       if (parts[0].length <= 2 && parts[2].length === 4) {
         // DD/MM/YYYY
         return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
@@ -310,14 +324,14 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
   };
 
   const normModalidad = (raw: string): string => {
-    const up = raw.toUpperCase();
+    const up = cleanText(raw).toUpperCase();
     if (up.includes("ALQUILER")) return "ALQUILER";
     if (up.includes("RENACE")) return "PLAN_VENEZUELA_RENACE";
     return "MERCADO_SECUNDARIO";
   };
 
   const normParentesco = (raw: string): string => {
-    const t = raw.trim();
+    const t = cleanText(raw);
     if (!t) return "Otro";
     const up = t.toUpperCase();
     if (up.includes("HIJO")) return "Hijo";
@@ -330,71 +344,109 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
     if (up.includes("HERMANA")) return "Hermana";
     if (up.includes("NIETO")) return "Nieto";
     if (up.includes("NIETA")) return "Nieta";
+    if (up.includes("ABUELO")) return "Abuelo";
+    if (up.includes("ABUELA")) return "Abuela";
+    if (up.includes("TIO") || up.includes("TÍO")) return "Tío";
+    if (up.includes("TIA") || up.includes("TÍA")) return "Tía";
+    if (up.includes("PRIMO")) return "Primo";
+    if (up.includes("PRIMA")) return "Prima";
+    if (up.includes("SOBRINO")) return "Sobrino";
+    if (up.includes("SOBRINA")) return "Sobrina";
+    if (up.includes("SUEGRO")) return "Suegro";
+    if (up.includes("SUEGRA")) return "Suegra";
+    if (up.includes("YERNO")) return "Yerno";
+    if (up.includes("NUERA")) return "Nuera";
     return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
   };
 
-  // Buscar hojas
+  // 1. Localizar hojas de Titulares y Carga Familiar
   let titularesWs: any = null;
   let familiaWs: any = null;
 
   wb.eachSheet((ws) => {
-    const n = ws.name.toLowerCase();
-    if (!titularesWs && (n.includes("titular") || n.includes("jefe") || n.includes("persona"))) {
+    const n = ws.name.toLowerCase().trim();
+    if (!titularesWs && (n.includes("titular") || n.includes("jefe") || n.includes("persona") || n.includes("expediente") || n === "hoja 1" || n === "sheet1" || n === "hoja1")) {
       titularesWs = ws;
     }
-    if (!familiaWs && (n.includes("carga") || n.includes("familiar") || n.includes("miembro") || n.includes("grupo"))) {
+    if (!familiaWs && (n.includes("carga") || n.includes("familiar") || n.includes("miembro") || n.includes("grupo") || n.includes("hijo") || n.includes("familia") || n === "hoja 2" || n === "sheet2" || n === "hoja2")) {
       familiaWs = ws;
     }
   });
 
-  // Si no se encontraron por nombre específico, usamos las hojas por posición si hay al menos 2
-  if (!titularesWs && wb.worksheets.length >= 2) {
-    // Si la hoja 1 es "instrucciones", la hoja 2 puede ser titulares y la 3 familia
-    if (wb.worksheets[0].name.toLowerCase().includes("instrucc")) {
-      titularesWs = wb.worksheets[1];
-      if (wb.worksheets.length >= 3) familiaWs = wb.worksheets[2];
-    } else {
-      titularesWs = wb.worksheets[0];
-      familiaWs = wb.worksheets[1];
-    }
-  } else if (!titularesWs && wb.worksheets.length === 1) {
-    titularesWs = wb.worksheets[0];
+  // Fallbacks si no se encontraron por nombre explícito
+  const candidateSheets = wb.worksheets.filter(
+    (w) => !w.name.toLowerCase().includes("instrucc") && !w.name.toLowerCase().includes("guia")
+  );
+  if (!titularesWs && candidateSheets.length > 0) {
+    titularesWs = candidateSheets[0];
   }
+  if (!familiaWs && candidateSheets.length > 1) {
+    familiaWs = candidateSheets.find((w) => w !== titularesWs) || candidateSheets[1];
+  }
+
+  // Helper para detectar la fila de encabezados REAL (ignora banners de celdas combinadas)
+  const findHeaderRow = (ws: any, isFam: boolean): number => {
+    let bestRow = 1;
+    let bestScore = -1;
+    const maxRows = Math.min(10, ws.rowCount || 1);
+
+    for (let r = 1; r <= maxRows; r++) {
+      const row = ws.getRow(r);
+      let score = 0;
+      const seenVals = new Set<string>();
+
+      for (let c = 1; c <= Math.min(25, ws.columnCount || 1); c++) {
+        const val = cleanText(row.getCell(c).value).toLowerCase();
+        if (!val || seenVals.has(val)) continue;
+        seenVals.add(val);
+
+        if (isFam) {
+          if (val.includes("titular") && (val.includes("cedula") || val.includes("cédula") || val.includes("ci"))) score += 5;
+          else if (val.includes("familiar") && (val.includes("cedula") || val.includes("cédula") || val.includes("ci"))) score += 5;
+          else if (val.includes("parentesco") || val.includes("vinculo") || val.includes("relacion")) score += 5;
+          else if (val.includes("nombre") || val.includes("apellido")) score += 3;
+          else if (val.includes("genero") || val.includes("género") || val.includes("sexo")) score += 3;
+          else if (val.includes("nacimiento") || val.includes("fecha") || val.includes("fnac")) score += 3;
+          else if (val.includes("tel") || val.includes("cel") || val.includes("movil")) score += 2;
+        } else {
+          if (val.includes("cedula") || val.includes("cédula") || val.includes("titular") || val.includes("ci")) score += 5;
+          if (val.includes("nombre") || val.includes("apellido")) score += 4;
+          if (val.includes("tel") || val.includes("cel") || val.includes("movil")) score += 3;
+          if (val.includes("modalidad") || (val.includes("opcion") && !val.includes("observ"))) score += 3;
+          if (val.includes("observ") || val.includes("nota")) score += 2;
+        }
+      }
+
+      // Si todas las celdas tienen el mismo texto (merged banner row), seenVals.size será 1
+      if (seenVals.size > 1 && score > bestScore) {
+        bestScore = score;
+        bestRow = r;
+      }
+    }
+    return bestRow;
+  };
 
   const titularesMap = new Map<string, BulkTitularParsed>();
 
-  // 1. Parsear Hoja Titulares
+  // 2. Parsear Hoja Titulares
   if (titularesWs) {
-    // Localizar fila de encabezados (usualmente fila 1 o 2)
-    let headerRowIdx = 1;
-    for (let r = 1; r <= Math.min(5, titularesWs.rowCount); r++) {
-      const row = titularesWs.getRow(r);
-      const rowStr = row.values ? JSON.stringify(row.values).toLowerCase() : "";
-      if (rowStr.includes("cedula") || rowStr.includes("cédula") || rowStr.includes("titular")) {
-        headerRowIdx = r;
-        break;
-      }
-    }
-
-    const headerRow = titularesWs.getRow(headerRowIdx);
+    const hIdx = findHeaderRow(titularesWs, false);
+    const hRow = titularesWs.getRow(hIdx);
     const colMap: Record<string, number> = {};
+
     for (let c = 1; c <= titularesWs.columnCount; c++) {
-      const val = cleanText(headerRow.getCell(c).value).toLowerCase();
+      const val = cleanText(hRow.getCell(c).value).toLowerCase();
       if (!val) continue;
-      if (val.includes("cedula") || val.includes("cédula")) {
-        if (!colMap.cedula) colMap.cedula = c;
-      }
-      if (val.includes("nombre") || val.includes("apellido")) {
-        if (!colMap.nombre) colMap.nombre = c;
-      }
-      if (val.includes("tel") || val.includes("cel")) {
-        if (!colMap.telefono) colMap.telefono = c;
-      }
-      if (val.includes("modalidad") || val.includes("opcion") || val.includes("opción")) {
-        if (!colMap.modalidad) colMap.modalidad = c;
-      }
-      if (val.includes("observ") || val.includes("nota")) {
-        if (!colMap.observacion) colMap.observacion = c;
+      if ((val.includes("cedula") || val.includes("cédula") || val.includes("titular") || val.includes("ci")) && !colMap.cedula) {
+        colMap.cedula = c;
+      } else if ((val.includes("nombre") || val.includes("apellido")) && !colMap.nombre) {
+        colMap.nombre = c;
+      } else if ((val.includes("tel") || val.includes("cel") || val.includes("movil")) && !colMap.telefono) {
+        colMap.telefono = c;
+      } else if ((val.includes("modalidad") || (val.includes("opcion") && !val.includes("observ"))) && !colMap.modalidad) {
+        colMap.modalidad = c;
+      } else if ((val.includes("observ") || val.includes("nota")) && !colMap.observacion) {
+        colMap.observacion = c;
       }
     }
 
@@ -404,7 +456,7 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
     const cMod = colMap.modalidad || 4;
     const cObs = colMap.observacion || 5;
 
-    for (let r = headerRowIdx + 1; r <= titularesWs.rowCount; r++) {
+    for (let r = hIdx + 1; r <= titularesWs.rowCount; r++) {
       const row = titularesWs.getRow(r);
       const rawCed = cleanText(row.getCell(cCed).value);
       const cedula = cleanDigits(rawCed);
@@ -428,37 +480,34 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
     }
   }
 
-  // 2. Parsear Hoja Carga Familiar
+  // 3. Parsear Hoja Carga Familiar
   let totalFamiliares = 0;
-  if (familiaWs && familiaWs !== titularesWs) {
-    let headerRowIdx = 1;
-    for (let r = 1; r <= Math.min(5, familiaWs.rowCount); r++) {
-      const row = familiaWs.getRow(r);
-      const rowStr = row.values ? JSON.stringify(row.values).toLowerCase() : "";
-      if (rowStr.includes("titular") || rowStr.includes("parentesco") || rowStr.includes("familiar")) {
-        headerRowIdx = r;
-        break;
-      }
-    }
-
-    const headerRow = familiaWs.getRow(headerRowIdx);
+  if (familiaWs && (familiaWs !== titularesWs || wb.worksheets.length === 1)) {
+    const hIdx = findHeaderRow(familiaWs, true);
+    const hRow = familiaWs.getRow(hIdx);
     const colMap: Record<string, number> = {};
+
     for (let c = 1; c <= familiaWs.columnCount; c++) {
-      const val = cleanText(headerRow.getCell(c).value).toLowerCase();
+      const val = cleanText(hRow.getCell(c).value).toLowerCase();
       if (!val) continue;
-      if (val.includes("titular") && (val.includes("cedula") || val.includes("cédula"))) {
+
+      if ((val.includes("titular") || val.includes("jefe")) && (val.includes("cedula") || val.includes("cédula") || val.includes("ci")) && !colMap.cedulaTitular) {
         colMap.cedulaTitular = c;
-      } else if (val.includes("familiar") && (val.includes("cedula") || val.includes("cédula"))) {
+      } else if (val.includes("titular") && !colMap.cedulaTitular && !val.includes("nombre")) {
+        colMap.cedulaTitular = c;
+      } else if ((val.includes("familiar") || val.includes("beneficiario") || val.includes("miembro") || val.includes("pariente")) && (val.includes("cedula") || val.includes("cédula") || val.includes("ci")) && !colMap.cedulaFamiliar) {
         colMap.cedulaFamiliar = c;
-      } else if (val.includes("parentesco")) {
+      } else if ((val.includes("cedula") || val.includes("cédula") || val.includes("ci")) && colMap.cedulaTitular && !colMap.cedulaFamiliar) {
+        colMap.cedulaFamiliar = c;
+      } else if ((val.includes("parentesco") || val.includes("vinculo") || val.includes("relacion")) && !colMap.parentesco) {
         colMap.parentesco = c;
-      } else if (val.includes("nombre")) {
+      } else if ((val.includes("nombre") || val.includes("apellido")) && !colMap.nombre) {
         colMap.nombre = c;
-      } else if (val.includes("genero") || val.includes("género") || val.includes("sexo")) {
+      } else if ((val.includes("genero") || val.includes("género") || val.includes("sexo")) && !colMap.genero) {
         colMap.genero = c;
-      } else if (val.includes("nacimiento") || val.includes("fecha")) {
+      } else if ((val.includes("nacimiento") || val.includes("fecha") || val.includes("f.nac") || val.includes("fnac")) && !colMap.fechaNacimiento) {
         colMap.fechaNacimiento = c;
-      } else if (val.includes("tel") || val.includes("cel")) {
+      } else if ((val.includes("tel") || val.includes("cel") || val.includes("movil") || val.includes("móvil")) && !colMap.telefono) {
         colMap.telefono = c;
       }
     }
@@ -471,7 +520,7 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
     const cFn = colMap.fechaNacimiento || 6;
     const cTel = colMap.telefono || 7;
 
-    for (let r = headerRowIdx + 1; r <= familiaWs.rowCount; r++) {
+    for (let r = hIdx + 1; r <= familiaWs.rowCount; r++) {
       const row = familiaWs.getRow(r);
       const rawCedTit = cleanText(row.getCell(cCedTit).value);
       const cedulaTitular = cleanDigits(rawCedTit);
@@ -490,6 +539,14 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
       let generoFinal = "";
       if (rawGen.startsWith("M")) generoFinal = "MASCULINO";
       else if (rawGen.startsWith("F")) generoFinal = "FEMENINO";
+      else {
+        const parNorm = normParentesco(rawPar).toUpperCase();
+        if (["HIJA", "MADRE", "ESPOSA", "HERMANA", "NIETA", "ABUELA", "TIA", "TÍA", "PRIMA", "SOBRINA", "SUEGRA", "NUERA"].some((p) => parNorm.includes(p))) {
+          generoFinal = "FEMENINO";
+        } else if (["HIJO", "PADRE", "ESPOSO", "HERMANO", "NIETO", "ABUELO", "TIO", "TÍO", "PRIMO", "SOBRINO", "SUEGRO", "YERNO"].some((p) => parNorm.includes(p))) {
+          generoFinal = "MASCULINO";
+        }
+      }
 
       const familiarObj: BulkFamiliarParsed = {
         cedula: cedulaFamiliar,
@@ -500,7 +557,7 @@ export async function parsePlanteamientoSalaXlsx(file: File): Promise<ParseResul
         telefono: normalizePhone(rawTel),
       };
 
-      // Si el titular no estaba en la hoja de titulares, lo registramos automáticamente
+      // Si el titular no estaba en la hoja de titulares, lo registramos automáticamente para no perder a su familia
       if (!titularesMap.has(cedulaTitular)) {
         titularesMap.set(cedulaTitular, {
           cedula: cedulaTitular,
