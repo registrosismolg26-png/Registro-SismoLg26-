@@ -47,6 +47,13 @@ export default function PlanteamientoSalaBulkUploadModal({
   const [batchModalidad, setBatchModalidad] = useState<string>("");
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [includeExtraTitulares, setIncludeExtraTitulares] = useState<boolean>(true);
+  const [uploadProgress, setUploadProgress] = useState<{
+    currentBatch: number;
+    totalBatches: number;
+    processedItems: number;
+    totalItems: number;
+    percentage: number;
+  } | null>(null);
 
   // Resultado tras procesar
   const [uploadResult, setUploadResult] = useState<{
@@ -77,6 +84,7 @@ export default function PlanteamientoSalaBulkUploadModal({
     setSelectedModalidadFilter("TODOS");
     setBatchModalidad("");
     setIncludeExtraTitulares(true);
+    setUploadProgress(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -209,35 +217,102 @@ export default function PlanteamientoSalaBulkUploadModal({
     }
 
     setUploading(true);
-    try {
-      const res = await apiFetch("/api/planteamiento-sala/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          refugio: selectedRefugio,
-          items: effectiveTitulares,
-        }),
-      });
+    const BATCH_SIZE = 30; // Lotes de 30 titulares para máxima rapidez y evitar cortes de conexión
+    const totalItems = effectiveTitulares.length;
+    const totalBatches = Math.ceil(totalItems / BATCH_SIZE);
 
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.success) {
-        setUploadResult({
-          countTitulares: data.countTitulares || 0,
-          countFamiliares: data.countFamiliares || 0,
-          countCreados: data.countCreados || 0,
-          countActualizados: data.countActualizados || 0,
-          countCne: data.countCne || 0,
-          refugio: data.refugio || selectedRefugio,
+    let accTitulares = 0;
+    let accFamiliares = 0;
+    let accCreados = 0;
+    let accActualizados = 0;
+    let accCne = 0;
+    let hadError = false;
+
+    setUploadProgress({
+      currentBatch: 1,
+      totalBatches,
+      processedItems: 0,
+      totalItems,
+      percentage: 0,
+    });
+
+    try {
+      for (let i = 0; i < totalBatches; i++) {
+        const start = i * BATCH_SIZE;
+        const end = Math.min(start + BATCH_SIZE, totalItems);
+        const batchItems = effectiveTitulares.slice(start, end);
+
+        setUploadProgress({
+          currentBatch: i + 1,
+          totalBatches,
+          processedItems: start,
+          totalItems,
+          percentage: Math.round((start / totalItems) * 100),
         });
-        showToast(`Carga masiva completada: ${data.countTitulares} expedientes procesados.`, "success");
-        onSuccess();
-      } else {
-        showToast(data?.error || "Error al procesar la carga masiva.", "error");
+
+        let retries = 2;
+        let batchOk = false;
+        let lastBatchErr = "";
+
+        while (retries >= 0 && !batchOk) {
+          try {
+            const res = await apiFetch("/api/planteamiento-sala/bulk", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                refugio: selectedRefugio,
+                items: batchItems,
+              }),
+              timeoutMs: 60000, // 60s de tolerancia por lote
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data?.success) {
+              accTitulares += data.countTitulares || 0;
+              accFamiliares += data.countFamiliares || 0;
+              accCreados += data.countCreados || 0;
+              accActualizados += data.countActualizados || 0;
+              accCne += data.countCne || 0;
+              batchOk = true;
+            } else {
+              lastBatchErr = data?.error || `Error en el lote ${i + 1}`;
+              retries--;
+              if (retries >= 0) await new Promise((r) => setTimeout(r, 1200));
+            }
+          } catch (err: any) {
+            lastBatchErr = err?.message || "Fallo de conexión en este lote";
+            retries--;
+            if (retries >= 0) await new Promise((r) => setTimeout(r, 1500));
+          }
+        }
+
+        if (!batchOk) {
+          hadError = true;
+          showToast(
+            `Interrupción en el lote ${i + 1} de ${totalBatches}. Se guardaron con éxito ${accTitulares} titulares antes del corte. Reintenta los restantes.`,
+            "error"
+          );
+          break;
+        }
       }
-    } catch (err) {
-      console.error(err);
-      showToast("Error de conexión durante la carga masiva.", "error");
+
+      if (accTitulares > 0) {
+        setUploadResult({
+          countTitulares: accTitulares,
+          countFamiliares: accFamiliares,
+          countCreados: accCreados,
+          countActualizados: accActualizados,
+          countCne: accCne,
+          refugio: selectedRefugio,
+        });
+
+        if (!hadError) {
+          showToast(`¡Carga masiva completada exitosamente! ${accTitulares} expedientes procesados.`, "success");
+        }
+        onSuccess();
+      }
     } finally {
+      setUploadProgress(null);
       setUploading(false);
     }
   };
@@ -1139,6 +1214,77 @@ export default function PlanteamientoSalaBulkUploadModal({
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Barra de progreso de subida por lotes */}
+                  {uploadProgress && (
+                    <div
+                      style={{
+                        background: "rgba(37, 99, 235, 0.07)",
+                        border: "1px solid rgba(37, 99, 235, 0.3)",
+                        borderRadius: "10px",
+                        padding: "0.85rem 1rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.5rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: "0.82rem",
+                          flexWrap: "wrap",
+                          gap: "6px",
+                        }}
+                      >
+                        <span style={{ fontWeight: 700, color: "#1e40af", display: "inline-flex", alignItems: "center", gap: "7px" }}>
+                          <span className="spinner spinner-sm" style={{ width: "14px", height: "14px" }} />
+                          <span>
+                            Procesando lote {uploadProgress.currentBatch} de {uploadProgress.totalBatches}...
+                          </span>
+                        </span>
+                        <span style={{ fontWeight: 800, color: "#2563eb" }}>
+                          {uploadProgress.processedItems} / {uploadProgress.totalItems} titulares ({uploadProgress.percentage}%)
+                        </span>
+                      </div>
+
+                      {/* Barra de progreso visual animada */}
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "9px",
+                          background: "rgba(37, 99, 235, 0.15)",
+                          borderRadius: "999px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${uploadProgress.percentage}%`,
+                            height: "100%",
+                            background: "linear-gradient(90deg, #2563eb, #3b82f6)",
+                            borderRadius: "999px",
+                            transition: "width 0.35s ease",
+                          }}
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: "0.74rem",
+                          color: "var(--text-secondary)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: "4px",
+                        }}
+                      >
+                        <span>✓ Guardando en bloques seguros de 30 titulares para evitar cortes de conexión.</span>
+                        <span style={{ fontWeight: 600 }}>Por favor espera, no cierres la ventana.</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -1221,7 +1367,11 @@ export default function PlanteamientoSalaBulkUploadModal({
               {uploading ? (
                 <>
                   <span className="spinner spinner-sm" />
-                  <span>Procesando e Identificando en CNE...</span>
+                  <span>
+                    {uploadProgress
+                      ? `Guardando lote ${uploadProgress.currentBatch}/${uploadProgress.totalBatches} (${uploadProgress.percentage}%)...`
+                      : "Procesando e Identificando en CNE..."}
+                  </span>
                 </>
               ) : (
                 <>

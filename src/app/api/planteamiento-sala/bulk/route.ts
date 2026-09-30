@@ -21,7 +21,7 @@ async function fetchRepExterno(cedulaDigits: string) {
   const apiUrl = `${API_BASE}?app_id=${encodeURIComponent(appId)}&token=${encodeURIComponent(token)}&nacionalidad=V&cedula=${cedulaDigits}`;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5000);
+  const timer = setTimeout(() => controller.abort(), 2500);
   try {
     const res = await fetch(apiUrl, { signal: controller.signal, headers: { Accept: "application/json" } });
     const json = await res.json().catch(() => null);
@@ -151,15 +151,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. Fallback para los que aún falten (API REP Externa con throttle)
+    // 5. Fallback para los que aún falten (API REP Externa con throttle y presupuesto corto)
     const externalRepMap = new Map<string, any>();
     const missingStill = missingFromPadron.filter((c) => !registroMap.has(c) && c.length >= 5);
-    // Limitar llamadas externas para no demorar indefinidamente (procesar en lotes paralelos de 5)
-    const maxExternal = Math.min(missingStill.length, 50);
-    const BATCH_SIZE = 5;
-    for (let i = 0; i < maxExternal; i += BATCH_SIZE) {
-      const slice = missingStill.slice(i, i + BATCH_SIZE);
-      await Promise.all(
+    const maxExternal = Math.min(missingStill.length, 10);
+    if (maxExternal > 0) {
+      const slice = missingStill.slice(0, maxExternal);
+      await Promise.allSettled(
         slice.map(async (c) => {
           const rep = await fetchRepExterno(c);
           if (rep && rep.nombreApellido) {
@@ -195,129 +193,141 @@ export async function POST(req: Request) {
     const todayYMD = new Date().toISOString().slice(0, 10);
     const createdBy = auth.email || auth.nombre || "CARGA_MASIVA";
 
-    // 6. Procesar y guardar cada titular con su carga familiar
-    for (const item of rawItems) {
-      const cedula = String(item.cedula || "").replace(/\D/g, "");
-      if (!cedula) continue;
+    // 6. Pre-consultar todos los registros existentes en un solo query eficiente
+    const allCedulas = rawItems
+      .map((it: any) => String(it.cedula || "").replace(/\D/g, ""))
+      .filter(Boolean);
 
-      const idInfo = resolveIdentity(cedula, item.nombreApellido);
-      const nombreApellido = idInfo?.nombreApellido || item.nombreApellido?.trim().toUpperCase() || `V-${cedula}`;
-      const genero = item.genero || idInfo?.genero || null;
-      const fechaNacimiento = item.fechaNacimiento || idInfo?.fechaNacimiento || null;
-      const edad = item.edad !== undefined && item.edad !== null ? item.edad : (idInfo?.edad ?? calculateAge(fechaNacimiento));
-      const telefono = item.telefono || idInfo?.telefono || null;
-      const registroId = idInfo?.id || null;
+    const existingList = await prisma.planteamientoSala.findMany({
+      where: {
+        refugio,
+        cedula: { in: allCedulas },
+      },
+    });
+    const existingMap = new Map<string, any>(existingList.map((e) => [e.cedula, e]));
 
-      if (idInfo && idInfo.source !== "MANUAL") {
-        countCne++;
-      }
+    // 7. Procesar y guardar en lotes concurrentes para máxima velocidad y evitar timeouts
+    const PARALLEL_BATCH = 15;
+    for (let i = 0; i < rawItems.length; i += PARALLEL_BATCH) {
+      const chunk = rawItems.slice(i, i + PARALLEL_BATCH);
+      await Promise.all(
+        chunk.map(async (item: any) => {
+          const cedula = String(item.cedula || "").replace(/\D/g, "");
+          if (!cedula) return;
 
-      // Procesar carga familiar
-      const formattedCargaFamiliar: any[] = [];
-      if (Array.isArray(item.cargaFamiliar)) {
-        for (const fam of item.cargaFamiliar) {
-          const fCed = String(fam.cedula || "").replace(/\D/g, "");
-          const fIdInfo = fCed ? resolveIdentity(fCed, fam.nombreApellido) : null;
-          const fNombre = fIdInfo?.nombreApellido || fam.nombreApellido?.trim().toUpperCase() || (fCed ? `V-${fCed}` : "FAMILIAR");
-          let fGenero = fam.genero || fIdInfo?.genero || null;
+          const idInfo = resolveIdentity(cedula, item.nombreApellido);
+          const nombreApellido = idInfo?.nombreApellido || item.nombreApellido?.trim().toUpperCase() || `V-${cedula}`;
+          const genero = item.genero || idInfo?.genero || null;
+          const fechaNacimiento = item.fechaNacimiento || idInfo?.fechaNacimiento || null;
+          const edad = item.edad !== undefined && item.edad !== null ? item.edad : (idInfo?.edad ?? calculateAge(fechaNacimiento));
+          const telefono = item.telefono || idInfo?.telefono || null;
+          const registroId = idInfo?.id || null;
 
-          // Inferencia rápida de género por parentesco si viene nulo
-          if (!fGenero && fam.parentesco) {
-            const pUp = fam.parentesco.toUpperCase();
-            if (["HIJA", "MADRE", "ESPOSA", "HERMANA", "NIETA"].some((p) => pUp.includes(p))) {
-              fGenero = "FEMENINO";
-            } else if (["HIJO", "PADRE", "ESPOSO", "HERMANO", "NIETO"].some((p) => pUp.includes(p))) {
-              fGenero = "MASCULINO";
+          if (idInfo && idInfo.source !== "MANUAL") {
+            countCne++;
+          }
+
+          // Procesar carga familiar
+          const formattedCargaFamiliar: any[] = [];
+          if (Array.isArray(item.cargaFamiliar)) {
+            for (const fam of item.cargaFamiliar) {
+              const fCed = String(fam.cedula || "").replace(/\D/g, "");
+              const fIdInfo = fCed ? resolveIdentity(fCed, fam.nombreApellido) : null;
+              const fNombre = fIdInfo?.nombreApellido || fam.nombreApellido?.trim().toUpperCase() || (fCed ? `V-${fCed}` : "FAMILIAR");
+              let fGenero = fam.genero || fIdInfo?.genero || null;
+
+              // Inferencia rápida de género por parentesco si viene nulo
+              if (!fGenero && fam.parentesco) {
+                const pUp = fam.parentesco.toUpperCase();
+                if (["HIJA", "MADRE", "ESPOSA", "HERMANA", "NIETA"].some((p) => pUp.includes(p))) {
+                  fGenero = "FEMENINO";
+                } else if (["HIJO", "PADRE", "ESPOSO", "HERMANO", "NIETO"].some((p) => pUp.includes(p))) {
+                  fGenero = "MASCULINO";
+                }
+              }
+
+              const fFn = fam.fechaNacimiento || fIdInfo?.fechaNacimiento || null;
+              const fEdad = fam.edad !== undefined && fam.edad !== null ? fam.edad : (fIdInfo?.edad ?? calculateAge(fFn));
+
+              formattedCargaFamiliar.push({
+                id: fam.id || crypto.randomUUID(),
+                cedula: fCed,
+                nombreApellido: fNombre,
+                parentesco: fam.parentesco || "Otro",
+                genero: fGenero,
+                fechaNacimiento: fFn,
+                edad: fEdad,
+                telefono: fam.telefono || null,
+              });
+              countFamiliares++;
             }
           }
 
-          const fFn = fam.fechaNacimiento || fIdInfo?.fechaNacimiento || null;
-          const fEdad = fam.edad !== undefined && fam.edad !== null ? fam.edad : (fIdInfo?.edad ?? calculateAge(fFn));
+          const tipoOpcionValida = ["MERCADO_SECUNDARIO", "ALQUILER", "PLAN_VENEZUELA_RENACE", "CAMPAMENTO_MAYOR_PERMANENCIA", "ASIGNACION_GMVV"].includes(item.tipoOpcion)
+            ? item.tipoOpcion
+            : "MERCADO_SECUNDARIO";
 
-          formattedCargaFamiliar.push({
-            id: fam.id || crypto.randomUUID(),
-            cedula: fCed,
-            nombreApellido: fNombre,
-            parentesco: fam.parentesco || "Otro",
-            genero: fGenero,
-            fechaNacimiento: fFn,
-            edad: fEdad,
-            telefono: fam.telefono || null,
-          });
-          countFamiliares++;
-        }
-      }
+          const existing = existingMap.get(cedula);
 
-      const tipoOpcionValida = ["MERCADO_SECUNDARIO", "ALQUILER", "PLAN_VENEZUELA_RENACE", "CAMPAMENTO_MAYOR_PERMANENCIA", "ASIGNACION_GMVV"].includes(item.tipoOpcion)
-        ? item.tipoOpcion
-        : "MERCADO_SECUNDARIO";
+          if (existing) {
+            // Combinar o actualizar carga familiar existente si no está vacía
+            let mergedCarga = formattedCargaFamiliar;
+            if (Array.isArray(existing.cargaFamiliar) && existing.cargaFamiliar.length > 0 && formattedCargaFamiliar.length > 0) {
+              const mapExisting = new Map<string, any>();
+              for (const ef of existing.cargaFamiliar as any[]) {
+                const key = ef.cedula ? `C_${ef.cedula}` : `N_${ef.nombreApellido}_${ef.parentesco}`;
+                mapExisting.set(key, ef);
+              }
+              for (const nf of formattedCargaFamiliar) {
+                const key = nf.cedula ? `C_${nf.cedula}` : `N_${nf.nombreApellido}_${nf.parentesco}`;
+                mapExisting.set(key, nf); // actualiza o agrega
+              }
+              mergedCarga = Array.from(mapExisting.values());
+            } else if (formattedCargaFamiliar.length === 0 && Array.isArray(existing.cargaFamiliar)) {
+              mergedCarga = existing.cargaFamiliar as any[];
+            }
 
-      const existing = await prisma.planteamientoSala.findUnique({
-        where: {
-          cedula_refugio: {
-            cedula,
-            refugio,
-          },
-        },
-      });
-
-      if (existing) {
-        // Combinar o actualizar carga familiar existente si no está vacía
-        let mergedCarga = formattedCargaFamiliar;
-        if (Array.isArray(existing.cargaFamiliar) && existing.cargaFamiliar.length > 0 && formattedCargaFamiliar.length > 0) {
-          const mapExisting = new Map<string, any>();
-          for (const ef of existing.cargaFamiliar as any[]) {
-            const key = ef.cedula ? `C_${ef.cedula}` : `N_${ef.nombreApellido}_${ef.parentesco}`;
-            mapExisting.set(key, ef);
+            await prisma.planteamientoSala.update({
+              where: { id: existing.id },
+              data: {
+                nombreApellido: nombreApellido || existing.nombreApellido,
+                telefono: telefono || existing.telefono,
+                genero: genero || existing.genero,
+                fechaNacimiento: fechaNacimiento || existing.fechaNacimiento,
+                edad: edad ?? existing.edad,
+                registroId: registroId || existing.registroId,
+                cargaFamiliar: mergedCarga,
+                observacion: item.observacion ? String(item.observacion).trim() : existing.observacion,
+              },
+            });
+            countActualizados++;
+          } else {
+            await prisma.planteamientoSala.create({
+              data: {
+                id: crypto.randomUUID(),
+                refugioId,
+                refugio,
+                cedula,
+                nombreApellido,
+                telefono,
+                genero,
+                fechaNacimiento,
+                edad,
+                registroId,
+                tipoOpcion: tipoOpcionValida,
+                cargaFamiliar: formattedCargaFamiliar,
+                estatus: "EN PROCESO",
+                porcentajeProgreso: 0,
+                observacion: item.observacion ? String(item.observacion).trim() : null,
+                fechaEntregaCarpeta: todayYMD,
+                createdBy,
+              },
+            });
+            countCreados++;
           }
-          for (const nf of formattedCargaFamiliar) {
-            const key = nf.cedula ? `C_${nf.cedula}` : `N_${nf.nombreApellido}_${nf.parentesco}`;
-            mapExisting.set(key, nf); // actualiza o agrega
-          }
-          mergedCarga = Array.from(mapExisting.values());
-        } else if (formattedCargaFamiliar.length === 0 && Array.isArray(existing.cargaFamiliar)) {
-          mergedCarga = existing.cargaFamiliar as any[];
-        }
-
-        await prisma.planteamientoSala.update({
-          where: { id: existing.id },
-          data: {
-            nombreApellido: nombreApellido || existing.nombreApellido,
-            telefono: telefono || existing.telefono,
-            genero: genero || existing.genero,
-            fechaNacimiento: fechaNacimiento || existing.fechaNacimiento,
-            edad: edad ?? existing.edad,
-            registroId: registroId || existing.registroId,
-            cargaFamiliar: mergedCarga,
-            observacion: item.observacion ? String(item.observacion).trim() : existing.observacion,
-          },
-        });
-        countActualizados++;
-      } else {
-        await prisma.planteamientoSala.create({
-          data: {
-            id: crypto.randomUUID(),
-            refugioId,
-            refugio,
-            cedula,
-            nombreApellido,
-            telefono,
-            genero,
-            fechaNacimiento,
-            edad,
-            registroId,
-            tipoOpcion: tipoOpcionValida,
-            cargaFamiliar: formattedCargaFamiliar,
-            estatus: "EN PROCESO",
-            porcentajeProgreso: 0,
-            observacion: item.observacion ? String(item.observacion).trim() : null,
-            fechaEntregaCarpeta: todayYMD,
-            createdBy,
-          },
-        });
-        countCreados++;
-      }
-      countTitulares++;
+          countTitulares++;
+        })
+      );
     }
 
     return NextResponse.json({
