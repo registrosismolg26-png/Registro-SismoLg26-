@@ -40,6 +40,7 @@ import {
 import { exportRegistrosExcel } from "@/lib/exportRegistrosExcel";
 import { exportFamiliasExcel } from "@/lib/exportFamiliasExcel";
 import { exportMedicamentosExcel } from "@/lib/exportMedicamentosExcel";
+import { safeSetItem } from "@/lib/safeStorage";
 import { logActivity } from "@/lib/activityLog";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
@@ -697,7 +698,7 @@ export default function AsignacionesTab() {
     setRegistros((prev) => {
       const next = prev.map((r) => (r.id === updated.id ? updated : r));
       if (typeof window !== "undefined") {
-        localStorage.setItem("cached_registros", JSON.stringify(next));
+        safeSetItem("cached_registros", JSON.stringify(next));
       }
       return next;
     });
@@ -931,7 +932,7 @@ export default function AsignacionesTab() {
     setRegistros((prev) => {
       const next = prev.map((r) => (r.id === updated.id ? updated : r));
       if (typeof window !== "undefined") {
-        localStorage.setItem("cached_registros", JSON.stringify(next));
+        safeSetItem("cached_registros", JSON.stringify(next));
       }
       return next;
     });
@@ -1025,7 +1026,7 @@ export default function AsignacionesTab() {
         setRegistros((prev) => {
           const next = prev.filter((r) => r.id !== id);
           if (typeof window !== "undefined") {
-            localStorage.setItem("cached_registros", JSON.stringify(next));
+            safeSetItem("cached_registros", JSON.stringify(next));
           }
           return next;
         });

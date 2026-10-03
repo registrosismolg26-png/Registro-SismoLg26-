@@ -13,6 +13,7 @@ import { exportInformeMedicoPdf } from "@/lib/exportInformeMedicoPdf";
 import { exportRecipeMedicoPdf } from "@/lib/exportRecipeMedicoPdf";
 import { exportRegistroMinSaludExcel } from "@/lib/exportRegistroMinSaludExcel";
 import { logActivity } from "@/lib/activityLog";
+import { safeSetItem } from "@/lib/safeStorage";
 import { apiFetch } from "@/lib/apiFetch";
 import { canDeleteConsulta } from "@/lib/permissions";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -640,7 +641,7 @@ export default function MorbilidadTab() {
     };
     setRegistros((prev) => {
       const next = prev.map((r) => (r.id === updatedReg.id ? updatedReg : r));
-      if (typeof window !== "undefined") localStorage.setItem("cached_registros", JSON.stringify(next));
+      if (typeof window !== "undefined") safeSetItem("cached_registros", JSON.stringify(next));
       return next;
     });
     setMatchedRegistro(updatedReg);
@@ -922,7 +923,7 @@ export default function MorbilidadTab() {
     };
     setRegistros((prev) => {
       const next = prev.map((r) => (r.id === updatedReg.id ? updatedReg : r));
-      if (typeof window !== "undefined") localStorage.setItem("cached_registros", JSON.stringify(next));
+      if (typeof window !== "undefined") safeSetItem("cached_registros", JSON.stringify(next));
       return next;
     });
     await saveLocal({
