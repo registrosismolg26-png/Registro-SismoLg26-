@@ -38,7 +38,10 @@ export function calcularProgreso(item: {
   const tipo = item.tipoOpcion || "MERCADO_SECUNDARIO";
 
   if (tipo === "CAMPAMENTO_MAYOR_PERMANENCIA" || tipo === "ASIGNACION_GMVV") {
-    return 100;
+    let count = 0;
+    if (item.qrHabitatVivienda === "SI") count++;
+    if (item.qrColapsoVivienda === "SI") count++;
+    return Math.min(100, Math.max(0, Math.round((count / 2) * 100)));
   }
 
   if (tipo === "ALQUILER") {
@@ -46,17 +49,21 @@ export function calcularProgreso(item: {
     if (item.cartaCompromiso === "SI") count++;
     if (item.fotosAlquiler === "SI" || (item.cantidadFotosAlquiler !== undefined && item.cantidadFotosAlquiler !== null && item.cantidadFotosAlquiler > 0)) count++;
     if (item.referenciaBancariaAlquiler === "SI") count++;
+    if (item.qrHabitatVivienda === "SI") count++;
     if (item.cedulaArrendador === "SI") count++;
     if (item.cedulaArrendatario === "SI") count++;
     if (item.rifArrendador === "SI") count++;
     if (item.rifArrendatario === "SI") count++;
-    return Math.min(100, Math.max(0, Math.round((count / 7) * 100)));
+    if (item.qrColapsoVivienda === "SI") count++;
+    return Math.min(100, Math.max(0, Math.round((count / 9) * 100)));
   }
 
   if (tipo === "PLAN_VENEZUELA_RENACE") {
     let count = 0;
     if (item.rifViviendaDanos === "SI") count++;
     if (item.fotosViviendaRenace === "SI" || (item.cantidadFotosRenace !== undefined && item.cantidadFotosRenace !== null && item.cantidadFotosRenace > 0)) count++;
+    if (item.qrHabitatVivienda === "SI") count++;
+    if (item.qrColapsoVivienda === "SI") count++;
     const tieneMaterial = Boolean(
       (item.sacosCemento && item.sacosCemento > 0) ||
       (item.metrosArena && item.metrosArena > 0) ||
@@ -65,7 +72,7 @@ export function calcularProgreso(item: {
       (item.pego && item.pego > 0)
     );
     if (tieneMaterial) count++;
-    return Math.min(100, Math.max(0, Math.round((count / 3) * 100)));
+    return Math.min(100, Math.max(0, Math.round((count / 5) * 100)));
   }
 
   // Por defecto MERCADO_SECUNDARIO (10 recaudos)

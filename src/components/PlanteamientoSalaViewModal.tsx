@@ -76,7 +76,7 @@ export default function PlanteamientoSalaViewModal({
   let cumplidosCount = 0;
 
   if (tipo === "ALQUILER") {
-    totalRequisitos = 7;
+    totalRequisitos = 9;
     requisitos = [
       {
         num: 1,
@@ -101,32 +101,44 @@ export default function PlanteamientoSalaViewModal({
       },
       {
         num: 4,
+        label: "QR de Hábitat y Vivienda",
+        cumplido: activeItem.qrHabitatVivienda === "SI",
+        desc: activeItem.qrHabitatVivienda === "SI" ? "Posee código QR" : "No posee QR",
+      },
+      {
+        num: 5,
         label: "Cédula de Identidad del Arrendador",
         cumplido: activeItem.cedulaArrendador === "SI",
         desc: activeItem.cedulaArrendador === "SI" ? "Copia consignada" : "Falta copia",
       },
       {
-        num: 5,
+        num: 6,
         label: "Cédula de Identidad del Arrendatario",
         cumplido: activeItem.cedulaArrendatario === "SI",
         desc: activeItem.cedulaArrendatario === "SI" ? "Copia consignada" : "Falta copia",
       },
       {
-        num: 6,
+        num: 7,
         label: "RIF del Arrendador",
         cumplido: activeItem.rifArrendador === "SI",
         desc: activeItem.rifArrendador === "SI" ? "RIF vigente consignado" : "Falta RIF",
       },
       {
-        num: 7,
+        num: 8,
         label: "RIF del Arrendatario",
         cumplido: activeItem.rifArrendatario === "SI",
         desc: activeItem.rifArrendatario === "SI" ? "RIF vigente consignado" : "Falta RIF",
       },
+      {
+        num: 9,
+        label: "QR de Colapso de Vivienda",
+        cumplido: activeItem.qrColapsoVivienda === "SI",
+        desc: activeItem.qrColapsoVivienda === "SI" ? "Posee QR de Colapso" : "No posee QR de Colapso",
+      },
     ];
     cumplidosCount = requisitos.filter((r) => r.cumplido).length;
   } else if (tipo === "PLAN_VENEZUELA_RENACE") {
-    totalRequisitos = 3;
+    totalRequisitos = 5;
     const hasMaterials = Boolean(
       (activeItem.sacosCemento && activeItem.sacosCemento > 0) ||
       (activeItem.metrosArena && activeItem.metrosArena > 0) ||
@@ -153,6 +165,18 @@ export default function PlanteamientoSalaViewModal({
       },
       {
         num: 3,
+        label: "QR de Hábitat y Vivienda",
+        cumplido: activeItem.qrHabitatVivienda === "SI",
+        desc: activeItem.qrHabitatVivienda === "SI" ? "Posee código QR" : "No posee QR",
+      },
+      {
+        num: 4,
+        label: "QR de Colapso de Vivienda",
+        cumplido: activeItem.qrColapsoVivienda === "SI",
+        desc: activeItem.qrColapsoVivienda === "SI" ? "Posee QR de Colapso" : "No posee QR de Colapso",
+      },
+      {
+        num: 5,
         label: "Insumos y Materiales Solicitados",
         cumplido: hasMaterials,
         desc: hasMaterials ? "Materiales asignados para rehabilitación" : "Sin asignación de materiales",
@@ -160,27 +184,39 @@ export default function PlanteamientoSalaViewModal({
     ];
     cumplidosCount = requisitos.filter((r) => r.cumplido).length;
   } else if (tipo === "CAMPAMENTO_MAYOR_PERMANENCIA") {
-    totalRequisitos = 1;
+    totalRequisitos = 2;
     requisitos = [
       {
         num: 1,
-        label: "Permanencia en Campamento",
-        cumplido: true,
-        desc: `Asignado en ${activeItem.refugio}`,
+        label: "QR de Hábitat y Vivienda",
+        cumplido: activeItem.qrHabitatVivienda === "SI",
+        desc: activeItem.qrHabitatVivienda === "SI" ? "Posee código QR" : "No posee QR",
+      },
+      {
+        num: 2,
+        label: "QR de Colapso de Vivienda",
+        cumplido: activeItem.qrColapsoVivienda === "SI",
+        desc: activeItem.qrColapsoVivienda === "SI" ? "Posee QR de Colapso" : "No posee QR de Colapso",
       },
     ];
-    cumplidosCount = 1;
+    cumplidosCount = requisitos.filter((r) => r.cumplido).length;
   } else if (tipo === "ASIGNACION_GMVV") {
-    totalRequisitos = 1;
+    totalRequisitos = 2;
     requisitos = [
       {
         num: 1,
-        label: "Asignación de Vivienda GMVV",
-        cumplido: true,
-        desc: `Adjudicación directa por la Gran Misión Vivienda Venezuela (${activeItem.refugio})`,
+        label: "QR de Hábitat y Vivienda",
+        cumplido: activeItem.qrHabitatVivienda === "SI",
+        desc: activeItem.qrHabitatVivienda === "SI" ? "Posee código QR" : "No posee QR",
+      },
+      {
+        num: 2,
+        label: "QR de Colapso de Vivienda",
+        cumplido: activeItem.qrColapsoVivienda === "SI",
+        desc: activeItem.qrColapsoVivienda === "SI" ? "Posee QR de Colapso" : "No posee QR de Colapso",
       },
     ];
-    cumplidosCount = 1;
+    cumplidosCount = requisitos.filter((r) => r.cumplido).length;
   } else {
     // MERCADO_SECUNDARIO
     totalRequisitos = 10;

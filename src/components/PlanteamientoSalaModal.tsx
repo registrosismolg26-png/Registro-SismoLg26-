@@ -320,14 +320,16 @@ export default function PlanteamientoSalaModal({
       if (cartaCompromiso === "SI") c++;
       if (fotosAlquiler === "SI" || parseInt(cantidadFotosAlquiler, 10) > 0) c++;
       if (referenciaBancariaAlquiler === "SI") c++;
+      if (qrHabitatVivienda === "SI") c++;
       if (cedulaArrendador === "SI") c++;
       if (cedulaArrendatario === "SI") c++;
       if (rifArrendador === "SI") c++;
       if (rifArrendatario === "SI") c++;
+      if (qrColapsoVivienda === "SI") c++;
       return {
         cumplidos: c,
-        total: 7,
-        porcentaje: Math.round((c / 7) * 100),
+        total: 9,
+        porcentaje: Math.round((c / 9) * 100),
       };
     }
 
@@ -335,6 +337,8 @@ export default function PlanteamientoSalaModal({
       let c = 0;
       if (rifViviendaDanos === "SI") c++;
       if (fotosViviendaRenace === "SI" || parseInt(cantidadFotosRenace, 10) > 0) c++;
+      if (qrHabitatVivienda === "SI") c++;
+      if (qrColapsoVivienda === "SI") c++;
       const hasMaterials =
         parseInt(sacosCemento, 10) > 0 ||
         parseFloat(metrosArena) > 0 ||
@@ -344,8 +348,19 @@ export default function PlanteamientoSalaModal({
       if (hasMaterials) c++;
       return {
         cumplidos: c,
-        total: 3,
-        porcentaje: Math.round((c / 3) * 100),
+        total: 5,
+        porcentaje: Math.round((c / 5) * 100),
+      };
+    }
+
+    if (tipoOpcion === "CAMPAMENTO_MAYOR_PERMANENCIA" || tipoOpcion === "ASIGNACION_GMVV") {
+      let c = 0;
+      if (qrHabitatVivienda === "SI") c++;
+      if (qrColapsoVivienda === "SI") c++;
+      return {
+        cumplidos: c,
+        total: 2,
+        porcentaje: Math.round((c / 2) * 100),
       };
     }
 
@@ -680,6 +695,8 @@ export default function PlanteamientoSalaModal({
         tipoOpcion,
         estatus,
         observacion,
+        qrHabitatVivienda,
+        qrColapsoVivienda,
       };
 
       if (itemToEdit?.id) {
@@ -691,13 +708,11 @@ export default function PlanteamientoSalaModal({
         payload.cedulaCatastral = cedulaCatastral;
         payload.tituloCasa = tituloCasa;
         payload.referenciaBancariaVendedor = referenciaBancariaVendedor;
-        payload.qrHabitatVivienda = qrHabitatVivienda;
         payload.cedulaVendedor = cedulaVendedor;
         payload.cedulaComprador = cedulaComprador;
         payload.fotosVivienda = fotosVivienda;
         payload.cantidadFotos = parseInt(cantidadFotos || "0", 10) || 0;
         payload.vendedorPoseePatria = vendedorPoseePatria;
-        payload.qrColapsoVivienda = qrColapsoVivienda;
       } else if (tipoOpcion === "ALQUILER") {
         payload.cartaCompromiso = cartaCompromiso;
         payload.fotosAlquiler = fotosAlquiler;
@@ -2072,7 +2087,7 @@ export default function PlanteamientoSalaModal({
             </div>
           )}
 
-          {/* CASO B: ALQUILER (7 REQUISITOS) */}
+          {/* CASO B: ALQUILER (9 REQUISITOS) */}
           {tipoOpcion === "ALQUILER" && (
             <div style={{ marginBottom: "1.25rem" }}>
               <div
@@ -2084,7 +2099,7 @@ export default function PlanteamientoSalaModal({
                   justifyContent: "space-between",
                 }}
               >
-                <span>Requisitos: Alquiler (7)</span>
+                <span>Requisitos: Alquiler (9)</span>
                 <span style={{ fontSize: "0.75rem", color: "#059669", fontWeight: 700 }}>
                   Expediente de Arrendamiento
                 </span>
@@ -2147,7 +2162,26 @@ export default function PlanteamientoSalaModal({
                 </div>
 
                 <div className="form-group">
-                  <label>4. Cédula de identidad del arrendador</label>
+                  <label>4. QR de Hábitat y Vivienda</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={qrHabitatVivienda === "SI" ? "Sí posee" : "No posee"}
+                      readOnly
+                      style={{
+                        background: "rgba(0,0,0,0.03)",
+                        fontWeight: 600,
+                        color: qrHabitatVivienda === "SI" ? "#059669" : "var(--text-secondary)",
+                      }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se actualiza al escanear o limpiar el QR
+                    </span>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>5. Cédula de identidad del arrendador</label>
                   <StyledSelect
                     value={cedulaArrendador}
                     onChange={(v) => setCedulaArrendador(v as "SI" | "NO")}
@@ -2160,7 +2194,7 @@ export default function PlanteamientoSalaModal({
                 </div>
 
                 <div className="form-group">
-                  <label>5. Cédula de identidad del arrendatario</label>
+                  <label>6. Cédula de identidad del arrendatario</label>
                   <StyledSelect
                     value={cedulaArrendatario}
                     onChange={(v) => setCedulaArrendatario(v as "SI" | "NO")}
@@ -2173,7 +2207,7 @@ export default function PlanteamientoSalaModal({
                 </div>
 
                 <div className="form-group">
-                  <label>6. RIF del arrendador</label>
+                  <label>7. RIF del arrendador</label>
                   <StyledSelect
                     value={rifArrendador}
                     onChange={(v) => setRifArrendador(v as "SI" | "NO")}
@@ -2186,11 +2220,24 @@ export default function PlanteamientoSalaModal({
                 </div>
 
                 <div className="form-group">
-                  <label>7. RIF del arrendatario</label>
+                  <label>8. RIF del arrendatario</label>
                   <StyledSelect
                     value={rifArrendatario}
                     onChange={(v) => setRifArrendatario(v as "SI" | "NO")}
                     ariaLabel="RIF del arrendatario"
+                    options={[
+                      { value: "SI", label: "Sí posee" },
+                      { value: "NO", label: "No posee" },
+                    ]}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>9. QR de Colapso de vivienda</label>
+                  <StyledSelect
+                    value={qrColapsoVivienda}
+                    onChange={(v) => setQrColapsoVivienda(v as "SI" | "NO")}
+                    ariaLabel="QR de Colapso de vivienda"
                     options={[
                       { value: "SI", label: "Sí posee" },
                       { value: "NO", label: "No posee" },
@@ -2213,7 +2260,7 @@ export default function PlanteamientoSalaModal({
                   justifyContent: "space-between",
                 }}
               >
-                <span>Requisitos: Plan Venezuela Renace</span>
+                <span>Requisitos: Plan Venezuela Renace (5)</span>
                 <span style={{ fontSize: "0.75rem", color: "#7c3aed", fontWeight: 700 }}>
                   Rehabilitación y Materiales
                 </span>
@@ -2268,6 +2315,38 @@ export default function PlanteamientoSalaModal({
                       />
                     )}
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label>3. QR de Hábitat y Vivienda</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={qrHabitatVivienda === "SI" ? "Sí posee" : "No posee"}
+                      readOnly
+                      style={{
+                        background: "rgba(0,0,0,0.03)",
+                        fontWeight: 600,
+                        color: qrHabitatVivienda === "SI" ? "#059669" : "var(--text-secondary)",
+                      }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se actualiza al escanear o limpiar el QR
+                    </span>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>4. QR de Colapso de vivienda</label>
+                  <StyledSelect
+                    value={qrColapsoVivienda}
+                    onChange={(v) => setQrColapsoVivienda(v as "SI" | "NO")}
+                    ariaLabel="QR de Colapso de vivienda"
+                    options={[
+                      { value: "SI", label: "Sí posee" },
+                      { value: "NO", label: "No posee" },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -2369,7 +2448,7 @@ export default function PlanteamientoSalaModal({
                   justifyContent: "space-between",
                 }}
               >
-                <span>Modalidad: Campamento de Mayor Permanencia</span>
+                <span>Requisitos: Campamento de Mayor Permanencia (2)</span>
                 <span style={{ fontSize: "0.75rem", color: "#ea580c", fontWeight: 700 }}>
                   Permanencia / Reubicación en Campamento
                 </span>
@@ -2384,6 +2463,7 @@ export default function PlanteamientoSalaModal({
                   display: "flex",
                   alignItems: "flex-start",
                   gap: "14px",
+                  marginBottom: "1rem",
                 }}
               >
                 <div
@@ -2411,8 +2491,42 @@ export default function PlanteamientoSalaModal({
                     Núcleo Familiar en Campamento de Mayor Permanencia
                   </div>
                   <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    Esta modalidad aplica a los titulares y núcleos familiares asignados para estadía prolongada o reubicación en campamentos oficiales. No requiere recaudos comerciales de compra/venta, contrato de arrendamiento ni asignación de materiales.
+                    Esta modalidad aplica a los titulares y núcleos familiares asignados para estadía prolongada o reubicación en campamentos oficiales.
                   </p>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "0.75rem" }}>
+                <div className="form-group">
+                  <label>1. QR de Hábitat y Vivienda</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={qrHabitatVivienda === "SI" ? "Sí posee" : "No posee"}
+                      readOnly
+                      style={{
+                        background: "rgba(0,0,0,0.03)",
+                        fontWeight: 600,
+                        color: qrHabitatVivienda === "SI" ? "#059669" : "var(--text-secondary)",
+                      }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se actualiza al escanear o limpiar el QR
+                    </span>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>2. QR de Colapso de vivienda</label>
+                  <StyledSelect
+                    value={qrColapsoVivienda}
+                    onChange={(v) => setQrColapsoVivienda(v as "SI" | "NO")}
+                    ariaLabel="QR de Colapso de vivienda"
+                    options={[
+                      { value: "SI", label: "Sí posee" },
+                      { value: "NO", label: "No posee" },
+                    ]}
+                  />
                 </div>
               </div>
             </div>
@@ -2430,7 +2544,7 @@ export default function PlanteamientoSalaModal({
                   justifyContent: "space-between",
                 }}
               >
-                <span>Modalidad: Asignación GMVV</span>
+                <span>Requisitos: Asignación GMVV (2)</span>
                 <span style={{ fontSize: "0.75rem", color: "#0891b2", fontWeight: 700 }}>
                   Gran Misión Vivienda Venezuela
                 </span>
@@ -2445,6 +2559,7 @@ export default function PlanteamientoSalaModal({
                   display: "flex",
                   alignItems: "flex-start",
                   gap: "14px",
+                  marginBottom: "1rem",
                 }}
               >
                 <div
@@ -2470,8 +2585,42 @@ export default function PlanteamientoSalaModal({
                     Núcleo Familiar Asignado por la GMVV
                   </div>
                   <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    Esta modalidad aplica a los titulares y núcleos familiares seleccionados para adjudicación directa de soluciones habitacionales por parte de la Gran Misión Vivienda Venezuela. No requiere recaudos comerciales de compra/venta privada, contrato de arrendamiento ni materiales del Plan Renace.
+                    Esta modalidad aplica a los titulares y núcleos familiares seleccionados para adjudicación directa de soluciones habitacionales por parte de la Gran Misión Vivienda Venezuela.
                   </p>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "0.75rem" }}>
+                <div className="form-group">
+                  <label>1. QR de Hábitat y Vivienda</label>
+                  <div className="readonly-tip-wrap">
+                    <input
+                      type="text"
+                      value={qrHabitatVivienda === "SI" ? "Sí posee" : "No posee"}
+                      readOnly
+                      style={{
+                        background: "rgba(0,0,0,0.03)",
+                        fontWeight: 600,
+                        color: qrHabitatVivienda === "SI" ? "#059669" : "var(--text-secondary)",
+                      }}
+                    />
+                    <span className="readonly-bubble" role="tooltip">
+                      Se actualiza al escanear o limpiar el QR
+                    </span>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>2. QR de Colapso de vivienda</label>
+                  <StyledSelect
+                    value={qrColapsoVivienda}
+                    onChange={(v) => setQrColapsoVivienda(v as "SI" | "NO")}
+                    ariaLabel="QR de Colapso de vivienda"
+                    options={[
+                      { value: "SI", label: "Sí posee" },
+                      { value: "NO", label: "No posee" },
+                    ]}
+                  />
                 </div>
               </div>
             </div>

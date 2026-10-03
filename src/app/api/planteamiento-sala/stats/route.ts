@@ -211,6 +211,13 @@ function processItemInScope(scope: PlanteamientoSalaStatsScope, it: any) {
   }
 
   // Requisitos según modalidad
+  if (it.qrHabitatVivienda === "SI") {
+    scope.porRequisito.qrHabitatVivienda++;
+  }
+  if (it.qrColapsoVivienda === "SI") {
+    scope.porRequisito.qrColapsoVivienda++;
+  }
+
   if (tipo === "ALQUILER") {
     scope.alquiler.total++;
     if (it.cartaCompromiso === "SI") scope.alquiler.porRequisito.cartaCompromiso++;
@@ -260,7 +267,6 @@ function processItemInScope(scope: PlanteamientoSalaStatsScope, it: any) {
     }
     if (it.qrHabitatVivienda === "SI") {
       scope.mercadoSecundario.porRequisito.qrHabitatVivienda++;
-      scope.porRequisito.qrHabitatVivienda++;
     }
     if (it.cedulaVendedor === "SI") {
       scope.mercadoSecundario.porRequisito.cedulaVendedor++;
@@ -280,7 +286,6 @@ function processItemInScope(scope: PlanteamientoSalaStatsScope, it: any) {
     }
     if (it.qrColapsoVivienda === "SI") {
       scope.mercadoSecundario.porRequisito.qrColapsoVivienda++;
-      scope.porRequisito.qrColapsoVivienda++;
     }
 
     const tipoTit = (it.tituloCasa && scope.mercadoSecundario.titulosCasaDesglose[it.tituloCasa as TituloCasaTipo] !== undefined)
