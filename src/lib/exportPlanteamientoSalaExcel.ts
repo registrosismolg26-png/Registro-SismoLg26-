@@ -362,7 +362,7 @@ function buildModalidadWorksheet(params: BuildWorksheetParams) {
       item.viviendaCircuitoComunal || "—",
       item.viviendaGps || "—",
       formatDateDisplay(item.fechaEntregaCarpeta || item.createdAt),
-      item.estatus || "EN PROCESO",
+      item.estatus || "SIN ESTATUS",
       formatDateDisplay(item.fechaEntregaSubsidio),
       `${item.porcentajeProgreso || 0}%`,
     ];
@@ -483,6 +483,8 @@ function buildModalidadWorksheet(params: BuildWorksheetParams) {
           cell.font = { name: "Arial", size: 8.5, bold: true, color: { argb: "D97706" } };
         } else if (v === "CON NOVEDAD EN LA SEDE") {
           cell.font = { name: "Arial", size: 8.5, bold: true, color: { argb: "DC2626" } };
+        } else if (v === "SIN ESTATUS") {
+          cell.font = { name: "Arial", size: 8.5, bold: true, color: { argb: "64748B" } };
         }
       }
     });

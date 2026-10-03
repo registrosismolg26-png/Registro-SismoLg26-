@@ -290,6 +290,7 @@ export const TITULO_CASA_OPTIONS = [
 ];
 
 export const ESTATUS_SALA_OPTIONS = [
+  { value: "SIN ESTATUS", label: "SIN ESTATUS", color: "#64748b", bg: "rgba(100, 116, 139, 0.12)" },
   { value: "EN PROCESO", label: "EN PROCESO", color: "#2563eb", bg: "rgba(37, 99, 235, 0.12)" },
   { value: "CREDITO ENTREGADO", label: "CRÉDITO ENTREGADO", color: "#059669", bg: "rgba(5, 150, 105, 0.12)" },
   { value: "CARPETA RETORNADA", label: "CARPETA RETORNADA", color: "#d97706", bg: "rgba(217, 119, 6, 0.12)" },

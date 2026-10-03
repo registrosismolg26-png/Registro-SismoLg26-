@@ -103,7 +103,7 @@ export default function PlanteamientoSalaPresentationView({
     totalCargaFamiliar = 0,
     totalPoblacion = 0,
     promedioProgreso = 0,
-    porEstatus = { "CREDITO ENTREGADO": 0, "EN PROCESO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 },
+    porEstatus = { "SIN ESTATUS": 0, "CREDITO ENTREGADO": 0, "EN PROCESO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 },
     porTipoOpcion = { MERCADO_SECUNDARIO: 0, ALQUILER: 0, PLAN_VENEZUELA_RENACE: 0, CAMPAMENTO_MAYOR_PERMANENCIA: 0, ASIGNACION_GMVV: 0 },
     estatusPorModalidad = {} as Record<PlanteamientoSalaEstatus, Record<TipoOpcionPlanteamiento, number>>,
     modalidadPorEstatus = {} as Record<TipoOpcionPlanteamiento, Record<PlanteamientoSalaEstatus, number>>,
@@ -114,6 +114,7 @@ export default function PlanteamientoSalaPresentationView({
 
   const creditosCount = porEstatus?.["CREDITO ENTREGADO"] || 0;
   const enProcesoCount = porEstatus?.["EN PROCESO"] || 0;
+  const sinEstatusCount = porEstatus?.["SIN ESTATUS"] || 0;
   const retornadasCount = porEstatus?.["CARPETA RETORNADA"] || 0;
   const novedadesCount = porEstatus?.["CON NOVEDAD EN LA SEDE"] || 0;
 
@@ -140,12 +141,13 @@ export default function PlanteamientoSalaPresentationView({
               <BigCard accent="#4338ca" label="Población Beneficiada" value={totalPoblacion} suffix={`· ${totalCargaFamiliar} fam.`} icon={PRES_ICONS.family} />
               <BigCard accent="#059669" label="Crédito Entregado" value={creditosCount} suffix={`· ${pct(creditosCount, totalPersonas)}%`} icon={PRES_ICONS.checkCircle} />
               <BigCard accent="#2563eb" label="En Proceso" value={enProcesoCount} suffix={`· ${pct(enProcesoCount, totalPersonas)}%`} icon={PRES_ICONS.clock} />
+              <BigCard accent="#64748b" label="Sin Estatus" value={sinEstatusCount} suffix={`· ${pct(sinEstatusCount, totalPersonas)}%`} icon={PRES_ICONS.clock} />
               <BigCard accent="#d97706" label="Carpetas Retornadas" value={retornadasCount} icon={PRES_ICONS.alert} />
               <BigCard accent="#dc2626" label="Novedades en Sede" value={novedadesCount} icon={PRES_ICONS.shield} />
               <BigCard accent="#7c3aed" label="Avance Documental" value={promedioProgreso} suffix="%" icon={PRES_ICONS.award} />
             </div>
 
-            {/* Los 4 Cuadros de Estatus × Modalidad */}
+            {/* Los 5 Cuadros de Estatus × Modalidad */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1rem" }}>
               {/* Cuadro 1: Créditos Entregados */}
               <StatusBox
@@ -169,7 +171,18 @@ export default function PlanteamientoSalaPresentationView({
                 breakdown={estatusPorModalidad?.["EN PROCESO"]}
               />
 
-              {/* Cuadro 3: Carpetas Retornadas */}
+              {/* Cuadro 3: Sin Estatus */}
+              <StatusBox
+                title="Sin Estatus"
+                count={sinEstatusCount}
+                total={totalPersonas}
+                color="#64748b"
+                bg="rgba(100, 116, 139, 0.08)"
+                icon={PRES_ICONS.clock}
+                breakdown={estatusPorModalidad?.["SIN ESTATUS"]}
+              />
+
+              {/* Cuadro 4: Carpetas Retornadas */}
               <StatusBox
                 title="Carpetas Retornadas"
                 count={retornadasCount}
@@ -180,7 +193,7 @@ export default function PlanteamientoSalaPresentationView({
                 breakdown={estatusPorModalidad?.["CARPETA RETORNADA"]}
               />
 
-              {/* Cuadro 4: Con Novedad en la Sede */}
+              {/* Cuadro 5: Con Novedad en la Sede */}
               <StatusBox
                 title="Con Novedad en Sede"
                 count={novedadesCount}
@@ -213,6 +226,7 @@ export default function PlanteamientoSalaPresentationView({
                 {MODALIDADES_META.map((m) => {
                   const val = porTipoOpcion?.[m.key] || 0;
                   const stMap = modalidadPorEstatus?.[m.key] || {
+                    "SIN ESTATUS": 0,
                     "CREDITO ENTREGADO": 0,
                     "EN PROCESO": 0,
                     "CARPETA RETORNADA": 0,
@@ -248,9 +262,10 @@ export default function PlanteamientoSalaPresentationView({
                       <div style={{ width: "100%", height: "6px", borderRadius: "999px", background: "var(--pres-track, rgba(255,255,255,0.1))", overflow: "hidden" }}>
                         <div style={{ width: `${pct(val, totalPersonas)}%`, height: "100%", background: m.color, borderRadius: "999px" }} />
                       </div>
-                      <div style={{ display: "flex", gap: "10px", fontSize: "0.75rem", opacity: 0.85, marginTop: "2px" }}>
+                      <div style={{ display: "flex", gap: "10px", fontSize: "0.75rem", opacity: 0.85, marginTop: "2px", flexWrap: "wrap" }}>
                         <span style={{ color: "#059669" }}>Entregados: <b>{stMap["CREDITO ENTREGADO"] || 0}</b></span>
                         <span style={{ color: "#2563eb" }}>En Proceso: <b>{stMap["EN PROCESO"] || 0}</b></span>
+                        <span style={{ color: "#64748b" }}>Sin Estatus: <b>{stMap["SIN ESTATUS"] || 0}</b></span>
                         {(stMap["CARPETA RETORNADA"] || 0) > 0 && <span style={{ color: "#d97706" }}>Ret: <b>{stMap["CARPETA RETORNADA"]}</b></span>}
                         {(stMap["CON NOVEDAD EN LA SEDE"] || 0) > 0 && <span style={{ color: "#dc2626" }}>Nov: <b>{stMap["CON NOVEDAD EN LA SEDE"]}</b></span>}
                       </div>

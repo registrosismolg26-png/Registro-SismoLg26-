@@ -274,12 +274,13 @@ export async function POST(req: Request) {
     });
 
     const estatusValidos = [
+      "SIN ESTATUS",
       "CREDITO ENTREGADO",
       "EN PROCESO",
       "CARPETA RETORNADA",
       "CON NOVEDAD EN LA SEDE",
     ];
-    const estatus = estatusValidos.includes(body.estatus) ? body.estatus : "EN PROCESO";
+    const estatus = estatusValidos.includes(body.estatus) ? body.estatus : "SIN ESTATUS";
     const observacion = body.observacion ? String(body.observacion).trim() : null;
     const telefono = body.telefono ? String(body.telefono).trim() : null;
     const refugioId = body.refugioId ? String(body.refugioId).trim() : null;

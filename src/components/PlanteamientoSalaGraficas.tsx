@@ -396,6 +396,20 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
           </span>
         </div>
 
+        {/* 5. Sin Estatus */}
+        <div className="bal-card" style={{ ["--accent" as any]: "#64748b" } as React.CSSProperties}>
+          <span className="bal-card__icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+          </span>
+          <span className="bal-card__value stat-card-value-animate">{fmt(porEstatus?.["SIN ESTATUS"] || 0)}</span>
+          <span className="bal-card__label">
+            Sin Estatus <span className="bal-card__sub">· {pctStr(porEstatus?.["SIN ESTATUS"] || 0, totalPersonas)}</span>
+          </span>
+        </div>
+
         {/* 5. Con Novedad o Retornadas */}
         <div className="bal-card" style={{ ["--accent" as any]: "#dc2626" } as React.CSSProperties}>
           <span className="bal-card__icon">
@@ -844,7 +858,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                 onClick={() => setCuadrosView("ESTATUS")}
                 style={{ fontSize: "0.8rem", padding: "0 0.85rem", height: "34px", borderRadius: "999px" }}
               >
-                Ver por Estatus (4 Cuadros)
+                Ver por Estatus (5 Cuadros)
               </button>
               <button
                 type="button"
@@ -858,7 +872,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
           </div>
 
           {cuadrosView === "ESTATUS" ? (
-            /* Vista 4 Cuadros de Estatus */
+            /* Vista 5 Cuadros de Estatus */
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
               {/* Cuadro 1: Crédito Entregado */}
               <div
@@ -1002,7 +1016,78 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                 </div>
               </div>
 
-              {/* Cuadro 3: Carpeta Retornada */}
+              {/* Cuadro 3: Sin Estatus */}
+              <div
+                style={{
+                  background: "rgba(100, 116, 139, 0.05)",
+                  border: "1.5px solid rgba(100, 116, 139, 0.3)",
+                  borderRadius: "14px",
+                  padding: "1.1rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.85rem",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span
+                      style={{
+                        width: "30px",
+                        height: "30px",
+                        borderRadius: "50%",
+                        background: "#64748b",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="8" y1="12" x2="16" y2="12" />
+                      </svg>
+                    </span>
+                    <div>
+                      <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "#334155" }}>SIN ESTATUS</span>
+                      <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-secondary)" }}>Sin categorizar</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#64748b" }}>
+                      {fmt(porEstatus?.["SIN ESTATUS"] || 0)}
+                    </div>
+                    <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                      {pctStr(porEstatus?.["SIN ESTATUS"] || 0, totalPersonas)}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                  {MODALIDADES_LIST.map((m) => {
+                    const cnt = currentScope?.estatusPorModalidad?.["SIN ESTATUS"]?.[m.key] || 0;
+                    const totEst = porEstatus?.["SIN ESTATUS"] || 0;
+                    const pctOfStatus = totEst > 0 ? Math.round((cnt / totEst) * 100) : 0;
+                    return (
+                      <div key={m.key} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: m.color }} />
+                            <span>{m.short}</span>
+                          </span>
+                          <span style={{ fontWeight: 700, color: cnt > 0 ? "#64748b" : "var(--text-secondary)" }}>
+                            {fmt(cnt)} <span style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--text-secondary)" }}>({pctOfStatus}%)</span>
+                          </span>
+                        </div>
+                        <div style={{ width: "100%", height: "4px", borderRadius: "999px", background: "var(--border-color)", overflow: "hidden" }}>
+                          <div style={{ width: `${pctOfStatus}%`, height: "100%", background: m.color, borderRadius: "999px" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Cuadro 4: Carpeta Retornada */}
               <div
                 style={{
                   background: "rgba(217, 119, 6, 0.05)",
@@ -1152,6 +1237,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
               {MODALIDADES_LIST.map((m) => {
                 const totalMod = porTipoOpcion?.[m.key] || 0;
                 const stMap = currentScope?.modalidadPorEstatus?.[m.key] || {
+                  "SIN ESTATUS": 0,
                   "CREDITO ENTREGADO": 0,
                   "EN PROCESO": 0,
                   "CARPETA RETORNADA": 0,
@@ -2346,6 +2432,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
               .map((c, i) => {
                 const cred = c.porEstatus?.["CREDITO ENTREGADO"] || 0;
                 const proc = c.porEstatus?.["EN PROCESO"] || 0;
+                const sinEst = c.porEstatus?.["SIN ESTATUS"] || 0;
                 const obs = (c.porEstatus?.["CARPETA RETORNADA"] || 0) + (c.porEstatus?.["CON NOVEDAD EN LA SEDE"] || 0);
                 const pctBar = maxCampPersonas > 0 ? (c.totalPersonas / maxCampPersonas) * 100 : 0;
                 return (
@@ -2399,6 +2486,11 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                         <span style={{ padding: "2px 8px", borderRadius: "999px", background: "rgba(37, 99, 235, 0.1)", color: "#2563eb", fontWeight: 700 }}>
                           {proc} en proceso
                         </span>
+                        {sinEst > 0 && (
+                          <span style={{ padding: "2px 8px", borderRadius: "999px", background: "rgba(100, 116, 139, 0.1)", color: "#64748b", fontWeight: 700 }}>
+                            {sinEst} sin estatus
+                          </span>
+                        )}
                         {obs > 0 && (
                           <span style={{ padding: "2px 8px", borderRadius: "999px", background: "rgba(220, 38, 38, 0.1)", color: "#dc2626", fontWeight: 700 }}>
                             {obs} obs.
@@ -2451,8 +2543,8 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
             </div>
           </div>
 
-          {/* Fila de 6 KPIs Ejecutivos Compactos */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "6px", marginBottom: "9px" }}>
+          {/* Fila de 7 KPIs Ejecutivos Compactos */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "6px", marginBottom: "9px" }}>
             <div style={{ border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 8px", background: "#f8fafc" }}>
               <span style={{ fontSize: "8px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Expedientes Titulares</span>
               <span style={{ fontSize: "14px", fontWeight: 800, color: "#1e3a8a" }}>{fmt(totalPersonas)}</span>
@@ -2472,6 +2564,11 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
               <span style={{ fontSize: "14px", fontWeight: 800, color: "#2563eb" }}>{fmt(porEstatus?.["EN PROCESO"] || 0)}</span>
               <span style={{ fontSize: "8px", fontWeight: 700, color: "#1e40af", marginLeft: "4px" }}>({pctStr(porEstatus?.["EN PROCESO"] || 0, totalPersonas)})</span>
             </div>
+            <div style={{ border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 8px", background: "#f8fafc" }}>
+              <span style={{ fontSize: "8px", fontWeight: 700, color: "#475569", textTransform: "uppercase", display: "block" }}>Sin Estatus</span>
+              <span style={{ fontSize: "14px", fontWeight: 800, color: "#64748b" }}>{fmt(porEstatus?.["SIN ESTATUS"] || 0)}</span>
+              <span style={{ fontSize: "8px", fontWeight: 700, color: "#475569", marginLeft: "4px" }}>({pctStr(porEstatus?.["SIN ESTATUS"] || 0, totalPersonas)})</span>
+            </div>
             <div style={{ border: "1px solid #fed7aa", borderRadius: "6px", padding: "6px 8px", background: "#fff7ed" }}>
               <span style={{ fontSize: "8px", fontWeight: 700, color: "#9a3412", textTransform: "uppercase", display: "block" }}>Observaciones</span>
               <span style={{ fontSize: "14px", fontWeight: 800, color: "#ea580c" }}>{fmt((porEstatus?.["CARPETA RETORNADA"] || 0) + (porEstatus?.["CON NOVEDAD EN LA SEDE"] || 0))}</span>
@@ -2484,12 +2581,12 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
             </div>
           </div>
 
-          {/* Bloque: Los 4 Cuadros de Estatus × Modalidad */}
+          {/* Bloque: Los 5 Cuadros de Estatus × Modalidad */}
           <div style={{ marginBottom: "10px" }}>
             <div style={{ fontSize: "9.5px", fontWeight: 800, color: "#1e3a8a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "5px", borderBottom: "1px solid #cbd5e1", paddingBottom: "2px" }}>
               1. Cuadros de Control Operativo: Estatus del Trámite × Modalidad de Atención
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px" }}>
               {/* Cuadro 1: Créditos Entregados */}
               <div style={{ border: "1.5px solid #059669", borderRadius: "6px", padding: "6px 8px", background: "#ffffff" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "1px solid #e2e8f0", paddingBottom: "3px", marginBottom: "4px" }}>
@@ -2532,7 +2629,28 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                 </div>
               </div>
 
-              {/* Cuadro 3: Carpeta Retornada */}
+              {/* Cuadro 3: Sin Estatus */}
+              <div style={{ border: "1.5px solid #64748b", borderRadius: "6px", padding: "6px 8px", background: "#ffffff" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "1px solid #e2e8f0", paddingBottom: "3px", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "8.5px", fontWeight: 800, color: "#334155", textTransform: "uppercase" }}>⚪ Sin Estatus</span>
+                  <span style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                    {fmt(porEstatus?.["SIN ESTATUS"] || 0)} <small style={{ fontSize: "7.5px", fontWeight: 600 }}>({pctStr(porEstatus?.["SIN ESTATUS"] || 0, totalPersonas)})</small>
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2.5px" }}>
+                  {MODALIDADES_LIST.map((m) => {
+                    const c = currentScope.estatusPorModalidad?.["SIN ESTATUS"]?.[m.key] || 0;
+                    return (
+                      <div key={m.key} style={{ display: "flex", justifyContent: "space-between", fontSize: "7.5px" }}>
+                        <span style={{ color: "#334155" }}>• {m.short}:</span>
+                        <b style={{ color: c > 0 ? "#64748b" : "#94a3b8" }}>{c}</b>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Cuadro 4: Carpeta Retornada */}
               <div style={{ border: "1.5px solid #d97706", borderRadius: "6px", padding: "6px 8px", background: "#ffffff" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "1px solid #e2e8f0", paddingBottom: "3px", marginBottom: "4px" }}>
                   <span style={{ fontSize: "8.5px", fontWeight: 800, color: "#b45309", textTransform: "uppercase" }}>🟠 Carpeta Retornada</span>
@@ -2589,6 +2707,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                   <th style={{ padding: "4px 6px", textAlign: "center" }}>% Participación</th>
                   <th style={{ padding: "4px 6px", textAlign: "center", color: "#065f46" }}>Crédito Entregado</th>
                   <th style={{ padding: "4px 6px", textAlign: "center", color: "#1e40af" }}>En Proceso</th>
+                  <th style={{ padding: "4px 6px", textAlign: "center", color: "#475569" }}>Sin Estatus</th>
                   <th style={{ padding: "4px 6px", textAlign: "center", color: "#b45309" }}>Carpeta Retornada</th>
                   <th style={{ padding: "4px 6px", textAlign: "center", color: "#991b1b" }}>Con Novedad</th>
                 </tr>
@@ -2596,7 +2715,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
               <tbody>
                 {MODALIDADES_LIST.map((m) => {
                   const totMod = porTipoOpcion?.[m.key] || 0;
-                  const st = currentScope.modalidadPorEstatus?.[m.key] || { "CREDITO ENTREGADO": 0, "EN PROCESO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 };
+                  const st = currentScope.modalidadPorEstatus?.[m.key] || { "SIN ESTATUS": 0, "CREDITO ENTREGADO": 0, "EN PROCESO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 };
                   return (
                     <tr key={m.key} style={{ borderBottom: "1px solid #e2e8f0" }}>
                       <td style={{ padding: "3.5px 6px", fontWeight: 700 }}>
@@ -2607,6 +2726,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                       <td style={{ padding: "3.5px 6px", textAlign: "center", color: "#64748b" }}>{pctStr(totMod, totalPersonas)}</td>
                       <td style={{ padding: "3.5px 6px", textAlign: "center", fontWeight: 700, color: "#059669" }}>{st["CREDITO ENTREGADO"] || 0}</td>
                       <td style={{ padding: "3.5px 6px", textAlign: "center", fontWeight: 700, color: "#2563eb" }}>{st["EN PROCESO"] || 0}</td>
+                      <td style={{ padding: "3.5px 6px", textAlign: "center", fontWeight: 700, color: "#64748b" }}>{st["SIN ESTATUS"] || 0}</td>
                       <td style={{ padding: "3.5px 6px", textAlign: "center", fontWeight: 700, color: "#d97706" }}>{st["CARPETA RETORNADA"] || 0}</td>
                       <td style={{ padding: "3.5px 6px", textAlign: "center", fontWeight: 700, color: "#dc2626" }}>{st["CON NOVEDAD EN LA SEDE"] || 0}</td>
                     </tr>
@@ -2738,6 +2858,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                       <th style={{ textAlign: "center", padding: "2px 4px" }}>Exped.</th>
                       <th style={{ textAlign: "center", padding: "2px 4px", color: "#065f46" }}>Entregados</th>
                       <th style={{ textAlign: "center", padding: "2px 4px", color: "#1e40af" }}>En Proceso</th>
+                      <th style={{ textAlign: "center", padding: "2px 4px", color: "#475569" }}>Sin Estatus</th>
                       <th style={{ textAlign: "center", padding: "2px 4px" }}>% Avance</th>
                     </tr>
                   </thead>
@@ -2751,6 +2872,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
                           <td style={{ padding: "2px 4px", textAlign: "center", fontWeight: 700 }}>{c.totalPersonas}</td>
                           <td style={{ padding: "2px 4px", textAlign: "center", color: "#059669" }}>{c.porEstatus?.["CREDITO ENTREGADO"] || 0}</td>
                           <td style={{ padding: "2px 4px", textAlign: "center", color: "#2563eb" }}>{c.porEstatus?.["EN PROCESO"] || 0}</td>
+                          <td style={{ padding: "2px 4px", textAlign: "center", color: "#64748b" }}>{c.porEstatus?.["SIN ESTATUS"] || 0}</td>
                           <td style={{ padding: "2px 4px", textAlign: "center" }}>{c.promedioProgreso}%</td>
                         </tr>
                       ))}

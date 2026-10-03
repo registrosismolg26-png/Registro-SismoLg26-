@@ -316,7 +316,7 @@ export async function POST(req: Request) {
                 registroId,
                 tipoOpcion: tipoOpcionValida,
                 cargaFamiliar: formattedCargaFamiliar,
-                estatus: "EN PROCESO",
+                estatus: "SIN ESTATUS",
                 porcentajeProgreso: 0,
                 observacion: item.observacion ? String(item.observacion).trim() : null,
                 fechaEntregaCarpeta: todayYMD,

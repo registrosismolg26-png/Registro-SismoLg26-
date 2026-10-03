@@ -28,14 +28,14 @@ export default function PlanteamientoSalaEstatusModal({
   const modal = useAnimatedModal(isOpen && item ? item : null);
   const activeItem = modal.data;
 
-  const [estatus, setEstatus] = useState<PlanteamientoSalaEstatus>("EN PROCESO");
+  const [estatus, setEstatus] = useState<PlanteamientoSalaEstatus>("SIN ESTATUS");
   const [observacion, setObservacion] = useState("");
   const [fechaEntregaSubsidio, setFechaEntregaSubsidio] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen && item) {
-      setEstatus(item.estatus || "EN PROCESO");
+      setEstatus(item.estatus || "SIN ESTATUS");
       setObservacion(item.observacion || "");
       setFechaEntregaSubsidio(
         item.fechaEntregaSubsidio ||

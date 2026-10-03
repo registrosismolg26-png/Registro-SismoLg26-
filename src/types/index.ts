@@ -111,7 +111,7 @@ export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignac
 
 // ── PLANTEAMIENTO SALA (Solo Master / Planteamiento Master) ───────────────────
 export type TituloCasaTipo = "NINGUNO" | "TITULO_PROPIEDAD" | "TITULO_SUPLETORIO" | "COMPRA_VENTA";
-export type PlanteamientoSalaEstatus = "CREDITO ENTREGADO" | "EN PROCESO" | "CARPETA RETORNADA" | "CON NOVEDAD EN LA SEDE";
+export type PlanteamientoSalaEstatus = "SIN ESTATUS" | "EN PROCESO" | "CREDITO ENTREGADO" | "CARPETA RETORNADA" | "CON NOVEDAD EN LA SEDE";
 export type TipoOpcionPlanteamiento = "MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE" | "CAMPAMENTO_MAYOR_PERMANENCIA" | "ASIGNACION_GMVV";
 
 export interface PlanteamientoCargaFamiliarItem {

@@ -616,7 +616,7 @@ model PlanteamientoSala {
 
   // Progreso y Estatus
   porcentajeProgreso         Int       @default(0) // 0 a 100
-  estatus                    String    @default("EN PROCESO") // "CREDITO ENTREGADO" | "EN PROCESO" | "CARPETA RETORNADA" | "CON NOVEDAD EN LA SEDE"
+  estatus                    String    @default("SIN ESTATUS") // "CREDITO ENTREGADO" | "EN PROCESO" | "CARPETA RETORNADA" | "CON NOVEDAD EN LA SEDE" | "SIN ESTATUS"
   observacion                String?
   fechaEntregaCarpeta        String?   // YYYY-MM-DD (fecha en que se carga/entrega la carpeta)
   fechaEntregaSubsidio       String?   // YYYY-MM-DD (fecha en que se entrega el subsidio / crédito)

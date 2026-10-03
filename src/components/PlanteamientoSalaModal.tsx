@@ -130,7 +130,7 @@ export default function PlanteamientoSalaModal({
   const [pego, setPego] = useState("0");
 
   // Estatus, Fechas de Avance y Observación
-  const [estatus, setEstatus] = useState<PlanteamientoSalaEstatus>("EN PROCESO");
+  const [estatus, setEstatus] = useState<PlanteamientoSalaEstatus>("SIN ESTATUS");
   const [observacion, setObservacion] = useState("");
   const [fechaEntregaCarpeta, setFechaEntregaCarpeta] = useState("");
   const [fechaEntregaSubsidio, setFechaEntregaSubsidio] = useState("");
@@ -219,7 +219,7 @@ export default function PlanteamientoSalaModal({
         setCabillas(String(itemToEdit.cabillas || 0));
         setPego(String(itemToEdit.pego || 0));
 
-        setEstatus(itemToEdit.estatus || "EN PROCESO");
+        setEstatus(itemToEdit.estatus || "SIN ESTATUS");
         setObservacion(itemToEdit.observacion || "");
         setFechaEntregaCarpeta(
           itemToEdit.fechaEntregaCarpeta ||
@@ -306,7 +306,7 @@ export default function PlanteamientoSalaModal({
         setCabillas("0");
         setPego("0");
 
-        setEstatus("EN PROCESO");
+        setEstatus("SIN ESTATUS");
         setObservacion("");
       }
       setLookupMessage("");

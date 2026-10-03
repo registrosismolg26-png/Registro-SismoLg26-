@@ -28,6 +28,7 @@ export async function PATCH(
 
     if (body.estatus !== undefined) {
       const estatusValidos = [
+        "SIN ESTATUS",
         "CREDITO ENTREGADO",
         "EN PROCESO",
         "CARPETA RETORNADA",
