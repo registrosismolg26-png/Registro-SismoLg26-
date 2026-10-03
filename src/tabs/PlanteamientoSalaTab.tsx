@@ -69,6 +69,9 @@ export default function PlanteamientoSalaTab() {
   // Filtro por Modalidad / Tipo de Opción
   const [selectedTipoOpcion, setSelectedTipoOpcion] = useState<string>("TODOS");
 
+  // Filtro por Estatus Operativo
+  const [selectedEstatus, setSelectedEstatus] = useState<string>("TODOS");
+
   // Paginación y búsqueda en servidor
   const [items, setItems] = useState<PlanteamientoSalaItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -109,6 +112,9 @@ export default function PlanteamientoSalaTab() {
       if (selectedTipoOpcion && selectedTipoOpcion !== "TODOS") {
         params.set("tipoOpcion", selectedTipoOpcion);
       }
+      if (selectedEstatus && selectedEstatus !== "TODOS") {
+        params.set("estatus", selectedEstatus);
+      }
       if (debouncedSearch) {
         params.set("search", debouncedSearch);
       }
@@ -129,7 +135,7 @@ export default function PlanteamientoSalaTab() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, debouncedSearch, selectedRefugio, selectedTipoOpcion]);
+  }, [page, pageSize, debouncedSearch, selectedRefugio, selectedTipoOpcion, selectedEstatus]);
 
   useEffect(() => {
     loadItems();
@@ -144,6 +150,26 @@ export default function PlanteamientoSalaTab() {
     setSelectedTipoOpcion(val);
     setPage(1);
   };
+
+  const handleEstatusChange = (val: string) => {
+    setSelectedEstatus(val);
+    setPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSelectedRefugio("TODOS");
+    setSelectedTipoOpcion("TODOS");
+    setSelectedEstatus("TODOS");
+    setSearch("");
+    setDebouncedSearch("");
+    setPage(1);
+  };
+
+  const hasActiveFilters =
+    selectedRefugio !== "TODOS" ||
+    selectedTipoOpcion !== "TODOS" ||
+    selectedEstatus !== "TODOS" ||
+    Boolean(debouncedSearch);
 
   const handleDeleteConfirm = async () => {
     if (!itemToDelete) return;
@@ -316,6 +342,22 @@ export default function PlanteamientoSalaTab() {
                 />
               </div>
 
+              {/* Selector de Estatus Operativo */}
+              <div style={{ minWidth: "190px", flex: "1 1 210px" }}>
+                <StyledSelect
+                  value={selectedEstatus}
+                  onChange={handleEstatusChange}
+                  ariaLabel="Selector de estatus operativo"
+                  options={[
+                    { value: "TODOS", label: "Todos los Estatus" },
+                    ...ESTATUS_SALA_OPTIONS.map((e) => ({
+                      value: e.value,
+                      label: e.label,
+                    })),
+                  ]}
+                />
+              </div>
+
               {/* Buscador en la tabla */}
               <div style={{ position: "relative", minWidth: "220px", flex: "1 1 240px" }}>
                 <div
@@ -387,6 +429,85 @@ export default function PlanteamientoSalaTab() {
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Fila de Chips Rápidos de Estatus y Limpieza */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                flexWrap: "wrap",
+                padding: "0.5rem 0.2rem 0",
+                borderTop: "1px dashed var(--border-color)",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.74rem",
+                  fontWeight: 700,
+                  color: "var(--text-secondary)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.4px",
+                  marginRight: "4px",
+                }}
+              >
+                Estatus rápido:
+              </span>
+              {[
+                { value: "TODOS", label: "TODOS", color: "#64748b" },
+                ...ESTATUS_SALA_OPTIONS.map((e) => ({ value: e.value, label: e.label, color: e.color })),
+              ].map((chip) => {
+                const isActive = selectedEstatus === chip.value;
+                return (
+                  <button
+                    key={chip.value}
+                    type="button"
+                    onClick={() => handleEstatusChange(chip.value)}
+                    style={{
+                      borderRadius: "999px",
+                      padding: "3px 10px",
+                      fontSize: "0.74rem",
+                      fontWeight: isActive ? 800 : 600,
+                      border: isActive ? `1.5px solid ${chip.color}` : "1px solid var(--border-color)",
+                      background: isActive ? `${chip.color}15` : "var(--bg-secondary)",
+                      color: isActive ? chip.color : "var(--text-secondary)",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  style={{
+                    marginLeft: "auto",
+                    borderRadius: "999px",
+                    padding: "3px 10px",
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    border: "1px dashed #dc2626",
+                    background: "rgba(220, 38, 38, 0.08)",
+                    color: "#dc2626",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                  title="Restablecer todos los filtros"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                  <span>Limpiar Filtros</span>
+                </button>
+              )}
             </div>
 
             {/* Nivel 2: Contador de Resultados y Botonera Agrupada */}
@@ -930,6 +1051,7 @@ export default function PlanteamientoSalaTab() {
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         selectedRefugio={selectedRefugio}
+        selectedEstatus={selectedEstatus}
         items={items}
         showToast={showToast}
       />

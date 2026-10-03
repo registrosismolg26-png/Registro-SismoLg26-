@@ -101,6 +101,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const refugio = (searchParams.get("refugio") || "").trim();
     const tipoOpcion = (searchParams.get("tipoOpcion") || "").trim();
+    const estatus = (searchParams.get("estatus") || "").trim();
     const search = (searchParams.get("search") || searchParams.get("q") || "").trim();
     const noPagination =
       searchParams.get("noPagination") === "true" ||
@@ -113,6 +114,9 @@ export async function GET(req: Request) {
     }
     if (tipoOpcion && tipoOpcion !== "TODOS") {
       where.tipoOpcion = tipoOpcion;
+    }
+    if (estatus && estatus !== "TODOS") {
+      where.estatus = estatus;
     }
 
     if (search) {

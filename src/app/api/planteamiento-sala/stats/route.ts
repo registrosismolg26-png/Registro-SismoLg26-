@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canManagePlanteamientoSala } from "@/lib/auth";
 import { CAMPAMENTOS_PLANTEAMIENTO_SALA } from "@/lib/constants";
-import type { PlanteamientoSalaStatsScope, TituloCasaTipo } from "@/types";
+import type { PlanteamientoSalaStatsScope, TituloCasaTipo, PlanteamientoSalaEstatus, TipoOpcionPlanteamiento } from "@/types";
 
 function computeAge(birthStr?: string | null): number | null {
   if (!birthStr) return null;
@@ -33,6 +33,32 @@ function createScopeStats(): PlanteamientoSalaStatsScope {
       PLAN_VENEZUELA_RENACE: 0,
       CAMPAMENTO_MAYOR_PERMANENCIA: 0,
       ASIGNACION_GMVV: 0,
+    },
+    estatusPorModalidad: {
+      "EN PROCESO": { MERCADO_SECUNDARIO: 0, ALQUILER: 0, PLAN_VENEZUELA_RENACE: 0, CAMPAMENTO_MAYOR_PERMANENCIA: 0, ASIGNACION_GMVV: 0 },
+      "CREDITO ENTREGADO": { MERCADO_SECUNDARIO: 0, ALQUILER: 0, PLAN_VENEZUELA_RENACE: 0, CAMPAMENTO_MAYOR_PERMANENCIA: 0, ASIGNACION_GMVV: 0 },
+      "CARPETA RETORNADA": { MERCADO_SECUNDARIO: 0, ALQUILER: 0, PLAN_VENEZUELA_RENACE: 0, CAMPAMENTO_MAYOR_PERMANENCIA: 0, ASIGNACION_GMVV: 0 },
+      "CON NOVEDAD EN LA SEDE": { MERCADO_SECUNDARIO: 0, ALQUILER: 0, PLAN_VENEZUELA_RENACE: 0, CAMPAMENTO_MAYOR_PERMANENCIA: 0, ASIGNACION_GMVV: 0 },
+    },
+    modalidadPorEstatus: {
+      MERCADO_SECUNDARIO: { "EN PROCESO": 0, "CREDITO ENTREGADO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 },
+      ALQUILER: { "EN PROCESO": 0, "CREDITO ENTREGADO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 },
+      PLAN_VENEZUELA_RENACE: { "EN PROCESO": 0, "CREDITO ENTREGADO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 },
+      CAMPAMENTO_MAYOR_PERMANENCIA: { "EN PROCESO": 0, "CREDITO ENTREGADO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 },
+      ASIGNACION_GMVV: { "EN PROCESO": 0, "CREDITO ENTREGADO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 },
+    },
+    rangosProgreso: {
+      completo100: 0,
+      avanzado70_99: 0,
+      medio40_69: 0,
+      inicial0_39: 0,
+    },
+    qrCobertura: {
+      habitatVivienda: 0,
+      colapsoVivienda: 0,
+      ambosQr: 0,
+      alMenosUno: 0,
+      sinQr: 0,
     },
     demografia: {
       generoTitulares: { femenino: 0, masculino: 0, noEspecificado: 0 },
@@ -125,19 +151,23 @@ function createScopeStats(): PlanteamientoSalaStatsScope {
 function processItemInScope(scope: PlanteamientoSalaStatsScope, it: any) {
   scope.totalPersonas++;
 
-  // Estatus
-  if (scope.porEstatus[it.estatus as keyof typeof scope.porEstatus] !== undefined) {
-    scope.porEstatus[it.estatus as keyof typeof scope.porEstatus]++;
-  } else {
-    scope.porEstatus["EN PROCESO"]++;
-  }
+  const estatusVal: PlanteamientoSalaEstatus = (it.estatus && scope.porEstatus[it.estatus as PlanteamientoSalaEstatus] !== undefined)
+    ? (it.estatus as PlanteamientoSalaEstatus)
+    : "EN PROCESO";
+  scope.porEstatus[estatusVal]++;
 
   // Modalidad
-  const tipo = it.tipoOpcion || "MERCADO_SECUNDARIO";
-  if (scope.porTipoOpcion[tipo as keyof typeof scope.porTipoOpcion] !== undefined) {
-    scope.porTipoOpcion[tipo as keyof typeof scope.porTipoOpcion]++;
-  } else {
-    scope.porTipoOpcion["MERCADO_SECUNDARIO"]++;
+  const tipo: TipoOpcionPlanteamiento = (it.tipoOpcion && scope.porTipoOpcion[it.tipoOpcion as TipoOpcionPlanteamiento] !== undefined)
+    ? (it.tipoOpcion as TipoOpcionPlanteamiento)
+    : "MERCADO_SECUNDARIO";
+  scope.porTipoOpcion[tipo]++;
+
+  // Cruzar Estatus x Modalidad
+  if (scope.estatusPorModalidad?.[estatusVal]?.[tipo] !== undefined) {
+    scope.estatusPorModalidad[estatusVal][tipo]++;
+  }
+  if (scope.modalidadPorEstatus?.[tipo]?.[estatusVal] !== undefined) {
+    scope.modalidadPorEstatus[tipo][estatusVal]++;
   }
 
   // Demografía: Titular
@@ -210,11 +240,31 @@ function processItemInScope(scope: PlanteamientoSalaStatsScope, it: any) {
     else scope.demografia.parentescos["Otros"]++;
   }
 
+  // Rangos de progreso
+  const prog = it.porcentajeProgreso || 0;
+  if (scope.rangosProgreso) {
+    if (prog >= 100) scope.rangosProgreso.completo100++;
+    else if (prog >= 70) scope.rangosProgreso.avanzado70_99++;
+    else if (prog >= 40) scope.rangosProgreso.medio40_69++;
+    else scope.rangosProgreso.inicial0_39++;
+  }
+
+  // Cobertura QR
+  const hasHab = it.qrHabitatVivienda === "SI";
+  const hasCol = it.qrColapsoVivienda === "SI";
+  if (scope.qrCobertura) {
+    if (hasHab) scope.qrCobertura.habitatVivienda++;
+    if (hasCol) scope.qrCobertura.colapsoVivienda++;
+    if (hasHab && hasCol) scope.qrCobertura.ambosQr++;
+    if (hasHab || hasCol) scope.qrCobertura.alMenosUno++;
+    else scope.qrCobertura.sinQr++;
+  }
+
   // Requisitos según modalidad
-  if (it.qrHabitatVivienda === "SI") {
+  if (hasHab) {
     scope.porRequisito.qrHabitatVivienda++;
   }
-  if (it.qrColapsoVivienda === "SI") {
+  if (hasCol) {
     scope.porRequisito.qrColapsoVivienda++;
   }
 

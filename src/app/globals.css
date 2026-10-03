@@ -8665,8 +8665,9 @@ h2.dashboard-section-title {
   letter-spacing: -0.02em;
 }
 
-/* Membrete institucional del PDF de estadísticas (oculto en pantalla) */
-.print-letterhead {
+/* Membrete institucional del PDF de estadísticas y Reporte de Sala (oculto en pantalla) */
+.print-letterhead,
+.sala-print-report {
   display: none;
 }
 
@@ -8736,13 +8737,16 @@ h2.dashboard-section-title {
     box-shadow: none !important;
   }
 
-  /* Only make dashboard container visible */
+  /* Only make dashboard and sala-graficas container visible */
   .tab-view--dashboard,
-  .tab-view--dashboard * {
+  .tab-view--dashboard *,
+  .sala-graficas,
+  .sala-graficas * {
     visibility: visible;
   }
 
-  .tab-view--dashboard {
+  .tab-view--dashboard,
+  .sala-graficas {
     position: absolute;
     left: 0;
     top: 0;
@@ -8756,8 +8760,45 @@ h2.dashboard-section-title {
   .tab-view--dashboard button,
   .tab-view--dashboard .status-bar,
   .tab-view--dashboard .loading-center,
+  .sala-graficas button,
+  .sala-graficas .sala-graficas-toolbar,
+  .sala-graficas-no-print,
   .theme-toggle-btn {
     display: none !important;
+  }
+
+  /* Ocultar interfaz interactiva de Planteamiento Sala al imprimir */
+  .sala-graficas-screen {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Mostrar reporte ejecutivo compacto de Planteamiento Sala */
+  .sala-print-report {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+
+  .sala-print-report * {
+    visibility: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  .sala-print-page {
+    width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .sala-print-page--break {
+    page-break-after: always !important;
+    break-after: page !important;
+    margin-bottom: 0 !important;
   }
 
   /* Print Grid optimization */

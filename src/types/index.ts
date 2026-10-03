@@ -267,6 +267,21 @@ export interface PlanteamientoSalaStatsScope {
   promedioProgreso: number;
   porEstatus: Record<PlanteamientoSalaEstatus, number>;
   porTipoOpcion: Record<TipoOpcionPlanteamiento, number>;
+  estatusPorModalidad?: Record<PlanteamientoSalaEstatus, Record<TipoOpcionPlanteamiento, number>>;
+  modalidadPorEstatus?: Record<TipoOpcionPlanteamiento, Record<PlanteamientoSalaEstatus, number>>;
+  rangosProgreso?: {
+    completo100: number;
+    avanzado70_99: number;
+    medio40_69: number;
+    inicial0_39: number;
+  };
+  qrCobertura?: {
+    habitatVivienda: number;
+    colapsoVivienda: number;
+    ambosQr: number;
+    alMenosUno: number;
+    sinQr: number;
+  };
   demografia: PlanteamientoDemografiaStats;
   mercadoSecundario: PlanteamientoRequisitosMercadoSecundario;
   alquiler: PlanteamientoRequisitosAlquiler;

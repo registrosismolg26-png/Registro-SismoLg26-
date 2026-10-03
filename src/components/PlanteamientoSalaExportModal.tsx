@@ -14,6 +14,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   selectedRefugio: string;
+  selectedEstatus?: string;
   items?: PlanteamientoSalaItem[];
   showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void;
 }
@@ -22,6 +23,7 @@ export default function PlanteamientoSalaExportModal({
   isOpen,
   onClose,
   selectedRefugio,
+  selectedEstatus,
   items = [],
   showToast,
 }: Props) {
@@ -36,6 +38,9 @@ export default function PlanteamientoSalaExportModal({
       if (selectedRefugio && selectedRefugio !== "TODOS") {
         params.set("refugio", selectedRefugio);
       }
+      if (selectedEstatus && selectedEstatus !== "TODOS") {
+        params.set("estatus", selectedEstatus);
+      }
 
       const res = await apiFetch(`/api/planteamiento-sala?${params.toString()}`);
       const data = await res.json().catch(() => ({}));
@@ -45,7 +50,7 @@ export default function PlanteamientoSalaExportModal({
           : items;
 
       if (expedientes.length === 0) {
-        showToast("No hay registros en este campamento para exportar.", "warning");
+        showToast("No hay registros que coincidan con los filtros para exportar.", "warning");
         setExporting(null);
         return;
       }
@@ -58,10 +63,11 @@ export default function PlanteamientoSalaExportModal({
         minute: "2-digit",
       });
 
-      const filtrosDesc =
-        selectedRefugio !== "TODOS"
-          ? `Campamento: ${selectedRefugio}`
-          : "Todos los Campamentos (26)";
+      const parts: string[] = [];
+      if (selectedRefugio !== "TODOS") parts.push(`Campamento: ${selectedRefugio}`);
+      else parts.push("Todos los Campamentos (26)");
+      if (selectedEstatus && selectedEstatus !== "TODOS") parts.push(`Estatus: ${selectedEstatus}`);
+      const filtrosDesc = parts.join(" · ");
 
       await exportPlanteamientoTodasModalidadesExcel({
         items: expedientes,
@@ -83,12 +89,15 @@ export default function PlanteamientoSalaExportModal({
   const handleExport = async (modalidad: TipoOpcionPlanteamiento) => {
     setExporting(modalidad);
     try {
-      // Consultamos los datos de esa modalidad (respetando el campamento activo si aplica)
+      // Consultamos los datos de esa modalidad (respetando el campamento activo y estatus si aplica)
       const params = new URLSearchParams();
       params.set("tipoOpcion", modalidad);
       params.set("noPagination", "true");
       if (selectedRefugio && selectedRefugio !== "TODOS") {
         params.set("refugio", selectedRefugio);
+      }
+      if (selectedEstatus && selectedEstatus !== "TODOS") {
+        params.set("estatus", selectedEstatus);
       }
 
       const res = await apiFetch(`/api/planteamiento-sala?${params.toString()}`);
@@ -96,10 +105,10 @@ export default function PlanteamientoSalaExportModal({
       const expedientes: PlanteamientoSalaItem[] =
         res.ok && data?.success && Array.isArray(data.items)
           ? data.items
-          : items.filter((it) => it.tipoOpcion === modalidad);
+          : items.filter((it) => it.tipoOpcion === modalidad && (!selectedEstatus || selectedEstatus === "TODOS" || it.estatus === selectedEstatus));
 
       if (expedientes.length === 0) {
-        showToast("No hay registros para la modalidad seleccionada en este campamento.", "warning");
+        showToast("No hay registros para la modalidad y estatus seleccionados en este campamento.", "warning");
         setExporting(null);
         return;
       }
@@ -112,10 +121,11 @@ export default function PlanteamientoSalaExportModal({
         minute: "2-digit",
       });
 
-      const filtrosDesc =
-        selectedRefugio !== "TODOS"
-          ? `Campamento: ${selectedRefugio}`
-          : "Todos los Campamentos (26)";
+      const parts: string[] = [];
+      if (selectedRefugio !== "TODOS") parts.push(`Campamento: ${selectedRefugio}`);
+      else parts.push("Todos los Campamentos (26)");
+      if (selectedEstatus && selectedEstatus !== "TODOS") parts.push(`Estatus: ${selectedEstatus}`);
+      const filtrosDesc = parts.join(" · ");
 
       await exportPlanteamientoModalidadExcel({
         items: expedientes,
