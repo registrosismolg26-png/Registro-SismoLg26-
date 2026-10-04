@@ -25,9 +25,23 @@ export async function GET(req: Request) {
         whereClause.refugio = refugio;
       }
 
-      // Obtener todos los registros activos del campamento
+      // Obtener todos los registros activos del campamento (solo columnas necesarias para máxima velocidad)
       const registros = await prisma.registro.findMany({
         where: whereClause,
+        select: {
+          id: true,
+          cedula: true,
+          nombreApellido: true,
+          telefono: true,
+          refugio: true,
+          cuarto: true,
+          jefeFamilia: true,
+          perteneceNucleo: true,
+          cedulaJefeFamilia: true,
+          edad: true,
+          genero: true,
+          createdAt: true,
+        },
         orderBy: [{ jefeFamilia: "desc" }, { createdAt: "asc" }],
       });
 

@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { normalizeText } from "@/lib/helpers";
 import StyledSelect from "@/components/StyledSelect";
 import ComedorCarnetModal from "@/components/ComedorCarnetModal";
+import ComedorBulkCarnetsModal from "@/components/ComedorBulkCarnetsModal";
 import ComedorQrScannerModal from "@/components/ComedorQrScannerModal";
 import ComedorGraficas from "@/components/ComedorGraficas";
 import type {
@@ -60,6 +61,11 @@ export default function ComedorTab() {
   const [searchBeneficiario, setSearchBeneficiario] = useState("");
   const [filterTipoBeneficiario, setFilterTipoBeneficiario] = useState<string>("");
   const [selectedCarnet, setSelectedCarnet] = useState<ComedorBeneficiario | null>(null);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+
+  // Paginación Submódulo 1
+  const [pageBeneficiarios, setPageBeneficiarios] = useState(1);
+  const [pageSizeBeneficiarios, setPageSizeBeneficiarios] = useState(25);
 
   // ── ESTADO SUBMÓDULO 2: CONTROL Y ENTREGAS ───────────────────────────────────
   const [entregas, setEntregas] = useState<ComedorRegistroItem[]>([]);
@@ -77,6 +83,10 @@ export default function ComedorTab() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [quickCedula, setQuickCedula] = useState("");
   const [registeringQuick, setRegisteringQuick] = useState(false);
+
+  // Paginación Submódulo 2
+  const [pageEntregas, setPageEntregas] = useState(1);
+  const [pageSizeEntregas, setPageSizeEntregas] = useState(25);
 
   // ── ESTADO SUBMÓDULO 3: GRÁFICAS Y ESTADÍSTICAS ──────────────────────────────
   const [stats, setStats] = useState<ComedorStats | null>(null);
@@ -162,7 +172,7 @@ export default function ComedorTab() {
     }
   }, [fechaControl, servicioControl, submodulo, fetchEntregas]);
 
-  // ── FILTRADO SUBMÓDULO 1: BENEFICIARIOS ──────────────────────────────────────
+  // ── FILTRADO Y PAGINACIÓN SUBMÓDULO 1: BENEFICIARIOS ────────────────────────
   const filteredBeneficiarios = useMemo(() => {
     let result = beneficiarios;
     if (searchBeneficiario.trim()) {
@@ -181,6 +191,30 @@ export default function ComedorTab() {
     }
     return result;
   }, [beneficiarios, searchBeneficiario, filterTipoBeneficiario]);
+
+  // Reiniciar a página 1 al cambiar filtros de beneficiarios
+  useEffect(() => {
+    setPageBeneficiarios(1);
+  }, [searchBeneficiario, filterTipoBeneficiario, selectedRefugio]);
+
+  const totalPagesBeneficiarios = Math.max(1, Math.ceil(filteredBeneficiarios.length / pageSizeBeneficiarios));
+
+  const paginatedBeneficiarios = useMemo(() => {
+    const start = (pageBeneficiarios - 1) * pageSizeBeneficiarios;
+    return filteredBeneficiarios.slice(start, start + pageSizeBeneficiarios);
+  }, [filteredBeneficiarios, pageBeneficiarios, pageSizeBeneficiarios]);
+
+  // ── PAGINACIÓN SUBMÓDULO 2: ENTREGAS ─────────────────────────────────────────
+  useEffect(() => {
+    setPageEntregas(1);
+  }, [fechaControl, servicioControl, selectedRefugio]);
+
+  const totalPagesEntregas = Math.max(1, Math.ceil(entregas.length / pageSizeEntregas));
+
+  const paginatedEntregas = useMemo(() => {
+    const start = (pageEntregas - 1) * pageSizeEntregas;
+    return entregas.slice(start, start + pageSizeEntregas);
+  }, [entregas, pageEntregas, pageSizeEntregas]);
 
   // ── REGISTRO RÁPIDO MANUAL EN SUBMÓDULO 2 ───────────────────────────────────
   const handleQuickRegister = async () => {
@@ -309,7 +343,7 @@ export default function ComedorTab() {
             </span>
           </div>
           <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-            Control de alimentación, escaneo QR de carnets y métricas de raciones por servicio
+            Control de alimentación, carnets digitales con QR recortables (8 por hoja) y métricas de raciones
           </div>
         </div>
 
@@ -429,7 +463,7 @@ export default function ComedorTab() {
           ══════════════════════════════════════════════════════════════════════════ */}
       {submodulo === 1 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {/* Barra de búsqueda y filtros */}
+          {/* Barra de búsqueda, filtros y Botón de Descarga Masiva */}
           <div
             style={{
               display: "flex",
@@ -442,7 +476,7 @@ export default function ComedorTab() {
               border: "1px solid var(--border-color, #e2e8f0)",
             }}
           >
-            <div style={{ flex: 1, minWidth: "240px" }}>
+            <div style={{ flex: 1, minWidth: "220px" }}>
               <input
                 type="text"
                 placeholder="Buscar por nombre, cédula o habitación..."
@@ -452,7 +486,7 @@ export default function ComedorTab() {
               />
             </div>
 
-            <div style={{ width: "200px" }}>
+            <div style={{ width: "190px" }}>
               <StyledSelect
                 value={filterTipoBeneficiario}
                 onChange={setFilterTipoBeneficiario}
@@ -473,6 +507,27 @@ export default function ComedorTab() {
               title="Refrescar lista"
             >
               {loadingBeneficiarios ? <span className="spinner spinner-sm" /> : "🔄 Refrescar"}
+            </button>
+
+            {/* BOTÓN MASIVO DE CARNETS (8 POR HOJA) */}
+            <button
+              type="button"
+              className="btn-submit"
+              onClick={() => setBulkModalOpen(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                padding: "0.52rem 1rem",
+                fontSize: "0.85rem",
+                whiteSpace: "nowrap",
+                background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+                boxShadow: "0 2px 6px rgba(2, 132, 199, 0.3)",
+              }}
+              title="Descargar o imprimir carnets masivos (8 por hoja)"
+            >
+              <span style={{ fontSize: "1.1rem" }}>🖨️</span>
+              <span>Descargar Carnets Masivos (8 por hoja)</span>
             </button>
           </div>
 
@@ -499,7 +554,9 @@ export default function ComedorTab() {
                 Beneficiarios que Pernoctan (Jefes y Personas Solas)
               </div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-                {filteredBeneficiarios.length} de {beneficiarios.length}
+                Mostrando {filteredBeneficiarios.length > 0 ? (pageBeneficiarios - 1) * pageSizeBeneficiarios + 1 : 0} a{" "}
+                {Math.min(pageBeneficiarios * pageSizeBeneficiarios, filteredBeneficiarios.length)} de{" "}
+                <strong>{filteredBeneficiarios.length}</strong> beneficiarios
               </div>
             </div>
 
@@ -519,71 +576,164 @@ export default function ComedorTab() {
                 </span>
               </div>
             ) : (
-              <div className="table-responsive" style={{ overflowX: "auto" }}>
-                <table className="registro-table" style={{ width: "100%", fontSize: "0.85rem" }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: "45px", textAlign: "center" }}>#</th>
-                      <th>Beneficiario</th>
-                      <th>Cédula</th>
-                      <th>Teléfono</th>
-                      <th>Alojamiento</th>
-                      <th style={{ textAlign: "center" }}>Condición</th>
-                      <th style={{ textAlign: "center" }}>Carga Familiar / Raciones</th>
-                      <th style={{ textAlign: "center", width: "140px" }}>Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredBeneficiarios.map((b, idx) => (
-                      <tr key={b.id}>
-                        <td style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: "0.75rem" }}>
-                          {idx + 1}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{b.nombreApellido}</div>
-                          <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{b.refugio}</div>
-                        </td>
-                        <td style={{ fontWeight: 600 }}>{b.cedula}</td>
-                        <td style={{ color: "var(--text-secondary)" }}>{b.telefono || "—"}</td>
-                        <td>{b.cuarto || <span style={{ color: "var(--text-muted)" }}>Sin asignar</span>}</td>
-                        <td style={{ textAlign: "center" }}>
-                          <span
-                            style={{
-                              fontSize: "0.7rem",
-                              fontWeight: 700,
-                              padding: "2px 8px",
-                              borderRadius: "999px",
-                              background: b.tipoBeneficiario === "JEFE" ? "rgba(2, 132, 199, 0.12)" : "rgba(16, 185, 129, 0.12)",
-                              color: b.tipoBeneficiario === "JEFE" ? "#0284c7" : "#059669",
-                            }}
-                          >
-                            {b.tipoBeneficiario === "JEFE" ? "Jefe de Familia" : "Persona Sola"}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <span style={{ fontWeight: 800, color: "var(--color-primary, #2563eb)", fontSize: "0.95rem" }}>
-                            {b.raciones}
-                          </span>
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginLeft: "4px" }}>
-                            {b.raciones === 1 ? "ración" : "raciones"}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <button
-                            type="button"
-                            className="toolbar-btn toolbar-btn--primary"
-                            style={{ padding: "0.3rem 0.65rem", fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
-                            onClick={() => setSelectedCarnet(b)}
-                          >
-                            <span>🪪</span>
-                            <span>Escanear carnet</span>
-                          </button>
-                        </td>
+              <>
+                <div className="table-responsive" style={{ overflowX: "auto" }}>
+                  <table className="registro-table" style={{ width: "100%", fontSize: "0.85rem" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: "45px", textAlign: "center" }}>#</th>
+                        <th>Beneficiario</th>
+                        <th>Cédula</th>
+                        <th>Teléfono</th>
+                        <th>Alojamiento</th>
+                        <th style={{ textAlign: "center" }}>Condición</th>
+                        <th style={{ textAlign: "center" }}>Carga Familiar / Raciones</th>
+                        <th style={{ textAlign: "center", width: "140px" }}>Acción</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {paginatedBeneficiarios.map((b, idx) => {
+                        const globalIndex = (pageBeneficiarios - 1) * pageSizeBeneficiarios + idx + 1;
+                        return (
+                          <tr key={b.id}>
+                            <td style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: "0.75rem" }}>
+                              {globalIndex}
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{b.nombreApellido}</div>
+                              <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{b.refugio}</div>
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{b.cedula}</td>
+                            <td style={{ color: "var(--text-secondary)" }}>{b.telefono || "—"}</td>
+                            <td>{b.cuarto || <span style={{ color: "var(--text-muted)" }}>Sin asignar</span>}</td>
+                            <td style={{ textAlign: "center" }}>
+                              <span
+                                style={{
+                                  fontSize: "0.7rem",
+                                  fontWeight: 700,
+                                  padding: "2px 8px",
+                                  borderRadius: "999px",
+                                  background: b.tipoBeneficiario === "JEFE" ? "rgba(2, 132, 199, 0.12)" : "rgba(16, 185, 129, 0.12)",
+                                  color: b.tipoBeneficiario === "JEFE" ? "#0284c7" : "#059669",
+                                }}
+                              >
+                                {b.tipoBeneficiario === "JEFE" ? "Jefe de Familia" : "Persona Sola"}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              <span style={{ fontWeight: 800, color: "var(--color-primary, #2563eb)", fontSize: "0.95rem" }}>
+                                {b.raciones}
+                              </span>
+                              <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginLeft: "4px" }}>
+                                {b.raciones === 1 ? "ración" : "raciones"}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              <button
+                                type="button"
+                                className="toolbar-btn toolbar-btn--primary"
+                                style={{ padding: "0.3rem 0.65rem", fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                                onClick={() => setSelectedCarnet(b)}
+                              >
+                                <span>🪪</span>
+                                <span>Escanear carnet</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* BARRA DE PAGINACIÓN SUBMÓDULO 1 */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "0.75rem",
+                    padding: "0.75rem 1.25rem",
+                    borderTop: "1px solid var(--border-color, #e2e8f0)",
+                    background: "var(--bg-secondary, #f8fafc)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                      Registros por página:
+                    </span>
+                    <select
+                      value={pageSizeBeneficiarios}
+                      onChange={(e) => {
+                        setPageSizeBeneficiarios(Number(e.target.value));
+                        setPageBeneficiarios(1);
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        fontSize: "0.8rem",
+                        borderRadius: "6px",
+                        border: "1px solid var(--border-color, #cbd5e1)",
+                        background: "var(--card-bg, #ffffff)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value={15}>15</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => setPageBeneficiarios(1)}
+                      disabled={pageBeneficiarios <= 1}
+                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      title="Primera página"
+                    >
+                      « Primera
+                    </button>
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => setPageBeneficiarios((p) => Math.max(1, p - 1))}
+                      disabled={pageBeneficiarios <= 1}
+                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      title="Página anterior"
+                    >
+                      ‹ Anterior
+                    </button>
+
+                    <span style={{ fontSize: "0.8rem", fontWeight: 700, padding: "0 0.5rem" }}>
+                      Página {pageBeneficiarios} de {totalPagesBeneficiarios}
+                    </span>
+
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => setPageBeneficiarios((p) => Math.min(totalPagesBeneficiarios, p + 1))}
+                      disabled={pageBeneficiarios >= totalPagesBeneficiarios}
+                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      title="Página siguiente"
+                    >
+                      Siguiente ›
+                    </button>
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => setPageBeneficiarios(totalPagesBeneficiarios)}
+                      disabled={pageBeneficiarios >= totalPagesBeneficiarios}
+                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      title="Última página"
+                    >
+                      Última »
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -772,15 +922,20 @@ export default function ComedorTab() {
               <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>
                 Registro de Entregas: {servicioControl} · {fechaControl}
               </div>
-              <button
-                type="button"
-                className="toolbar-btn"
-                onClick={fetchEntregas}
-                disabled={loadingEntregas}
-                style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem" }}
-              >
-                {loadingEntregas ? <span className="spinner spinner-sm" /> : "🔄 Refrescar"}
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  {entregas.length} {entregas.length === 1 ? "entrega" : "entregas"}
+                </span>
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={fetchEntregas}
+                  disabled={loadingEntregas}
+                  style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem" }}
+                >
+                  {loadingEntregas ? <span className="spinner spinner-sm" /> : "🔄 Refrescar"}
+                </button>
+              </div>
             </div>
 
             {loadingEntregas ? (
@@ -799,100 +954,193 @@ export default function ComedorTab() {
                 </span>
               </div>
             ) : (
-              <div className="table-responsive" style={{ overflowX: "auto" }}>
-                <table className="registro-table" style={{ width: "100%", fontSize: "0.85rem" }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: "45px", textAlign: "center" }}>#</th>
-                      <th>Hora</th>
-                      <th>Beneficiario</th>
-                      <th>Cédula</th>
-                      <th>Teléfono</th>
-                      <th style={{ textAlign: "center" }}>Condición</th>
-                      <th style={{ textAlign: "center" }}>Raciones Retiradas</th>
-                      <th>Servicio</th>
-                      <th>Registrado por</th>
-                      <th style={{ textAlign: "center", width: "80px" }}>Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {entregas.map((e, idx) => (
-                      <tr key={e.id}>
-                        <td style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: "0.75rem" }}>
-                          {idx + 1}
-                        </td>
-                        <td style={{ fontWeight: 700, color: "var(--text-primary)" }}>{e.hora}</td>
-                        <td>
-                          <div style={{ fontWeight: 700 }}>{e.nombre}</div>
-                          <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{e.refugio}</div>
-                        </td>
-                        <td style={{ fontWeight: 600 }}>{e.cedula}</td>
-                        <td style={{ color: "var(--text-secondary)" }}>{e.telefono || "—"}</td>
-                        <td style={{ textAlign: "center" }}>
-                          <span
-                            style={{
-                              fontSize: "0.7rem",
-                              fontWeight: 700,
-                              padding: "2px 8px",
-                              borderRadius: "999px",
-                              background: e.tipoBeneficiario === "JEFE" ? "rgba(2, 132, 199, 0.12)" : "rgba(16, 185, 129, 0.12)",
-                              color: e.tipoBeneficiario === "JEFE" ? "#0284c7" : "#059669",
-                            }}
-                          >
-                            {e.tipoBeneficiario === "JEFE" ? "Jefe de Familia" : "Persona Sola"}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <span style={{ fontWeight: 900, color: "#059669", fontSize: "1.05rem" }}>
-                            {e.raciones}
-                          </span>
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginLeft: "4px" }}>
-                            {e.raciones === 1 ? "plato" : "platos"}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            style={{
-                              fontSize: "0.72rem",
-                              fontWeight: 800,
-                              padding: "2px 8px",
-                              borderRadius: "6px",
-                              background:
-                                e.servicio === "DESAYUNO"
-                                  ? "rgba(245, 158, 11, 0.15)"
-                                  : e.servicio === "ALMUERZO"
-                                  ? "rgba(14, 165, 233, 0.15)"
-                                  : "rgba(139, 92, 246, 0.15)",
-                              color:
-                                e.servicio === "DESAYUNO"
-                                  ? "#b45309"
-                                  : e.servicio === "ALMUERZO"
-                                  ? "#0369a1"
-                                  : "#6d28d9",
-                            }}
-                          >
-                            {e.servicio}
-                          </span>
-                        </td>
-                        <td style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-                          {e.registradoPor || "Master"}
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <button
-                            type="button"
-                            className="btn-ver"
-                            style={{ color: "var(--color-danger, #ef4444)", background: "rgba(239, 68, 68, 0.1)", border: "none", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", fontSize: "0.75rem" }}
-                            title="Anular entrega"
-                            onClick={() => handleDeleteEntrega(e.id, e.nombre)}
-                          >
-                            Anular
-                          </button>
-                        </td>
+              <>
+                <div className="table-responsive" style={{ overflowX: "auto" }}>
+                  <table className="registro-table" style={{ width: "100%", fontSize: "0.85rem" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: "45px", textAlign: "center" }}>#</th>
+                        <th>Hora</th>
+                        <th>Beneficiario</th>
+                        <th>Cédula</th>
+                        <th>Teléfono</th>
+                        <th style={{ textAlign: "center" }}>Condición</th>
+                        <th style={{ textAlign: "center" }}>Raciones Retiradas</th>
+                        <th>Servicio</th>
+                        <th>Registrado por</th>
+                        <th style={{ textAlign: "center", width: "80px" }}>Acción</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {paginatedEntregas.map((e, idx) => {
+                        const globalIndex = (pageEntregas - 1) * pageSizeEntregas + idx + 1;
+                        return (
+                          <tr key={e.id}>
+                            <td style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: "0.75rem" }}>
+                              {globalIndex}
+                            </td>
+                            <td style={{ fontWeight: 700, color: "var(--text-primary)" }}>{e.hora}</td>
+                            <td>
+                              <div style={{ fontWeight: 700 }}>{e.nombre}</div>
+                              <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{e.refugio}</div>
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{e.cedula}</td>
+                            <td style={{ color: "var(--text-secondary)" }}>{e.telefono || "—"}</td>
+                            <td style={{ textAlign: "center" }}>
+                              <span
+                                style={{
+                                  fontSize: "0.7rem",
+                                  fontWeight: 700,
+                                  padding: "2px 8px",
+                                  borderRadius: "999px",
+                                  background: e.tipoBeneficiario === "JEFE" ? "rgba(2, 132, 199, 0.12)" : "rgba(16, 185, 129, 0.12)",
+                                  color: e.tipoBeneficiario === "JEFE" ? "#0284c7" : "#059669",
+                                }}
+                              >
+                                {e.tipoBeneficiario === "JEFE" ? "Jefe de Familia" : "Persona Sola"}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              <span style={{ fontWeight: 900, color: "#059669", fontSize: "1.05rem" }}>
+                                {e.raciones}
+                              </span>
+                              <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginLeft: "4px" }}>
+                                {e.raciones === 1 ? "plato" : "platos"}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                style={{
+                                  fontSize: "0.72rem",
+                                  fontWeight: 800,
+                                  padding: "2px 8px",
+                                  borderRadius: "6px",
+                                  background:
+                                    e.servicio === "DESAYUNO"
+                                      ? "rgba(245, 158, 11, 0.15)"
+                                      : e.servicio === "ALMUERZO"
+                                      ? "rgba(14, 165, 233, 0.15)"
+                                      : "rgba(139, 92, 246, 0.15)",
+                                  color:
+                                    e.servicio === "DESAYUNO"
+                                      ? "#b45309"
+                                      : e.servicio === "ALMUERZO"
+                                      ? "#0369a1"
+                                      : "#6d28d9",
+                                }}
+                              >
+                                {e.servicio}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                              {e.registradoPor || "Master"}
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              <button
+                                type="button"
+                                className="btn-ver"
+                                style={{ color: "var(--color-danger, #ef4444)", background: "rgba(239, 68, 68, 0.1)", border: "none", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", fontSize: "0.75rem" }}
+                                title="Anular entrega"
+                                onClick={() => handleDeleteEntrega(e.id, e.nombre)}
+                              >
+                                Anular
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* BARRA DE PAGINACIÓN SUBMÓDULO 2 */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "0.75rem",
+                    padding: "0.75rem 1.25rem",
+                    borderTop: "1px solid var(--border-color, #e2e8f0)",
+                    background: "var(--bg-secondary, #f8fafc)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                      Registros por página:
+                    </span>
+                    <select
+                      value={pageSizeEntregas}
+                      onChange={(e) => {
+                        setPageSizeEntregas(Number(e.target.value));
+                        setPageEntregas(1);
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        fontSize: "0.8rem",
+                        borderRadius: "6px",
+                        border: "1px solid var(--border-color, #cbd5e1)",
+                        background: "var(--card-bg, #ffffff)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value={15}>15</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => setPageEntregas(1)}
+                      disabled={pageEntregas <= 1}
+                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      title="Primera página"
+                    >
+                      « Primera
+                    </button>
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => setPageEntregas((p) => Math.max(1, p - 1))}
+                      disabled={pageEntregas <= 1}
+                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      title="Página anterior"
+                    >
+                      ‹ Anterior
+                    </button>
+
+                    <span style={{ fontSize: "0.8rem", fontWeight: 700, padding: "0 0.5rem" }}>
+                      Página {pageEntregas} de {totalPagesEntregas}
+                    </span>
+
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => setPageEntregas((p) => Math.min(totalPagesEntregas, p + 1))}
+                      disabled={pageEntregas >= totalPagesEntregas}
+                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      title="Página siguiente"
+                    >
+                      Siguiente ›
+                    </button>
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      onClick={() => setPageEntregas(totalPagesEntregas)}
+                      disabled={pageEntregas >= totalPagesEntregas}
+                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      title="Última página"
+                    >
+                      Última »
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -911,11 +1159,20 @@ export default function ComedorTab() {
         />
       )}
 
-      {/* MODAL DE CARNET DIGITAL CON QR */}
+      {/* MODAL DE CARNET INDIVIDUAL CON QR */}
       <ComedorCarnetModal
         beneficiario={selectedCarnet}
         isOpen={!!selectedCarnet}
         onClose={() => setSelectedCarnet(null)}
+      />
+
+      {/* MODAL DE DESCARGA E IMPRESIÓN MASIVA DE CARNETS (8 POR HOJA) */}
+      <ComedorBulkCarnetsModal
+        isOpen={bulkModalOpen}
+        onClose={() => setBulkModalOpen(false)}
+        beneficiarios={beneficiarios}
+        refugioActual={selectedRefugio}
+        refugiosList={refugiosList || []}
       />
 
       {/* MODAL DE ESCÁNER QR */}

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import type { ComedorBeneficiario } from "@/types";
+import { printHtml, generateSingleCarnetHtml } from "@/lib/comedorPrint";
 
 interface Props {
   beneficiario: ComedorBeneficiario | null;
@@ -12,7 +13,6 @@ interface Props {
 
 export default function ComedorCarnetModal({ beneficiario, isOpen, onClose }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!beneficiario || !isOpen) {
@@ -40,7 +40,9 @@ export default function ComedorCarnetModal({ beneficiario, isOpen, onClose }: Pr
   if (!isOpen || !beneficiario) return null;
 
   const handlePrint = () => {
-    window.print();
+    if (!qrDataUrl) return;
+    const html = generateSingleCarnetHtml(beneficiario, qrDataUrl);
+    printHtml(html, `Carnet Comedor - ${beneficiario.cedula}`);
   };
 
   const handleDownloadQr = () => {
@@ -98,9 +100,8 @@ export default function ComedorCarnetModal({ beneficiario, isOpen, onClose }: Pr
           </button>
         </div>
 
-        {/* CONTENEDOR IMPRIMIBLE DEL CARNET */}
+        {/* CONTENEDOR VISUAL DEL CARNET */}
         <div
-          ref={printRef}
           className="comedor-carnet-card"
           style={{
             background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
@@ -284,6 +285,7 @@ export default function ComedorCarnetModal({ beneficiario, isOpen, onClose }: Pr
             type="button"
             className="toolbar-btn"
             onClick={handlePrint}
+            disabled={!qrDataUrl}
             style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
