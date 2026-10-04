@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function ErrorBoundary({
   error,
@@ -9,31 +9,39 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    // Si el error es por cambio de versión de chunks tras un nuevo deploy,
-    // recarga automáticamente una sola vez para traer la nueva versión.
-    const msg = (error?.message || "").toLowerCase();
-    const isChunkOrDeployError =
-      msg.includes("loading chunk") ||
-      msg.includes("failed to fetch dynamically imported module") ||
-      msg.includes("minified react error #412") ||
-      msg.includes("connection closed");
+  const [showDetails, setShowDetails] = useState(false);
 
-    if (isChunkOrDeployError && typeof window !== "undefined") {
-      const last = sessionStorage.getItem("last_chunk_reload");
-      const now = Date.now();
-      if (!last || now - Number(last) > 10000) {
-        sessionStorage.setItem("last_chunk_reload", String(now));
-        window.location.reload();
-        return;
-      }
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Si ocurre un error de hidratación, router o desfase de despliegue,
+    // intentamos auto-recargar automáticamente una sola vez (con throttle de 15s)
+    const last = sessionStorage.getItem("last_auto_error_reload");
+    const now = Date.now();
+    if (!last || now - Number(last) > 15000) {
+      sessionStorage.setItem("last_auto_error_reload", String(now));
+      window.location.reload();
+      return;
     }
+
     console.error("[Root ErrorBoundary]", error);
   }, [error]);
 
   const handleReload = () => {
     if (typeof window !== "undefined") {
-      window.location.reload();
+      try {
+        sessionStorage.removeItem("last_auto_error_reload");
+        sessionStorage.removeItem("last_chunk_reload");
+        if ("caches" in window) {
+          caches.keys().then((keys) => {
+            keys.forEach((k) => caches.delete(k));
+          });
+        }
+      } catch {
+        /* noop */
+      }
+      window.location.href =
+        window.location.origin + window.location.pathname + "?t=" + Date.now();
     } else {
       reset();
     }
@@ -48,8 +56,8 @@ export default function ErrorBoundary({
         justifyContent: "center",
         minHeight: "100vh",
         padding: "1.5rem",
-        backgroundColor: "var(--bg-primary, #0f172a)",
-        color: "var(--text-primary, #f8fafc)",
+        backgroundColor: "var(--bg-primary, #ffffff)",
+        color: "var(--text-primary, #0f172a)",
         fontFamily: "system-ui, -apple-system, sans-serif",
         textAlign: "center",
       }}
@@ -59,7 +67,7 @@ export default function ErrorBoundary({
           width: "56px",
           height: "56px",
           borderRadius: "50%",
-          backgroundColor: "rgba(220, 38, 38, 0.12)",
+          backgroundColor: "rgba(220, 38, 38, 0.1)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -83,59 +91,111 @@ export default function ErrorBoundary({
         </svg>
       </div>
 
-      <h1 style={{ fontSize: "1.35rem", fontWeight: 800, margin: "0 0 0.5rem" }}>
-        Actualización o Interrupción del Sistema
+      <h1
+        style={{
+          fontSize: "1.4rem",
+          fontWeight: 800,
+          margin: "0 0 0.5rem",
+          color: "#0f172a",
+        }}
+      >
+        ACTUALIZACIÓN O INTERRUPCIÓN DEL SISTEMA
       </h1>
       <p
         style={{
-          fontSize: "0.9rem",
-          maxWidth: "460px",
-          color: "var(--text-secondary, #94a3b8)",
+          fontSize: "0.92rem",
+          maxWidth: "480px",
+          color: "#64748b",
           margin: "0 0 1.5rem",
           lineHeight: 1.5,
         }}
       >
-        Se ha desplegado una nueva versión del sistema o se interrumpió la conexión.
-        Haz clic en el botón para recargar y sincronizar con la última versión.
+        Se ha desplegado una nueva versión del sistema o se interrumpió la
+        conexión. Haz clic en el botón para recargar y sincronizar con la última
+        versión.
       </p>
 
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "0.75rem",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          marginBottom: "1.5rem",
+        }}
+      >
         <button
           type="button"
           onClick={handleReload}
           style={{
-            padding: "0.65rem 1.4rem",
+            padding: "0.7rem 1.6rem",
             backgroundColor: "#2563eb",
             color: "#ffffff",
             border: "none",
             borderRadius: "999px",
             fontWeight: 700,
-            fontSize: "0.9rem",
+            fontSize: "0.92rem",
             cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(37, 99, 235, 0.3)",
+            boxShadow: "0 2px 10px rgba(37, 99, 235, 0.35)",
           }}
         >
           Recargar Sistema
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (typeof window !== "undefined") window.history.back();
-          }}
+          onClick={() => reset()}
           style={{
-            padding: "0.65rem 1.4rem",
+            padding: "0.7rem 1.4rem",
             backgroundColor: "transparent",
-            color: "var(--text-secondary, #94a3b8)",
-            border: "1px solid var(--border-color, rgba(148, 163, 184, 0.3))",
+            color: "#475569",
+            border: "1px solid #cbd5e1",
             borderRadius: "999px",
             fontWeight: 600,
-            fontSize: "0.9rem",
+            fontSize: "0.92rem",
             cursor: "pointer",
           }}
         >
-          Regresar
+          Reintentar
         </button>
       </div>
+
+      {error?.message && (
+        <div style={{ maxWidth: "480px", textAlign: "left", width: "100%" }}>
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#94a3b8",
+              fontSize: "0.78rem",
+              cursor: "pointer",
+              padding: "4px 0",
+              textDecoration: "underline",
+            }}
+          >
+            {showDetails ? "Ocultar detalle" : "Detalle técnico"}
+          </button>
+          {showDetails && (
+            <pre
+              style={{
+                fontSize: "0.72rem",
+                background: "#f1f5f9",
+                color: "#334155",
+                padding: "0.75rem",
+                borderRadius: "8px",
+                overflowX: "auto",
+                marginTop: "0.5rem",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+              }}
+            >
+              {error.message}
+              {error.digest ? `\nDigest: ${error.digest}` : ""}
+            </pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }
