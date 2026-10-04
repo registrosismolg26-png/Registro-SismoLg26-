@@ -392,7 +392,7 @@ export default function AsignacionesTab() {
   const [filterParroquia, setFilterParroquia] = useState("");
   const [filterEstadoFisico, setFilterEstadoFisico] = useState("");
   const [filterCuarto, setFilterCuarto] = useState("");
-  const [filterRetirado, setFilterRetirado] = useState("NO");
+  const [filterRetirado, setFilterRetirado] = useState("");
   const [filterEstatusFamiliar, setFilterEstatusFamiliar] = useState("");
   const [filterRazon, setFilterRazon] = useState(""); // tipo base de la razón de retiro (solo aplica a egresados)
   const [filterRegistrador, setFilterRegistrador] = useState(""); // operador que censó
@@ -1062,7 +1062,7 @@ export default function AsignacionesTab() {
     if (filterEstadoFisico) parts.push(`Estado: ${filterEstadoFisico === "LESIONADO" ? "Lesionado" : "Ileso"}`);
     if (filterCuarto) parts.push(`Habitación: ${filterCuarto === "sin_asignar" ? "Sin asignar" : formatRoomLabel(filterCuarto)}`);
     if (filterRetirado === "SI") parts.push("Estatus: Egresados / Retirados");
-    else if (filterRetirado === "") parts.push("Estatus: Todos (presentes y egresados)");
+    else if (filterRetirado === "NO") parts.push("Estatus: Presentes actualmente");
     if (filterEstatusFamiliar === "JEFE") parts.push("Estatus familiar: Jefe de Familia");
     else if (filterEstatusFamiliar === "SOLO") parts.push("Estatus familiar: Personas Solas");
     else if (filterEstatusFamiliar === "INTEGRANTE") parts.push("Estatus familiar: Integrante de Familia");
@@ -1563,7 +1563,7 @@ export default function AsignacionesTab() {
               filterParroquia ||
               filterEstadoFisico ||
               filterCuarto ||
-              filterRetirado !== "NO" ||
+              filterRetirado !== "" ||
               filterEstatusFamiliar ||
               filterRazon ||
               filterRegistrador ||
@@ -1580,7 +1580,7 @@ export default function AsignacionesTab() {
                   setFilterParroquia("");
                   setFilterEstadoFisico("");
                   setFilterCuarto("");
-                  setFilterRetirado("NO");
+                  setFilterRetirado("");
                   setFilterEstatusFamiliar("");
                   setFilterRazon("");
                   setFilterRegistrador("");
@@ -1899,6 +1899,44 @@ export default function AsignacionesTab() {
                 Ningún registro coincide con &ldquo;
                 {registroSearch || "los filtros aplicados"}&rdquo;
               </span>
+              {(registroSearch ||
+                filterGenero ||
+                filterEdad ||
+                filterEdadMin ||
+                filterEdadMax ||
+                filterParroquia ||
+                filterEstadoFisico ||
+                filterCuarto ||
+                filterRetirado ||
+                filterEstatusFamiliar ||
+                filterRazon ||
+                filterRegistrador ||
+                filterDesde ||
+                filterHasta) && (
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  style={{ marginTop: "1rem" }}
+                  onClick={() => {
+                    setRegistroSearch("");
+                    setFilterGenero("");
+                    setFilterEdad("");
+                    setFilterEdadMin("");
+                    setFilterEdadMax("");
+                    setFilterParroquia("");
+                    setFilterEstadoFisico("");
+                    setFilterCuarto("");
+                    setFilterRetirado("");
+                    setFilterEstatusFamiliar("");
+                    setFilterRazon("");
+                    setFilterRegistrador("");
+                    setFilterDesde("");
+                    setFilterHasta("");
+                  }}
+                >
+                  Restablecer filtros y búsqueda
+                </button>
+              )}
             </div>
           ) : (
             <div className="registro-table-wrapper">

@@ -185,6 +185,7 @@ export default function Home() {
       : currentUser.campamentoTransitorio
     : "";
   const effectiveRefugioRef = useRef(effectiveRefugio);
+  effectiveRefugioRef.current = effectiveRefugio;
   useEffect(() => {
     effectiveRefugioRef.current = effectiveRefugio;
   }, [effectiveRefugio]);
@@ -1906,9 +1907,12 @@ export default function Home() {
     }
 
     const run = async () => {
+      const scopeKey = effectiveRefugioRef.current || "__all__";
+      const cachedKey = `cached_registros_${scopeKey}`;
+
       // Load from cache first for instant display
       if (typeof window !== "undefined") {
-        const cached = localStorage.getItem("cached_registros");
+        const cached = localStorage.getItem(cachedKey) || localStorage.getItem("cached_registros");
         if (cached) {
           try {
             setRegistros(JSON.parse(cached));
@@ -1922,11 +1926,11 @@ export default function Home() {
 
       setLoadingRegistros(true);
       try {
-        const scopeKey = effectiveRefugioRef.current || "__all__";
         const q = effectiveRefugioRef.current
           ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}`
           : "";
-        const prevEtag = registrosEtagRef.current[scopeKey];
+        const hasScopedCache = typeof window !== "undefined" && !!localStorage.getItem(cachedKey);
+        const prevEtag = hasScopedCache ? registrosEtagRef.current[scopeKey] : undefined;
         const res = await apiFetch(
           `/api/registros${q}`,
           {
@@ -1935,7 +1939,15 @@ export default function Home() {
           },
         );
         // 304 = sin cambios en el servidor → conservamos el cache/estado ya cargado.
-        if (res.status === 304) return;
+        if (res.status === 304) {
+          if (typeof window !== "undefined") {
+            const cached = localStorage.getItem(cachedKey);
+            if (cached) {
+              try { setRegistros(JSON.parse(cached)); } catch {}
+            }
+          }
+          return;
+        }
         if (!res.ok) {
           const body = await res.json().catch(() => ({}) as any);
           throw new Error(
@@ -1956,6 +1968,7 @@ export default function Home() {
         const newRegs = data.registros ?? [];
         setRegistros(newRegs);
         if (typeof window !== "undefined") {
+          safeSetItem(cachedKey, JSON.stringify(newRegs));
           safeSetItem("cached_registros", JSON.stringify(newRegs));
           if (currentUser) localStorage.setItem("cached_owner", currentUser.id);
         }
