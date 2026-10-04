@@ -632,3 +632,26 @@ model PlanteamientoSala {
   @@index([tipoOpcion])
 }
 
+model ComedorRegistro {
+  id               String   @id @default(uuid())
+  registroId       String?  // ID de la persona en Registro (si existe)
+  cedula           String   // Cédula del jefe de familia o persona sola
+  nombre           String   // Nombre y apellido
+  telefono         String?  // Teléfono de contacto
+  refugio          String   // Campamento transitorio / refugio
+  tipoBeneficiario String   @default("JEFE") // "JEFE" | "SOLO"
+  fecha            String   // YYYY-MM-DD
+  servicio         String   // "DESAYUNO" | "ALMUERZO" | "CENA"
+  raciones         Int      @default(1) // Cantidad de carga familiar (número de platos retirados)
+  hora             String   // HH:mm:ss
+  registradoPor    String?  // Nombre o email del operador/master
+  observacion      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([cedula, fecha, servicio, refugio])
+  @@index([refugio, fecha])
+  @@index([fecha, servicio])
+  @@index([cedula])
+}
+

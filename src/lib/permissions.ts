@@ -41,6 +41,8 @@ export const canManageCatalogosMedicos = (role: string) => ["MASTER", "AdminMedi
 // Caracterización — POR AHORA todo el módulo (pestaña, fichas y catálogo) es SOLO Master.
 // (Cuando se abra a más roles, ampliar aquí + en el gating de la pestaña y el POST.)
 export const canManageCaracterizacion = (role: string) => ["MASTER"].includes(role);
+// Comedor — Acceso EXCLUSIVO a Master
+export const canViewComedor = (role: string) => isMaster(role);
 
 // ── Planteamiento Sala (Master, Planteamiento Master y Planteamiento Visualizador) ────
 // Rol EXCLUSIVO "Planteamiento Master": dedicado exclusivamente al módulo Planteamiento Sala (gestión completa).

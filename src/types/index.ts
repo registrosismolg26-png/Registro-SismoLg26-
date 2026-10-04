@@ -108,7 +108,67 @@ export interface CurrentUser {
 }
 
 // Vista de pestaña activa
-export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad" | "balance" | "historial" | "caracterizacion" | "monitoreo" | "mapa" | "vzlarenace" | "planteamientosala";
+export type ActiveTab = "censo" | "dashboard" | "usuarios" | "config" | "asignaciones" | "morbilidad" | "balance" | "historial" | "caracterizacion" | "monitoreo" | "mapa" | "vzlarenace" | "planteamientosala" | "comedor";
+
+// ── COMEDOR (Solo Master) ──────────────────────────────────────────────────
+export type ComedorServicio = "DESAYUNO" | "ALMUERZO" | "CENA";
+
+export interface ComedorFamiliarMember {
+  id: string;
+  cedula: string;
+  nombreApellido: string;
+  edad?: number | null;
+  genero?: string | null;
+  parentesco?: string | null;
+}
+
+export interface ComedorBeneficiario {
+  id: string;
+  cedula: string;
+  nombreApellido: string;
+  telefono?: string | null;
+  refugio: string;
+  cuarto?: string | null;
+  tipoBeneficiario: "JEFE" | "SOLO";
+  raciones: number;
+  integrantes?: ComedorFamiliarMember[];
+}
+
+export interface ComedorRegistroItem {
+  id: string;
+  registroId?: string | null;
+  cedula: string;
+  nombre: string;
+  telefono?: string | null;
+  refugio: string;
+  tipoBeneficiario: string;
+  fecha: string;
+  servicio: ComedorServicio;
+  raciones: number;
+  hora: string;
+  registradoPor?: string | null;
+  observacion?: string | null;
+  createdAt: string;
+}
+
+export interface ComedorStats {
+  totalRaciones: number;
+  totalAtendidos: number;
+  desayunoRaciones: number;
+  almuerzoRaciones: number;
+  cenaRaciones: number;
+  desayunoAtendidos: number;
+  almuerzoAtendidos: number;
+  cenaAtendidos: number;
+  porDia: {
+    fecha: string;
+    desayuno: number;
+    almuerzo: number;
+    cena: number;
+    total: number;
+    beneficiarios: number;
+  }[];
+}
 
 // ── PLANTEAMIENTO SALA (Solo Master / Planteamiento Master) ───────────────────
 export type TituloCasaTipo = "NINGUNO" | "TITULO_PROPIEDAD" | "TITULO_SUPLETORIO" | "COMPRA_VENTA";

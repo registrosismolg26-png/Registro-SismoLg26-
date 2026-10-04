@@ -70,6 +70,7 @@ import ConfigTab from "@/tabs/ConfigTab";
 import AsignacionesTab from "@/tabs/AsignacionesTab";
 import CaracterizacionTab from "@/tabs/CaracterizacionTab";
 import PlanteamientoSalaTab from "@/tabs/PlanteamientoSalaTab";
+import ComedorTab from "@/tabs/ComedorTab";
 import MonitoreoTab from "@/tabs/MonitoreoTab";
 import VzlaRenaceTab from "@/tabs/VzlaRenaceTab";
 import CensoTab from "@/tabs/CensoTab";
@@ -347,6 +348,12 @@ export default function Home() {
   useEffect(() => {
     if (!isPlanteamientoOnly(currentUser?.role || "")) return;
     if (!["planteamientosala", "config"].includes(activeTab)) setActiveTab("planteamientosala");
+  }, [currentUser, activeTab]);
+
+  // El módulo Comedor es de acceso EXCLUSIVO a Master: cualquier otro rol se redirige a censo
+  useEffect(() => {
+    if (!currentUser || isMaster(currentUser.role)) return;
+    if (activeTab === "comedor") setActiveTab("censo");
   }, [currentUser, activeTab]);
 
   // Persistir la pestaña activa para restaurarla al recargar (solo tras el arranque,
@@ -2253,6 +2260,9 @@ export default function Home() {
           )}
           {activeTab === "planteamientosala" && canViewPlanteamientoSala(currentUser.role) && (
             <PlanteamientoSalaTab />
+          )}
+          {activeTab === "comedor" && isMaster(currentUser.role) && (
+            <ComedorTab />
           )}
           {activeTab === "monitoreo" && isMaster(currentUser.role) && (
             <MonitoreoTab />
