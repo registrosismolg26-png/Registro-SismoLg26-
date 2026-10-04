@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canManagePlanteamientoSala } from "@/lib/auth";
 import { calcularProgreso } from "../route";
+import { invalidatePlanteamientoStatsCache } from "@/lib/planteamientoStatsCache";
 
 export async function PATCH(
   req: Request,
@@ -188,6 +189,7 @@ export async function PATCH(
       data: updateData,
     });
 
+    invalidatePlanteamientoStatsCache();
     return NextResponse.json({ success: true, item });
   } catch (error: any) {
     console.error("Error en PATCH /api/planteamiento-sala/[id]:", error);
@@ -211,6 +213,7 @@ export async function DELETE(
     }
 
     await prisma.planteamientoSala.delete({ where: { id } });
+    invalidatePlanteamientoStatsCache();
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Error en DELETE /api/planteamiento-sala/[id]:", error);

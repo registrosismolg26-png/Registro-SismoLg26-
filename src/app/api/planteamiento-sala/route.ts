@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canManagePlanteamientoSala } from "@/lib/auth";
+import { invalidatePlanteamientoStatsCache } from "@/lib/planteamientoStatsCache";
 
 export function calcularProgreso(item: {
   tipoOpcion?: string | null;
@@ -421,6 +422,7 @@ export async function POST(req: Request) {
       });
     }
 
+    invalidatePlanteamientoStatsCache();
     return NextResponse.json({ success: true, item });
   } catch (error: any) {
     console.error("Error en POST /api/planteamiento-sala:", error);

@@ -290,11 +290,12 @@ export default function PlanteamientoSalaTab() {
         </div>
       </div>
 
-      {subview === "graficas" ? (
+      <div style={{ display: subview === "graficas" ? "block" : "none" }}>
         <PlanteamientoSalaGraficas campamentosList={campamentosSalaList} showToast={showToast} />
-      ) : (
-        <>
-          {/* Barra de Acciones del Submódulo Información */}
+      </div>
+
+      <div style={{ display: subview === "informacion" ? "block" : "none" }}>
+        {/* Barra de Acciones del Submódulo Información */}
           {/* ── BARRA DE HERRAMIENTAS Y FILTROS (100% PILL Y RESPONSIVA) ── */}
           <div className="pill-form sala-toolbar-card">
             {/* Nivel 1: Filtros de Selección y Buscador */}
@@ -1036,8 +1037,7 @@ export default function PlanteamientoSalaTab() {
             />
           </>
         )}
-      </>
-    )}
+      </div>
 
       {/* Modal de Carga / Edición Completa */}
       <PlanteamientoSalaModal

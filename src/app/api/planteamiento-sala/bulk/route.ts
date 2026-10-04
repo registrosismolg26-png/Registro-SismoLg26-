@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, canManagePlanteamientoSala } from "@/lib/auth";
+import { invalidatePlanteamientoStatsCache } from "@/lib/planteamientoStatsCache";
 
 function calculateAge(fechaNacStr?: string | null): number | null {
   if (!fechaNacStr) return null;
@@ -330,6 +331,7 @@ export async function POST(req: Request) {
       );
     }
 
+    invalidatePlanteamientoStatsCache();
     return NextResponse.json({
       success: true,
       refugio,

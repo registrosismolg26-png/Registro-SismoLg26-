@@ -22,8 +22,24 @@ const MODALIDADES_LIST: { key: TipoOpcionPlanteamiento; label: string; short: st
 
 export default function PlanteamientoSalaGraficas({ campamentosList, showToast }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [stats, setStats] = useState<PlanteamientoSalaStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<PlanteamientoSalaStats | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("sismo_cached_sala_stats");
+        if (cached) return JSON.parse(cached);
+      } catch {
+        /* noop */
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return !sessionStorage.getItem("sismo_cached_sala_stats");
+    }
+    return true;
+  });
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedCampamento, setSelectedCampamento] = useState<string>("TODOS");
   const [requisitosTab, setRequisitosTab] = useState<"MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE" | "CAMPAMENTO_MAYOR_PERMANENCIA" | "ASIGNACION_GMVV">("MERCADO_SECUNDARIO");
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -51,33 +67,70 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
     ...campamentosList.map((c) => ({ value: c.nombre, label: c.nombre })),
   ], [campamentosList]);
 
-  const loadStats = async () => {
-    setLoading(true);
+  const loadStats = async (isBackground = false) => {
+    if (!isBackground && !stats) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     try {
-      const res = await apiFetch("/api/planteamiento-sala/stats");
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.success && data?.stats) {
-        setStats(data.stats);
-      } else {
-        showToast(data?.error || "Error al cargar estadísticas.", "error");
+      const prevEtag = typeof window !== "undefined" ? sessionStorage.getItem("sismo_etag_sala_stats") : null;
+      const res = await apiFetch("/api/planteamiento-sala/stats", {
+        headers: prevEtag ? { "If-None-Match": prevEtag } : undefined,
+        timeoutMs: 35000,
+      });
+
+      // 304 = sin cambios en el servidor, conservamos lo que ya tenemos de inmediato
+      if (res.status === 304) {
+        return;
       }
-    } catch (e) {
+
+      if (res.ok) {
+        const newEtag = res.headers.get("ETag");
+        if (newEtag && typeof window !== "undefined") {
+          try {
+            sessionStorage.setItem("sismo_etag_sala_stats", newEtag);
+          } catch {}
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data?.success && data?.stats) {
+          setStats(data.stats);
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem("sismo_cached_sala_stats", JSON.stringify(data.stats));
+            } catch {}
+          }
+        }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (!stats) {
+          showToast(data?.error || "Error al cargar estadísticas.", "error");
+        }
+      }
+    } catch (e: any) {
+      if (e?.name === "AbortError" || String(e?.message || "").toLowerCase().includes("abort")) return;
       console.error(e);
-      showToast("Error de conexión al obtener estadísticas.", "error");
+      if (!stats) {
+        showToast("Error de conexión al obtener estadísticas.", "error");
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    loadStats();
+    // Si ya hay cache en memoria, refrescar silenciosamente en segundo plano (SWR)
+    const hasInitial = Boolean(stats);
+    void loadStats(hasInitial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-refresco en modo pantalla completa cada 30s
   useEffect(() => {
     if (isFullscreen) {
       const t = setInterval(() => {
-        loadStats();
+        void loadStats(true);
       }, 30000);
       return () => clearInterval(t);
     }
@@ -124,7 +177,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
     return (
       <div className="reg-empty-state" style={{ padding: "3rem" }}>
         <p>No se pudieron cargar las estadísticas del módulo</p>
-        <button type="button" className="toolbar-btn" onClick={loadStats} style={{ marginTop: "1rem" }}>
+        <button type="button" className="toolbar-btn" onClick={() => { void loadStats(false); }} style={{ marginTop: "1rem" }}>
           Reintentar
         </button>
       </div>
@@ -157,8 +210,8 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
               if (document.fullscreenElement) document.exitFullscreen();
             } catch {}
           }}
-          onRefresh={loadStats}
-          isUpdating={loading}
+          onRefresh={() => { void loadStats(false); }}
+          isUpdating={loading || refreshing}
         />
       </div>
     );
@@ -206,8 +259,8 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
           <button
             type="button"
             className="toolbar-btn"
-            onClick={loadStats}
-            disabled={loading}
+            onClick={() => { void loadStats(false); }}
+            disabled={loading || refreshing}
             style={{ height: "42px", padding: "0 1.15rem", borderRadius: "999px", fontWeight: 700, gap: "6px" }}
             title="Refrescar analítica desde el servidor"
           >
@@ -220,12 +273,15 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
+              style={{
+                animation: refreshing ? "spin 1s linear infinite" : "none",
+              }}
             >
               <polyline points="23 4 23 10 17 10" />
               <polyline points="1 20 1 14 7 14" />
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
-            <span>Actualizar</span>
+            <span>{refreshing ? "Sincronizando..." : "Actualizar"}</span>
           </button>
 
           {/* Botón Sacar Copia / Imprimir */}
