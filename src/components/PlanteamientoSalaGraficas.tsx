@@ -10,6 +10,7 @@ import type { PlanteamientoSalaStats, TipoOpcionPlanteamiento, PlanteamientoSala
 interface Props {
   campamentosList: { id: string; nombre: string }[];
   showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void;
+  lockedCampamento?: string;
 }
 
 const MODALIDADES_LIST: { key: TipoOpcionPlanteamiento; label: string; short: string; color: string }[] = [
@@ -20,7 +21,7 @@ const MODALIDADES_LIST: { key: TipoOpcionPlanteamiento; label: string; short: st
   { key: "ASIGNACION_GMVV", label: "Asignación GMVV", short: "Asig. GMVV", color: "#0891b2" },
 ];
 
-export default function PlanteamientoSalaGraficas({ campamentosList, showToast }: Props) {
+export default function PlanteamientoSalaGraficas({ campamentosList, showToast, lockedCampamento }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [stats, setStats] = useState<PlanteamientoSalaStats | null>(() => {
     if (typeof window !== "undefined") {
@@ -40,7 +41,17 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
     return true;
   });
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedCampamento, setSelectedCampamento] = useState<string>("TODOS");
+  const [selectedCampamento, setSelectedCampamento] = useState<string>(() => {
+    if (lockedCampamento) return lockedCampamento;
+    return "TODOS";
+  });
+
+  useEffect(() => {
+    if (lockedCampamento && selectedCampamento !== lockedCampamento) {
+      setSelectedCampamento(lockedCampamento);
+    }
+  }, [lockedCampamento, selectedCampamento]);
+
   const [requisitosTab, setRequisitosTab] = useState<"MERCADO_SECUNDARIO" | "ALQUILER" | "PLAN_VENEZUELA_RENACE" | "CAMPAMENTO_MAYOR_PERMANENCIA" | "ASIGNACION_GMVV">("MERCADO_SECUNDARIO");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [cuadrosView, setCuadrosView] = useState<"ESTATUS" | "MODALIDAD">("ESTATUS");
@@ -232,16 +243,41 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast }
           </div>
 
           <div style={{ minWidth: "280px", flex: "1 1 300px" }}>
-            <SearchableSingleSelect
-              value={selectedCampamento}
-              onChange={setSelectedCampamento}
-              ariaLabel="Filtrar métricas por campamento"
-              placeholder="Buscar campamento..."
-              options={campamentoOptions}
-            />
+            {lockedCampamento ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  height: "42px",
+                  borderRadius: "999px",
+                  padding: "0 1.25rem",
+                  border: "1px solid rgba(14, 165, 233, 0.35)",
+                  background: "rgba(14, 165, 233, 0.08)",
+                  color: "#0369a1",
+                  fontSize: "0.88rem",
+                  fontWeight: 700,
+                }}
+                title="Restringido por rol a su campamento asignado"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span>{lockedCampamento}</span>
+              </div>
+            ) : (
+              <SearchableSingleSelect
+                value={selectedCampamento}
+                onChange={setSelectedCampamento}
+                ariaLabel="Filtrar métricas por campamento"
+                placeholder="Buscar campamento..."
+                options={campamentoOptions}
+              />
+            )}
           </div>
 
-          {selectedCampamento !== "TODOS" && (
+          {!lockedCampamento && selectedCampamento !== "TODOS" && (
             <button
               type="button"
               className="toolbar-btn"

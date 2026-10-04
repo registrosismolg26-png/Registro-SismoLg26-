@@ -74,7 +74,7 @@ export default function AppHeader() {
         ? "admin"
         : isMedico(currentUser.role)
           ? "medico"
-          : currentUser.role === "VISUALIZADOR"
+          : (currentUser.role === "VISUALIZADOR" || currentUser.role === "PlanteamientoVisualizador")
             ? "visual"
             : "";
   const roleLabels: Record<string, string> = {
@@ -85,6 +85,7 @@ export default function AppHeader() {
     RENACE: "VZLA Renace",
     RENACE_MASTER: "Master Renace",
     PLANTEAMIENTO_MASTER: "Planteamiento Master",
+    PlanteamientoVisualizador: "Planteamiento Visualizador",
     AdminMedico: "Admin Médico",
     OperadorMedico: "Op. Médico",
     AsistenteMedico: "Asist. Médico",

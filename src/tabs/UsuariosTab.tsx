@@ -9,7 +9,8 @@ import { useAppContext } from "@/context/AppContext";
 import OtpModal from "@/components/OtpModal";
 import AvisoComposer from "@/components/AvisoComposer";
 import { apiFetch } from "@/lib/apiFetch";
-import { canManageUsers, isMaster, canManageTargetUser, hasRefugio, assignableRoles, ROLE_LABELS } from "@/lib/permissions";
+import { canManageUsers, isMaster, canManageTargetUser, hasRefugio, assignableRoles, ROLE_LABELS, isPlanteamientoVisualizador } from "@/lib/permissions";
+import { CAMPAMENTOS_PLANTEAMIENTO_SALA } from "@/lib/constants";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 
 export default function UsuariosTab() {
@@ -396,7 +397,7 @@ export default function UsuariosTab() {
                       <td style={{ color: "var(--text-secondary)", fontSize: "0.825rem" }}>{usr.email}</td>
                       <td>
                         <span className={`user-role-badge user-role-badge--${usr.role.toLowerCase()}`}>
-                          {usr.role}
+                          {ROLE_LABELS[usr.role] ?? usr.role}
                         </span>
                       </td>
                       <td style={{ color: "var(--text-secondary)", fontSize: "0.825rem" }}>
@@ -560,19 +561,57 @@ export default function UsuariosTab() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="user-create-campamento">Campamento Asignado</label>
+                <label>Rol asignado</label>
+                <select
+                  value={userForm.role}
+                  onChange={(e) => {
+                    const newRole = e.target.value;
+                    setUserForm(prev => {
+                      let newCamp = prev.campamentoTransitorio;
+                      if (isPlanteamientoVisualizador(newRole)) {
+                        if (!(CAMPAMENTOS_PLANTEAMIENTO_SALA as readonly string[]).includes(newCamp)) {
+                          newCamp = "";
+                        }
+                      }
+                      return { ...prev, role: newRole, campamentoTransitorio: newCamp };
+                    });
+                  }}
+                >
+                  {roleOptions(userForm.role)}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-create-campamento">
+                  {isPlanteamientoVisualizador(userForm.role)
+                    ? "Campamento Asignado (26 Oficiales)"
+                    : "Campamento Asignado"}
+                </label>
                 {currentUser && isMaster(currentUser.role) ? (
                   <select
                     id="user-create-campamento"
                     value={userForm.campamentoTransitorio}
                     onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
                   >
-                    <option value="">Seleccione un campamento...</option>
-                    {refugios.map(rf => (
-                      <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
-                    ))}
-                    {/* Preserva un valor previo que ya no esté en la lista de refugios */}
-                    {userForm.campamentoTransitorio && !refugios.some(rf => rf.nombre === userForm.campamentoTransitorio) && (
+                    <option value="">
+                      {isPlanteamientoVisualizador(userForm.role)
+                        ? "Seleccione 1 de los 26 campamentos oficiales..."
+                        : "Seleccione un campamento..."}
+                    </option>
+                    {isPlanteamientoVisualizador(userForm.role) ? (
+                      CAMPAMENTOS_PLANTEAMIENTO_SALA.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))
+                    ) : (
+                      refugios.map(rf => (
+                        <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
+                      ))
+                    )}
+                    {/* Preserva un valor previo que ya no esté en la lista */}
+                    {userForm.campamentoTransitorio &&
+                      (isPlanteamientoVisualizador(userForm.role)
+                        ? !(CAMPAMENTOS_PLANTEAMIENTO_SALA as readonly string[]).includes(userForm.campamentoTransitorio)
+                        : !refugios.some(rf => rf.nombre === userForm.campamentoTransitorio)) && (
                       <option value={userForm.campamentoTransitorio}>{userForm.campamentoTransitorio}</option>
                     )}
                   </select>
@@ -589,16 +628,6 @@ export default function UsuariosTab() {
                 <div className="error-container">
                   {userErrors.campamentoTransitorio && <span className="field-error-message">{userErrors.campamentoTransitorio}</span>}
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label>Rol asignado</label>
-                <select
-                  value={userForm.role}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                >
-                  {roleOptions(userForm.role)}
-                </select>
               </div>
 
               <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>
@@ -727,19 +756,61 @@ export default function UsuariosTab() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="user-edit-campamento">Campamento Asignado</label>
+                <label>Rol asignado</label>
+                {userForm.role === "MASTER" ? (
+                  <span className="user-role-badge user-role-badge--master">MASTER</span>
+                ) : (
+                  <select
+                    value={userForm.role}
+                    onChange={(e) => {
+                      const newRole = e.target.value;
+                      setUserForm(prev => {
+                        let newCamp = prev.campamentoTransitorio;
+                        if (isPlanteamientoVisualizador(newRole)) {
+                          if (!(CAMPAMENTOS_PLANTEAMIENTO_SALA as readonly string[]).includes(newCamp)) {
+                            newCamp = "";
+                          }
+                        }
+                        return { ...prev, role: newRole, campamentoTransitorio: newCamp };
+                      });
+                    }}
+                  >
+                    {roleOptions(userForm.role)}
+                  </select>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-edit-campamento">
+                  {isPlanteamientoVisualizador(userForm.role)
+                    ? "Campamento Asignado (26 Oficiales)"
+                    : "Campamento Asignado"}
+                </label>
                 {currentUser && isMaster(currentUser.role) ? (
                   <select
                     id="user-edit-campamento"
                     value={userForm.campamentoTransitorio}
                     onChange={(e) => setUserForm(prev => ({ ...prev, campamentoTransitorio: e.target.value }))}
                   >
-                    <option value="">Seleccione un campamento...</option>
-                    {refugios.map(rf => (
-                      <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
-                    ))}
+                    <option value="">
+                      {isPlanteamientoVisualizador(userForm.role)
+                        ? "Seleccione 1 de los 26 campamentos oficiales..."
+                        : "Seleccione un campamento..."}
+                    </option>
+                    {isPlanteamientoVisualizador(userForm.role) ? (
+                      CAMPAMENTOS_PLANTEAMIENTO_SALA.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))
+                    ) : (
+                      refugios.map(rf => (
+                        <option key={rf.id} value={rf.nombre}>{rf.nombre}</option>
+                      ))
+                    )}
                     {/* Preserva el valor actual del usuario si aún no está en la lista */}
-                    {userForm.campamentoTransitorio && !refugios.some(rf => rf.nombre === userForm.campamentoTransitorio) && (
+                    {userForm.campamentoTransitorio &&
+                      (isPlanteamientoVisualizador(userForm.role)
+                        ? !(CAMPAMENTOS_PLANTEAMIENTO_SALA as readonly string[]).includes(userForm.campamentoTransitorio)
+                        : !refugios.some(rf => rf.nombre === userForm.campamentoTransitorio)) && (
                       <option value={userForm.campamentoTransitorio}>{userForm.campamentoTransitorio}</option>
                     )}
                   </select>
@@ -756,20 +827,6 @@ export default function UsuariosTab() {
                 <div className="error-container">
                   {userErrors.campamentoTransitorio && <span className="field-error-message">{userErrors.campamentoTransitorio}</span>}
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label>Rol asignado</label>
-                {userForm.role === "MASTER" ? (
-                  <span className="user-role-badge user-role-badge--master">MASTER</span>
-                ) : (
-                  <select
-                    value={userForm.role}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                  >
-                    {roleOptions(userForm.role)}
-                  </select>
-                )}
               </div>
 
               <div className="modal-edit-actions" style={{ marginTop: "1rem" }}>

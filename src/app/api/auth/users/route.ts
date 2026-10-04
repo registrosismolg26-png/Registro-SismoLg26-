@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
-import { getAuthUser, canManageUsers, canManageTargetUser, invalidateSession, isMaster, hasRefugio, type AuthUser } from "@/lib/auth";
+import { getAuthUser, canManageUsers, canManageTargetUser, invalidateSession, isMaster, hasRefugio, isPlanteamientoVisualizador, type AuthUser } from "@/lib/auth";
+import { CAMPAMENTOS_PLANTEAMIENTO_SALA } from "@/lib/constants";
 import { withAuditUser } from "@/lib/audit";
 import { otpGate, otpErrorResponse } from "@/lib/otp";
 import { sendMail, renderEmail, alertEmails, mailButton } from "@/lib/mailer";
@@ -19,7 +20,7 @@ function hashPassword(password: string): string {
 //  · AdminMedico → SOLO OperadorMedico / AsistenteMedico (nunca otro AdminMedico).
 //  · Admin (censo) → solo roles de censo (Registrador/Visualizador); no crea médicos.
 function assignableRoles(actor: AuthUser): string[] {
-  if (isMaster(actor)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (isMaster(actor)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "PlanteamientoVisualizador", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
   if (actor.role === "AdminMedico") return ["OperadorMedico", "AsistenteMedico"];
   return ["REGISTRADOR", "VISUALIZADOR"];
 }
@@ -85,6 +86,15 @@ export async function POST(req: Request) {
         { error: "Debe asociar el usuario a un campamento. No se pueden crear usuarios sin campamento." },
         { status: 400 }
       );
+    }
+
+    if (isPlanteamientoVisualizador({ role } as any)) {
+      if (!(CAMPAMENTOS_PLANTEAMIENTO_SALA as readonly string[]).includes(targetRefugio)) {
+        return NextResponse.json(
+          { error: "Para el rol Planteamiento Visualizador debe seleccionar uno de los 26 campamentos oficiales de Planteamiento Sala." },
+          { status: 400 }
+        );
+      }
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
@@ -196,6 +206,15 @@ export async function PUT(req: Request) {
         { error: "Debe asociar el usuario a un campamento. No se pueden actualizar usuarios sin campamento." },
         { status: 400 }
       );
+    }
+
+    if (isPlanteamientoVisualizador({ role } as any)) {
+      if (!(CAMPAMENTOS_PLANTEAMIENTO_SALA as readonly string[]).includes(targetRefugio)) {
+        return NextResponse.json(
+          { error: "Para el rol Planteamiento Visualizador debe seleccionar uno de los 26 campamentos oficiales de Planteamiento Sala." },
+          { status: 400 }
+        );
+      }
     }
 
     const cleanEmail = String(email).trim().toLowerCase();

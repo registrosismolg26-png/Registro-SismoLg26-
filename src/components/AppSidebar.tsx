@@ -74,10 +74,11 @@ export default function AppSidebar() {
     role === "MASTER" ? "master" :
     role === "ADMIN" ? "admin" :
     isMedico(role) ? "medico" :
-    role === "VISUALIZADOR" ? "visual" : "reg";
+    (role === "VISUALIZADOR" || role === "PlanteamientoVisualizador") ? "visual" : "reg";
   const roleLabels: Record<string, string> = {
     MASTER: "Master", ADMIN: "Admin", REGISTRADOR: "Registrador", VISUALIZADOR: "Visualizador",
     RENACE: "VZLA Renace", RENACE_MASTER: "Master Renace", PLANTEAMIENTO_MASTER: "Planteamiento Master",
+    PlanteamientoVisualizador: "Planteamiento Visualizador",
     AdminMedico: "Admin Médico", OperadorMedico: "Op. Médico", AsistenteMedico: "Asist. Médico",
   };
   const roleLabel = roleLabels[role] || role;

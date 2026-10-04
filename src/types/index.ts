@@ -93,6 +93,7 @@ export type Role =
   | "RENACE"
   | "RENACE_MASTER"
   | "PLANTEAMIENTO_MASTER"
+  | "PlanteamientoVisualizador"
   | "AdminMedico"
   | "OperadorMedico"
   | "AsistenteMedico";

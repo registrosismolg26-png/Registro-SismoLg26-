@@ -14,7 +14,7 @@ import {
   canManageMorbilidad,
   canRegister,
   isMaster,
-  canManagePlanteamientoSala,
+  canViewPlanteamientoSala,
   isPlanteamientoOnly,
 } from "@/lib/permissions";
 
@@ -88,7 +88,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     tab: "planteamientosala",
     label: "Planteamiento Sala",
-    show: (r) => canManagePlanteamientoSala(r),
+    show: (r) => canViewPlanteamientoSala(r),
     icon: sv(
       <>
         <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />

@@ -42,10 +42,13 @@ export const canManageCatalogosMedicos = (role: string) => ["MASTER", "AdminMedi
 // (Cuando se abra a más roles, ampliar aquí + en el gating de la pestaña y el POST.)
 export const canManageCaracterizacion = (role: string) => ["MASTER"].includes(role);
 
-// ── Planteamiento Sala (Master y Planteamiento Master) ───────────────────────
-// Rol EXCLUSIVO "Planteamiento Master": dedicado exclusivamente al módulo Planteamiento Sala.
+// ── Planteamiento Sala (Master, Planteamiento Master y Planteamiento Visualizador) ────
+// Rol EXCLUSIVO "Planteamiento Master": dedicado exclusivamente al módulo Planteamiento Sala (gestión completa).
 export const isPlanteamientoMaster     = (role: string) => role === "PLANTEAMIENTO_MASTER";
-export const isPlanteamientoOnly       = (role: string) => role === "PLANTEAMIENTO_MASTER";
+// Rol EXCLUSIVO "Planteamiento Visualizador": solo visualización dentro de Planteamiento Sala, restringido a su campamento.
+export const isPlanteamientoVisualizador = (role: string) => role === "PlanteamientoVisualizador" || role === "PLANTEAMIENTO_VISUALIZADOR";
+export const isPlanteamientoOnly       = (role: string) => isPlanteamientoMaster(role) || isPlanteamientoVisualizador(role);
+export const canViewPlanteamientoSala  = (role: string) => isMaster(role) || isPlanteamientoMaster(role) || isPlanteamientoVisualizador(role);
 export const canManagePlanteamientoSala = (role: string) => isMaster(role) || isPlanteamientoMaster(role);
 
 /** ¿El usuario tiene un refugio válido asociado? (espejo de auth.ts hasRefugio). */
@@ -56,7 +59,7 @@ export const hasRefugio        = (refugio: string | null | undefined): boolean =
  *  backend (src/app/api/auth/users/route.ts → assignableRoles). Solo para poblar
  *  el selector de rol; el backend vuelve a validar. */
 export function assignableRoles(role: string): string[] {
-  if (isMaster(role)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (isMaster(role)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "PlanteamientoVisualizador", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
   if (role === "AdminMedico") return ["OperadorMedico", "AsistenteMedico"];
   return ["REGISTRADOR", "VISUALIZADOR"];
 }
@@ -66,7 +69,7 @@ export function assignableRoles(role: string): string[] {
  *  otros Master y verse a sí mismo en la audiencia). El resto de emisores mantiene
  *  su ámbito. El backend revalida con esta misma función. */
 export function avisoAudienceRoles(role: string): string[] {
-  if (isMaster(role)) return ["MASTER", "ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (isMaster(role)) return ["MASTER", "ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "PlanteamientoVisualizador", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
   return assignableRoles(role);
 }
 
@@ -79,6 +82,7 @@ export const ROLE_LABELS: Record<string, string> = {
   RENACE: "VZLA Renace",
   RENACE_MASTER: "Master Renace",
   PLANTEAMIENTO_MASTER: "Planteamiento Master",
+  PlanteamientoVisualizador: "Planteamiento Visualizador",
   AdminMedico: "Admin Médico",
   OperadorMedico: "Operador Médico",
   AsistenteMedico: "Asistente Médico",

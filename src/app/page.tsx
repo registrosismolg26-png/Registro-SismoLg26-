@@ -41,7 +41,7 @@ import {
   isMedico,
   isRenaceOnly,
   canUseRenace,
-  canManagePlanteamientoSala,
+  canViewPlanteamientoSala,
   isPlanteamientoOnly,
 } from "@/lib/permissions";
 import type {
@@ -2238,7 +2238,7 @@ export default function Home() {
           {activeTab === "caracterizacion" && isMaster(currentUser.role) && (
             <CaracterizacionTab />
           )}
-          {activeTab === "planteamientosala" && canManagePlanteamientoSala(currentUser.role) && (
+          {activeTab === "planteamientosala" && canViewPlanteamientoSala(currentUser.role) && (
             <PlanteamientoSalaTab />
           )}
           {activeTab === "monitoreo" && isMaster(currentUser.role) && (

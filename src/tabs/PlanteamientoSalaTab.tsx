@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
+import { canManagePlanteamientoSala, isPlanteamientoVisualizador } from "@/lib/permissions";
 import StyledSelect from "@/components/StyledSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import Pagination from "@/components/Pagination";
@@ -46,25 +47,44 @@ const formatDateDisplay = (dStr?: string | null): string => {
 export default function PlanteamientoSalaTab() {
   const { currentUser, showToast } = useAppContext();
 
+  const isVisualizador = isPlanteamientoVisualizador(currentUser?.role || "");
+  const canManage = canManagePlanteamientoSala(currentUser?.role || "");
+  const visualizadorCampamento = isVisualizador ? (currentUser?.campamentoTransitorio || "") : "";
+
   const campamentosSalaList = useMemo(() => {
+    if (isVisualizador && visualizadorCampamento) {
+      return [{ id: visualizadorCampamento, nombre: visualizadorCampamento }];
+    }
     return CAMPAMENTOS_PLANTEAMIENTO_SALA.map((nombre) => ({
       id: nombre,
       nombre,
     }));
-  }, []);
+  }, [isVisualizador, visualizadorCampamento]);
 
   const campamentoFilterOptions = useMemo(() => {
+    if (isVisualizador && visualizadorCampamento) {
+      return [{ value: visualizadorCampamento, label: visualizadorCampamento }];
+    }
     return [
       { value: "TODOS", label: "Todos los Campamentos (26)" },
       ...CAMPAMENTOS_PLANTEAMIENTO_SALA.map((c) => ({ value: c, label: c })),
     ];
-  }, []);
+  }, [isVisualizador, visualizadorCampamento]);
 
   // Submódulos: "informacion" (gestión de personas por campamento) y "graficas"
   const [subview, setSubview] = useState<"informacion" | "graficas">("informacion");
 
   // Selector de campamento (los 26 campamentos)
-  const [selectedRefugio, setSelectedRefugio] = useState<string>("TODOS");
+  const [selectedRefugio, setSelectedRefugio] = useState<string>(() => {
+    if (isVisualizador && visualizadorCampamento) return visualizadorCampamento;
+    return "TODOS";
+  });
+
+  useEffect(() => {
+    if (isVisualizador && visualizadorCampamento && selectedRefugio !== visualizadorCampamento) {
+      setSelectedRefugio(visualizadorCampamento);
+    }
+  }, [isVisualizador, visualizadorCampamento, selectedRefugio]);
 
   // Filtro por Modalidad / Tipo de Opción
   const [selectedTipoOpcion, setSelectedTipoOpcion] = useState<string>("TODOS");
@@ -153,6 +173,7 @@ export default function PlanteamientoSalaTab() {
   }, [loadItems]);
 
   const handleRefugioChange = (val: string) => {
+    if (isVisualizador) return;
     setSelectedRefugio(val);
     setPage(1);
   };
@@ -168,7 +189,9 @@ export default function PlanteamientoSalaTab() {
   };
 
   const handleClearFilters = () => {
-    setSelectedRefugio("TODOS");
+    if (!isVisualizador) {
+      setSelectedRefugio("TODOS");
+    }
     setSelectedTipoOpcion("TODOS");
     setSelectedEstatus("TODOS");
     setSearch("");
@@ -177,7 +200,7 @@ export default function PlanteamientoSalaTab() {
   };
 
   const hasActiveFilters =
-    selectedRefugio !== "TODOS" ||
+    (!isVisualizador && selectedRefugio !== "TODOS") ||
     selectedTipoOpcion !== "TODOS" ||
     selectedEstatus !== "TODOS" ||
     Boolean(debouncedSearch);
@@ -291,7 +314,11 @@ export default function PlanteamientoSalaTab() {
       </div>
 
       <div style={{ display: subview === "graficas" ? "block" : "none" }}>
-        <PlanteamientoSalaGraficas campamentosList={campamentosSalaList} showToast={showToast} />
+        <PlanteamientoSalaGraficas
+          campamentosList={campamentosSalaList}
+          showToast={showToast}
+          lockedCampamento={isVisualizador && visualizadorCampamento ? visualizadorCampamento : undefined}
+        />
       </div>
 
       <div style={{ display: subview === "informacion" ? "block" : "none" }}>
@@ -329,13 +356,40 @@ export default function PlanteamientoSalaTab() {
 
               {/* Selector de Campamento */}
               <div style={{ minWidth: "220px", flex: "1 1 240px" }}>
-                <SearchableSingleSelect
-                  value={selectedRefugio}
-                  onChange={handleRefugioChange}
-                  ariaLabel="Selector de campamento"
-                  placeholder="Todos los Campamentos (26)"
-                  options={campamentoFilterOptions}
-                />
+                {isVisualizador ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      height: "var(--ctl-h, 38px)",
+                      borderRadius: "999px",
+                      padding: "0 1rem",
+                      border: "1px solid rgba(14, 165, 233, 0.35)",
+                      background: "rgba(14, 165, 233, 0.08)",
+                      color: "#0369a1",
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                    }}
+                    title="Restringido por rol a su campamento asignado"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {visualizadorCampamento || "Sin campamento asignado"}
+                    </span>
+                  </div>
+                ) : (
+                  <SearchableSingleSelect
+                    value={selectedRefugio}
+                    onChange={handleRefugioChange}
+                    ariaLabel="Selector de campamento"
+                    placeholder="Todos los Campamentos (26)"
+                    options={campamentoFilterOptions}
+                  />
+                )}
               </div>
 
               {/* Selector de Modalidad */}
@@ -586,41 +640,43 @@ export default function PlanteamientoSalaTab() {
                   <span className="btn-txt-collapsible">Descargar Excel</span>
                 </button>
 
-                {/* Botón Carga Masiva con Carga Familiar */}
-                <button
-                  type="button"
-                  className="toolbar-btn"
-                  onClick={() => setShowBulkModal(true)}
-                  title="Carga masiva de personas y grupo familiar mediante plantilla Excel"
-                  style={{
-                    height: "var(--ctl-h, 38px)",
-                    borderRadius: "999px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "0 1.15rem",
-                    border: "1px solid var(--border-color)",
-                    background: "var(--bg-primary)",
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#2563eb"
-                    strokeWidth="2.3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                {/* Botón Carga Masiva con Carga Familiar (Solo Master / Planteamiento Master) */}
+                {canManage && (
+                  <button
+                    type="button"
+                    className="toolbar-btn"
+                    onClick={() => setShowBulkModal(true)}
+                    title="Carga masiva de personas y grupo familiar mediante plantilla Excel"
+                    style={{
+                      height: "var(--ctl-h, 38px)",
+                      borderRadius: "999px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "0 1.15rem",
+                      border: "1px solid var(--border-color)",
+                      background: "var(--bg-primary)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                    }}
                   >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  <span className="btn-txt-collapsible">Carga Masiva</span>
-                </button>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth="2.3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span className="btn-txt-collapsible">Carga Masiva</span>
+                  </button>
+                )}
 
                 {/* Botón Actualizar (Solo ícono) */}
                 <button
@@ -658,39 +714,41 @@ export default function PlanteamientoSalaTab() {
                   </svg>
                 </button>
 
-                {/* Botón Cargar Persona (Azul Marino Sólido + CARGAR PERSONA) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingItem(null);
-                    setShowModal(true);
-                  }}
-                  title="Cargar nuevo expediente con checklist dinámico"
-                  style={{
-                    height: "var(--ctl-h, 38px)",
-                    padding: "0 1.35rem",
-                    fontSize: "0.82rem",
-                    fontWeight: 800,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    borderRadius: "999px",
-                    background: "#1e3a8a",
-                    color: "#ffffff",
-                    border: "none",
-                    boxShadow: "0 2px 8px rgba(30, 58, 138, 0.25)",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  <span>CARGAR PERSONA</span>
-                </button>
+                {/* Botón Cargar Persona (Azul Marino Sólido + CARGAR PERSONA, Solo Master / Planteamiento Master) */}
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingItem(null);
+                      setShowModal(true);
+                    }}
+                    title="Cargar nuevo expediente con checklist dinámico"
+                    style={{
+                      height: "var(--ctl-h, 38px)",
+                      padding: "0 1.35rem",
+                      fontSize: "0.82rem",
+                      fontWeight: 800,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      borderRadius: "999px",
+                      background: "#1e3a8a",
+                      color: "#ffffff",
+                      border: "none",
+                      boxShadow: "0 2px 8px rgba(30, 58, 138, 0.25)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>CARGAR PERSONA</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -903,31 +961,50 @@ export default function PlanteamientoSalaTab() {
                         {/* Estatus / Subsidio (apilados en vertical) */}
                         <td className="col-estatus" data-label="Estatus">
                           <div className="col-estatus-wrap">
-                            <button
-                              type="button"
-                              onClick={() => setItemForStatus(item)}
-                              title="Haz clic para cambiar estatus y observación"
-                              style={{
-                                border: "none",
-                                cursor: "pointer",
-                                padding: "3px 10px",
-                                borderRadius: "999px",
-                                fontSize: "0.72rem",
-                                fontWeight: 700,
-                                background: meta.bg,
-                                color: meta.color,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <span>{meta.label}</span>
-                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
-                            </button>
+                            {canManage ? (
+                              <button
+                                type="button"
+                                onClick={() => setItemForStatus(item)}
+                                title="Haz clic para cambiar estatus y observación"
+                                style={{
+                                  border: "none",
+                                  cursor: "pointer",
+                                  padding: "3px 10px",
+                                  borderRadius: "999px",
+                                  fontSize: "0.72rem",
+                                  fontWeight: 700,
+                                  background: meta.bg,
+                                  color: meta.color,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <span>{meta.label}</span>
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                            ) : (
+                              <span
+                                style={{
+                                  padding: "3px 10px",
+                                  borderRadius: "999px",
+                                  fontSize: "0.72rem",
+                                  fontWeight: 700,
+                                  background: meta.bg,
+                                  color: meta.color,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  whiteSpace: "nowrap",
+                                  userSelect: "none",
+                                }}
+                              >
+                                {meta.label}
+                              </span>
+                            )}
                             {item.estatus === "CREDITO ENTREGADO" && (item.fechaEntregaSubsidio || item.updatedAt) && (
                               <div
                                 style={{ fontSize: "0.68rem", color: "#059669", fontWeight: 700, marginTop: "1px", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
@@ -974,45 +1051,49 @@ export default function PlanteamientoSalaTab() {
                                 ),
                                 onClick: () => setItemForGrupoFamiliar(item),
                               },
-                              {
-                                key: "status",
-                                label: "Cambiar Estatus / Obs",
-                                tone: "primary",
-                                icon: (
-                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <polyline points="12 6 12 12 16 14" />
-                                  </svg>
-                                ),
-                                onClick: () => setItemForStatus(item),
-                              },
-                              {
-                                key: "edit",
-                                label: "Editar Expediente",
-                                tone: "warning",
-                                icon: (
-                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M12 20h9" />
-                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                                  </svg>
-                                ),
-                                onClick: () => {
-                                  setEditingItem(item);
-                                  setShowModal(true);
-                                },
-                              },
-                              {
-                                key: "delete",
-                                label: "Eliminar Expediente",
-                                tone: "danger",
-                                icon: (
-                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="3 6 5 6 21 6" />
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                  </svg>
-                                ),
-                                onClick: () => setItemToDelete(item),
-                              },
+                              ...(canManage
+                                ? [
+                                    {
+                                      key: "status",
+                                      label: "Cambiar Estatus / Obs",
+                                      tone: "primary" as const,
+                                      icon: (
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                          <circle cx="12" cy="12" r="10" />
+                                          <polyline points="12 6 12 12 16 14" />
+                                        </svg>
+                                      ),
+                                      onClick: () => setItemForStatus(item),
+                                    },
+                                    {
+                                      key: "edit",
+                                      label: "Editar Expediente",
+                                      tone: "warning" as const,
+                                      icon: (
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M12 20h9" />
+                                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                        </svg>
+                                      ),
+                                      onClick: () => {
+                                        setEditingItem(item);
+                                        setShowModal(true);
+                                      },
+                                    },
+                                    {
+                                      key: "delete",
+                                      label: "Eliminar Expediente",
+                                      tone: "danger" as const,
+                                      icon: (
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                          <polyline points="3 6 5 6 21 6" />
+                                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        </svg>
+                                      ),
+                                      onClick: () => setItemToDelete(item),
+                                    },
+                                  ]
+                                : []),
                             ]}
                           />
                         </td>
@@ -1067,10 +1148,11 @@ export default function PlanteamientoSalaTab() {
         isOpen={itemToView !== null}
         onClose={() => setItemToView(null)}
         item={itemToView}
-        onEdit={(it) => {
+        onEdit={canManage ? ((it) => {
+          setItemToView(null);
           setEditingItem(it);
           setShowModal(true);
-        }}
+        }) : undefined}
       />
 
       {/* Modal de Grupo Familiar */}
@@ -1078,11 +1160,11 @@ export default function PlanteamientoSalaTab() {
         isOpen={itemForGrupoFamiliar !== null}
         onClose={() => setItemForGrupoFamiliar(null)}
         item={itemForGrupoFamiliar}
-        onEdit={(it) => {
+        onEdit={canManage ? ((it) => {
           setItemForGrupoFamiliar(null);
           setEditingItem(it);
           setShowModal(true);
-        }}
+        }) : undefined}
       />
 
       {/* Modal de Selección y Descarga de Excel por Modalidad */}

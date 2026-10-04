@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, canManagePlanteamientoSala } from "@/lib/auth";
+import { getAuthUser, canManagePlanteamientoSala, canViewPlanteamientoSala, isPlanteamientoVisualizador } from "@/lib/auth";
 import { invalidatePlanteamientoStatsCache } from "@/lib/planteamientoStatsCache";
 
 export function calcularProgreso(item: {
@@ -95,7 +95,7 @@ export function calcularProgreso(item: {
 export async function GET(req: Request) {
   try {
     const auth = await getAuthUser(req);
-    if (!auth || !canManagePlanteamientoSala(auth)) {
+    if (!auth || !canViewPlanteamientoSala(auth)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -109,8 +109,11 @@ export async function GET(req: Request) {
       searchParams.get("all") === "true" ||
       searchParams.get("export") === "true";
 
+    const isVisualizador = isPlanteamientoVisualizador(auth);
     const where: any = {};
-    if (refugio && refugio !== "TODOS") {
+    if (isVisualizador) {
+      where.refugio = auth.refugio;
+    } else if (refugio && refugio !== "TODOS") {
       where.refugio = refugio;
     }
     if (tipoOpcion && tipoOpcion !== "TODOS") {
