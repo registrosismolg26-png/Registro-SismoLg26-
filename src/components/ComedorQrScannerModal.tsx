@@ -376,15 +376,15 @@ export default function ComedorQrScannerModal({
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}>
-              <div style={{ background: "var(--bg-secondary, #f1f5f9)", padding: "0.5rem", borderRadius: "8px" }}>
+              <div style={{ background: "var(--bg-primary, #f1f5f9)", border: "1px solid var(--border-color)", padding: "0.5rem", borderRadius: "8px" }}>
                 <span style={{ fontSize: "0.7rem", color: "var(--text-secondary)", display: "block" }}>Condición:</span>
-                <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>
+                <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-primary)" }}>
                   {scannedResult.beneficiario.tipoBeneficiario === "JEFE" ? "Jefe de Familia" : "Persona Sola"}
                 </span>
               </div>
-              <div style={{ background: "rgba(56, 189, 248, 0.15)", padding: "0.5rem", borderRadius: "8px" }}>
-                <span style={{ fontSize: "0.7rem", color: "#0284c7", display: "block" }}>Raciones a entregar:</span>
-                <span style={{ fontWeight: 900, fontSize: "1.1rem", color: "#0284c7" }}>
+              <div style={{ background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", padding: "0.5rem", borderRadius: "8px" }}>
+                <span style={{ fontSize: "0.7rem", color: "#38bdf8", fontWeight: 700, display: "block" }}>Raciones a entregar:</span>
+                <span style={{ fontWeight: 900, fontSize: "1.1rem", color: "#38bdf8" }}>
                   {scannedResult.beneficiario.raciones} {scannedResult.beneficiario.raciones === 1 ? "Plato" : "Platos"}
                 </span>
               </div>
@@ -474,7 +474,7 @@ export default function ComedorQrScannerModal({
                 <label style={{ fontSize: "0.85rem", fontWeight: 700, display: "block", marginBottom: "0.4rem" }}>
                   Número de Cédula del Beneficiario:
                 </label>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   <input
                     type="text"
                     placeholder="Ej. V-12345678 o 12345678"
@@ -483,14 +483,22 @@ export default function ComedorQrScannerModal({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") processQrInput(manualInput);
                     }}
-                    style={{ flex: 1, padding: "0.5rem 0.75rem", fontSize: "0.95rem" }}
+                    style={{
+                      flex: "1 1 200px",
+                      padding: "0.5rem 0.75rem",
+                      fontSize: "0.95rem",
+                      background: "var(--card-bg, var(--bg-secondary))",
+                      color: "var(--text-primary)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "8px",
+                    }}
                   />
                   <button
                     type="button"
                     className="btn-submit"
                     onClick={() => processQrInput(manualInput)}
                     disabled={loading || !manualInput.trim()}
-                    style={{ padding: "0.5rem 1rem", fontSize: "0.85rem" }}
+                    style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", flex: "0 0 auto" }}
                   >
                     {loading ? "Buscando..." : "Buscar"}
                   </button>

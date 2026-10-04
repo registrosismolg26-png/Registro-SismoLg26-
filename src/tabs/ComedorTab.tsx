@@ -27,7 +27,7 @@ export default function ComedorTab() {
   // Submódulo activo: 1 = Carnets, 2 = Control/Escáner, 3 = Gráficas
   const [submodulo, setSubmodulo] = useState<1 | 2 | 3>(1);
 
-  // Campamento seleccionado para el comedor (default: effectiveRefugio del Master)
+  // Campamento seleccionado para el comedor (default: effectiveRefugio del usuario)
   const [selectedRefugio, setSelectedRefugio] = useState<string>(() => {
     return effectiveRefugio || "TODOS";
   });
@@ -307,26 +307,13 @@ export default function ComedorTab() {
   };
 
   return (
-    <div className="tab-pane active" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+    <div className="tab-pane active comedor-container">
       {/* CABECERA PRINCIPAL DEL MÓDULO */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "1rem",
-          background: "var(--card-bg, #ffffff)",
-          padding: "1rem 1.25rem",
-          borderRadius: "16px",
-          border: "1px solid var(--border-color, #e2e8f0)",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-        }}
-      >
+      <div className="comedor-card comedor-header">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
             <span style={{ fontSize: "1.4rem" }}>🍲</span>
-            <div className="dashboard-section-title" style={{ margin: 0 }}>
+            <div className="dashboard-section-title" style={{ margin: 0, color: "var(--text-primary)" }}>
               Comedor Comunitario
             </div>
             <span
@@ -335,20 +322,20 @@ export default function ComedorTab() {
                 padding: "2px 8px",
                 borderRadius: "999px",
                 background: "rgba(37, 99, 235, 0.12)",
-                color: "#1d4ed8",
+                color: "var(--color-primary, #2563eb)",
                 fontWeight: 700,
               }}
             >
               Master / Master Comedor
             </span>
           </div>
-          <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+          <div style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginTop: "2px" }}>
             Control de alimentación, carnets digitales con QR recortables (8 por hoja) y métricas de raciones
           </div>
         </div>
 
         {/* SELECTOR DE CAMPAMENTO */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: "260px" }}>
+        <div className="comedor-refugio-selector" style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: "260px" }}>
           <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
             Campamento:
           </label>
@@ -367,94 +354,34 @@ export default function ComedorTab() {
       </div>
 
       {/* SELECTOR DE SUBMÓDULOS (3 PESTAÑAS) */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          background: "var(--bg-secondary, #f1f5f9)",
-          padding: "6px",
-          borderRadius: "12px",
-          overflowX: "auto",
-        }}
-      >
+      <div className="comedor-submodulos-bar">
         <button
           type="button"
           onClick={() => setSubmodulo(1)}
-          style={{
-            flex: 1,
-            padding: "0.6rem 1rem",
-            borderRadius: "8px",
-            border: "none",
-            fontWeight: 700,
-            fontSize: "0.9rem",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.5rem",
-            background: submodulo === 1 ? "var(--card-bg, #ffffff)" : "transparent",
-            color: submodulo === 1 ? "var(--color-primary, #2563eb)" : "var(--text-secondary)",
-            boxShadow: submodulo === 1 ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
-            transition: "all 0.15s ease",
-            whiteSpace: "nowrap",
-          }}
+          className={`comedor-tab-btn ${submodulo === 1 ? "active" : ""}`}
         >
           <span>🪪</span>
-          <span>1. Carnets Digitales</span>
-          <span style={{ fontSize: "0.75rem", opacity: 0.75 }}>({beneficiarios.length})</span>
+          <span>1. Carnets</span>
+          <span className="tab-count" style={{ fontSize: "0.75rem", opacity: 0.75 }}>({beneficiarios.length})</span>
         </button>
 
         <button
           type="button"
           onClick={() => setSubmodulo(2)}
-          style={{
-            flex: 1,
-            padding: "0.6rem 1rem",
-            borderRadius: "8px",
-            border: "none",
-            fontWeight: 700,
-            fontSize: "0.9rem",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.5rem",
-            background: submodulo === 2 ? "var(--card-bg, #ffffff)" : "transparent",
-            color: submodulo === 2 ? "var(--color-primary, #2563eb)" : "var(--text-secondary)",
-            boxShadow: submodulo === 2 ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
-            transition: "all 0.15s ease",
-            whiteSpace: "nowrap",
-          }}
+          className={`comedor-tab-btn ${submodulo === 2 ? "active" : ""}`}
         >
           <span>📷</span>
-          <span>2. Control y Escáner QR</span>
-          <span style={{ fontSize: "0.75rem", opacity: 0.75 }}>({entregas.length})</span>
+          <span>2. Control QR</span>
+          <span className="tab-count" style={{ fontSize: "0.75rem", opacity: 0.75 }}>({entregas.length})</span>
         </button>
 
         <button
           type="button"
           onClick={() => setSubmodulo(3)}
-          style={{
-            flex: 1,
-            padding: "0.6rem 1rem",
-            borderRadius: "8px",
-            border: "none",
-            fontWeight: 700,
-            fontSize: "0.9rem",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.5rem",
-            background: submodulo === 3 ? "var(--card-bg, #ffffff)" : "transparent",
-            color: submodulo === 3 ? "var(--color-primary, #2563eb)" : "var(--text-secondary)",
-            boxShadow: submodulo === 3 ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
-            transition: "all 0.15s ease",
-            whiteSpace: "nowrap",
-          }}
+          className={`comedor-tab-btn ${submodulo === 3 ? "active" : ""}`}
         >
           <span>📊</span>
-          <span>3. Gráficas y Estadísticas</span>
+          <span>3. Gráficas</span>
         </button>
       </div>
 
@@ -465,18 +392,16 @@ export default function ComedorTab() {
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {/* Barra de búsqueda, filtros y Botón de Descarga Masiva */}
           <div
+            className="comedor-card comedor-toolbar-row"
             style={{
               display: "flex",
               gap: "0.75rem",
               alignItems: "center",
               flexWrap: "wrap",
-              background: "var(--card-bg, #ffffff)",
               padding: "0.85rem 1rem",
-              borderRadius: "14px",
-              border: "1px solid var(--border-color, #e2e8f0)",
             }}
           >
-            <div style={{ flex: 1, minWidth: "220px" }}>
+            <div style={{ flex: 1, minWidth: "200px" }}>
               <input
                 type="text"
                 placeholder="Buscar por nombre, cédula o habitación..."
@@ -517,6 +442,7 @@ export default function ComedorTab() {
               style={{
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: "0.45rem",
                 padding: "0.52rem 1rem",
                 fontSize: "0.85rem",
@@ -527,36 +453,29 @@ export default function ComedorTab() {
               title="Descargar o imprimir carnets masivos (8 por hoja)"
             >
               <span style={{ fontSize: "1.1rem" }}>🖨️</span>
-              <span>Descargar Carnets Masivos (8 por hoja)</span>
+              <span>Carnets Masivos (8 por hoja)</span>
             </button>
           </div>
 
           {/* Listado de Beneficiarios */}
-          <div
-            style={{
-              background: "var(--card-bg, #ffffff)",
-              borderRadius: "16px",
-              border: "1px solid var(--border-color, #e2e8f0)",
-              overflow: "hidden",
-            }}
-          >
+          <div className="comedor-card" style={{ overflow: "hidden" }}>
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "0.85rem 1.25rem",
-                borderBottom: "1px solid var(--border-color, #e2e8f0)",
-                background: "var(--bg-secondary, #f8fafc)",
+                borderBottom: "1px solid var(--border-color)",
+                background: "var(--bg-primary)",
               }}
             >
-              <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>
-                Beneficiarios que Pernoctan (Jefes y Personas Solas)
+              <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--text-primary)" }}>
+                Beneficiarios que Pernoctan (Jefes y Solos)
               </div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-                Mostrando {filteredBeneficiarios.length > 0 ? (pageBeneficiarios - 1) * pageSizeBeneficiarios + 1 : 0} a{" "}
+                {filteredBeneficiarios.length > 0 ? (pageBeneficiarios - 1) * pageSizeBeneficiarios + 1 : 0}–
                 {Math.min(pageBeneficiarios * pageSizeBeneficiarios, filteredBeneficiarios.length)} de{" "}
-                <strong>{filteredBeneficiarios.length}</strong> beneficiarios
+                <strong>{filteredBeneficiarios.length}</strong>
               </div>
             </div>
 
@@ -570,14 +489,15 @@ export default function ComedorTab() {
             ) : filteredBeneficiarios.length === 0 ? (
               <div style={{ padding: "3rem 1rem", textAlign: "center", color: "var(--text-secondary)" }}>
                 <span style={{ fontSize: "2rem", display: "block", marginBottom: "0.5rem" }}>🔍</span>
-                <p style={{ fontWeight: 700 }}>No se encontraron beneficiarios.</p>
+                <p style={{ fontWeight: 700, color: "var(--text-primary)" }}>No se encontraron beneficiarios.</p>
                 <span style={{ fontSize: "0.8rem" }}>
                   Verifique que las personas registradas no estén en estatus de retiro o cambie el filtro.
                 </span>
               </div>
             ) : (
               <>
-                <div className="table-responsive" style={{ overflowX: "auto" }}>
+                {/* 1. VISTA DE TABLA (ESCRITORIO / PANTALLAS GRANDES) */}
+                <div className="comedor-desktop-table table-responsive" style={{ overflowX: "auto" }}>
                   <table className="registro-table" style={{ width: "100%", fontSize: "0.85rem" }}>
                     <thead>
                       <tr>
@@ -587,7 +507,7 @@ export default function ComedorTab() {
                         <th>Teléfono</th>
                         <th>Alojamiento</th>
                         <th style={{ textAlign: "center" }}>Condición</th>
-                        <th style={{ textAlign: "center" }}>Carga Familiar / Raciones</th>
+                        <th style={{ textAlign: "center" }}>Carga / Raciones</th>
                         <th style={{ textAlign: "center", width: "140px" }}>Acción</th>
                       </tr>
                     </thead>
@@ -603,9 +523,9 @@ export default function ComedorTab() {
                               <div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{b.nombreApellido}</div>
                               <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{b.refugio}</div>
                             </td>
-                            <td style={{ fontWeight: 600 }}>{b.cedula}</td>
+                            <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{b.cedula}</td>
                             <td style={{ color: "var(--text-secondary)" }}>{b.telefono || "—"}</td>
-                            <td>{b.cuarto || <span style={{ color: "var(--text-muted)" }}>Sin asignar</span>}</td>
+                            <td style={{ color: "var(--text-secondary)" }}>{b.cuarto || <span style={{ color: "var(--text-muted)" }}>Sin asignar</span>}</td>
                             <td style={{ textAlign: "center" }}>
                               <span
                                 style={{
@@ -613,7 +533,7 @@ export default function ComedorTab() {
                                   fontWeight: 700,
                                   padding: "2px 8px",
                                   borderRadius: "999px",
-                                  background: b.tipoBeneficiario === "JEFE" ? "rgba(2, 132, 199, 0.12)" : "rgba(16, 185, 129, 0.12)",
+                                  background: b.tipoBeneficiario === "JEFE" ? "rgba(2, 132, 199, 0.15)" : "rgba(16, 185, 129, 0.15)",
                                   color: b.tipoBeneficiario === "JEFE" ? "#0284c7" : "#059669",
                                 }}
                               >
@@ -646,8 +566,81 @@ export default function ComedorTab() {
                   </table>
                 </div>
 
+                {/* 2. VISTA DE TARJETAS MÓVILES (TELÉFONOS / PANTALLAS PEQUEÑAS) */}
+                <div className="comedor-mobile-cards">
+                  {paginatedBeneficiarios.map((b, idx) => {
+                    const globalIndex = (pageBeneficiarios - 1) * pageSizeBeneficiarios + idx + 1;
+                    return (
+                      <div key={b.id} className="comedor-mobile-card">
+                        <div className="comedor-mobile-card-top">
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--text-primary)" }}>
+                              #{globalIndex} {b.nombreApellido}
+                            </div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{b.refugio}</div>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: "999px",
+                              background: b.tipoBeneficiario === "JEFE" ? "rgba(2, 132, 199, 0.15)" : "rgba(16, 185, 129, 0.15)",
+                              color: b.tipoBeneficiario === "JEFE" ? "#0284c7" : "#059669",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {b.tipoBeneficiario === "JEFE" ? "Jefe Familia" : "Persona Sola"}
+                          </span>
+                        </div>
+
+                        <div className="comedor-mobile-card-body">
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block" }}>Cédula:</span>
+                            <strong style={{ color: "var(--text-primary)" }}>{b.cedula}</strong>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block" }}>Teléfono:</span>
+                            <span style={{ color: "var(--text-secondary)" }}>{b.telefono || "—"}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block" }}>Alojamiento:</span>
+                            <span style={{ color: "var(--text-secondary)" }}>{b.cuarto || "Sin asignar"}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block" }}>Raciones autorizadas:</span>
+                            <strong style={{ color: "var(--color-primary, #2563eb)", fontSize: "0.95rem" }}>
+                              🍽️ {b.raciones} {b.raciones === 1 ? "ración" : "raciones"}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn-submit"
+                          style={{
+                            width: "100%",
+                            padding: "0.55rem",
+                            fontSize: "0.85rem",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "0.4rem",
+                            marginTop: "2px",
+                          }}
+                          onClick={() => setSelectedCarnet(b)}
+                        >
+                          <span>🪪</span>
+                          <span>Escanear / Ver Carnet</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 {/* BARRA DE PAGINACIÓN SUBMÓDULO 1 */}
                 <div
+                  className="comedor-pagination-bar"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -655,8 +648,8 @@ export default function ComedorTab() {
                     flexWrap: "wrap",
                     gap: "0.75rem",
                     padding: "0.75rem 1.25rem",
-                    borderTop: "1px solid var(--border-color, #e2e8f0)",
-                    background: "var(--bg-secondary, #f8fafc)",
+                    borderTop: "1px solid var(--border-color)",
+                    background: "var(--bg-primary)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -673,8 +666,9 @@ export default function ComedorTab() {
                         padding: "3px 8px",
                         fontSize: "0.8rem",
                         borderRadius: "6px",
-                        border: "1px solid var(--border-color, #cbd5e1)",
-                        background: "var(--card-bg, #ffffff)",
+                        border: "1px solid var(--border-color)",
+                        background: "var(--card-bg, var(--bg-secondary))",
+                        color: "var(--text-primary)",
                         cursor: "pointer",
                       }}
                     >
@@ -685,13 +679,13 @@ export default function ComedorTab() {
                     </select>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap", justifyContent: "center" }}>
                     <button
                       type="button"
                       className="toolbar-btn"
                       onClick={() => setPageBeneficiarios(1)}
                       disabled={pageBeneficiarios <= 1}
-                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                       title="Primera página"
                     >
                       « Primera
@@ -701,13 +695,13 @@ export default function ComedorTab() {
                       className="toolbar-btn"
                       onClick={() => setPageBeneficiarios((p) => Math.max(1, p - 1))}
                       disabled={pageBeneficiarios <= 1}
-                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                       title="Página anterior"
                     >
                       ‹ Anterior
                     </button>
 
-                    <span style={{ fontSize: "0.8rem", fontWeight: 700, padding: "0 0.5rem" }}>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 700, padding: "0 0.5rem", color: "var(--text-primary)" }}>
                       Página {pageBeneficiarios} de {totalPagesBeneficiarios}
                     </span>
 
@@ -716,7 +710,7 @@ export default function ComedorTab() {
                       className="toolbar-btn"
                       onClick={() => setPageBeneficiarios((p) => Math.min(totalPagesBeneficiarios, p + 1))}
                       disabled={pageBeneficiarios >= totalPagesBeneficiarios}
-                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                       title="Página siguiente"
                     >
                       Siguiente ›
@@ -726,7 +720,7 @@ export default function ComedorTab() {
                       className="toolbar-btn"
                       onClick={() => setPageBeneficiarios(totalPagesBeneficiarios)}
                       disabled={pageBeneficiarios >= totalPagesBeneficiarios}
-                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                       title="Última página"
                     >
                       Última »
@@ -746,11 +740,9 @@ export default function ComedorTab() {
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           {/* PANEL DE CONTROL SUPERIOR: FECHA, SERVICIO Y BOTÓN DE ESCÁNER */}
           <div
+            className="comedor-card"
             style={{
-              background: "var(--card-bg, #ffffff)",
-              padding: "1.25rem",
-              borderRadius: "16px",
-              border: "1px solid var(--border-color, #e2e8f0)",
+              padding: "1.15rem",
               display: "flex",
               flexDirection: "column",
               gap: "1rem",
@@ -758,30 +750,30 @@ export default function ComedorTab() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
               {/* Fecha y servicio */}
-              <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
-                <div>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 700, display: "block", marginBottom: "0.25rem" }}>
+              <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", width: "100%" }}>
+                <div style={{ flex: "1 1 180px" }}>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
                     Fecha del Servicio:
                   </label>
                   <input
                     type="date"
                     value={fechaControl}
                     onChange={(e) => setFechaControl(e.target.value)}
-                    style={{ padding: "0.45rem 0.75rem", fontSize: "0.9rem", borderRadius: "8px" }}
+                    style={{ width: "100%", padding: "0.45rem 0.75rem", fontSize: "0.9rem", borderRadius: "8px" }}
                   />
                 </div>
 
-                <div>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 700, display: "block", marginBottom: "0.25rem" }}>
+                <div style={{ flex: "2 1 240px" }}>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
                     Tipo de Comida:
                   </label>
-                  <div className="btn-seg-group">
+                  <div className="btn-seg-group" style={{ display: "flex", width: "100%" }}>
                     {(["DESAYUNO", "ALMUERZO", "CENA"] as ComedorServicio[]).map((serv) => (
                       <button
                         key={serv}
                         type="button"
                         className={`toolbar-btn ${servicioControl === serv ? "toolbar-btn--primary" : ""}`}
-                        style={{ padding: "0.45rem 0.85rem", fontSize: "0.85rem", fontWeight: 700 }}
+                        style={{ flex: 1, padding: "0.45rem 0.5rem", fontSize: "0.82rem", fontWeight: 700, textAlign: "center" }}
                         onClick={() => setServicioControl(serv)}
                       >
                         {serv === "DESAYUNO" ? "☀️ Desayuno" : serv === "ALMUERZO" ? "🍽️ Almuerzo" : "🌙 Cena"}
@@ -792,22 +784,24 @@ export default function ComedorTab() {
               </div>
 
               {/* Botón destacado: Abrir Escáner QR */}
-              <div>
+              <div style={{ width: "100%" }}>
                 <button
                   type="button"
                   className="btn-submit"
                   style={{
-                    padding: "0.65rem 1.25rem",
-                    fontSize: "0.95rem",
+                    width: "100%",
+                    padding: "0.75rem 1.25rem",
+                    fontSize: "0.98rem",
                     display: "flex",
                     alignItems: "center",
+                    justifyContent: "center",
                     gap: "0.5rem",
                     boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
                   }}
                   onClick={() => setScannerOpen(true)}
                 >
-                  <span style={{ fontSize: "1.2rem" }}>📷</span>
-                  <span>Escanear Carnet QR</span>
+                  <span style={{ fontSize: "1.25rem" }}>📷</span>
+                  <span>Escanear Carnet QR con Cámara</span>
                 </button>
               </div>
             </div>
@@ -818,48 +812,45 @@ export default function ComedorTab() {
                 display: "flex",
                 gap: "0.5rem",
                 alignItems: "center",
+                flexWrap: "wrap",
                 paddingTop: "0.75rem",
-                borderTop: "1px dashed var(--border-color, #e2e8f0)",
+                borderTop: "1px dashed var(--border-color)",
               }}
             >
               <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
                 Registro Rápido por Cédula:
               </span>
-              <input
-                type="text"
-                placeholder="Ingresar cédula (ej. V-12345678)..."
-                value={quickCedula}
-                onChange={(e) => setQuickCedula(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleQuickRegister();
-                }}
-                style={{ flex: 1, maxWidth: "300px", padding: "0.45rem 0.75rem", fontSize: "0.85rem" }}
-              />
-              <button
-                type="button"
-                className="btn-submit"
-                onClick={handleQuickRegister}
-                disabled={registeringQuick || !quickCedula.trim()}
-                style={{ padding: "0.45rem 0.85rem", fontSize: "0.85rem" }}
-              >
-                {registeringQuick ? "Registrando..." : "Registrar"}
-              </button>
+              <div style={{ display: "flex", gap: "0.5rem", flex: 1, minWidth: "220px" }}>
+                <input
+                  type="text"
+                  placeholder="Ingresar cédula (ej. V-12345678)..."
+                  value={quickCedula}
+                  onChange={(e) => setQuickCedula(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleQuickRegister();
+                  }}
+                  style={{ flex: 1, padding: "0.45rem 0.75rem", fontSize: "0.85rem" }}
+                />
+                <button
+                  type="button"
+                  className="btn-submit"
+                  onClick={handleQuickRegister}
+                  disabled={registeringQuick || !quickCedula.trim()}
+                  style={{ padding: "0.45rem 0.85rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+                >
+                  {registeringQuick ? "Registrando..." : "Registrar"}
+                </button>
+              </div>
             </div>
           </div>
 
           {/* TARJETAS RESUMEN DE LAS ENTREGAS DE HOY / FECHA */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: "0.75rem",
-            }}
-          >
-            <div style={{ background: "var(--card-bg, #ffffff)", border: "1px solid var(--border-color, #e2e8f0)", borderRadius: "12px", padding: "0.85rem" }}>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
+          <div className="comedor-kpi-grid">
+            <div className="comedor-kpi-card">
+              <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
                 Raciones {servicioControl}
               </div>
-              <div style={{ fontSize: "1.6rem", fontWeight: 900, color: "#2563eb", marginTop: "2px" }}>
+              <div className="comedor-kpi-val" style={{ fontSize: "1.6rem", fontWeight: 900, color: "#2563eb", marginTop: "2px" }}>
                 {servicioControl === "DESAYUNO"
                   ? totalesEntregas.desayunoRaciones
                   : servicioControl === "ALMUERZO"
@@ -871,11 +862,11 @@ export default function ComedorTab() {
               </div>
             </div>
 
-            <div style={{ background: "var(--card-bg, #ffffff)", border: "1px solid var(--border-color, #e2e8f0)", borderRadius: "12px", padding: "0.85rem" }}>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
+            <div className="comedor-kpi-card">
+              <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
                 Personas Atendidas
               </div>
-              <div style={{ fontSize: "1.6rem", fontWeight: 900, color: "#059669", marginTop: "2px" }}>
+              <div className="comedor-kpi-val" style={{ fontSize: "1.6rem", fontWeight: 900, color: "#059669", marginTop: "2px" }}>
                 {servicioControl === "DESAYUNO"
                   ? totalesEntregas.desayunoAtendidos
                   : servicioControl === "ALMUERZO"
@@ -883,43 +874,36 @@ export default function ComedorTab() {
                   : totalesEntregas.cenaAtendidos}
               </div>
               <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                Jefes y personas solas que retiraron
+                Jefes y solos que retiraron
               </div>
             </div>
 
-            <div style={{ background: "var(--card-bg, #ffffff)", border: "1px solid var(--border-color, #e2e8f0)", borderRadius: "12px", padding: "0.85rem" }}>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
-                Total Raciones del Día
+            <div className="comedor-kpi-card" style={{ gridColumn: "span 2" }}>
+              <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
+                Total Raciones del Día (Desayuno + Almuerzo + Cena)
               </div>
-              <div style={{ fontSize: "1.6rem", fontWeight: 900, color: "var(--text-primary)", marginTop: "2px" }}>
-                {totalesEntregas.totalRaciones}
+              <div className="comedor-kpi-val" style={{ fontSize: "1.6rem", fontWeight: 900, color: "var(--text-primary)", marginTop: "2px" }}>
+                {totalesEntregas.totalRaciones} platos
               </div>
               <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                Suma de Desayuno + Almuerzo + Cena
+                Total consolidado de platos servidos en la fecha
               </div>
             </div>
           </div>
 
           {/* LISTA DE ENTREGAS REGISTRADAS */}
-          <div
-            style={{
-              background: "var(--card-bg, #ffffff)",
-              borderRadius: "16px",
-              border: "1px solid var(--border-color, #e2e8f0)",
-              overflow: "hidden",
-            }}
-          >
+          <div className="comedor-card" style={{ overflow: "hidden" }}>
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "0.85rem 1.25rem",
-                borderBottom: "1px solid var(--border-color, #e2e8f0)",
-                background: "var(--bg-secondary, #f8fafc)",
+                borderBottom: "1px solid var(--border-color)",
+                background: "var(--bg-primary)",
               }}
             >
-              <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>
+              <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--text-primary)" }}>
                 Registro de Entregas: {servicioControl} · {fechaControl}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -948,14 +932,15 @@ export default function ComedorTab() {
             ) : entregas.length === 0 ? (
               <div style={{ padding: "3rem 1rem", textAlign: "center", color: "var(--text-secondary)" }}>
                 <span style={{ fontSize: "2rem", display: "block", marginBottom: "0.5rem" }}>🍽️</span>
-                <p style={{ fontWeight: 700 }}>Aún no hay entregas registradas para este servicio y fecha.</p>
+                <p style={{ fontWeight: 700, color: "var(--text-primary)" }}>Aún no hay entregas registradas para este servicio y fecha.</p>
                 <span style={{ fontSize: "0.8rem" }}>
                   Utilice el botón <strong>"Escanear Carnet QR"</strong> o el ingreso rápido por cédula para registrar entregas.
                 </span>
               </div>
             ) : (
               <>
-                <div className="table-responsive" style={{ overflowX: "auto" }}>
+                {/* 1. VISTA DE TABLA (ESCRITORIO) */}
+                <div className="comedor-desktop-table table-responsive" style={{ overflowX: "auto" }}>
                   <table className="registro-table" style={{ width: "100%", fontSize: "0.85rem" }}>
                     <thead>
                       <tr>
@@ -981,10 +966,10 @@ export default function ComedorTab() {
                             </td>
                             <td style={{ fontWeight: 700, color: "var(--text-primary)" }}>{e.hora}</td>
                             <td>
-                              <div style={{ fontWeight: 700 }}>{e.nombre}</div>
+                              <div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{e.nombre}</div>
                               <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{e.refugio}</div>
                             </td>
-                            <td style={{ fontWeight: 600 }}>{e.cedula}</td>
+                            <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{e.cedula}</td>
                             <td style={{ color: "var(--text-secondary)" }}>{e.telefono || "—"}</td>
                             <td style={{ textAlign: "center" }}>
                               <span
@@ -993,7 +978,7 @@ export default function ComedorTab() {
                                   fontWeight: 700,
                                   padding: "2px 8px",
                                   borderRadius: "999px",
-                                  background: e.tipoBeneficiario === "JEFE" ? "rgba(2, 132, 199, 0.12)" : "rgba(16, 185, 129, 0.12)",
+                                  background: e.tipoBeneficiario === "JEFE" ? "rgba(2, 132, 199, 0.15)" : "rgba(16, 185, 129, 0.15)",
                                   color: e.tipoBeneficiario === "JEFE" ? "#0284c7" : "#059669",
                                 }}
                               >
@@ -1053,8 +1038,92 @@ export default function ComedorTab() {
                   </table>
                 </div>
 
+                {/* 2. VISTA DE TARJETAS MÓVILES (TELÉFONOS) */}
+                <div className="comedor-mobile-cards">
+                  {paginatedEntregas.map((e, idx) => {
+                    const globalIndex = (pageEntregas - 1) * pageSizeEntregas + idx + 1;
+                    return (
+                      <div key={e.id} className="comedor-mobile-card">
+                        <div className="comedor-mobile-card-top">
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--text-primary)" }}>
+                              #{globalIndex} {e.nombre}
+                            </div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{e.refugio}</div>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "0.72rem",
+                              fontWeight: 800,
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                              background:
+                                e.servicio === "DESAYUNO"
+                                  ? "rgba(245, 158, 11, 0.15)"
+                                  : e.servicio === "ALMUERZO"
+                                  ? "rgba(14, 165, 233, 0.15)"
+                                  : "rgba(139, 92, 246, 0.15)",
+                              color:
+                                e.servicio === "DESAYUNO"
+                                  ? "#b45309"
+                                  : e.servicio === "ALMUERZO"
+                                  ? "#0369a1"
+                                  : "#6d28d9",
+                            }}
+                          >
+                            {e.servicio}
+                          </span>
+                        </div>
+
+                        <div className="comedor-mobile-card-body">
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block" }}>Hora:</span>
+                            <strong style={{ color: "var(--text-primary)" }}>⏰ {e.hora}</strong>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block" }}>Cédula:</span>
+                            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{e.cedula}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block" }}>Platos entregados:</span>
+                            <strong style={{ color: "#059669", fontSize: "0.95rem" }}>
+                              🍲 {e.raciones} {e.raciones === 1 ? "ración" : "raciones"}
+                            </strong>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block" }}>Operador:</span>
+                            <span style={{ color: "var(--text-secondary)" }}>{e.registradoPor || "Master"}</span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
+                          <button
+                            type="button"
+                            className="btn-ver"
+                            style={{
+                              color: "var(--color-danger, #ef4444)",
+                              background: "rgba(239, 68, 68, 0.1)",
+                              border: "none",
+                              borderRadius: "6px",
+                              padding: "6px 14px",
+                              cursor: "pointer",
+                              fontSize: "0.8rem",
+                              fontWeight: 700,
+                            }}
+                            title="Anular entrega"
+                            onClick={() => handleDeleteEntrega(e.id, e.nombre)}
+                          >
+                            ✕ Anular Entrega
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 {/* BARRA DE PAGINACIÓN SUBMÓDULO 2 */}
                 <div
+                  className="comedor-pagination-bar"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -1062,8 +1131,8 @@ export default function ComedorTab() {
                     flexWrap: "wrap",
                     gap: "0.75rem",
                     padding: "0.75rem 1.25rem",
-                    borderTop: "1px solid var(--border-color, #e2e8f0)",
-                    background: "var(--bg-secondary, #f8fafc)",
+                    borderTop: "1px solid var(--border-color)",
+                    background: "var(--bg-primary)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -1080,8 +1149,9 @@ export default function ComedorTab() {
                         padding: "3px 8px",
                         fontSize: "0.8rem",
                         borderRadius: "6px",
-                        border: "1px solid var(--border-color, #cbd5e1)",
-                        background: "var(--card-bg, #ffffff)",
+                        border: "1px solid var(--border-color)",
+                        background: "var(--card-bg, var(--bg-secondary))",
+                        color: "var(--text-primary)",
                         cursor: "pointer",
                       }}
                     >
@@ -1092,13 +1162,13 @@ export default function ComedorTab() {
                     </select>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap", justifyContent: "center" }}>
                     <button
                       type="button"
                       className="toolbar-btn"
                       onClick={() => setPageEntregas(1)}
                       disabled={pageEntregas <= 1}
-                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                       title="Primera página"
                     >
                       « Primera
@@ -1108,13 +1178,13 @@ export default function ComedorTab() {
                       className="toolbar-btn"
                       onClick={() => setPageEntregas((p) => Math.max(1, p - 1))}
                       disabled={pageEntregas <= 1}
-                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                       title="Página anterior"
                     >
                       ‹ Anterior
                     </button>
 
-                    <span style={{ fontSize: "0.8rem", fontWeight: 700, padding: "0 0.5rem" }}>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 700, padding: "0 0.5rem", color: "var(--text-primary)" }}>
                       Página {pageEntregas} de {totalPagesEntregas}
                     </span>
 
@@ -1123,7 +1193,7 @@ export default function ComedorTab() {
                       className="toolbar-btn"
                       onClick={() => setPageEntregas((p) => Math.min(totalPagesEntregas, p + 1))}
                       disabled={pageEntregas >= totalPagesEntregas}
-                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                       title="Página siguiente"
                     >
                       Siguiente ›
@@ -1133,7 +1203,7 @@ export default function ComedorTab() {
                       className="toolbar-btn"
                       onClick={() => setPageEntregas(totalPagesEntregas)}
                       disabled={pageEntregas >= totalPagesEntregas}
-                      style={{ padding: "3px 8px", fontSize: "0.75rem" }}
+                      style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                       title="Última página"
                     >
                       Última »

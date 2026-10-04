@@ -148,8 +148,8 @@ export default function ComedorCarnetModal({ beneficiario, isOpen, onClose }: Pr
             </div>
           </div>
 
-          {/* Cuerpo principal del carnet: Datos a la izquierda, QR a la derecha */}
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          {/* Cuerpo principal del carnet: Datos a la izquierda, QR a la derecha (responsivo en movil) */}
+          <div className="comedor-carnet-body-flex" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ marginBottom: "0.5rem" }}>
                 <span style={{ fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase", display: "block" }}>
@@ -266,7 +266,7 @@ export default function ComedorCarnetModal({ beneficiario, isOpen, onClose }: Pr
         </div>
 
         {/* Botones de acción */}
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
           <button
             type="button"
             className="toolbar-btn"

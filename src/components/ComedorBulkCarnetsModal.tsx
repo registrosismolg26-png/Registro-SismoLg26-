@@ -296,8 +296,10 @@ export default function ComedorBulkCarnetsModal({
             flex: 1,
             minHeight: "220px",
             overflowY: "auto",
+            overflowX: "auto",
             padding: "0.5rem",
-            background: "#e2e8f0",
+            background: "var(--bg-primary, #f1f5f9)",
+            border: "1px solid var(--border-color, #e2e8f0)",
             borderRadius: "10px",
             display: "flex",
             flexDirection: "column",
@@ -305,7 +307,7 @@ export default function ComedorBulkCarnetsModal({
           }}
         >
           {totalBeneficiarios === 0 && !generandoQrs ? (
-            <div style={{ margin: "auto", textAlign: "center", color: "#64748b", padding: "2rem" }}>
+            <div style={{ margin: "auto", textAlign: "center", color: "var(--text-secondary, #64748b)", padding: "2rem" }}>
               <span style={{ fontSize: "2rem", display: "block" }}>📭</span>
               <strong>No hay beneficiarios para este filtro.</strong>
             </div>
@@ -454,13 +456,13 @@ export default function ComedorBulkCarnetsModal({
             Tip: Al hacer clic en <strong>Imprimir</strong>, el navegador permite seleccionar tu impresora o la opción <strong>Guardar como PDF</strong>.
           </div>
 
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", width: "100%", justifyContent: "flex-end" }}>
             <button
               type="button"
               className="toolbar-btn"
               onClick={handleDescargarHtml}
               disabled={generandoQrs || totalBeneficiarios === 0}
-              style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
+              style={{ display: "flex", alignItems: "center", gap: "0.35rem", flex: "1 1 auto", justifyContent: "center" }}
               title="Descargar archivo HTML autocontenido para imprimir sin conexión"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -479,9 +481,11 @@ export default function ComedorBulkCarnetsModal({
               style={{
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: "0.4rem",
                 padding: "0.55rem 1.15rem",
                 fontSize: "0.88rem",
+                flex: "1 1 auto",
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

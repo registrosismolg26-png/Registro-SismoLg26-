@@ -79,6 +79,7 @@
   /* Institutional Light Theme (Default) */
   --bg-primary: #f1f5f9; /* Slate 100 */
   --bg-secondary: #ffffff; /* Clean White */
+  --card-bg: #ffffff;
 
   --color-primary: #1e3a8a; /* Navy Blue (Institutional) */
   --color-primary-hover: #1e40af;
@@ -210,6 +211,7 @@ html[data-theme="dark"] {
   /* Institutional Dark Theme */
   --bg-primary: #0f172a; /* Slate 900 */
   --bg-secondary: #1e293b; /* Slate 800 */
+  --card-bg: #1e293b;
 
   --color-primary: #3b82f6; /* Royal Blue */
   --color-primary-hover: #60a5fa;
@@ -15395,4 +15397,213 @@ select.morb-control {
     transform: translateX(-50%) translateY(0);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MÓDULO COMEDOR: ADAPTACIÓN MÓVIL Y SOPORTE DARK / LIGHT MODE
+   ═══════════════════════════════════════════════════════════════════════ */
+.comedor-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.comedor-card {
+  background: var(--card-bg, var(--bg-secondary));
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
+
+.comedor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.comedor-submodulos-bar {
+  display: flex;
+  gap: 0.5rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 6px;
+  border-radius: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.comedor-submodulos-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.comedor-tab-btn {
+  flex: 1;
+  min-width: 110px;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.comedor-tab-btn.active {
+  background: var(--card-bg, var(--bg-secondary));
+  color: var(--color-primary);
+  border-color: var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="dark"] .comedor-tab-btn.active {
+  background: var(--bg-secondary);
+  color: #60a5fa;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* Tarjetas KPI de Comedor */
+.comedor-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.85rem;
+}
+
+.comedor-kpi-card {
+  background: var(--card-bg, var(--bg-secondary));
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1rem;
+  color: var(--text-primary);
+  transition: transform 0.15s ease;
+}
+
+/* Versión Escritorio vs Móvil para Beneficiarios y Entregas */
+.comedor-desktop-table {
+  display: block;
+}
+.comedor-mobile-cards {
+  display: none;
+}
+
+/* Tarjetas móviles de Beneficiario y Entrega */
+.comedor-mobile-card {
+  background: var(--card-bg, var(--bg-secondary));
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme="dark"] .comedor-mobile-card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.comedor-mobile-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.comedor-mobile-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+/* Adaptación a dispositivos móviles (≤ 768px) */
+@media (max-width: 768px) {
+  .comedor-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+    padding: 0.9rem;
+  }
+
+  .comedor-refugio-selector {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+
+  .comedor-tab-btn {
+    font-size: 0.78rem;
+    padding: 0.5rem 0.55rem;
+    min-width: auto;
+    flex: 1;
+  }
+  .comedor-tab-btn span.tab-count {
+    display: none;
+  }
+
+  .comedor-desktop-table {
+    display: none !important;
+  }
+  .comedor-mobile-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .comedor-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .comedor-kpi-card {
+    padding: 0.75rem !important;
+  }
+  .comedor-kpi-val {
+    font-size: 1.35rem !important;
+  }
+
+  .comedor-toolbar-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.65rem !important;
+  }
+  .comedor-toolbar-row > * {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+
+  .comedor-pagination-bar {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    text-align: center;
+  }
+
+  .comedor-carnet-body-flex {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center;
+    gap: 1.25rem !important;
+  }
+  .comedor-carnet-body-flex .info {
+    width: 100% !important;
+    text-align: left;
+  }
+  .comedor-carnet-body-flex .qr-side {
+    width: 100% !important;
+    max-width: 180px !important;
+    margin: 0 auto;
+  }
+}
+
 
