@@ -16,6 +16,8 @@ import {
   isMaster,
   canViewPlanteamientoSala,
   isPlanteamientoOnly,
+  canViewComedor,
+  isComedorOnly,
 } from "@/lib/permissions";
 
 export interface NavItem {
@@ -68,7 +70,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     tab: "asignaciones",
     label: "Registrados",
-    show: (r) => !isMedico(r) && !isRenaceOnly(r) && !isPlanteamientoOnly(r),
+    show: (r) => !isMedico(r) && !isRenaceOnly(r) && !isPlanteamientoOnly(r) && !isComedorOnly(r),
     icon: sv(
       <>
 <path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/>
@@ -100,7 +102,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     tab: "comedor",
     label: "Comedor",
-    show: (r) => isMaster(r),
+    show: (r) => canViewComedor(r),
     icon: sv(
       <>
         <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
@@ -219,7 +221,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: "/buscar",
     label: "Buscar",
-    show: (r) => !isMedico(r) && !isRenaceOnly(r) && !isPlanteamientoOnly(r),
+    show: (r) => !isMedico(r) && !isRenaceOnly(r) && !isPlanteamientoOnly(r) && !isComedorOnly(r),
     icon: sv(
       <>
         <circle cx="11" cy="11" r="8" />

@@ -43,6 +43,8 @@ import {
   canUseRenace,
   canViewPlanteamientoSala,
   isPlanteamientoOnly,
+  canViewComedor,
+  isComedorOnly,
 } from "@/lib/permissions";
 import type {
   ToastType,
@@ -350,9 +352,16 @@ export default function Home() {
     if (!["planteamientosala", "config"].includes(activeTab)) setActiveTab("planteamientosala");
   }, [currentUser, activeTab]);
 
-  // El módulo Comedor es de acceso EXCLUSIVO a Master: cualquier otro rol se redirige a censo
+  // El rol EXCLUSIVO "MasterComedor" solo puede estar en su módulo Comedor o en Config (su perfil);
+  // cualquier otra pestaña (incl. el default "censo") los devuelve a Comedor.
   useEffect(() => {
-    if (!currentUser || isMaster(currentUser.role)) return;
+    if (!isComedorOnly(currentUser?.role || "")) return;
+    if (!["comedor", "config"].includes(activeTab)) setActiveTab("comedor");
+  }, [currentUser, activeTab]);
+
+  // El módulo Comedor es de acceso para Master y MasterComedor: cualquier otro rol se redirige a censo
+  useEffect(() => {
+    if (!currentUser || canViewComedor(currentUser.role)) return;
     if (activeTab === "comedor") setActiveTab("censo");
   }, [currentUser, activeTab]);
 
@@ -2251,8 +2260,8 @@ export default function Home() {
               secciones admin van gateadas dentro de ConfigTab (cada rol ve lo suyo). */}
           {activeTab === "config" && <ConfigTab />}
 
-          {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos ni roles RENACE ni Planteamiento Master */}
-          {activeTab === "asignaciones" && !isMedico(currentUser.role) && !isRenaceOnly(currentUser.role) && !isPlanteamientoOnly(currentUser.role) && (
+          {/* TAB 5: ASIGNACIONES / REGISTRO DE AFECTADOS — no visible para médicos ni roles RENACE ni Planteamiento Master ni Master Comedor */}
+          {activeTab === "asignaciones" && !isMedico(currentUser.role) && !isRenaceOnly(currentUser.role) && !isPlanteamientoOnly(currentUser.role) && !isComedorOnly(currentUser.role) && (
             <AsignacionesTab />
           )}
           {activeTab === "caracterizacion" && isMaster(currentUser.role) && (
@@ -2261,7 +2270,7 @@ export default function Home() {
           {activeTab === "planteamientosala" && canViewPlanteamientoSala(currentUser.role) && (
             <PlanteamientoSalaTab />
           )}
-          {activeTab === "comedor" && isMaster(currentUser.role) && (
+          {activeTab === "comedor" && canViewComedor(currentUser.role) && (
             <ComedorTab />
           )}
           {activeTab === "monitoreo" && isMaster(currentUser.role) && (

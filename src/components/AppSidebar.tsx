@@ -71,7 +71,7 @@ export default function AppSidebar() {
 
   const role = currentUser.role;
   const roleClass =
-    role === "MASTER" ? "master" :
+    (role === "MASTER" || role === "MasterComedor" || role === "MASTER_COMEDOR") ? "master" :
     role === "ADMIN" ? "admin" :
     isMedico(role) ? "medico" :
     (role === "VISUALIZADOR" || role === "PlanteamientoVisualizador") ? "visual" : "reg";
@@ -79,6 +79,7 @@ export default function AppSidebar() {
     MASTER: "Master", ADMIN: "Admin", REGISTRADOR: "Registrador", VISUALIZADOR: "Visualizador",
     RENACE: "VZLA Renace", RENACE_MASTER: "Master Renace", PLANTEAMIENTO_MASTER: "Planteamiento Master",
     PlanteamientoVisualizador: "Planteamiento Visualizador",
+    MasterComedor: "Master Comedor", MASTER_COMEDOR: "Master Comedor",
     AdminMedico: "Admin Médico", OperadorMedico: "Op. Médico", AsistenteMedico: "Asist. Médico",
   };
   const roleLabel = roleLabels[role] || role;

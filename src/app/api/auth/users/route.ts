@@ -20,7 +20,7 @@ function hashPassword(password: string): string {
 //  · AdminMedico → SOLO OperadorMedico / AsistenteMedico (nunca otro AdminMedico).
 //  · Admin (censo) → solo roles de censo (Registrador/Visualizador); no crea médicos.
 function assignableRoles(actor: AuthUser): string[] {
-  if (isMaster(actor)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "PlanteamientoVisualizador", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (isMaster(actor)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "PlanteamientoVisualizador", "MasterComedor", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
   if (actor.role === "AdminMedico") return ["OperadorMedico", "AsistenteMedico"];
   return ["REGISTRADOR", "VISUALIZADOR"];
 }

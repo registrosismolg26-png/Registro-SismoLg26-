@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth || !canViewComedor(auth)) {
-      return NextResponse.json({ error: "No autorizado. Solo Master tiene acceso al módulo Comedor." }, { status: 401 });
+      return NextResponse.json({ error: "No autorizado. Solo Master y Master Comedor tienen acceso al módulo Comedor." }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -279,7 +279,7 @@ export async function POST(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth || !canViewComedor(auth)) {
-      return NextResponse.json({ error: "No autorizado. Solo Master puede registrar entregas de comedor." }, { status: 401 });
+      return NextResponse.json({ error: "No autorizado. Solo Master y Master Comedor pueden registrar entregas de comedor." }, { status: 401 });
     }
 
     const body = await req.json().catch(() => ({}));
@@ -471,7 +471,7 @@ export async function DELETE(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth || !canViewComedor(auth)) {
-      return NextResponse.json({ error: "No autorizado. Solo Master puede eliminar registros del comedor." }, { status: 401 });
+      return NextResponse.json({ error: "No autorizado. Solo Master y Master Comedor pueden eliminar registros del comedor." }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);

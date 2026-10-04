@@ -339,7 +339,7 @@ export default function ComedorTab() {
                 fontWeight: 700,
               }}
             >
-              Solo Master
+              Master / Master Comedor
             </span>
           </div>
           <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "2px" }}>

@@ -68,7 +68,7 @@ export default function AppHeader() {
   // Presentación del usuario en la franja: clase de color por rol, rótulo legible e
   // iniciales para el avatar.
   const roleClass =
-    currentUser.role === "MASTER"
+    currentUser.role === "MASTER" || currentUser.role === "MasterComedor" || currentUser.role === "MASTER_COMEDOR"
       ? "master"
       : currentUser.role === "ADMIN"
         ? "admin"
@@ -86,6 +86,8 @@ export default function AppHeader() {
     RENACE_MASTER: "Master Renace",
     PLANTEAMIENTO_MASTER: "Planteamiento Master",
     PlanteamientoVisualizador: "Planteamiento Visualizador",
+    MasterComedor: "Master Comedor",
+    MASTER_COMEDOR: "Master Comedor",
     AdminMedico: "Admin Médico",
     OperadorMedico: "Op. Médico",
     AsistenteMedico: "Asist. Médico",

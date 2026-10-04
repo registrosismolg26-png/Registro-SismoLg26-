@@ -66,6 +66,8 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, the
             setActiveTab("vzlarenace");
           } else if (userSession.role === "PLANTEAMIENTO_MASTER" || userSession.role === "PlanteamientoVisualizador") {
             setActiveTab("planteamientosala");
+          } else if (userSession.role === "MasterComedor" || userSession.role === "MASTER_COMEDOR") {
+            setActiveTab("comedor");
           } else {
             setActiveTab("censo");
           }
@@ -106,6 +108,8 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, the
           setActiveTab("vzlarenace");
         } else if (data.user.role === "PLANTEAMIENTO_MASTER" || data.user.role === "PlanteamientoVisualizador") {
           setActiveTab("planteamientosala");
+        } else if (data.user.role === "MasterComedor" || data.user.role === "MASTER_COMEDOR") {
+          setActiveTab("comedor");
         } else {
           setActiveTab("censo");
         }
