@@ -25,14 +25,48 @@ export async function apiFetch(
   input: string,
   init: ApiFetchOptions = {}
 ): Promise<Response> {
-  const { timeoutMs = 15000, headers, ...rest } = init;
+  const { timeoutMs = 45000, headers, signal: callerSignal, ...rest } = init;
 
   const h = new Headers(headers || {});
   const userId = getUserId();
   if (userId) h.set("x-user-id", userId);
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  // Si el llamador pasó una señal, la vinculamos para respetar cancelaciones del usuario
+  if (callerSignal?.aborted) {
+    try {
+      controller.abort(callerSignal.reason);
+    } catch {
+      controller.abort();
+    }
+  } else if (callerSignal) {
+    callerSignal.addEventListener(
+      "abort",
+      () => {
+        try {
+          controller.abort(callerSignal.reason);
+        } catch {
+          controller.abort();
+        }
+      },
+      { once: true }
+    );
+  }
+
+  const timer = setTimeout(() => {
+    try {
+      controller.abort(
+        new DOMException(
+          "Tiempo de espera agotado al conectar con el servidor",
+          "TimeoutError"
+        )
+      );
+    } catch {
+      controller.abort();
+    }
+  }, timeoutMs);
+
   try {
     return await fetch(input, { ...rest, headers: h, signal: controller.signal });
   } finally {

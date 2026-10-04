@@ -461,13 +461,26 @@ export default function Home() {
   const lastStatsFetchRef = useRef<number>(0);
 
   // ETag por ámbito (refugio) para censo/consultas: al re-pedir la lista (p. ej. al
-  // cambiar de pestaña) reenviamos el último ETag en If-None-Match; si nada cambió el
-  // servidor responde 304 y NO re-descargamos toda la lista (ahorro de egress). En
-  // memoria (no localStorage): el servidor recalcula el sello por ámbito, así que un
-  // ETag ajeno nunca produce un 304 incorrecto. No afecta el offline (el cache local
-  // sigue igual; el 304 simplemente conserva lo ya mostrado).
-  const registrosEtagRef = useRef<Record<string, string>>({});
-  const consultasEtagRef = useRef<Record<string, string>>({});
+  // cambiar de pestaña o refrescar página) reenviamos el último ETag en If-None-Match;
+  // si nada cambió el servidor responde 304 y NO re-descargamos toda la lista (ahorro masivo de datos).
+  const registrosEtagRef = useRef<Record<string, string>>((() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("sismo_etag_registros");
+        if (saved) return JSON.parse(saved);
+      } catch { /* noop */ }
+    }
+    return {};
+  })());
+  const consultasEtagRef = useRef<Record<string, string>>((() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("sismo_etag_consultas");
+        if (saved) return JSON.parse(saved);
+      } catch { /* noop */ }
+    }
+    return {};
+  })());
 
   // Online event debounce: wait 1s for stable connection before syncing (avoids 2G flicker double-sync)
   const onlineDebounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -1244,7 +1257,15 @@ export default function Home() {
       if (res.status === 304) return;
       if (res.ok) {
         const etag = res.headers.get("ETag");
-        if (etag) consultasEtagRef.current[scopeKey] = etag;
+        if (etag) {
+          consultasEtagRef.current[scopeKey] = etag;
+          try {
+            sessionStorage.setItem(
+              "sismo_etag_consultas",
+              JSON.stringify(consultasEtagRef.current),
+            );
+          } catch { /* noop */ }
+        }
         const data = await res.json();
         if (data.success && data.consultas) {
           setConsultas(data.consultas);
@@ -1875,58 +1896,90 @@ export default function Home() {
     }
   };
 
+  const fetchRegistrosInFlightRef = useRef<Promise<void> | null>(null);
+
   // Fetch all registros from DB for admin asignaciones module
   const fetchRegistros = async () => {
-    // Load from cache first for instant display
-    if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("cached_registros");
-      if (cached) {
-        try {
-          setRegistros(JSON.parse(cached));
-        } catch (e) {
-          console.error(e);
+    // Si ya hay una petición en curso, reutilizamos la misma promesa (deduplicación concurrente)
+    if (fetchRegistrosInFlightRef.current) {
+      return fetchRegistrosInFlightRef.current;
+    }
+
+    const run = async () => {
+      // Load from cache first for instant display
+      if (typeof window !== "undefined") {
+        const cached = localStorage.getItem("cached_registros");
+        if (cached) {
+          try {
+            setRegistros(JSON.parse(cached));
+          } catch (e) {
+            console.error(e);
+          }
         }
       }
-    }
 
-    if (!navigator.onLine) return;
+      if (!navigator.onLine) return;
 
-    setLoadingRegistros(true);
-    try {
-      const scopeKey = effectiveRefugioRef.current || "__all__";
-      const q = effectiveRefugioRef.current
-        ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}`
-        : "";
-      const prevEtag = registrosEtagRef.current[scopeKey];
-      const res = await apiFetch(
-        `/api/registros${q}`,
-        prevEtag ? { headers: { "If-None-Match": prevEtag } } : {},
-      );
-      // 304 = sin cambios en el servidor → conservamos el cache/estado ya cargado.
-      if (res.status === 304) return;
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}) as any);
-        throw new Error(
-          `HTTP ${res.status} — ${body?.details || body?.error || "sin detalle"}`,
+      setLoadingRegistros(true);
+      try {
+        const scopeKey = effectiveRefugioRef.current || "__all__";
+        const q = effectiveRefugioRef.current
+          ? `?refugio=${encodeURIComponent(effectiveRefugioRef.current)}`
+          : "";
+        const prevEtag = registrosEtagRef.current[scopeKey];
+        const res = await apiFetch(
+          `/api/registros${q}`,
+          {
+            timeoutMs: 60000,
+            headers: prevEtag ? { "If-None-Match": prevEtag } : undefined,
+          },
         );
+        // 304 = sin cambios en el servidor → conservamos el cache/estado ya cargado.
+        if (res.status === 304) return;
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}) as any);
+          throw new Error(
+            `HTTP ${res.status} — ${body?.details || body?.error || "sin detalle"}`,
+          );
+        }
+        const etag = res.headers.get("ETag");
+        if (etag) {
+          registrosEtagRef.current[scopeKey] = etag;
+          try {
+            sessionStorage.setItem(
+              "sismo_etag_registros",
+              JSON.stringify(registrosEtagRef.current),
+            );
+          } catch { /* noop */ }
+        }
+        const data = await res.json();
+        const newRegs = data.registros ?? [];
+        setRegistros(newRegs);
+        if (typeof window !== "undefined") {
+          safeSetItem("cached_registros", JSON.stringify(newRegs));
+          if (currentUser) localStorage.setItem("cached_owner", currentUser.id);
+        }
+      } catch (err: any) {
+        if (
+          err?.name === "AbortError" ||
+          err?.name === "TimeoutError" ||
+          String(err?.message || "").toLowerCase().includes("abort")
+        ) {
+          // Cancelación silenciosa (navegación entre pestañas o timeout preventivo)
+          return;
+        }
+        showToast(
+          "Error al cargar los registros: " + (err?.message ?? ""),
+          "error",
+        );
+      } finally {
+        setLoadingRegistros(false);
+        fetchRegistrosInFlightRef.current = null;
       }
-      const etag = res.headers.get("ETag");
-      if (etag) registrosEtagRef.current[scopeKey] = etag;
-      const data = await res.json();
-      const newRegs = data.registros ?? [];
-      setRegistros(newRegs);
-      if (typeof window !== "undefined") {
-        safeSetItem("cached_registros", JSON.stringify(newRegs));
-        if (currentUser) localStorage.setItem("cached_owner", currentUser.id);
-      }
-    } catch (err: any) {
-      showToast(
-        "Error al cargar los registros: " + (err?.message ?? ""),
-        "error",
-      );
-    } finally {
-      setLoadingRegistros(false);
-    }
+    };
+
+    fetchRegistrosInFlightRef.current = run();
+    return fetchRegistrosInFlightRef.current;
   };
 
   // Master cambió el refugio de vista → recargar registros, stats y salones del

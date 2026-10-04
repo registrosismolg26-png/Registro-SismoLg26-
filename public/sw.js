@@ -1,7 +1,7 @@
 // AUTOGENERADO: `scripts/update-sw-version.mjs` (script `prebuild`) reemplaza este
 // valor con el commit SHA en cada build, para invalidar el cache de todos los
 // clientes en cada deploy. NO editar a mano; el valor de abajo es solo placeholder.
-const BUILD_TS = "eabfb78bb6e2";
+const BUILD_TS = "bfa2d47da3fc";
 const CACHE_NAME = `registro-sismo-v${BUILD_TS}`;
 
 // ¿Estamos en LOCAL (pruebas del dueño en localhost)? Solo en local queremos

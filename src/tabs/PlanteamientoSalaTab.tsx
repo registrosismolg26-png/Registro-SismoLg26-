@@ -78,6 +78,7 @@ export default function PlanteamientoSalaTab() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -100,8 +101,9 @@ export default function PlanteamientoSalaTab() {
     return () => clearTimeout(handler);
   }, [search]);
 
-  const loadItems = useCallback(async () => {
+  const loadItems = useCallback(async (isRetry = false) => {
     setLoading(true);
+    if (!isRetry) setLoadError(null);
     try {
       const params = new URLSearchParams();
       params.set("page", String(page));
@@ -119,17 +121,26 @@ export default function PlanteamientoSalaTab() {
         params.set("search", debouncedSearch);
       }
       const q = params.toString() ? `?${params.toString()}` : "";
-      const res = await apiFetch(`/api/planteamiento-sala${q}`);
+      const res = await apiFetch(`/api/planteamiento-sala${q}`, { timeoutMs: 35000 });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.success && Array.isArray(data.items)) {
         setItems(data.items);
         setTotal(typeof data.total === "number" ? data.total : data.items.length);
+        setLoadError(null);
       } else {
-        showToast(data?.error || "Error al cargar planteamientos.", "error");
+        const msg = data?.error || "Error al cargar planteamientos.";
+        setLoadError(msg);
+        showToast(msg, "error");
       }
     } catch (e: any) {
-      if (e?.name === "AbortError" || e?.message?.includes("aborted")) return;
+      if (e?.name === "AbortError" || String(e?.message || "").toLowerCase().includes("abort")) {
+        if (!isRetry) {
+          setTimeout(() => { void loadItems(true); }, 1000);
+        }
+        return;
+      }
       console.error(e);
+      setLoadError("Error de conexión al obtener los datos de Planteamiento de Sala.");
       showToast("Error de conexión al obtener datos.", "error");
     } finally {
       setLoading(false);
@@ -614,7 +625,7 @@ export default function PlanteamientoSalaTab() {
                 <button
                   type="button"
                   className="toolbar-btn"
-                  onClick={loadItems}
+                  onClick={() => { void loadItems(); }}
                   disabled={loading}
                   title="Actualizar listado"
                   style={{
@@ -689,6 +700,34 @@ export default function PlanteamientoSalaTab() {
               <span className="spinner" style={{ width: "28px", height: "28px", margin: "0 auto 1rem" }} />
               <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>Cargando expedientes…</p>
             </div>
+          ) : loadError ? (
+            <div className="reg-empty-state" style={{ padding: "3rem 1rem" }}>
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p style={{ color: "#ef4444", fontWeight: 700 }}>{loadError}</p>
+              <button
+                type="button"
+                className="toolbar-btn"
+                onClick={() => loadItems(false)}
+                style={{
+                  marginTop: "0.75rem",
+                  height: "36px",
+                  padding: "0 1.25rem",
+                  borderRadius: "999px",
+                  background: "#2563eb",
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Reintentar Carga
+              </button>
+            </div>
           ) : total === 0 ? (
             <div className="reg-empty-state" style={{ padding: "3rem 1rem" }}>
               <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -696,7 +735,7 @@ export default function PlanteamientoSalaTab() {
                 <polyline points="14 2 14 8 20 8" />
               </svg>
               <p>
-                {debouncedSearch || selectedRefugio !== "TODOS" || selectedTipoOpcion !== "TODOS"
+                {debouncedSearch || selectedRefugio !== "TODOS" || selectedTipoOpcion !== "TODOS" || selectedEstatus !== "TODOS"
                   ? "No se encontraron expedientes con los filtros aplicados"
                   : `No hay personas cargadas ${selectedRefugio !== "TODOS" ? `en ${selectedRefugio}` : ""}`}
               </p>

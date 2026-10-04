@@ -64,6 +64,7 @@ export function installErrorReporter(): void {
     const r = ev.reason as { message?: string; stack?: string; toString?: () => string } | undefined;
     const msg = (r && (r.message || (typeof r.toString === "function" && r.toString()))) || "Promesa rechazada";
     if (checkChunkErrorAndAutoReload(String(msg))) return;
+    if (String(msg).toLowerCase().includes("abort")) return;
     const stack = r && r.stack ? String(r.stack) : undefined;
     report(String(msg), stack, "unhandledrejection");
   });
