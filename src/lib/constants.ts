@@ -120,6 +120,7 @@ export const INITIAL_FORM: FormData = {
   telefonoCod: "0412", telefonoNum: "",
   isChildDependent: false, dependentNumber: "1",
   intermitente: "NO", motivoIntermitente: "",
+  observaciones: "",
 };
 
 // Opciones del "número correlativo de hijo/dependiente". El dependiente se guarda

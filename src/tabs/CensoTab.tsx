@@ -167,7 +167,7 @@ export default function CensoTab() {
     nacionalidad: "V", cedula: "", nombreApellido: "", genero: "",
     fechaNacimiento: "", edad: "", telefonoCod: "0412", telefonoNum: "",
     estadoFisico: "", embarazo: "NO", patologia: "", patologiaIds: [],
-    medicamentos: [], intermitente: "NO", motivoIntermitente: "", errors: {},
+    medicamentos: [], intermitente: "NO", motivoIntermitente: "", observaciones: "", errors: {},
   });
   const addIntegrante = () => {
     const nuevo = newIntegrante();
@@ -671,6 +671,7 @@ export default function CensoTab() {
     jefeFamilia: string; perteneceNucleo: string; cedulaJefeFamilia?: string;
     estadoFisico: string; embarazo: string; patologia: string; patologiaIds: string[];
     medicamentos: Medicamento[]; intermitente: string; motivoIntermitente: string;
+    observaciones?: string;
   };
   type SharedInput = {
     refugio: string; userId?: string;
@@ -725,6 +726,7 @@ export default function CensoTab() {
         cuarto: shared.cuarto,
         intermitente: p.intermitente || "NO",
         motivoIntermitente: p.intermitente === "SI" ? p.motivoIntermitente.trim() : undefined,
+        observaciones: p.observaciones ? p.observaciones.trim() : undefined,
         retirado: shared.retirado || "NO",
         retiradoRazon: shared.retiradoRazon,
         refugio: shared.refugio,
@@ -853,6 +855,7 @@ export default function CensoTab() {
           estadoFisico: formData.estadoFisico, embarazo: formData.embarazo,
           patologia: formData.patologia, patologiaIds: formData.patologiaIds,
           medicamentos, intermitente: formData.intermitente, motivoIntermitente: formData.motivoIntermitente,
+          observaciones: formData.observaciones,
         },
         { ...sharedBase, retirado: seRetira ? "SI" : "NO", retiradoRazon: seRetira ? (composeRazonRetiro(retiroRazon, retiroSpec) || undefined) : undefined },
       );
@@ -874,6 +877,7 @@ export default function CensoTab() {
             estadoFisico: intg.estadoFisico, embarazo: intg.embarazo,
             patologia: intg.patologia, patologiaIds: intg.patologiaIds,
             medicamentos: intg.medicamentos, intermitente: intg.intermitente, motivoIntermitente: intg.motivoIntermitente,
+            observaciones: intg.observaciones,
           },
           { ...sharedBase, retirado: "NO", retiradoRazon: undefined },
         ),
@@ -1684,6 +1688,21 @@ export default function CensoTab() {
                       </p>
                     </div>
                   )}
+
+                  {/* Observaciones generales */}
+                  <div className="form-group" style={{ marginTop: "1.25rem" }}>
+                    <label>
+                      Observaciones <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>
+                    </label>
+                    <textarea
+                      name="observaciones"
+                      placeholder="Colocar cualquier tipo de observación sobre la persona o situación..."
+                      value={formData.observaciones}
+                      onChange={handleInputChange}
+                      rows={3}
+                      style={{ width: "100%", padding: "0.6rem 0.8rem", borderRadius: "8px", resize: "vertical", fontSize: "0.9rem" }}
+                    />
+                  </div>
                 </div>
               )}
 

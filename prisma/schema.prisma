@@ -44,6 +44,7 @@ model Registro {
   syncedAt             DateTime? @default(now())
   intermitente         String    @default("NO") // "SI" or "NO"
   motivoIntermitente   String?   // Required when intermitente = "SI"
+  observaciones        String?   // Observaciones generales sobre la persona
   refugio              String
   registrador          String?   // Nombre del operador que registró (se setea al censar; backfill desde AuditLog)
 

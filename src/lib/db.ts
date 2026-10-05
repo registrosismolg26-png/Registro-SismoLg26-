@@ -58,6 +58,7 @@ export interface LocalRegistro {
     gpsLat?: number;
     gpsLng?: number;
     telefono?: string;
+    observaciones?: string;
   };
   status: 'pending' | 'synced' | 'error';
   syncResult?: 'registrado' | 'duplicado' | 'error';

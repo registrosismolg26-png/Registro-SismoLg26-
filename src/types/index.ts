@@ -48,6 +48,7 @@ export type FormData = {
   patologiaIds: string[]; telefonoCod: string; telefonoNum: string;
   isChildDependent: boolean; dependentNumber: string;
   intermitente: string; motivoIntermitente: string;
+  observaciones: string;
 };
 
 export type FormAction =
@@ -78,6 +79,7 @@ export type IntegranteDraft = {
   medicamentos: Medicamento[];
   intermitente: string;
   motivoIntermitente: string;
+  observaciones: string;
   errors: Record<string, string>;
 };
 

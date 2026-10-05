@@ -11535,6 +11535,25 @@ select.morb-control {
   border-color: var(--color-danger, #dc2626);
   transform: translateY(-1px);
 }
+/* Observación → púrpura / violeta */
+.btn-ver--obs {
+  background: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+  border-color: rgba(139, 92, 246, 0.35);
+}
+.btn-ver--obs:hover {
+  background: #7c3aed;
+  color: #fff;
+  border-color: #7c3aed;
+  transform: translateY(-1px);
+}
+html[data-theme="dark"] .btn-ver--obs {
+  color: #a78bfa;
+}
+html[data-theme="dark"] .btn-ver--obs:hover {
+  background: #8b5cf6;
+  color: #fff;
+}
 
 /* ── Grupo de botones SEGMENTADO (regla de tema visual: las toolbars van AGRUPADAS) ──
    Envuelve varios .toolbar-btn en un contenedor pill único con divisores. En pantallas

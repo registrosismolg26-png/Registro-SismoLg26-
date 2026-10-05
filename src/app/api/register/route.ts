@@ -49,6 +49,7 @@ export async function POST(req: Request) {
       refugio,
       intermitente,
       motivoIntermitente,
+      observaciones,
     } = body;
 
     // Required field presence check
@@ -242,6 +243,9 @@ export async function POST(req: Request) {
           retiradoFecha: retiradoFechaSave,
           intermitente: intermitenteVal,
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
+          observaciones: body.observaciones !== undefined
+            ? (body.observaciones && String(body.observaciones).trim() ? String(body.observaciones).trim() : null)
+            : existing.observaciones,
           syncedAt: new Date(),
         }
       }));
@@ -321,6 +325,7 @@ export async function POST(req: Request) {
           retiradoFecha: retiradoFechaSave,
           intermitente: intermitenteVal,
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
+          observaciones: (observaciones && String(observaciones).trim()) || (body.observaciones && String(body.observaciones).trim()) || null,
           registrador: (auth.nombre || auth.email || "").trim() || null,
           syncedAt: new Date(),
         },

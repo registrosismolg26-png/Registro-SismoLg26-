@@ -108,8 +108,64 @@ export default function AsignacionesTab() {
     }, 220);
   };
 
-  // Con un modal abierto (detalle/edición o asignar habitación), el fondo NO hace scroll.
-  useBodyScrollLock(!!selectedRegistro || !!assignRoomFor);
+  // Modal DEDICADO de observaciones
+  const [observacionModalFor, setObservacionModalFor] = useState<any | null>(null);
+  const [observacionText, setObservacionText] = useState("");
+  const [savingObservacion, setSavingObservacion] = useState(false);
+  const openObservacionModal = (reg: any) => {
+    setObservacionModalFor(reg);
+    setObservacionText(reg.observaciones || "");
+  };
+  const closeObservacionModal = () => {
+    if (savingObservacion) return;
+    setObservacionModalFor(null);
+    setObservacionText("");
+  };
+
+  const handleSaveObservacion = async () => {
+    if (!observacionModalFor) return;
+    setSavingObservacion(true);
+    const newObs = observacionText.trim() || null;
+    const updated = {
+      ...observacionModalFor,
+      observaciones: newObs,
+    };
+    setRegistros((prev) => {
+      const next = prev.map((r) => (r.id === updated.id ? updated : r));
+      if (typeof window !== "undefined") {
+        safeSetItem("cached_registros", JSON.stringify(next));
+      }
+      return next;
+    });
+    if (selectedRegistro && selectedRegistro.id === updated.id) {
+      setSelectedRegistro(updated);
+    }
+    try {
+      const localRec = {
+        id: updated.id,
+        type: "update" as const,
+        refugio: currentUser?.campamentoTransitorio,
+        userId: currentUser?.id,
+        data: {
+          ...updated,
+          observaciones: newObs || undefined,
+        },
+      };
+      await saveLocal(localRec as any);
+      triggerSync();
+      refreshLocalRecords();
+      showToast("Observación guardada correctamente.", "success");
+      closeObservacionModal();
+    } catch (err) {
+      console.error(err);
+      showToast("Error al guardar la observación.", "error");
+    } finally {
+      setSavingObservacion(false);
+    }
+  };
+
+  // Con un modal abierto (detalle/edición, asignar habitación u observaciones), el fondo NO hace scroll.
+  useBodyScrollLock(!!selectedRegistro || !!assignRoomFor || !!observacionModalFor);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
@@ -332,6 +388,7 @@ export default function AsignacionesTab() {
       intermitente: reg.intermitente || "NO",
       motivoIntermitente: reg.motivoIntermitente || "",
       cuarto: reg.cuarto || "",
+      observaciones: reg.observaciones || "",
     });
     const initialMeds = Array.isArray(reg.medicamentoIds)
       ? reg.medicamentoIds
@@ -926,6 +983,9 @@ export default function AsignacionesTab() {
       cuarto: cuartoFinal,
       medicamentoIds: editMedicamentos,
       retiradoRazon: retiradoRazonFinal,
+      observaciones: editData.observaciones !== undefined
+        ? (editData.observaciones?.trim() || null)
+        : (selectedRegistro.observaciones || null),
     };
 
     // 1. Optimistic UI update
@@ -987,6 +1047,7 @@ export default function AsignacionesTab() {
             updated.intermitente === "SI"
               ? updated.motivoIntermitente
               : undefined,
+          observaciones: updated.observaciones || undefined,
           refugio: updated.refugio || currentUser?.campamentoTransitorio || "",
         },
       };
@@ -1999,6 +2060,38 @@ export default function AsignacionesTab() {
                                 </span>
                               )}
                             </div>
+                            {reg.observaciones && (
+                              <div
+                                className="person-obs-snippet"
+                                title={`Observación: ${reg.observaciones}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openObservacionModal(reg);
+                                }}
+                                style={{
+                                  fontSize: "0.72rem",
+                                  color: "var(--text-secondary)",
+                                  marginTop: "3px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  cursor: "pointer",
+                                  background: "rgba(139, 92, 246, 0.08)",
+                                  border: "1px solid rgba(139, 92, 246, 0.25)",
+                                  borderRadius: "6px",
+                                  padding: "2px 6px",
+                                  maxWidth: "220px",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <span>📝</span>
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {reg.observaciones}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -2148,6 +2241,47 @@ export default function AsignacionesTab() {
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                               </svg>
                               <span className="btn-ver__txt">Editar</span>
+                            </button>
+                          )}
+                          {canRegister(currentUser.role) && (
+                            <button
+                              className="btn-ver btn-ver--obs"
+                              aria-label="Observaciones"
+                              data-tip="Observación"
+                              onClick={() => openObservacionModal(reg)}
+                              style={{ position: "relative" }}
+                            >
+                              <svg
+                                width="15"
+                                height="15"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                                <polyline points="10 9 9 9 8 9" />
+                              </svg>
+                              <span className="btn-ver__txt">Observación</span>
+                              {reg.observaciones && (
+                                <span
+                                  style={{
+                                    position: "absolute",
+                                    top: "4px",
+                                    right: "4px",
+                                    width: "6px",
+                                    height: "6px",
+                                    borderRadius: "50%",
+                                    backgroundColor: "#8b5cf6",
+                                  }}
+                                  title="Tiene observación"
+                                />
+                              )}
                             </button>
                           )}
                         </div>
@@ -2681,6 +2815,76 @@ export default function AsignacionesTab() {
                       </span>
                     </div>
                   )}
+
+                  {/* Observaciones */}
+                  <div
+                    className="detail-section-title"
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span>Observaciones</span>
+                    {canRegister(currentUser.role) && (
+                      <button
+                        type="button"
+                        className="toolbar-btn"
+                        onClick={() => openObservacionModal(selectedRegistro)}
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: "0.75rem",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <span>✏️</span>
+                        <span>{selectedRegistro.observaciones ? "Modificar" : "Agregar"}</span>
+                      </button>
+                    )}
+                  </div>
+                  <div className="detail-field detail-field--full">
+                    <div
+                      style={{
+                        width: "100%",
+                        padding: "0.85rem 1rem",
+                        borderRadius: "10px",
+                        background: selectedRegistro.observaciones
+                          ? "rgba(139, 92, 246, 0.08)"
+                          : "var(--bg-primary)",
+                        border: `1px solid ${selectedRegistro.observaciones ? "rgba(139, 92, 246, 0.3)" : "var(--border-color)"}`,
+                        minHeight: "56px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      {selectedRegistro.observaciones ? (
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: "0.88rem",
+                            color: "var(--text-primary)",
+                            whiteSpace: "pre-wrap",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {selectedRegistro.observaciones}
+                        </p>
+                      ) : (
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: "0.82rem",
+                            color: "var(--text-muted)",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          Sin observaciones registradas para esta persona.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {(canDeleteRegistro(currentUser.role) ||
@@ -3658,6 +3862,34 @@ export default function AsignacionesTab() {
                         )}
                     </div>
                   </Reveal>
+
+                  {/* Observaciones */}
+                  <div className="detail-section-title">Observaciones</div>
+                  <div className="form-group detail-field--full" style={{ marginBottom: "1rem" }}>
+                    <label>Observaciones de la persona</label>
+                    <textarea
+                      placeholder="Colocar cualquier tipo de observación sobre la persona o situación..."
+                      value={editData.observaciones || ""}
+                      onChange={(e) =>
+                        setEditData((prev) => ({
+                          ...prev,
+                          observaciones: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: "0.6rem 0.8rem",
+                        fontSize: "0.88rem",
+                        borderRadius: "8px",
+                        border: "1px solid var(--border-color)",
+                        background: "var(--input-bg, var(--bg-secondary))",
+                        color: "var(--text-primary)",
+                        resize: "vertical",
+                        lineHeight: 1.5,
+                      }}
+                    />
+                  </div>
                 </div>
                 <div className="modal-edit-actions">
                   <button
@@ -3956,6 +4188,128 @@ export default function AsignacionesTab() {
                 <span className="spinner spinner-sm" /> Generando Excel…
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Dedicado de Observaciones */}
+      {observacionModalFor && (
+        <div
+          className="modal-overlay"
+          onClick={closeObservacionModal}
+          style={{ zIndex: 10000 }}
+        >
+          <div
+            className="modal-content modal-content--detail"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "520px",
+              width: "95%",
+              padding: "1.25rem",
+              borderRadius: "16px",
+              background: "var(--card-bg, #ffffff)",
+              boxShadow: "0 20px 40px -10px rgba(0,0,0,0.3)",
+            }}
+          >
+            <div
+              className="modal-header"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingBottom: "0.75rem",
+                marginBottom: "1rem",
+                borderBottom: "1px solid var(--border-color)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <span style={{ fontSize: "1.3rem" }}>📝</span>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "var(--text-primary)" }}>
+                    Observaciones
+                  </div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                    {observacionModalFor.nombreApellido} · C.I. {observacionModalFor.cedula}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeObservacionModal}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "1.2rem",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: "0.4rem",
+                }}
+              >
+                Detalle de la observación:
+              </label>
+              <textarea
+                value={observacionText}
+                onChange={(e) => setObservacionText(e.target.value)}
+                placeholder="Colocar cualquier tipo de observación sobre la persona o situación..."
+                rows={4}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  fontSize: "0.9rem",
+                  borderRadius: "10px",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--input-bg, var(--bg-secondary))",
+                  color: "var(--text-primary)",
+                  resize: "vertical",
+                  lineHeight: 1.5,
+                }}
+                autoFocus
+              />
+              <span
+                style={{
+                  fontSize: "0.72rem",
+                  color: "var(--text-muted)",
+                  display: "block",
+                  marginTop: "4px",
+                }}
+              >
+                Esta nota quedará visible en la tabla y en la ficha de la persona.
+              </span>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="toolbar-btn"
+                onClick={closeObservacionModal}
+                disabled={savingObservacion}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                onClick={handleSaveObservacion}
+                disabled={savingObservacion}
+                style={{ padding: "0.5rem 1.25rem", fontSize: "0.88rem" }}
+              >
+                {savingObservacion ? "Guardando..." : "Guardar Observación"}
+              </button>
+            </div>
           </div>
         </div>
       )}

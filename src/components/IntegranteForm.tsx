@@ -593,6 +593,18 @@ export default function IntegranteForm({
                 </div>
               </div>
             </div>
+
+            {/* Observaciones del integrante */}
+            <div className="form-group" style={{ marginTop: "1rem" }}>
+              <label>Observaciones <span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span></label>
+              <textarea
+                placeholder="Colocar cualquier tipo de observación sobre este integrante..."
+                value={value.observaciones || ""}
+                onChange={(e) => patch({ observaciones: e.target.value })}
+                rows={2}
+                style={{ width: "100%", padding: "0.5rem 0.75rem", borderRadius: "8px", resize: "vertical", fontSize: "0.85rem" }}
+              />
+            </div>
           </div>
         </div>
       </div>
