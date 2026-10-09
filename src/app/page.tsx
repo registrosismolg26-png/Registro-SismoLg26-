@@ -622,6 +622,9 @@ export default function Home() {
       .then((reg) => {
         registration = reg;
 
+        // Comprobación proactiva inmediata al montar la aplicación
+        reg.update().catch(() => {});
+
         // Si ya hay un service worker esperando (por ejemplo, de una recarga previa)
         if (reg.waiting) {
           handleUpdate(reg);
@@ -669,12 +672,14 @@ export default function Home() {
 
     // Buscar actualizaciones periódicamente cada 5 minutos
     const interval = setInterval(checkForUpdates, 5 * 60 * 1000);
-    // Y cuando el usuario vuelva a enfocar la ventana/pestaña
+    // Y cuando el usuario vuelva a enfocar la ventana/pestaña o dispare chequeo manual
     window.addEventListener("focus", checkForUpdates);
+    window.addEventListener("app:check-update", checkForUpdates);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener("focus", checkForUpdates);
+      window.removeEventListener("app:check-update", checkForUpdates);
       navigator.serviceWorker.removeEventListener(
         "controllerchange",
         handleControllerChange,

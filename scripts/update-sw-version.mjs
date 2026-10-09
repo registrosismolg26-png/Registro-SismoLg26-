@@ -19,7 +19,7 @@ let version = "";
 if (devMode) {
   version = `dev-${Date.now().toString(36)}`;
 } else {
-  // En Vercel: VERCEL_GIT_COMMIT_SHA. En local: git. Último recurso: timestamp.
+  // En Vercel: VERCEL_GIT_COMMIT_SHA. En local: git.
   version = process.env.VERCEL_GIT_COMMIT_SHA || "";
   if (!version) {
     try {
@@ -30,7 +30,8 @@ if (devMode) {
       /* sin git disponible */
     }
   }
-  version = (version || String(Date.now())).slice(0, 12);
+  const ts = Date.now().toString(36);
+  version = version ? `${version.slice(0, 7)}-${ts}` : ts;
 }
 
 const sw = readFileSync(swPath, "utf8");

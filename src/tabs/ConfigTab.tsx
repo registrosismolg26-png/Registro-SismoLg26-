@@ -97,6 +97,56 @@ export default function ConfigTab() {
   const [newPwd, setNewPwd] = useState("");
   const [confPwd, setConfPwd] = useState("");
   const [savingAccount, setSavingAccount] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [cleaningCache, setCleaningCache] = useState(false);
+
+  const handleCheckAppUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          await reg.update();
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: "SKIP_WAITING" });
+            showToast("Nueva versión encontrada. Actualizando...", "success");
+            return;
+          }
+        }
+        window.dispatchEvent(new CustomEvent("app:check-update"));
+      }
+      showToast("Comprobación finalizada. Si hay una nueva versión lista aparecerá el banner de actualización.", "info");
+    } catch {
+      showToast("Error al comprobar actualización.", "error");
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const handleForceCleanReload = async () => {
+    setCleaningCache(true);
+    try {
+      if (typeof window !== "undefined") {
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const r of regs) {
+            await r.unregister();
+          }
+        }
+      }
+      showToast("Caché limpiada. Recargando aplicación...", "success");
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch {
+      showToast("Error al limpiar la caché.", "error");
+      setCleaningCache(false);
+    }
+  };
 
   const openAccount = () => { setMiNombre(currentUser?.nombre || ""); setCurPwd(""); setNewPwd(""); setConfPwd(""); setShowAccount(true); };
   // No reseteamos las contraseñas aquí para que no "salten" durante la animación de
@@ -735,6 +785,46 @@ export default function ConfigTab() {
             Editar mi cuenta
           </button>
           <TelegramLink showToast={showToast} />
+
+          {/* Actualizaciones y Versión del Sistema */}
+          <div style={{ marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px solid var(--border-color)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.78rem", fontWeight: "700", color: "var(--text-secondary)" }}>
+                🔄 Actualizaciones del Sistema
+              </span>
+              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>PWA / Web</span>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="config-account-trigger"
+                style={{ marginTop: 0, gap: "0.4rem" }}
+                onClick={handleCheckAppUpdate}
+                disabled={checkingUpdate}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                </svg>
+                {checkingUpdate ? "Comprobando…" : "Buscar actualización"}
+              </button>
+              <button
+                type="button"
+                className="config-account-trigger"
+                style={{ marginTop: 0, gap: "0.4rem", borderColor: "var(--color-warning)" }}
+                onClick={handleForceCleanReload}
+                disabled={cleaningCache}
+                title="Limpia el caché del navegador y recarga la versión más reciente"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                {cleaningCache ? "Limpiando…" : "Forzar actualización limpia"}
+              </button>
+            </div>
+            <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.4rem", lineHeight: "1.4" }}>
+              Usa <strong>Buscar actualización</strong> para verificar nuevas versiones. Si tu navegador o celular no muestra los cambios recientes, pulsa <strong>Forzar actualización limpia</strong> para renovar el sistema de inmediato.
+            </p>
+          </div>
           </div></div></div>
         </section>
 
