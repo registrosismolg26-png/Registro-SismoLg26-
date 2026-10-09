@@ -455,6 +455,7 @@ export default function AsignacionesTab() {
   const [filterRegistrador, setFilterRegistrador] = useState(""); // operador que censó
   const [filterDesde, setFilterDesde] = useState(""); // yyyy-mm-dd (fecha de registro)
   const [filterHasta, setFilterHasta] = useState("");
+  const [filterObservaciones, setFilterObservaciones] = useState(""); // "" | "CON_OBS" | "SIN_OBS"
   const [exportingXlsx, setExportingXlsx] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const ymdLocal = (d: Date) =>
@@ -499,6 +500,15 @@ export default function AsignacionesTab() {
     return counts;
   }, [registros]);
 
+  // Conteo de personas que poseen alguna observación registrada
+  const countConObservaciones = useMemo(
+    () =>
+      registros.filter(
+        (r: any) => !!r.observaciones && String(r.observaciones).trim() !== "",
+      ).length,
+    [registros],
+  );
+
   const filteredRegistros = useMemo(() => {
     let result = registros;
 
@@ -514,7 +524,8 @@ export default function AsignacionesTab() {
         if (
           normalizeText(r.nombreApellido).includes(q) ||
           normalizeText(r.cedula).includes(q) ||
-          normalizeText(r.parroquia).includes(q)
+          normalizeText(r.parroquia).includes(q) ||
+          normalizeText(r.observaciones || "").includes(q)
         )
           return true;
         if (looksLikeCedula) {
@@ -610,6 +621,16 @@ export default function AsignacionesTab() {
       result = result.filter(
         (r) => r.createdAt && ymdLocal(new Date(r.createdAt)) <= filterHasta,
       );
+    // Filtro de Observaciones (personas con o sin notas cargadas)
+    if (filterObservaciones === "CON_OBS") {
+      result = result.filter(
+        (r) => !!r.observaciones && String(r.observaciones).trim() !== "",
+      );
+    } else if (filterObservaciones === "SIN_OBS") {
+      result = result.filter(
+        (r) => !r.observaciones || String(r.observaciones).trim() === "",
+      );
+    }
 
     return result;
   }, [
@@ -629,6 +650,7 @@ export default function AsignacionesTab() {
     filterRegistrador,
     filterDesde,
     filterHasta,
+    filterObservaciones,
   ]);
 
   // Reordena la lista YA filtrada en bloques familiares: cada núcleo junto, con el
@@ -705,6 +727,7 @@ export default function AsignacionesTab() {
     filterRegistrador,
     filterDesde,
     filterHasta,
+    filterObservaciones,
     regPageSize,
   ]);
   // Si la lista se encoge (p. ej. tras un sync) y la página actual queda fuera, ajustar.
@@ -1131,6 +1154,8 @@ export default function AsignacionesTab() {
     if (filterRegistrador) parts.push(`Registrador: ${filterRegistrador}`);
     if (filterDesde) parts.push(`Desde ${dmy(filterDesde)}`);
     if (filterHasta) parts.push(`Hasta ${dmy(filterHasta)}`);
+    if (filterObservaciones === "CON_OBS") parts.push("Observaciones: Solo con observaciones");
+    else if (filterObservaciones === "SIN_OBS") parts.push("Observaciones: Sin observaciones");
     return parts;
   };
   const exportFiltrosResumen = (): string => exportFiltrosParts().join("   ·   ");
@@ -1617,6 +1642,52 @@ export default function AsignacionesTab() {
               {filtersOpen ? "Ocultar Filtros" : "Filtros Avanzados"}
             </button>
 
+            <button
+              type="button"
+              className={`toolbar-btn${filterObservaciones === "CON_OBS" ? " is-active" : ""}`}
+              onClick={() =>
+                setFilterObservaciones((prev) =>
+                  prev === "CON_OBS" ? "" : "CON_OBS",
+                )
+              }
+              title="Filtrar personas con observaciones registradas"
+              style={
+                filterObservaciones === "CON_OBS"
+                  ? {
+                      background: "rgba(139, 92, 246, 0.16)",
+                      color: "#8b5cf6",
+                      borderColor: "#8b5cf6",
+                      fontWeight: 600,
+                    }
+                  : undefined
+              }
+            >
+              <span>📝</span>
+              <span>
+                {filterObservaciones === "CON_OBS"
+                  ? "Viendo con observaciones"
+                  : "Solo con observaciones"}
+              </span>
+              {countConObservaciones > 0 && (
+                <span
+                  style={{
+                    marginLeft: "0.25rem",
+                    fontSize: "0.75rem",
+                    padding: "1px 6px",
+                    borderRadius: "999px",
+                    background:
+                      filterObservaciones === "CON_OBS"
+                        ? "#8b5cf6"
+                        : "rgba(139, 92, 246, 0.18)",
+                    color: filterObservaciones === "CON_OBS" ? "#fff" : "#8b5cf6",
+                    fontWeight: 700,
+                  }}
+                >
+                  {countConObservaciones}
+                </span>
+              )}
+            </button>
+
             {(filterGenero ||
               filterEdad ||
               filterEdadMin ||
@@ -1629,7 +1700,8 @@ export default function AsignacionesTab() {
               filterRazon ||
               filterRegistrador ||
               filterDesde ||
-              filterHasta) && (
+              filterHasta ||
+              filterObservaciones) && (
               <button
                 type="button"
                 className="toolbar-btn toolbar-btn--danger"
@@ -1647,6 +1719,7 @@ export default function AsignacionesTab() {
                   setFilterRegistrador("");
                   setFilterDesde("");
                   setFilterHasta("");
+                  setFilterObservaciones("");
                 }}
               >
                 Limpiar Filtros
@@ -1793,6 +1866,23 @@ export default function AsignacionesTab() {
                     { value: "JEFE", label: "Jefe de Familia" },
                     { value: "SOLO", label: "Personas Solas" },
                     { value: "INTEGRANTE", label: "Integrante de Familia" },
+                  ]}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Observaciones</label>
+                <StyledSelect
+                  value={filterObservaciones}
+                  onChange={setFilterObservaciones}
+                  ariaLabel="Observaciones"
+                  options={[
+                    { value: "", label: "Todas las personas" },
+                    {
+                      value: "CON_OBS",
+                      label: `Solo con observaciones (${countConObservaciones})`,
+                    },
+                    { value: "SIN_OBS", label: "Sin observaciones" },
                   ]}
                 />
               </div>
@@ -1973,7 +2063,8 @@ export default function AsignacionesTab() {
                 filterRazon ||
                 filterRegistrador ||
                 filterDesde ||
-                filterHasta) && (
+                filterHasta ||
+                filterObservaciones) && (
                 <button
                   type="button"
                   className="toolbar-btn"
@@ -1993,6 +2084,7 @@ export default function AsignacionesTab() {
                     setFilterRegistrador("");
                     setFilterDesde("");
                     setFilterHasta("");
+                    setFilterObservaciones("");
                   }}
                 >
                   Restablecer filtros y búsqueda

@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { normalizeText } from "@/lib/helpers";
 import StyledSelect from "@/components/StyledSelect";
 import ComedorCarnetModal from "@/components/ComedorCarnetModal";
+import ComedorCreateCarnetModal from "@/components/ComedorCreateCarnetModal";
 import ComedorBulkCarnetsModal from "@/components/ComedorBulkCarnetsModal";
 import ComedorQrScannerModal from "@/components/ComedorQrScannerModal";
 import ComedorGraficas from "@/components/ComedorGraficas";
@@ -62,6 +63,29 @@ export default function ComedorTab() {
   const [filterTipoBeneficiario, setFilterTipoBeneficiario] = useState<string>("");
   const [selectedCarnet, setSelectedCarnet] = useState<ComedorBeneficiario | null>(null);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [createCarnetModalOpen, setCreateCarnetModalOpen] = useState(false);
+  const [editingCarnet, setEditingCarnet] = useState<ComedorBeneficiario | null>(null);
+
+  // Eliminar carnet exclusivo de comedor
+  const handleDeleteManualCarnet = async (b: ComedorBeneficiario) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar el carnet de Comedor de "${b.nombreApellido}" (${b.cedula})? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/comedor?beneficiarioId=${encodeURIComponent(b.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Error al eliminar beneficiario.");
+      }
+      showToast("Carnet de comedor eliminado correctamente.", "success");
+      fetchBeneficiarios();
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || "Error al eliminar beneficiario.", "error");
+    }
+  };
 
   // Paginación Submódulo 1
   const [pageBeneficiarios, setPageBeneficiarios] = useState(1);
@@ -186,7 +210,9 @@ export default function ComedorTab() {
         return false;
       });
     }
-    if (filterTipoBeneficiario) {
+    if (filterTipoBeneficiario === "MANUAL") {
+      result = result.filter((b) => Boolean(b.isManual || b.origen === "COMEDOR"));
+    } else if (filterTipoBeneficiario) {
       result = result.filter((b) => b.tipoBeneficiario === filterTipoBeneficiario);
     }
     return result;
@@ -411,7 +437,7 @@ export default function ComedorTab() {
               />
             </div>
 
-            <div style={{ width: "190px" }}>
+            <div style={{ width: "205px" }}>
               <StyledSelect
                 value={filterTipoBeneficiario}
                 onChange={setFilterTipoBeneficiario}
@@ -420,6 +446,7 @@ export default function ComedorTab() {
                   { value: "", label: "Todas las Condiciones" },
                   { value: "JEFE", label: "Jefes de Familia" },
                   { value: "SOLO", label: "Personas Solas" },
+                  { value: "MANUAL", label: "🍽️ Creados en Comedor" },
                 ]}
               />
             </div>
@@ -432,6 +459,31 @@ export default function ComedorTab() {
               title="Refrescar lista"
             >
               {loadingBeneficiarios ? <span className="spinner spinner-sm" /> : "🔄 Refrescar"}
+            </button>
+
+            {/* BOTÓN CREAR CARNET QR EXCLUSIVO COMEDOR */}
+            <button
+              type="button"
+              className="btn-submit"
+              onClick={() => {
+                setEditingCarnet(null);
+                setCreateCarnetModalOpen(true);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.45rem",
+                padding: "0.52rem 1rem",
+                fontSize: "0.85rem",
+                whiteSpace: "nowrap",
+                background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
+                boxShadow: "0 2px 6px rgba(109, 40, 217, 0.3)",
+              }}
+              title="Crear un carnet QR exclusivo para el módulo de Comedor"
+            >
+              <span style={{ fontSize: "1.1rem" }}>➕</span>
+              <span>Crear QR / Carnet</span>
             </button>
 
             {/* BOTÓN MASIVO DE CARNETS (8 POR HOJA) */}
@@ -508,24 +560,49 @@ export default function ComedorTab() {
                         <th>Alojamiento</th>
                         <th style={{ textAlign: "center" }}>Condición</th>
                         <th style={{ textAlign: "center" }}>Carga / Raciones</th>
-                        <th style={{ textAlign: "center", width: "140px" }}>Acción</th>
+                        <th style={{ textAlign: "center", width: "160px" }}>Acción</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedBeneficiarios.map((b, idx) => {
                         const globalIndex = (pageBeneficiarios - 1) * pageSizeBeneficiarios + idx + 1;
+                        const isManual = Boolean(b.isManual || b.origen === "COMEDOR");
                         return (
                           <tr key={b.id}>
                             <td style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: "0.75rem" }}>
                               {globalIndex}
                             </td>
                             <td>
-                              <div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{b.nombreApellido}</div>
-                              <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{b.refugio}</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{b.nombreApellido}</span>
+                                {isManual && (
+                                  <span
+                                    title="Carnet registrado exclusivamente en Comedor"
+                                    style={{
+                                      fontSize: "0.68rem",
+                                      fontWeight: 700,
+                                      padding: "1px 6px",
+                                      borderRadius: "999px",
+                                      background: "rgba(139, 92, 246, 0.14)",
+                                      color: "#8b5cf6",
+                                      border: "1px solid rgba(139, 92, 246, 0.28)",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    🍽️ Comedor
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                                {b.refugio}
+                                {b.observacion && ` · 📝 ${b.observacion}`}
+                              </div>
                             </td>
                             <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{b.cedula}</td>
                             <td style={{ color: "var(--text-secondary)" }}>{b.telefono || "—"}</td>
-                            <td style={{ color: "var(--text-secondary)" }}>{b.cuarto || <span style={{ color: "var(--text-muted)" }}>Sin asignar</span>}</td>
+                            <td style={{ color: "var(--text-secondary)" }}>
+                              {b.cuarto || <span style={{ color: "var(--text-muted)" }}>{isManual ? "No aplica" : "Sin asignar"}</span>}
+                            </td>
                             <td style={{ textAlign: "center" }}>
                               <span
                                 style={{
@@ -549,15 +626,43 @@ export default function ComedorTab() {
                               </span>
                             </td>
                             <td style={{ textAlign: "center" }}>
-                              <button
-                                type="button"
-                                className="toolbar-btn toolbar-btn--primary"
-                                style={{ padding: "0.3rem 0.65rem", fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
-                                onClick={() => setSelectedCarnet(b)}
-                              >
-                                <span>🪪</span>
-                                <span>Escanear carnet</span>
-                              </button>
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                <button
+                                  type="button"
+                                  className="toolbar-btn toolbar-btn--primary"
+                                  style={{ padding: "0.3rem 0.65rem", fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                                  onClick={() => setSelectedCarnet(b)}
+                                  title="Ver carnet digital con código QR"
+                                >
+                                  <span>🪪</span>
+                                  <span>Carnet</span>
+                                </button>
+                                {isManual && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="toolbar-btn"
+                                      style={{ padding: "0.3rem 0.5rem", fontSize: "0.8rem" }}
+                                      onClick={() => {
+                                        setEditingCarnet(b);
+                                        setCreateCarnetModalOpen(true);
+                                      }}
+                                      title="Editar carnet de comedor"
+                                    >
+                                      ✏️
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="toolbar-btn toolbar-btn--danger"
+                                      style={{ padding: "0.3rem 0.5rem", fontSize: "0.8rem" }}
+                                      onClick={() => handleDeleteManualCarnet(b)}
+                                      title="Eliminar carnet de comedor"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -570,14 +675,36 @@ export default function ComedorTab() {
                 <div className="comedor-mobile-cards">
                   {paginatedBeneficiarios.map((b, idx) => {
                     const globalIndex = (pageBeneficiarios - 1) * pageSizeBeneficiarios + idx + 1;
+                    const isManual = Boolean(b.isManual || b.origen === "COMEDOR");
                     return (
                       <div key={b.id} className="comedor-mobile-card">
                         <div className="comedor-mobile-card-top">
                           <div>
-                            <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--text-primary)" }}>
-                              #{globalIndex} {b.nombreApellido}
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--text-primary)" }}>
+                                #{globalIndex} {b.nombreApellido}
+                              </span>
+                              {isManual && (
+                                <span
+                                  style={{
+                                    fontSize: "0.68rem",
+                                    fontWeight: 700,
+                                    padding: "1px 6px",
+                                    borderRadius: "999px",
+                                    background: "rgba(139, 92, 246, 0.14)",
+                                    color: "#8b5cf6",
+                                    border: "1px solid rgba(139, 92, 246, 0.28)",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  🍽️ Comedor
+                                </span>
+                              )}
                             </div>
-                            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{b.refugio}</div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                              {b.refugio}
+                              {b.observacion && ` · 📝 ${b.observacion}`}
+                            </div>
                           </div>
                           <span
                             style={{
@@ -605,7 +732,7 @@ export default function ComedorTab() {
                           </div>
                           <div>
                             <span style={{ color: "var(--text-muted)", display: "block" }}>Alojamiento:</span>
-                            <span style={{ color: "var(--text-secondary)" }}>{b.cuarto || "Sin asignar"}</span>
+                            <span style={{ color: "var(--text-secondary)" }}>{b.cuarto || (isManual ? "No aplica" : "Sin asignar")}</span>
                           </div>
                           <div>
                             <span style={{ color: "var(--text-muted)", display: "block" }}>Raciones autorizadas:</span>
@@ -615,24 +742,50 @@ export default function ComedorTab() {
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          className="btn-submit"
-                          style={{
-                            width: "100%",
-                            padding: "0.55rem",
-                            fontSize: "0.85rem",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "0.4rem",
-                            marginTop: "2px",
-                          }}
-                          onClick={() => setSelectedCarnet(b)}
-                        >
-                          <span>🪪</span>
-                          <span>Escanear / Ver Carnet</span>
-                        </button>
+                        <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+                          <button
+                            type="button"
+                            className="btn-submit"
+                            style={{
+                              flex: 1,
+                              padding: "0.55rem",
+                              fontSize: "0.85rem",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "0.4rem",
+                            }}
+                            onClick={() => setSelectedCarnet(b)}
+                          >
+                            <span>🪪</span>
+                            <span>Ver Carnet</span>
+                          </button>
+                          {isManual && (
+                            <>
+                              <button
+                                type="button"
+                                className="toolbar-btn"
+                                style={{ padding: "0.55rem 0.75rem" }}
+                                onClick={() => {
+                                  setEditingCarnet(b);
+                                  setCreateCarnetModalOpen(true);
+                                }}
+                                title="Editar carnet de comedor"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                type="button"
+                                className="toolbar-btn toolbar-btn--danger"
+                                style={{ padding: "0.55rem 0.75rem" }}
+                                onClick={() => handleDeleteManualCarnet(b)}
+                                title="Eliminar carnet de comedor"
+                              >
+                                🗑️
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -1234,6 +1387,28 @@ export default function ComedorTab() {
         beneficiario={selectedCarnet}
         isOpen={!!selectedCarnet}
         onClose={() => setSelectedCarnet(null)}
+      />
+
+      {/* MODAL DE CREACIÓN / EDICIÓN DE CARNET QR EXCLUSIVO COMEDOR */}
+      <ComedorCreateCarnetModal
+        isOpen={createCarnetModalOpen}
+        onClose={() => {
+          setCreateCarnetModalOpen(false);
+          setEditingCarnet(null);
+        }}
+        onSuccess={(nuevo) => {
+          showToast(
+            editingCarnet
+              ? "Carnet de comedor actualizado correctamente."
+              : "Carnet QR generado exitosamente.",
+            "success"
+          );
+          fetchBeneficiarios();
+          setSelectedCarnet(nuevo);
+        }}
+        refugioActual={selectedRefugio}
+        refugiosList={refugiosList || []}
+        initialData={editingCarnet}
       />
 
       {/* MODAL DE DESCARGA E IMPRESIÓN MASIVA DE CARNETS (8 POR HOJA) */}

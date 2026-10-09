@@ -80,7 +80,7 @@ export function generateSingleCarnetHtml(
           ${beneficiario.integrantes
             .map(
               (m) =>
-                `<span class="member-tag"><strong>${escapeHtml(m.nombreApellido)}</strong> (${escapeHtml(m.cedula)})</span>`
+                `<span class="member-tag"><strong>${escapeHtml(m.nombreApellido)}</strong>${m.cedula ? ` (${escapeHtml(m.cedula)})` : ""}${m.parentesco ? ` [${escapeHtml(m.parentesco)}]` : ""}</span>`
             )
             .join(" ")}
         </div>

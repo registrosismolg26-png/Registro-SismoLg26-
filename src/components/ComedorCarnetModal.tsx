@@ -133,18 +133,35 @@ export default function ComedorCarnetModal({ beneficiario, isOpen, onClose }: Pr
                 COMEDOR COMUNITARIO
               </div>
             </div>
-            <div
-              style={{
-                fontSize: "0.7rem",
-                padding: "3px 8px",
-                borderRadius: "999px",
-                background: beneficiario.tipoBeneficiario === "JEFE" ? "#0284c7" : "#059669",
-                color: "#ffffff",
-                fontWeight: 700,
-                textTransform: "uppercase",
-              }}
-            >
-              {beneficiario.tipoBeneficiario === "JEFE" ? "Jefe de Familia" : "Persona Sola"}
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              {(beneficiario.isManual || beneficiario.origen === "COMEDOR") && (
+                <div
+                  style={{
+                    fontSize: "0.68rem",
+                    padding: "3px 8px",
+                    borderRadius: "999px",
+                    background: "#8b5cf6",
+                    color: "#ffffff",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  🍽️ Comedor
+                </div>
+              )}
+              <div
+                style={{
+                  fontSize: "0.7rem",
+                  padding: "3px 8px",
+                  borderRadius: "999px",
+                  background: beneficiario.tipoBeneficiario === "JEFE" ? "#0284c7" : "#059669",
+                  color: "#ffffff",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
+                {beneficiario.tipoBeneficiario === "JEFE" ? "Jefe de Familia" : "Persona Sola"}
+              </div>
             </div>
           </div>
 
@@ -182,6 +199,13 @@ export default function ComedorCarnetModal({ beneficiario, isOpen, onClose }: Pr
                 <div style={{ marginBottom: "0.6rem" }}>
                   <span style={{ fontSize: "0.68rem", color: "#94a3b8", display: "block" }}>Alojamiento:</span>
                   <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#e2e8f0" }}>{beneficiario.cuarto}</span>
+                </div>
+              )}
+
+              {beneficiario.observacion && (
+                <div style={{ marginBottom: "0.6rem" }}>
+                  <span style={{ fontSize: "0.68rem", color: "#94a3b8", display: "block" }}>Observación:</span>
+                  <span style={{ fontSize: "0.82rem", fontWeight: 500, color: "#cbd5e1" }}>{beneficiario.observacion}</span>
                 </div>
               )}
 

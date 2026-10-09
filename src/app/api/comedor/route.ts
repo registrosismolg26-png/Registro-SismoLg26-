@@ -128,6 +128,53 @@ export async function GET(req: Request) {
         }
       });
 
+      // Incorporar beneficiarios creados exclusivamente en el módulo Comedor (sin alterar Registro)
+      try {
+        const whereManual: any = {};
+        if (refugio && refugio !== "TODOS") {
+          whereManual.refugio = refugio;
+        }
+        const manuales = await prisma.comedorBeneficiario.findMany({
+          where: whereManual,
+          orderBy: { createdAt: "desc" },
+        });
+
+        manuales.forEach((m) => {
+          let parsedIntegrantes: any[] = [];
+          try {
+            if (m.integrantes) parsedIntegrantes = JSON.parse(m.integrantes);
+          } catch {}
+          if (!Array.isArray(parsedIntegrantes) || parsedIntegrantes.length === 0) {
+            parsedIntegrantes = [
+              {
+                id: m.id,
+                cedula: m.cedula,
+                nombreApellido: m.nombreApellido,
+                parentesco: m.tipoBeneficiario === "SOLO" ? "Persona Sola" : "Jefe de Familia",
+              },
+            ];
+          }
+
+          beneficiarios.push({
+            id: m.id,
+            cedula: m.cedula,
+            nombreApellido: m.nombreApellido,
+            telefono: m.telefono || null,
+            refugio: m.refugio,
+            cuarto: null,
+            tipoBeneficiario: m.tipoBeneficiario as any,
+            raciones: m.raciones,
+            integrantes: parsedIntegrantes,
+            origen: "COMEDOR",
+            isManual: true,
+            observacion: m.observacion || null,
+            createdAt: m.createdAt,
+          });
+        });
+      } catch (errManual) {
+        console.error("Error al obtener beneficiarios manuales de comedor:", errManual);
+      }
+
       // Ordenar alfabéticamente por nombre
       beneficiarios.sort((a, b) => a.nombreApellido.localeCompare(b.nombreApellido));
 
@@ -308,7 +355,78 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Cédula o formato de QR inválido." }, { status: 400 });
       }
 
-      // Buscar registros que coincidan con los dígitos en la BD
+      // 1. Primero verificar si coincide con un beneficiario creado exclusivamente en Comedor
+      try {
+        const whereManual: any = {};
+        if (refugio && refugio !== "TODOS") {
+          whereManual.refugio = refugio;
+        }
+        const manualRecords = await prisma.comedorBeneficiario.findMany({
+          where: whereManual,
+        });
+        const manualMatch = manualRecords.find((m) => {
+          const cDigits = (m.cedula || "").replace(/\D/g, "");
+          return cDigits === rawDigits;
+        });
+
+        if (manualMatch) {
+          let parsedIntegrantes: any[] = [];
+          try {
+            if (manualMatch.integrantes) parsedIntegrantes = JSON.parse(manualMatch.integrantes);
+          } catch {}
+          if (!Array.isArray(parsedIntegrantes) || parsedIntegrantes.length === 0) {
+            parsedIntegrantes = [
+              {
+                id: manualMatch.id,
+                cedula: manualMatch.cedula,
+                nombreApellido: manualMatch.nombreApellido,
+                parentesco: manualMatch.tipoBeneficiario === "SOLO" ? "Persona Sola" : "Jefe de Familia",
+              },
+            ];
+          }
+
+          let yaRetiro = false;
+          let entregaExistente: any = null;
+          if (fecha && servicio) {
+            entregaExistente = await prisma.comedorRegistro.findUnique({
+              where: {
+                cedula_fecha_servicio_refugio: {
+                  cedula: manualMatch.cedula,
+                  fecha,
+                  servicio,
+                  refugio: manualMatch.refugio,
+                },
+              },
+            });
+            if (entregaExistente) yaRetiro = true;
+          }
+
+          return NextResponse.json({
+            success: true,
+            encontrado: true,
+            beneficiario: {
+              id: manualMatch.id,
+              cedula: manualMatch.cedula,
+              nombreApellido: manualMatch.nombreApellido,
+              telefono: manualMatch.telefono,
+              refugio: manualMatch.refugio,
+              cuarto: null,
+              tipoBeneficiario: manualMatch.tipoBeneficiario,
+              raciones: manualMatch.raciones,
+              integrantes: parsedIntegrantes,
+              origen: "COMEDOR",
+              isManual: true,
+              observacion: manualMatch.observacion,
+            },
+            yaRetiro,
+            entregaExistente,
+          });
+        }
+      } catch (errManual) {
+        console.error("Error al buscar en ComedorBeneficiario:", errManual);
+      }
+
+      // 2. Si no es manual de Comedor, buscar en los registros censados de la BD
       const whereClause: any = {
         retirado: { not: "SI" },
       };
@@ -328,7 +446,7 @@ export async function POST(req: Request) {
 
       if (!personMatch) {
         return NextResponse.json({
-          error: `No se encontró a ningún beneficiario activo con la cédula "${cleanCedula}" en el campamento seleccionado.`,
+          error: `No se encontró a ningún beneficiario con la cédula "${cleanCedula}" en el campamento seleccionado.`,
           encontrado: false,
         }, { status: 404 });
       }
@@ -385,6 +503,172 @@ export async function POST(req: Request) {
         yaRetiro,
         entregaExistente,
       });
+    }
+
+    // ── ACCIÓN: CREAR BENEFICIARIO MANUAL / EXCLUSIVO DE COMEDOR ───────────────
+    if (action === "create_beneficiario") {
+      const {
+        cedula,
+        nombreApellido,
+        telefono,
+        refugio,
+        tipoBeneficiario,
+        raciones,
+        integrantes,
+        observacion,
+      } = body;
+
+      if (!cedula || !nombreApellido || !refugio) {
+        return NextResponse.json(
+          { error: "Cédula, Nombre y Apellido, y Campamento son obligatorios." },
+          { status: 400 }
+        );
+      }
+
+      const cleanCedula = String(cedula).trim().toUpperCase();
+      const cleanNombre = String(nombreApellido).trim();
+      const cleanRefugio = String(refugio).trim();
+      const cleanTipo = tipoBeneficiario === "SOLO" ? "SOLO" : "JEFE";
+
+      // Verificar si ya existe en ComedorBeneficiario en ese refugio
+      const existente = await prisma.comedorBeneficiario.findUnique({
+        where: {
+          cedula_refugio: {
+            cedula: cleanCedula,
+            refugio: cleanRefugio,
+          },
+        },
+      });
+
+      if (existente) {
+        return NextResponse.json(
+          { error: `Ya existe un beneficiario registrado con la cédula "${cleanCedula}" en el campamento ${cleanRefugio}.` },
+          { status: 409 }
+        );
+      }
+
+      // Preparar integrantes
+      let integrantesArray: any[] = [];
+      if (Array.isArray(integrantes)) {
+        integrantesArray = integrantes.filter((i: any) => i && i.nombreApellido && i.nombreApellido.trim() !== "");
+      }
+
+      // Raciones: si es SOLO, 1 ración; si es JEFE, jefe + integrantes o raciones explícitas
+      let numRaciones = 1;
+      if (cleanTipo === "SOLO") {
+        numRaciones = 1;
+      } else {
+        const cantIntegrantes = integrantesArray.length;
+        if (typeof raciones === "number" && raciones > 0) {
+          numRaciones = raciones;
+        } else {
+          numRaciones = cantIntegrantes > 0 ? cantIntegrantes + 1 : 1;
+        }
+      }
+
+      const nuevo = await prisma.comedorBeneficiario.create({
+        data: {
+          cedula: cleanCedula,
+          nombreApellido: cleanNombre,
+          telefono: telefono ? String(telefono).trim() : null,
+          refugio: cleanRefugio,
+          tipoBeneficiario: cleanTipo,
+          raciones: numRaciones,
+          integrantes: integrantesArray.length > 0 ? JSON.stringify(integrantesArray) : null,
+          observacion: observacion ? String(observacion).trim() : null,
+          creadoPor: auth.nombre || auth.email,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        beneficiario: {
+          id: nuevo.id,
+          cedula: nuevo.cedula,
+          nombreApellido: nuevo.nombreApellido,
+          telefono: nuevo.telefono,
+          refugio: nuevo.refugio,
+          cuarto: null,
+          tipoBeneficiario: nuevo.tipoBeneficiario,
+          raciones: nuevo.raciones,
+          integrantes: [
+            {
+              id: nuevo.id,
+              cedula: nuevo.cedula,
+              nombreApellido: nuevo.nombreApellido,
+              parentesco: nuevo.tipoBeneficiario === "SOLO" ? "Persona Sola" : "Jefe de Familia",
+            },
+            ...integrantesArray,
+          ],
+          origen: "COMEDOR",
+          isManual: true,
+          observacion: nuevo.observacion,
+          createdAt: nuevo.createdAt,
+        },
+      }, { status: 201 });
+    }
+
+    // ── ACCIÓN: EDITAR BENEFICIARIO MANUAL / EXCLUSIVO DE COMEDOR ───────────────
+    if (action === "update_beneficiario") {
+      const {
+        id,
+        nombreApellido,
+        telefono,
+        refugio,
+        tipoBeneficiario,
+        raciones,
+        integrantes,
+        observacion,
+      } = body;
+
+      if (!id) {
+        return NextResponse.json({ error: "ID de beneficiario requerido." }, { status: 400 });
+      }
+
+      let integrantesArray: any[] = [];
+      if (Array.isArray(integrantes)) {
+        integrantesArray = integrantes.filter((i: any) => i && i.nombreApellido && i.nombreApellido.trim() !== "");
+      }
+
+      const cleanTipo = tipoBeneficiario === "SOLO" ? "SOLO" : "JEFE";
+      let numRaciones = 1;
+      if (cleanTipo === "SOLO") {
+        numRaciones = 1;
+      } else {
+        const cantIntegrantes = integrantesArray.length;
+        if (typeof raciones === "number" && raciones > 0) {
+          numRaciones = raciones;
+        } else {
+          numRaciones = cantIntegrantes > 0 ? cantIntegrantes + 1 : 1;
+        }
+      }
+
+      const actualizado = await prisma.comedorBeneficiario.update({
+        where: { id },
+        data: {
+          nombreApellido: nombreApellido ? String(nombreApellido).trim() : undefined,
+          telefono: telefono !== undefined ? (telefono ? String(telefono).trim() : null) : undefined,
+          refugio: refugio ? String(refugio).trim() : undefined,
+          tipoBeneficiario: cleanTipo,
+          raciones: numRaciones,
+          integrantes: JSON.stringify(integrantesArray),
+          observacion: observacion !== undefined ? (observacion ? String(observacion).trim() : null) : undefined,
+        },
+      });
+
+      return NextResponse.json({ success: true, beneficiario: actualizado });
+    }
+
+    // ── ACCIÓN: ELIMINAR BENEFICIARIO MANUAL ────────────────────────────────────
+    if (action === "delete_beneficiario") {
+      const { id } = body;
+      if (!id) {
+        return NextResponse.json({ error: "ID de beneficiario requerido." }, { status: 400 });
+      }
+      await prisma.comedorBeneficiario.delete({
+        where: { id },
+      });
+      return NextResponse.json({ success: true, message: "Beneficiario de comedor eliminado correctamente" });
     }
 
     // ── ACCIÓN: REGISTRAR ENTREGA DE COMIDA ────────────────────────────────────
@@ -476,9 +760,18 @@ export async function DELETE(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const beneficiarioId = searchParams.get("beneficiarioId");
+
+    // Eliminar beneficiario manual de comedor
+    if (beneficiarioId) {
+      await prisma.comedorBeneficiario.delete({
+        where: { id: beneficiarioId },
+      });
+      return NextResponse.json({ success: true, message: "Beneficiario de comedor eliminado correctamente" });
+    }
 
     if (!id) {
-      return NextResponse.json({ error: "ID de entrega requerido para eliminar" }, { status: 400 });
+      return NextResponse.json({ error: "ID de entrega o de beneficiario requerido para eliminar" }, { status: 400 });
     }
 
     await prisma.comedorRegistro.delete({

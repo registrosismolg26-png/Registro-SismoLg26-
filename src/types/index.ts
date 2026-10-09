@@ -135,6 +135,10 @@ export interface ComedorBeneficiario {
   tipoBeneficiario: "JEFE" | "SOLO";
   raciones: number;
   integrantes?: ComedorFamiliarMember[];
+  origen?: "REGISTRO" | "COMEDOR";
+  isManual?: boolean;
+  observacion?: string | null;
+  createdAt?: string | Date;
 }
 
 export interface ComedorRegistroItem {

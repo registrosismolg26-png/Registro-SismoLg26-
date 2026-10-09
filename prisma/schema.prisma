@@ -656,3 +656,22 @@ model ComedorRegistro {
   @@index([cedula])
 }
 
+model ComedorBeneficiario {
+  id               String   @id @default(uuid())
+  cedula           String   // Cédula del jefe o beneficiario creado exclusivamente en Comedor
+  nombreApellido   String   // Nombre y apellido
+  telefono         String?  // Teléfono de contacto
+  refugio          String   // Campamento transitorio / refugio asignado
+  tipoBeneficiario String   @default("JEFE") // "JEFE" | "SOLO"
+  raciones         Int      @default(1) // Cantidad de raciones/carga familiar
+  integrantes      String?  // JSON con lista de personas de su núcleo
+  observacion      String?  // Nota u observación
+  creadoPor        String?  // Usuario que lo creó
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([cedula, refugio])
+  @@index([refugio])
+  @@index([cedula])
+}
+
