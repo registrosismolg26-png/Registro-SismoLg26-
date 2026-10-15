@@ -6,7 +6,7 @@
 // Reciben el `role` como string (el rol del usuario autenticado del contexto).
 // Roles: MASTER, ADMIN, REGISTRADOR, VISUALIZADOR.
 
-export const isMaster          = (role: string) => role === "MASTER";
+export const isMaster          = (role: string) => (role || "").toUpperCase() === "MASTER";
 export const canRegister       = (role: string) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(role); // crear/editar censo
 export const canDeleteRegistro = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canManageUsers    = (role: string) => ["MASTER", "ADMIN", "AdminMedico"].includes(role);
@@ -42,7 +42,10 @@ export const canManageCatalogosMedicos = (role: string) => ["MASTER", "AdminMedi
 // (Cuando se abra a más roles, ampliar aquí + en el gating de la pestaña y el POST.)
 export const canManageCaracterizacion = (role: string) => ["MASTER"].includes(role);
 // Comedor — Acceso a Master y MasterComedor
-export const isMasterComedor     = (role: string) => role === "MasterComedor" || role === "MASTER_COMEDOR";
+export const isMasterComedor     = (role: string) => {
+  const r = (role || "").toUpperCase().replace(/[_\s]/g, "");
+  return r === "MASTERCOMEDOR";
+};
 export const isComedorOnly       = (role: string) => isMasterComedor(role);
 export const canViewComedor      = (role: string) => isMaster(role) || isMasterComedor(role);
 

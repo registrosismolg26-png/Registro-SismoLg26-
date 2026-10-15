@@ -65,7 +65,7 @@ export async function getAuthUser(req: Request): Promise<AuthUser | null> {
 }
 
 // ── Capacidades por rol (matriz acordada) ───────────────────────────────────
-export const isMaster          = (u: AuthUser) => u.role === "MASTER";
+export const isMaster          = (u: AuthUser) => (u?.role || "").toUpperCase() === "MASTER";
 export const canRegister       = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(u.role); // crear/editar censo
 export const canDeleteRegistro = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 // Gestión de usuarios: Admin (censo, su refugio), AdminMedico (solo médicos, su refugio) y Master.
@@ -103,7 +103,10 @@ export const canManageCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedic
 // (Cuando se abra a más roles, ampliar aquí + en el gating de la pestaña y el POST.)
 export const canManageCaracterizacion = (u: AuthUser) => ["MASTER"].includes(u.role);
 // Comedor — Acceso a Master y MasterComedor
-export const isMasterComedor = (u: AuthUser) => u.role === "MasterComedor" || u.role === "MASTER_COMEDOR";
+export const isMasterComedor = (u: AuthUser) => {
+  const r = (u?.role || "").toUpperCase().replace(/[_\s]/g, "");
+  return r === "MASTERCOMEDOR";
+};
 export const isComedorOnly   = (u: AuthUser) => isMasterComedor(u);
 export const canViewComedor  = (u: AuthUser) => isMaster(u) || isMasterComedor(u);
 
