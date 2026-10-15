@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import StyledSelect from "@/components/StyledSelect";
+import { apiFetch } from "@/lib/apiFetch";
 import type { ComedorBeneficiario, ComedorFamiliarMember } from "@/types";
 
 interface Props {
@@ -174,7 +175,7 @@ export default function ComedorCreateCarnetModal({
         payload.id = initialData.id;
       }
 
-      const res = await fetch("/api/comedor", {
+      const res = await apiFetch("/api/comedor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -295,7 +296,7 @@ export default function ComedorCreateCarnetModal({
             </div>
 
             {/* Cédula y Nombre */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "0.75rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.75rem" }}>
               <div>
                 <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px" }}>
                   Cédula *
@@ -316,12 +317,16 @@ export default function ComedorCreateCarnetModal({
                     }}
                   />
                 ) : (
-                  <div style={{ display: "flex", gap: "4px" }}>
+                  <div style={{ display: "flex", gap: "6px", width: "100%" }}>
                     <select
                       value={nacionalidad}
                       onChange={(e) => setNacionalidad(e.target.value as "V" | "E")}
+                      aria-label="Nacionalidad"
                       style={{
-                        padding: "0.55rem 0.5rem",
+                        flex: "0 0 64px",
+                        width: "64px",
+                        minWidth: "64px",
+                        padding: "0.55rem 0.4rem",
                         fontSize: "0.88rem",
                         borderRadius: "8px",
                         border: "1px solid var(--border-color)",
@@ -335,12 +340,16 @@ export default function ComedorCreateCarnetModal({
                     </select>
                     <input
                       type="text"
+                      inputMode="numeric"
                       placeholder="12345678"
+                      aria-label="Número de cédula"
                       value={cedulaNumero}
-                      onChange={(e) => setCedulaNumero(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                      onChange={(e) => setCedulaNumero(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       required
                       style={{
-                        flex: 1,
+                        flex: "1 1 auto",
+                        minWidth: 0,
+                        width: "100%",
                         padding: "0.55rem 0.75rem",
                         fontSize: "0.88rem",
                         borderRadius: "8px",
