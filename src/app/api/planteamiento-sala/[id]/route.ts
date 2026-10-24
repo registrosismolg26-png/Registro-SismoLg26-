@@ -28,15 +28,17 @@ export async function PATCH(
     const updateData: any = {};
 
     if (body.estatus !== undefined) {
+      const rawStatus = String(body.estatus || "").toUpperCase() === "VENTA CAÍDA" ? "VENTA CAIDA" : body.estatus;
       const estatusValidos = [
         "SIN ESTATUS",
         "CREDITO ENTREGADO",
         "EN PROCESO",
         "CARPETA RETORNADA",
         "CON NOVEDAD EN LA SEDE",
+        "VENTA CAIDA",
       ];
-      if (estatusValidos.includes(body.estatus)) {
-        updateData.estatus = body.estatus;
+      if (estatusValidos.includes(rawStatus)) {
+        updateData.estatus = rawStatus;
         if (body.estatus === "CREDITO ENTREGADO") {
           updateData.fechaEntregaSubsidio = body.fechaEntregaSubsidio
             ? String(body.fechaEntregaSubsidio).trim().slice(0, 10)

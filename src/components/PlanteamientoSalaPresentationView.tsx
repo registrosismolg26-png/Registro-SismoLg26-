@@ -103,7 +103,7 @@ export default function PlanteamientoSalaPresentationView({
     totalCargaFamiliar = 0,
     totalPoblacion = 0,
     promedioProgreso = 0,
-    porEstatus = { "SIN ESTATUS": 0, "CREDITO ENTREGADO": 0, "EN PROCESO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 },
+    porEstatus = { "SIN ESTATUS": 0, "CREDITO ENTREGADO": 0, "EN PROCESO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0, "VENTA CAIDA": 0 },
     porTipoOpcion = { MERCADO_SECUNDARIO: 0, ALQUILER: 0, PLAN_VENEZUELA_RENACE: 0, CAMPAMENTO_MAYOR_PERMANENCIA: 0, ASIGNACION_GMVV: 0 },
     estatusPorModalidad = {} as Record<PlanteamientoSalaEstatus, Record<TipoOpcionPlanteamiento, number>>,
     modalidadPorEstatus = {} as Record<TipoOpcionPlanteamiento, Record<PlanteamientoSalaEstatus, number>>,
@@ -117,6 +117,7 @@ export default function PlanteamientoSalaPresentationView({
   const sinEstatusCount = porEstatus?.["SIN ESTATUS"] || 0;
   const retornadasCount = porEstatus?.["CARPETA RETORNADA"] || 0;
   const novedadesCount = porEstatus?.["CON NOVEDAD EN LA SEDE"] || 0;
+  const ventaCaidaCount = porEstatus?.["VENTA CAIDA"] || 0;
 
   // Slides de la presentación
   const slides = useMemo(() => {
@@ -144,6 +145,7 @@ export default function PlanteamientoSalaPresentationView({
               <BigCard accent="#64748b" label="Sin Estatus" value={sinEstatusCount} suffix={`· ${pct(sinEstatusCount, totalPersonas)}%`} icon={PRES_ICONS.clock} />
               <BigCard accent="#d97706" label="Carpetas Retornadas" value={retornadasCount} icon={PRES_ICONS.alert} />
               <BigCard accent="#dc2626" label="Novedades en Sede" value={novedadesCount} icon={PRES_ICONS.shield} />
+              <BigCard accent="#be123c" label="Ventas Caídas" value={ventaCaidaCount} suffix={`· ${pct(ventaCaidaCount, totalPersonas)}%`} icon={PRES_ICONS.xCircle} />
               <BigCard accent="#7c3aed" label="Avance Documental" value={promedioProgreso} suffix="%" icon={PRES_ICONS.award} />
             </div>
 
@@ -203,6 +205,17 @@ export default function PlanteamientoSalaPresentationView({
                 icon={PRES_ICONS.shield}
                 breakdown={estatusPorModalidad?.["CON NOVEDAD EN LA SEDE"]}
               />
+
+              {/* Cuadro 6: Venta Caída */}
+              <StatusBox
+                title="Ventas Caídas"
+                count={ventaCaidaCount}
+                total={totalPersonas}
+                color="#be123c"
+                bg="rgba(190, 18, 60, 0.08)"
+                icon={PRES_ICONS.xCircle}
+                breakdown={estatusPorModalidad?.["VENTA CAIDA"]}
+              />
             </div>
           </div>
         ),
@@ -231,6 +244,7 @@ export default function PlanteamientoSalaPresentationView({
                     "EN PROCESO": 0,
                     "CARPETA RETORNADA": 0,
                     "CON NOVEDAD EN LA SEDE": 0,
+                    "VENTA CAIDA": 0,
                   };
                   return (
                     <div
@@ -268,6 +282,7 @@ export default function PlanteamientoSalaPresentationView({
                         <span style={{ color: "#64748b" }}>Sin Estatus: <b>{stMap["SIN ESTATUS"] || 0}</b></span>
                         {(stMap["CARPETA RETORNADA"] || 0) > 0 && <span style={{ color: "#d97706" }}>Ret: <b>{stMap["CARPETA RETORNADA"]}</b></span>}
                         {(stMap["CON NOVEDAD EN LA SEDE"] || 0) > 0 && <span style={{ color: "#dc2626" }}>Nov: <b>{stMap["CON NOVEDAD EN LA SEDE"]}</b></span>}
+                        {(stMap["VENTA CAIDA"] || 0) > 0 && <span style={{ color: "#be123c" }}>Caída: <b>{stMap["VENTA CAIDA"]}</b></span>}
                       </div>
                     </div>
                   );
@@ -833,6 +848,13 @@ const PRES_ICONS = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
       <circle cx="12" cy="8" r="7" />
       <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+    </svg>
+  ),
+  xCircle: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+      <line x1="9" y1="9" x2="15" y2="15" />
     </svg>
   ),
 };

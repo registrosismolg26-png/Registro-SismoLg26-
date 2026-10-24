@@ -20,7 +20,7 @@ export async function GET(req: Request) {
         totalCargaFamiliar: 0,
         totalPoblacion: 0,
         promedioProgreso: 0,
-        porEstatus: { "SIN ESTATUS": 0, "EN PROCESO": 0, "CREDITO ENTREGADO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0 },
+        porEstatus: { "SIN ESTATUS": 0, "EN PROCESO": 0, "CREDITO ENTREGADO": 0, "CARPETA RETORNADA": 0, "CON NOVEDAD EN LA SEDE": 0, "VENTA CAIDA": 0 },
         porTipoOpcion: { MERCADO_SECUNDARIO: 0, ALQUILER: 0, PLAN_VENEZUELA_RENACE: 0, CAMPAMENTO_MAYOR_PERMANENCIA: 0, ASIGNACION_GMVV: 0 },
         demografia: {
           generoTitulares: { femenino: 0, masculino: 0, noEspecificado: 0 },

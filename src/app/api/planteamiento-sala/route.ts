@@ -277,14 +277,16 @@ export async function POST(req: Request) {
       pego,
     });
 
+    const rawStatus = String(body.estatus || "").toUpperCase() === "VENTA CAÍDA" ? "VENTA CAIDA" : body.estatus;
     const estatusValidos = [
       "SIN ESTATUS",
       "CREDITO ENTREGADO",
       "EN PROCESO",
       "CARPETA RETORNADA",
       "CON NOVEDAD EN LA SEDE",
+      "VENTA CAIDA",
     ];
-    const estatus = estatusValidos.includes(body.estatus) ? body.estatus : "SIN ESTATUS";
+    const estatus = estatusValidos.includes(rawStatus) ? rawStatus : "SIN ESTATUS";
     const observacion = body.observacion ? String(body.observacion).trim() : null;
     const telefono = body.telefono ? String(body.telefono).trim() : null;
     const refugioId = body.refugioId ? String(body.refugioId).trim() : null;

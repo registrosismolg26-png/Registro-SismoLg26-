@@ -296,6 +296,7 @@ export const ESTATUS_SALA_OPTIONS = [
   { value: "CREDITO ENTREGADO", label: "CRÉDITO ENTREGADO", color: "#059669", bg: "rgba(5, 150, 105, 0.12)" },
   { value: "CARPETA RETORNADA", label: "CARPETA RETORNADA", color: "#d97706", bg: "rgba(217, 119, 6, 0.12)" },
   { value: "CON NOVEDAD EN LA SEDE", label: "CON NOVEDAD EN LA SEDE", color: "#dc2626", bg: "rgba(220, 38, 38, 0.12)" },
+  { value: "VENTA CAIDA", label: "VENTA CAÍDA", color: "#be123c", bg: "rgba(190, 18, 60, 0.12)" },
 ] as const;
 
 export const TIPO_OPCION_PLANTEAMIENTO_OPTIONS = [
