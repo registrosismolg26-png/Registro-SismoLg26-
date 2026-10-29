@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { sha256 } from "@/lib/helpers";
+import { isVisualizadorMaster } from "@/lib/permissions";
 import type { CurrentUser, ActiveTab, ToastType } from "@/types";
 import PasswordInput from "@/components/PasswordInput";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
@@ -60,7 +61,7 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, the
             campamentoTransitorio: match.campamentoTransitorio || ""
           };
           setCurrentUser(userSession);
-          if (userSession.role === "VISUALIZADOR") {
+          if (userSession.role === "VISUALIZADOR" || isVisualizadorMaster(userSession.role)) {
             setActiveTab("dashboard");
           } else if (userSession.role === "RENACE" || userSession.role === "RENACE_MASTER") {
             setActiveTab("vzlarenace");
@@ -102,7 +103,7 @@ export default function LoginForm({ setCurrentUser, setActiveTab, showToast, the
 
       if (data.success && data.user) {
         setCurrentUser(data.user);
-        if (data.user.role === "VISUALIZADOR") {
+        if (data.user.role === "VISUALIZADOR" || isVisualizadorMaster(data.user.role)) {
           setActiveTab("dashboard");
         } else if (data.user.role === "RENACE" || data.user.role === "RENACE_MASTER") {
           setActiveTab("vzlarenace");

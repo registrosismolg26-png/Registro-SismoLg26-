@@ -92,6 +92,8 @@ export type Role =
   | "ADMIN"
   | "REGISTRADOR"
   | "VISUALIZADOR"
+  | "VISUALIZADOR_MASTER"
+  | "VisualizadorMaster"
   | "RENACE"
   | "RENACE_MASTER"
   | "PLANTEAMIENTO_MASTER"

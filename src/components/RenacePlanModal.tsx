@@ -141,6 +141,7 @@ export default function RenacePlanModal({ jefe, miembros, bloqueado = false, onC
   const { triggerSync, currentUser } = useAppContext();
   // Ancla local por CÉDULA del jefe (la que MANDA), no por NRO.
   const localId = `${jefe.refugioId}::${jefe.cedula}`;
+  const puedeGuardar = canEditRenace(currentUser?.role || "") && !bloqueado;
   const puedeEliminar = canEditRenace(currentUser?.role || "") && !bloqueado;
   const [show, setShow] = useState(true);
   const modal = useAnimatedModal(show);
@@ -470,14 +471,14 @@ export default function RenacePlanModal({ jefe, miembros, bloqueado = false, onC
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
           )}
-          {step === 3 && !bloqueado && (
+          {step === 3 && puedeGuardar && (
             <button type="button" className="btn-submit" onClick={save} disabled={saving || loading}>
               {saving ? "Guardando…" : (
                 <>{existing ? "Actualizar" : "Guardar"}<span className="btn-txt-collapsible">&nbsp;planteamiento</span></>
               )}
             </button>
           )}
-          {step === 3 && bloqueado && (
+          {step === 3 && !puedeGuardar && (
             <button type="button" className="btn-submit" onClick={close}>Cerrar</button>
           )}
         </div>

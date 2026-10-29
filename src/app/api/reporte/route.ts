@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, isMaster, type AuthUser } from "@/lib/auth";
+import { getAuthUser, isMaster, isVisualizadorMaster, type AuthUser } from "@/lib/auth";
 
 // ── Matriz de visibilidad / revocación de links (decisión del dueño) ─────────
 // VER: Master ve TODOS; Admin ve solo los de SU refugio (y nunca los de un Master); el
@@ -9,7 +9,7 @@ import { getAuthUser, isMaster, type AuthUser } from "@/lib/auth";
 //          privilegiados de SU refugio (nunca de otro admin ni de un master).
 function canSeeLink(auth: AuthUser, creatorId: string, creatorRole: string | undefined, linkRefugio: string | null): boolean {
   if (creatorId === auth.id) return true;                                     // los propios siempre
-  if (isMaster(auth)) return true;                                            // Master ve todos
+  if (isMaster(auth) || isVisualizadorMaster(auth)) return true;                                            // Master ve todos
   if (auth.role === "ADMIN") return creatorRole !== "MASTER" && linkRefugio === auth.refugio; // Admin: solo su refugio, no de Master
   return false;                                                               // el resto solo los suyos
 }

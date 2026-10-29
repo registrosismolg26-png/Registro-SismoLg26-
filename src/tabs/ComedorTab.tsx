@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { normalizeText } from "@/lib/helpers";
+import { isMaster, isMasterComedor, canManageComedor } from "@/lib/permissions";
 import StyledSelect from "@/components/StyledSelect";
 import ComedorCarnetModal from "@/components/ComedorCarnetModal";
 import ComedorCreateCarnetModal from "@/components/ComedorCreateCarnetModal";
@@ -24,6 +25,8 @@ export default function ComedorTab() {
     refugiosList,
     showToast,
   } = useAppContext();
+
+  const canManage = canManageComedor(currentUser?.role || '');
 
   // Submódulo activo: 1 = Carnets, 2 = Control/Escáner, 3 = Gráficas
   const [submodulo, setSubmodulo] = useState<1 | 2 | 3>(1);
@@ -462,13 +465,14 @@ export default function ComedorTab() {
             </button>
 
             {/* BOTÓN CREAR CARNET QR EXCLUSIVO COMEDOR */}
-            <button
-              type="button"
-              className="btn-submit"
-              onClick={() => {
-                setEditingCarnet(null);
-                setCreateCarnetModalOpen(true);
-              }}
+            {canManage && (
+              <button
+                type="button"
+                className="btn-submit"
+                onClick={() => {
+                  setEditingCarnet(null);
+                  setCreateCarnetModalOpen(true);
+                }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -485,6 +489,7 @@ export default function ComedorTab() {
               <span style={{ fontSize: "1.1rem" }}>➕</span>
               <span>Crear QR / Carnet</span>
             </button>
+            )}
 
             {/* BOTÓN MASIVO DE CARNETS (8 POR HOJA) */}
             <button
@@ -637,7 +642,7 @@ export default function ComedorTab() {
                                   <span>🪪</span>
                                   <span>Carnet</span>
                                 </button>
-                                {isManual && (
+                                {canManage && isManual && (
                                   <>
                                     <button
                                       type="button"
@@ -760,7 +765,7 @@ export default function ComedorTab() {
                             <span>🪪</span>
                             <span>Ver Carnet</span>
                           </button>
-                          {isManual && (
+                          {canManage && isManual && (
                             <>
                               <button
                                 type="button"
@@ -1174,15 +1179,17 @@ export default function ComedorTab() {
                               {e.registradoPor || "Master"}
                             </td>
                             <td style={{ textAlign: "center" }}>
-                              <button
-                                type="button"
-                                className="btn-ver"
-                                style={{ color: "var(--color-danger, #ef4444)", background: "rgba(239, 68, 68, 0.1)", border: "none", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", fontSize: "0.75rem" }}
-                                title="Anular entrega"
-                                onClick={() => handleDeleteEntrega(e.id, e.nombre)}
-                              >
-                                Anular
-                              </button>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  className="btn-ver"
+                                  style={{ color: "var(--color-danger, #ef4444)", background: "rgba(239, 68, 68, 0.1)", border: "none", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", fontSize: "0.75rem" }}
+                                  title="Anular entrega"
+                                  onClick={() => handleDeleteEntrega(e.id, e.nombre)}
+                                >
+                                  Anular
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );

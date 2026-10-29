@@ -11,6 +11,7 @@ import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { getAllLocalCaracterizacion, saveLocalCaracterizacion } from "@/lib/db";
 import { CARAC_CAMPOS, type CaracCampoMeta } from "@/lib/constants";
+import { canManageCaracterizacion } from "@/lib/permissions";
 import { opcionesDe, opcionLabel } from "@/lib/helpers";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
 import StyledSelect from "@/components/StyledSelect";
@@ -107,6 +108,7 @@ const VALIDACION_OPTS = [{ value: "PENDIENTE", label: "Pendiente" }, { value: "A
 
 export default function CaracterizacionFicha({ familia, onClose, onSaved }: { familia: Familia; onClose: () => void; onSaved: () => void }) {
   const { caracterizacionOpciones, currentUser, effectiveRefugio, coords, showToast, triggerSync } = useAppContext();
+  const canManage = canManageCaracterizacion(currentUser?.role || "");
   // `show` local → la animación de salida corre ANTES de avisar al padre (que desmonta).
   const [show, setShow] = useState(true);
   const modal = useAnimatedModal(show);
@@ -308,8 +310,8 @@ export default function CaracterizacionFicha({ familia, onClose, onSaved }: { fa
         </div>
 
         <div className="carac-ficha__foot">
-          <button type="button" className="btn-secondary" onClick={close} disabled={saving}>Cancelar</button>
-          <button type="button" className="btn-submit" onClick={guardar} disabled={saving}>{saving ? "Guardando…" : "Guardar ficha"}</button>
+          <button type="button" className="btn-secondary" onClick={close} disabled={saving}>{canManage ? "Cancelar" : "Cerrar"}</button>
+          {canManage && <button type="button" className="btn-submit" onClick={guardar} disabled={saving}>{saving ? "Guardando…" : "Guardar ficha"}</button>}
         </div>
       </div>
     </div>

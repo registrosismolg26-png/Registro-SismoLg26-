@@ -11,7 +11,7 @@
 
 import { useState, useLayoutEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { isMaster, isMedico } from "@/lib/permissions";
+import { isMaster, isVisualizadorMaster, isMedico } from "@/lib/permissions";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import NotificationBell from "@/components/NotificationBell";
 import { NAV_ITEMS } from "@/components/navItems";
@@ -74,7 +74,7 @@ export default function AppHeader() {
         ? "admin"
         : isMedico(currentUser.role)
           ? "medico"
-          : (currentUser.role === "VISUALIZADOR" || currentUser.role === "PlanteamientoVisualizador")
+          : (currentUser.role === "VISUALIZADOR" || currentUser.role === "PlanteamientoVisualizador" || isVisualizadorMaster(currentUser.role))
             ? "visual"
             : "";
   const roleLabels: Record<string, string> = {
@@ -82,6 +82,8 @@ export default function AppHeader() {
     ADMIN: "Admin",
     REGISTRADOR: "Registrador",
     VISUALIZADOR: "Visualizador",
+    VISUALIZADOR_MASTER: "Visualizador Master",
+    VisualizadorMaster: "Visualizador Master",
     RENACE: "VZLA Renace",
     RENACE_MASTER: "Master Renace",
     PLANTEAMIENTO_MASTER: "Planteamiento Master",
@@ -148,7 +150,7 @@ export default function AppHeader() {
         </div>
 
         {/* ── Franja de operación (campamento en vista, solo Master) ── */}
-        {isMaster(currentUser.role) && refugiosList.length > 0 && (
+        {(isMaster(currentUser.role) || isVisualizadorMaster(currentUser.role)) && refugiosList.length > 0 && (
           <div className="header-ops">
             <div className="hops-cluster">
               <div

@@ -34,6 +34,8 @@ import { installErrorReporter } from "@/lib/clientErrors";
 import { enablePush, pushSupported, pushPermission } from "@/lib/pushClient";
 import {
   isMaster,
+  isVisualizadorMaster,
+  canViewMorbilidad,
   canManageUsers,
   canRegister,
   canViewDashboard,
@@ -183,7 +185,7 @@ export default function Home() {
     { id: string; nombre: string; ubicacion?: string | null; tipo?: string }[]
   >([]);
   const effectiveRefugio = currentUser
-    ? isMaster(currentUser.role)
+    ? (isMaster(currentUser.role) || isVisualizadorMaster(currentUser.role))
       ? viewRefugio || currentUser.campamentoTransitorio
       : currentUser.campamentoTransitorio
     : "";
@@ -363,6 +365,12 @@ export default function Home() {
   useEffect(() => {
     if (!currentUser || canViewComedor(currentUser.role)) return;
     if (activeTab === "comedor") setActiveTab("censo");
+  }, [currentUser, activeTab]);
+
+  // Roles que no registran (Visualizador / Visualizador Master): si están en censo, redirigir a dashboard
+  useEffect(() => {
+    if (!currentUser || canRegister(currentUser.role)) return;
+    if (activeTab === "censo") setActiveTab("dashboard");
   }, [currentUser, activeTab]);
 
   // Persistir la pestaña activa para restaurarla al recargar (solo tras el arranque,
@@ -2269,7 +2277,7 @@ export default function Home() {
           {activeTab === "asignaciones" && !isMedico(currentUser.role) && !isRenaceOnly(currentUser.role) && !isPlanteamientoOnly(currentUser.role) && !isComedorOnly(currentUser.role) && (
             <AsignacionesTab />
           )}
-          {activeTab === "caracterizacion" && isMaster(currentUser.role) && (
+          {activeTab === "caracterizacion" && (isMaster(currentUser.role) || isVisualizadorMaster(currentUser.role)) && (
             <CaracterizacionTab />
           )}
           {activeTab === "planteamientosala" && canViewPlanteamientoSala(currentUser.role) && (
@@ -2278,10 +2286,10 @@ export default function Home() {
           {activeTab === "comedor" && canViewComedor(currentUser.role) && (
             <ComedorTab />
           )}
-          {activeTab === "monitoreo" && isMaster(currentUser.role) && (
+          {activeTab === "monitoreo" && (isMaster(currentUser.role) || isVisualizadorMaster(currentUser.role)) && (
             <MonitoreoTab />
           )}
-          {activeTab === "mapa" && isMaster(currentUser.role) && <MapaTab />}
+          {activeTab === "mapa" && (isMaster(currentUser.role) || isVisualizadorMaster(currentUser.role)) && <MapaTab />}
 
           {/* VZLA RENACE — MASTER/ADMIN/REGISTRADOR + rol exclusivo RENACE (NO médicos,
               NO visualizador); el gate de "Importar Excel" va dentro (solo Master). */}
@@ -2289,16 +2297,16 @@ export default function Home() {
 
           {/* TAB 6: MORBILIDAD / CONSULTAS MÉDICAS */}
           {activeTab === "morbilidad" &&
-            canManageMorbilidad(currentUser.role) && <MorbilidadTab />}
+            canViewMorbilidad(currentUser.role) && <MorbilidadTab />}
 
           {/* TAB 7: BALANCE DE SALUD (médicos + Master) */}
-          {activeTab === "balance" && canManageMorbilidad(currentUser.role) && (
+          {activeTab === "balance" && canViewMorbilidad(currentUser.role) && (
             <BalanceTab />
           )}
 
           {/* TAB 8: HISTORIAL CLÍNICO (médicos + Master) */}
           {activeTab === "historial" &&
-            canManageMorbilidad(currentUser.role) && <HistorialClinicoTab />}
+            canViewMorbilidad(currentUser.role) && <HistorialClinicoTab />}
 
           {/* Centro de notificaciones internas (UNIFICADO): toasts + alertas + actualización */}
           <NotificationCenter items={notifs} onDismiss={dismissNotif} />

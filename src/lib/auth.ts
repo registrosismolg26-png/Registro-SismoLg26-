@@ -66,6 +66,10 @@ export async function getAuthUser(req: Request): Promise<AuthUser | null> {
 
 // ── Capacidades por rol (matriz acordada) ───────────────────────────────────
 export const isMaster          = (u: AuthUser) => (u?.role || "").toUpperCase() === "MASTER";
+export const isVisualizadorMaster = (u: AuthUser) => {
+  const r = (u?.role || "").toUpperCase().replace(/[_\s]/g, "");
+  return r === "VISUALIZADORMASTER";
+};
 export const canRegister       = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(u.role); // crear/editar censo
 export const canDeleteRegistro = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u.role);
 // Gestión de usuarios: Admin (censo, su refugio), AdminMedico (solo médicos, su refugio) y Master.
@@ -81,6 +85,7 @@ export const canExportRenace   = (u: AuthUser) => ["MASTER", "ADMIN"].includes(u
 export const canEditRenace     = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(u.role);
 // Morbilidad: registrar consultas médicas.
 export const canManageMorbilidad = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(u.role);
+export const canViewMorbilidad   = (u: AuthUser) => canManageMorbilidad(u) || isVisualizadorMaster(u);
 // Eliminar consultas médicas: SOLO AdminMedico y Master (Operador/Asistente no eliminan).
 export const canDeleteConsulta = (u: AuthUser) => ["MASTER", "AdminMedico"].includes(u.role);
 // ¿Es un rol médico? (solo ven Morbilidad; AdminMedico además ve Usuarios filtrado a médicos).
@@ -91,9 +96,9 @@ export const isRenace = (u: AuthUser) => u.role === "RENACE";
 // (dashboard global). No ve el Directorio ni otros módulos; no importa ni edita.
 export const isRenaceMaster = (u: AuthUser) => u.role === "RENACE_MASTER";
 // ¿Puede VER las Gráficas agregadas del módulo? Master global + Master Renace.
-export const canViewRenaceGraficas = (u: AuthUser) => isMaster(u) || isRenaceMaster(u);
+export const canViewRenaceGraficas = (u: AuthUser) => isMaster(u) || isRenaceMaster(u) || isVisualizadorMaster(u);
 // ¿Puede USAR el módulo VZLA RENACE? Lado censo SIN visualizador + los roles RENACE y RENACE_MASTER.
-export const canUseRenace = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR", "RENACE", "RENACE_MASTER"].includes(u.role);
+export const canUseRenace = (u: AuthUser) => ["MASTER", "ADMIN", "REGISTRADOR", "RENACE", "RENACE_MASTER"].includes(u.role) || isVisualizadorMaster(u);
 // Catálogos médicos — CREAR/EDITAR (renombrar): AdminMedico, OperadorMedico y Master.
 export const canEditCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedico", "OperadorMedico"].includes(u.role);
 // Catálogos médicos — ELIMINAR y superficie de administración: solo AdminMedico y Master
@@ -102,24 +107,26 @@ export const canManageCatalogosMedicos = (u: AuthUser) => ["MASTER", "AdminMedic
 // Caracterización — POR AHORA todo el módulo (pestaña, fichas y catálogo) es SOLO Master.
 // (Cuando se abra a más roles, ampliar aquí + en el gating de la pestaña y el POST.)
 export const canManageCaracterizacion = (u: AuthUser) => ["MASTER"].includes(u.role);
+export const canViewCaracterizacion   = (u: AuthUser) => isMaster(u) || isVisualizadorMaster(u);
 // Comedor — Acceso a Master y MasterComedor
 export const isMasterComedor = (u: AuthUser) => {
   const r = (u?.role || "").toUpperCase().replace(/[_\s]/g, "");
   return r === "MASTERCOMEDOR";
 };
 export const isComedorOnly   = (u: AuthUser) => isMasterComedor(u);
-export const canViewComedor  = (u: AuthUser) => isMaster(u) || isMasterComedor(u);
+export const canViewComedor  = (u: AuthUser) => isMaster(u) || isMasterComedor(u) || isVisualizadorMaster(u);
+export const canManageComedor = (u: AuthUser) => isMaster(u) || isMasterComedor(u);
 
 // ── Planteamiento Sala (Master, Planteamiento Master y Planteamiento Visualizador) ────
 export const isPlanteamientoMaster = (u: AuthUser) => u.role === "PLANTEAMIENTO_MASTER";
 export const isPlanteamientoVisualizador = (u: AuthUser) => u.role === "PlanteamientoVisualizador" || u.role === "PLANTEAMIENTO_VISUALIZADOR";
 export const isPlanteamientoOnly   = (u: AuthUser) => isPlanteamientoMaster(u) || isPlanteamientoVisualizador(u);
-export const canViewPlanteamientoSala = (u: AuthUser) => isMaster(u) || isPlanteamientoMaster(u) || isPlanteamientoVisualizador(u);
+export const canViewPlanteamientoSala = (u: AuthUser) => isMaster(u) || isPlanteamientoMaster(u) || isPlanteamientoVisualizador(u) || isVisualizadorMaster(u);
 export const canManagePlanteamientoSala = (u: AuthUser) => isMaster(u) || isPlanteamientoMaster(u);
 
 /** ¿Puede el usuario actuar sobre datos de este refugio? Master: cualquiera. */
 export const canActOnRefugio = (u: AuthUser, refugio: string) =>
-  isMaster(u) || u.refugio === refugio;
+  isMaster(u) || isVisualizadorMaster(u) || u.refugio === refugio;
 
 /** ¿Puede el actor GESTIONAR (crear/editar/borrar) a este usuario objetivo?
  *  - A un MASTER no lo toca nadie desde la app (se gestionan por SQL).
@@ -132,6 +139,8 @@ export function canManageTargetUser(
   target: { role: string; campamentoTransitorio: string }
 ): boolean {
   if (target.role === "MASTER") return false;
+  if (isVisualizadorMaster({ role: target.role } as any) && !isMaster(actor)) return false;
+  if (isVisualizadorMaster(actor)) return false;
   if (isMaster(actor)) return true;
   if (actor.role === "ADMIN") {
     return ["REGISTRADOR", "VISUALIZADOR"].includes(target.role)
@@ -149,7 +158,7 @@ export function canManageTargetUser(
  *  ?refugio: Master → ese refugio (o TODOS si no lo manda); el resto → siempre
  *  su refugio (ignora el parámetro, no puede espiar otros refugios). */
 export function refugioScopeFor(u: AuthUser, requested?: string | null): { refugio?: string } {
-  if (isMaster(u)) return requested ? { refugio: requested } : {};
+  if (isMaster(u) || isVisualizadorMaster(u)) return requested ? { refugio: requested } : {};
   return { refugio: u.refugio };
 }
 

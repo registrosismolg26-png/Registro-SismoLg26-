@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthUser, isMaster } from "@/lib/auth";
+import { getAuthUser, isMaster, isVisualizadorMaster } from "@/lib/auth";
 import { computeMonitoreo } from "@/lib/monitoreo";
 import { monitoreoETag } from "@/lib/etag";
 
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   try {
     const auth = await getAuthUser(req);
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (!isMaster(auth)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    if (!isMaster(auth) && !isVisualizadorMaster(auth)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
     const etag = await monitoreoETag();
     if (etag && req.headers.get("if-none-match") === etag) {

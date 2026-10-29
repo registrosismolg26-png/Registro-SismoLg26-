@@ -7,6 +7,10 @@
 // Roles: MASTER, ADMIN, REGISTRADOR, VISUALIZADOR.
 
 export const isMaster          = (role: string) => (role || "").toUpperCase() === "MASTER";
+export const isVisualizadorMaster = (role: string) => {
+  const r = (role || "").toUpperCase().replace(/[_\s]/g, "");
+  return r === "VISUALIZADORMASTER";
+};
 export const canRegister       = (role: string) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(role); // crear/editar censo
 export const canDeleteRegistro = (role: string) => ["MASTER", "ADMIN"].includes(role);
 export const canManageUsers    = (role: string) => ["MASTER", "ADMIN", "AdminMedico"].includes(role);
@@ -15,8 +19,9 @@ export const canManagePadron   = (role: string) => ["MASTER", "ADMIN"].includes(
 export const canImportRenace   = (role: string) => role === "MASTER"; // VZLA RENACE: importar Excel al campamento seleccionado (espejo de auth.ts)
 export const canExportRenace   = (role: string) => ["MASTER", "ADMIN"].includes(role); // VZLA RENACE: descargar el Directorio a Excel (NO Registrador/RENACE/Master Renace)
 export const canEditRenace     = (role: string) => ["MASTER", "ADMIN", "REGISTRADOR"].includes(role); // VZLA RENACE: editar datos de jefe/miembro (scoped por refugio en el back)
-export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role); // panel de estadísticas
+export const canViewDashboard  = (role: string) => ["MASTER", "ADMIN", "VISUALIZADOR"].includes(role) || isVisualizadorMaster(role); // panel de estadísticas
 export const canManageMorbilidad = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(role);
+export const canViewMorbilidad   = (role: string) => canManageMorbilidad(role) || isVisualizadorMaster(role);
 // Eliminar consultas médicas: SOLO AdminMedico y Master (Operador/Asistente no eliminan).
 export const canDeleteConsulta = (role: string) => ["MASTER", "AdminMedico"].includes(role);
 // ¿Rol médico? Solo ven Morbilidad (AdminMedico además ve Usuarios filtrado a médicos).
@@ -30,10 +35,10 @@ export const isRenaceMaster    = (role: string) => role === "RENACE_MASTER";
 // Roles EXCLUSIVOS del módulo VZLA RENACE (no ven ningún otro módulo del sistema).
 export const isRenaceOnly      = (role: string) => isRenace(role) || isRenaceMaster(role);
 // ¿Puede VER las Gráficas del módulo (dashboard agregado)? Master global + Master Renace.
-export const canViewRenaceGraficas = (role: string) => isMaster(role) || isRenaceMaster(role);
+export const canViewRenaceGraficas = (role: string) => isMaster(role) || isRenaceMaster(role) || isVisualizadorMaster(role);
 // ¿Puede USAR el módulo VZLA RENACE? Lado censo SIN visualizador + los roles RENACE y
 // RENACE_MASTER. (VISUALIZADOR y roles médicos NO.) El backend valida de nuevo.
-export const canUseRenace      = (role: string) => ["MASTER", "ADMIN", "REGISTRADOR", "RENACE", "RENACE_MASTER"].includes(role);
+export const canUseRenace      = (role: string) => ["MASTER", "ADMIN", "REGISTRADOR", "RENACE", "RENACE_MASTER"].includes(role) || isVisualizadorMaster(role);
 // Catálogos médicos — CREAR/EDITAR: AdminMedico, OperadorMedico y Master.
 export const canEditCatalogosMedicos = (role: string) => ["MASTER", "AdminMedico", "OperadorMedico"].includes(role);
 // Catálogos médicos — ELIMINAR y superficie de administración: solo AdminMedico y Master.
@@ -41,13 +46,15 @@ export const canManageCatalogosMedicos = (role: string) => ["MASTER", "AdminMedi
 // Caracterización — POR AHORA todo el módulo (pestaña, fichas y catálogo) es SOLO Master.
 // (Cuando se abra a más roles, ampliar aquí + en el gating de la pestaña y el POST.)
 export const canManageCaracterizacion = (role: string) => ["MASTER"].includes(role);
+export const canViewCaracterizacion   = (role: string) => isMaster(role) || isVisualizadorMaster(role);
 // Comedor — Acceso a Master y MasterComedor
 export const isMasterComedor     = (role: string) => {
   const r = (role || "").toUpperCase().replace(/[_\s]/g, "");
   return r === "MASTERCOMEDOR";
 };
 export const isComedorOnly       = (role: string) => isMasterComedor(role);
-export const canViewComedor      = (role: string) => isMaster(role) || isMasterComedor(role);
+export const canViewComedor      = (role: string) => isMaster(role) || isMasterComedor(role) || isVisualizadorMaster(role);
+export const canManageComedor    = (role: string) => isMaster(role) || isMasterComedor(role);
 
 // ── Planteamiento Sala (Master, Planteamiento Master y Planteamiento Visualizador) ────
 // Rol EXCLUSIVO "Planteamiento Master": dedicado exclusivamente al módulo Planteamiento Sala (gestión completa).
@@ -55,7 +62,7 @@ export const isPlanteamientoMaster     = (role: string) => role === "PLANTEAMIEN
 // Rol EXCLUSIVO "Planteamiento Visualizador": solo visualización dentro de Planteamiento Sala, restringido a su campamento.
 export const isPlanteamientoVisualizador = (role: string) => role === "PlanteamientoVisualizador" || role === "PLANTEAMIENTO_VISUALIZADOR";
 export const isPlanteamientoOnly       = (role: string) => isPlanteamientoMaster(role) || isPlanteamientoVisualizador(role);
-export const canViewPlanteamientoSala  = (role: string) => isMaster(role) || isPlanteamientoMaster(role) || isPlanteamientoVisualizador(role);
+export const canViewPlanteamientoSala  = (role: string) => isMaster(role) || isPlanteamientoMaster(role) || isPlanteamientoVisualizador(role) || isVisualizadorMaster(role);
 export const canManagePlanteamientoSala = (role: string) => isMaster(role) || isPlanteamientoMaster(role);
 
 /** ¿El usuario tiene un refugio válido asociado? (espejo de auth.ts hasRefugio). */
@@ -66,7 +73,7 @@ export const hasRefugio        = (refugio: string | null | undefined): boolean =
  *  backend (src/app/api/auth/users/route.ts → assignableRoles). Solo para poblar
  *  el selector de rol; el backend vuelve a validar. */
 export function assignableRoles(role: string): string[] {
-  if (isMaster(role)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "PlanteamientoVisualizador", "MasterComedor", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (isMaster(role)) return ["ADMIN", "REGISTRADOR", "VISUALIZADOR", "VISUALIZADOR_MASTER", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "PlanteamientoVisualizador", "MasterComedor", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
   if (role === "AdminMedico") return ["OperadorMedico", "AsistenteMedico"];
   return ["REGISTRADOR", "VISUALIZADOR"];
 }
@@ -76,7 +83,7 @@ export function assignableRoles(role: string): string[] {
  *  otros Master y verse a sí mismo en la audiencia). El resto de emisores mantiene
  *  su ámbito. El backend revalida con esta misma función. */
 export function avisoAudienceRoles(role: string): string[] {
-  if (isMaster(role)) return ["MASTER", "ADMIN", "REGISTRADOR", "VISUALIZADOR", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "PlanteamientoVisualizador", "MasterComedor", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
+  if (isMaster(role)) return ["MASTER", "ADMIN", "REGISTRADOR", "VISUALIZADOR", "VISUALIZADOR_MASTER", "RENACE", "RENACE_MASTER", "PLANTEAMIENTO_MASTER", "PlanteamientoVisualizador", "MasterComedor", "AdminMedico", "OperadorMedico", "AsistenteMedico"];
   return assignableRoles(role);
 }
 
@@ -86,6 +93,8 @@ export const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administrador",
   REGISTRADOR: "Registrador",
   VISUALIZADOR: "Visualizador",
+  VISUALIZADOR_MASTER: "Visualizador Master",
+  VisualizadorMaster: "Visualizador Master",
   RENACE: "VZLA Renace",
   RENACE_MASTER: "Master Renace",
   PLANTEAMIENTO_MASTER: "Planteamiento Master",
@@ -105,6 +114,8 @@ export function canManageTargetUser(
   targetRole: string, targetRefugio: string
 ): boolean {
   if (targetRole === "MASTER") return false;
+  if (isVisualizadorMaster(targetRole) && !isMaster(actorRole)) return false;
+  if (isVisualizadorMaster(actorRole)) return false;
   if (isMaster(actorRole)) return true;
   if (actorRole === "ADMIN") {
     return ["REGISTRADOR", "VISUALIZADOR", "AdminMedico", "OperadorMedico", "AsistenteMedico"].includes(targetRole) && targetRefugio === actorRefugio;

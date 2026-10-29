@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, isMaster, canUseRenace, canEditRenace, type AuthUser } from "@/lib/auth";
+import { getAuthUser, isMaster, canUseRenace, canEditRenace, isRenace, type AuthUser } from "@/lib/auth";
 import { refugioIdByName } from "@/lib/renaceScope";
 
 // Refugio DESTINO del planteamiento: se usa el refugioId del NÚCLEO (que el cliente
@@ -50,6 +50,9 @@ export async function POST(req: Request) {
     if (!canUseRenace(auth)) return NextResponse.json({ error: "Sin acceso a VZLA Renace." }, { status: 403 });
 
     const body = await req.json();
+    if (!canEditRenace(auth) && !isRenace(auth)) {
+      return NextResponse.json({ error: "Sin permiso para registrar planteamientos." }, { status: 403 });
+    }
     const jefeNro = parseInt(String(body?.jefeNro), 10);
     const jefeCedulaSent = String(body?.jefeCedula ?? "").replace(/\D/g, "") || null;
     if (!Number.isFinite(jefeNro) && !jefeCedulaSent) {

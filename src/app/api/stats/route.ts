@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthUser, isMaster } from "@/lib/auth";
+import { getAuthUser, isMaster, isVisualizadorMaster } from "@/lib/auth";
 import { computeAggregateStats } from "@/lib/stats";
 
 export async function GET(req: Request) {
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     // Scoping por refugio. Master respeta el "refugio de vista" (?refugio); si no
     // lo manda, ve todos. El resto: siempre su refugio (ignora el parámetro).
     const requested = new URL(req.url).searchParams.get("refugio");
-    const scopeRefugio = isMaster(auth) ? (requested || null) : auth.refugio;
+    const scopeRefugio = (isMaster(auth) || isVisualizadorMaster(auth)) ? (requested || null) : auth.refugio;
 
     const stats = await computeAggregateStats(scopeRefugio);
 

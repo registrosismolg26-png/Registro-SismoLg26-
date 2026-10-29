@@ -16,7 +16,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { safeSetItem } from "@/lib/safeStorage";
 import { getAllLocalRenacePlanteamientos } from "@/lib/db";
 import { normalizeText } from "@/lib/helpers";
-import { canImportRenace, canExportRenace, canEditRenace, isMaster, isRenaceMaster, canViewRenaceGraficas } from "@/lib/permissions";
+import { canImportRenace, canExportRenace, canEditRenace, isMaster, isVisualizadorMaster, isRenaceMaster, canViewRenaceGraficas } from "@/lib/permissions";
 import Pagination from "@/components/Pagination";
 import StyledSelect from "@/components/StyledSelect";
 import RenacePlanModal from "@/components/RenacePlanModal";
@@ -673,7 +673,7 @@ export default function VzlaRenaceTab() {
 
       {/* Master (global) alterna entre Directorio y Gráficas. Master Renace NO ve el
           toggle: su vista es solo Gráficas. El resto de roles solo ve el Directorio. */}
-      {esMaster && (
+      {(esMaster || isVisualizadorMaster(currentUser?.role || '')) && (
         <div className="btn-seg-group renace-viewtabs">
           <button type="button" className={`toolbar-btn${view === "directorio" ? " is-active" : ""}`} onClick={() => setView("directorio")}>Directorio</button>
           <button type="button" className={`toolbar-btn${view === "graficas" ? " is-active" : ""}`} onClick={() => setView("graficas")}>Gráficas</button>
@@ -808,8 +808,8 @@ export default function VzlaRenaceTab() {
                     <td>{[j.estadoProcedencia, j.parroquiaProcedencia].filter(Boolean).join(" / ") || "—"}</td>
                     <td className="col-action col-action--min" data-label="Acciones">
                       <RowActionsMenu title={j.nombres} actions={[
-                        { key: "plantear", label: "Plantear solución", tone: "primary", onClick: () => setPlaneando(j),
-                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg> },
+                        ...(puedeEditar ? [{ key: "plantear", label: "Plantear solución", tone: "primary", onClick: () => setPlaneando(j),
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg> } as RowAction] : []),
                         ...(puedeEditar && es === "CON_PLAN" ? [{ key: "aprobar", label: "Aprobar", tone: "success", onClick: () => openAprobar(j, es),
                           icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg> } as RowAction] : []),
                         ...(puedeEditar && es === "APROBADO" ? [{ key: "retirar", label: "Retirar familia", tone: "danger", onClick: () => setRetirando(j),

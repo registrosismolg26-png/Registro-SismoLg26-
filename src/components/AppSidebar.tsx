@@ -13,7 +13,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAppContext } from "@/context/AppContext";
-import { isMaster, isMedico } from "@/lib/permissions";
+import { isMaster, isVisualizadorMaster, isMedico } from "@/lib/permissions";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import NotificationBell from "@/components/NotificationBell";
 import { NAV_ITEMS } from "@/components/navItems";
@@ -74,9 +74,10 @@ export default function AppSidebar() {
     (role === "MASTER" || role === "MasterComedor" || role === "MASTER_COMEDOR") ? "master" :
     role === "ADMIN" ? "admin" :
     isMedico(role) ? "medico" :
-    (role === "VISUALIZADOR" || role === "PlanteamientoVisualizador") ? "visual" : "reg";
+    (role === "VISUALIZADOR" || role === "PlanteamientoVisualizador" || isVisualizadorMaster(role)) ? "visual" : "reg";
   const roleLabels: Record<string, string> = {
     MASTER: "Master", ADMIN: "Admin", REGISTRADOR: "Registrador", VISUALIZADOR: "Visualizador",
+    VISUALIZADOR_MASTER: "Visualizador Master", VisualizadorMaster: "Visualizador Master",
     RENACE: "VZLA Renace", RENACE_MASTER: "Master Renace", PLANTEAMIENTO_MASTER: "Planteamiento Master",
     PlanteamientoVisualizador: "Planteamiento Visualizador",
     MasterComedor: "Master Comedor", MASTER_COMEDOR: "Master Comedor",
@@ -155,7 +156,7 @@ export default function AppSidebar() {
         </div>
 
         {/* Selector de campamento (solo Master). Colapsado → popover flotante (cambiar sin expandir). */}
-        {isMaster(role) && refugiosList.length > 0 && (
+        {(isMaster(role) || isVisualizadorMaster(role)) && refugiosList.length > 0 && (
           collapsed ? (
             <div className="sb-refugio-mini">
               <button

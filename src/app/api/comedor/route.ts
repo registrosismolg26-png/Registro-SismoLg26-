@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, canViewComedor } from "@/lib/auth";
+import { getAuthUser, canViewComedor, canManageComedor } from "@/lib/auth";
 import { cedulaFamilia } from "@/lib/helpers";
 
 export async function GET(req: Request) {
@@ -331,6 +331,9 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const action = body.action || "entrega";
+    if (action !== "lookup" && !canManageComedor(auth)) {
+      return NextResponse.json({ error: "No autorizado. Su rol es de solo visualización." }, { status: 403 });
+    }
 
     // ── ACCIÓN: LOOKUP POR QR / CÉDULA ──────────────────────────────────────────
     if (action === "lookup") {
@@ -754,8 +757,8 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const auth = await getAuthUser(req);
-    if (!auth || !canViewComedor(auth)) {
-      return NextResponse.json({ error: "No autorizado. Solo Master y Master Comedor pueden eliminar registros del comedor." }, { status: 401 });
+    if (!auth || !canManageComedor(auth)) {
+      return NextResponse.json({ error: "No autorizado. Solo Master y Master Comedor pueden eliminar registros del comedor." }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);

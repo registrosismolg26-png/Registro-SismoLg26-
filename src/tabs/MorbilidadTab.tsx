@@ -15,7 +15,7 @@ import { exportRegistroMinSaludExcel } from "@/lib/exportRegistroMinSaludExcel";
 import { logActivity } from "@/lib/activityLog";
 import { safeSetItem } from "@/lib/safeStorage";
 import { apiFetch } from "@/lib/apiFetch";
-import { canDeleteConsulta } from "@/lib/permissions";
+import { canDeleteConsulta, canManageMorbilidad } from "@/lib/permissions";
 import SearchableSelect from "@/components/SearchableSelect";
 import StyledSelect from "@/components/StyledSelect";
 import DatePicker from "@/components/DatePicker";
@@ -153,6 +153,7 @@ export default function MorbilidadTab() {
   } = useAppContext();
 
   const canDelete = canDeleteConsulta(currentUser?.role || "");
+  const canManage = canManageMorbilidad(currentUser?.role || "");
 
   // Modal "Nueva consulta" (antes era el flujo inline buscar + formulario).
   const [showCreate, setShowCreate] = useState(false);
@@ -1242,10 +1243,12 @@ export default function MorbilidadTab() {
         </div>
         {/* Acciones: "Nueva consulta" (abre el modal) ANTES de los catálogos médicos. */}
         <div className="morb-head__actions">
-          <button type="button" className="morb-newbtn" onClick={openCreate}>
+          {canManage && (
+            <button type="button" className="morb-newbtn" onClick={openCreate}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span className="btn-txt-collapsible-sm">Nueva consulta</span>
           </button>
+          )}
           {/* Catálogos médicos: botones discretos + modales. Solo a quien puede editar catálogos. */}
           <CatalogosMedicos />
         </div>
@@ -1568,16 +1571,18 @@ export default function MorbilidadTab() {
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M8 14h2l1-2 2 4 1-2h2"/></svg>
                             <span className="morb-row-actions__txt">Historial</span>
                           </button>
-                          <button
-                            type="button"
-                            className="morb-row-actions__btn morb-row-actions__btn--edit"
-                            data-tip="Editar consulta"
-                            aria-label="Editar consulta"
-                            onClick={() => openEdit(c)}
-                          >
+                          {canManage && (
+                            <button
+                              type="button"
+                              className="morb-row-actions__btn morb-row-actions__btn--edit"
+                              data-tip="Editar consulta"
+                              aria-label="Editar consulta"
+                              onClick={() => openEdit(c)}
+                            >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             <span className="morb-row-actions__txt">Editar</span>
                           </button>
+                          )}
                           {canDelete && (
                             <button
                               type="button"
@@ -1954,13 +1959,15 @@ export default function MorbilidadTab() {
 
               <div className="morb-actions">
                 <button type="button" className="morb-btn morb-btn--ghost" onClick={closeView}>Cerrar</button>
-                <button type="button" className="morb-btn morb-btn--primary" style={{ minWidth: "160px" }} onClick={() => {
-                  const currentCons = viewConsulta;
-                  closeView();
-                  setTimeout(() => openEdit(currentCons), 250);
-                }}>
-                  Editar consulta
-                </button>
+                {canManage && (
+                  <button type="button" className="morb-btn morb-btn--primary" style={{ minWidth: "160px" }} onClick={() => {
+                    const currentCons = viewConsulta;
+                    closeView();
+                    setTimeout(() => openEdit(currentCons), 250);
+                  }}>
+                    Editar consulta
+                  </button>
+                )}
               </div>
             </div>
           </div>

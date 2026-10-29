@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, canManageRooms, isMaster, type AuthUser } from "@/lib/auth";
+import { getAuthUser, canManageRooms, isMaster, isVisualizadorMaster, type AuthUser } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
 
 // Refugio objetivo: Master puede indicar uno (?refugio= / body.refugio); el resto usa el suyo.
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
     const requested = new URL(request.url).searchParams.get("refugio");
     // Master sin refugio explícito ve todos; con refugio, solo ese. El resto: solo su refugio.
-    const where = isMaster(auth)
+    const where = (isMaster(auth) || isVisualizadorMaster(auth))
       ? (requested ? { refugio: requested } : {})
       : { refugio: auth.refugio };
 
