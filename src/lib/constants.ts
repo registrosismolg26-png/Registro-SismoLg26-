@@ -156,6 +156,17 @@ export const RAZONES_RETIRO = [
   "Otra",
 ] as const;
 
+// Solución habitacional de la persona/familia (refugios ITINERANTE/MIXTO, junto a la
+// carpa). Se guarda tal cual en Registro.solucionHabitacional. Fuente ÚNICA (censo,
+// edición, detalle, Excel y normalización del servidor en /api/register).
+export const SOLUCIONES_HABITACIONALES = [
+  "ALQUILER",
+  "MERCADO SECUNDARIO",
+  "CRÉDITO HIPOTECARIO",
+  "SUBSIDIO",
+  "CAMPAMENTO CIUDAD CARIBIA",
+] as const;
+
 // Motivo del RETIRO en VZLA RENACE (solución ejecutada) = subconjunto de RAZONES_RETIRO
 // para que el encadenado al censo caiga en una razón que este ya entiende (sus filtros y
 // estadísticas). Fuente única: no duplicar textos.

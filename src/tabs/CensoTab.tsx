@@ -21,7 +21,7 @@ import { useState, useRef, useReducer, useMemo, useEffect } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import type { Medicamento, FormData, IntegranteDraft } from "@/types";
-import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, TELEFONO_CODIGOS, RAZONES_RETIRO } from "@/lib/constants";
+import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, TELEFONO_CODIGOS, RAZONES_RETIRO, SOLUCIONES_HABITACIONALES } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
@@ -91,6 +91,8 @@ export default function CensoTab() {
   // viene del paso 2 (formData.comunidad); el cuarto se compone "COMUNIDAD - TIPO - NN".
   const [carpaTipo, setCarpaTipo] = useState("");
   const [carpaNro, setCarpaNro] = useState("");
+  // Solución habitacional (solo refugios con carpa); se hereda a la carga familiar.
+  const [solucionHab, setSolucionHab] = useState("");
   const roomCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     registros.filter((r: any) => r.retirado !== "SI" && r.cuarto).forEach((r: any) => {
@@ -422,6 +424,7 @@ export default function CensoTab() {
     if (esCarpa && !seRetira) {
       if (!carpaTipo) newErrors.carpaTipo = "Seleccione el tipo de carpa";
       if (!carpaNro.trim()) newErrors.carpaNro = "Indique el N.º / código de carpa";
+      if (!solucionHab) newErrors.solucionHabitacional = "Seleccione la solución habitacional";
     }
     return newErrors;
   };
@@ -437,7 +440,7 @@ export default function CensoTab() {
     perteneceNucleo: 1, jefeFamilia: 1, cedulaJefeFamilia: 1,
     parroquia: 2, sector: 2, comunidad: 2, direccionExacta: 2,
     cedula: 3, nombreApellido: 3, genero: 3, fechaNacimiento: 3, telefonoNum: 3,
-    estadoFisico: 4, patologia: 4, patologiaIds: 4, motivoIntermitente: 4, carpaTipo: 4, carpaNro: 4,
+    estadoFisico: 4, patologia: 4, patologiaIds: 4, motivoIntermitente: 4, carpaTipo: 4, carpaNro: 4, solucionHabitacional: 4,
   };
   const firstErrorStep = (errs: Record<string, string>): 1 | 2 | 3 | 4 =>
     (Object.keys(errs).length
@@ -677,6 +680,7 @@ export default function CensoTab() {
     refugio: string; userId?: string;
     parroquia: string; sector: string; comunidad: string; direccionExacta: string;
     gpsLat?: number; gpsLng?: number; cuarto?: string;
+    solucionHabitacional?: string;
     retirado?: string; retiradoRazon?: string;
   };
   const buildRegistroData = (p: PersonInput, shared: SharedInput) => {
@@ -724,6 +728,7 @@ export default function CensoTab() {
         telefono: finalTelefono !== null ? finalTelefono : undefined,
         medicamentoIds: p.medicamentos.filter(m => m.id),
         cuarto: shared.cuarto,
+        solucionHabitacional: shared.solucionHabitacional,
         intermitente: p.intermitente || "NO",
         motivoIntermitente: p.intermitente === "SI" ? p.motivoIntermitente.trim() : undefined,
         observaciones: p.observaciones ? p.observaciones.trim() : undefined,
@@ -840,6 +845,7 @@ export default function CensoTab() {
         gpsLat: coords.lat !== null ? coords.lat : undefined,
         gpsLng: coords.lng !== null ? coords.lng : undefined,
         cuarto: jefeCuarto,
+        solucionHabitacional: seRetira || !esCarpa ? undefined : (solucionHab || undefined),
       };
 
       // Registro del jefe (o de la persona individual). MISMO builder para ambos.
@@ -914,6 +920,7 @@ export default function CensoTab() {
       setAsignCuartoCenso("");
       setCarpaTipo("");
       setCarpaNro("");
+      setSolucionHab("");
       setSeRetira(false);
       setRetiroRazon("Hogar Solidario");
       setRetiroSpec("");
@@ -1578,7 +1585,7 @@ export default function CensoTab() {
                         const checked = !seRetira;
                         setSeRetira(checked);
                         // un retirado no ocupa habitación ni carpa
-                        if (checked) { setAsignCuartoCenso(""); setCarpaTipo(""); setCarpaNro(""); setErrors(prev => ({ ...prev, carpaTipo: "", carpaNro: "" })); }
+                        if (checked) { setAsignCuartoCenso(""); setCarpaTipo(""); setCarpaNro(""); setSolucionHab(""); setErrors(prev => ({ ...prev, carpaTipo: "", carpaNro: "", solucionHabitacional: "" })); }
                       }}
                     >
                       <span className="pill-check__box" aria-hidden>
@@ -1663,6 +1670,23 @@ export default function CensoTab() {
                             ? "Se retira del campamento: no se le asigna carpa."
                             : "Queda como “COMUNIDAD - TIPO DE CARPA - Nº”."}
                         </p>
+                      </div>
+                      <div className="form-group">
+                        <label>
+                          Solución habitacional{!seRetira && <span className="required-star">*</span>}
+                        </label>
+                        <StyledSelect
+                          value={solucionHab}
+                          onChange={(v) => { setSolucionHab(v); setErrors(prev => ({ ...prev, solucionHabitacional: "" })); }}
+                          options={SOLUCIONES_HABITACIONALES.map(s => ({ value: s, label: s }))}
+                          placeholder="Seleccione la solución habitacional"
+                          ariaLabel="Solución habitacional"
+                          disabled={seRetira}
+                          error={!!err("solucionHabitacional")}
+                        />
+                        <div className="error-container">
+                          {err("solucionHabitacional") && <span className="field-error-message">{err("solucionHabitacional")}</span>}
+                        </div>
                       </div>
                     </>
                   ) : (

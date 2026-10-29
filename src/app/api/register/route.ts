@@ -5,6 +5,14 @@ import { getAuthUser, canRegister, canActOnRefugio, isMaster, hasRefugio } from 
 import { withAuditUser } from "@/lib/audit";
 import { sendTelegram, sendTelegramGroup } from "@/lib/telegram";
 import { adminRecipients, createNotifications } from "@/lib/notify";
+import { SOLUCIONES_HABITACIONALES } from "@/lib/constants";
+
+// Solución habitacional OPCIONAL en el servidor (la cola offline de clientes viejos no la
+// envía; un 400 sería error permanente). Valor fuera de la lista o vacío → null.
+const normSolucionHab = (v: unknown): string | null => {
+  const up = String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+  return SOLUCIONES_HABITACIONALES.find((s) => s === up) ?? null;
+};
 
 const VALID_GENERO = ["MASCULINO", "FEMENINO"];
 const VALID_ESTADO_FISICO = ["ILESO", "LESIONADO"];
@@ -246,6 +254,10 @@ export async function POST(req: Request) {
           observaciones: body.observaciones !== undefined
             ? (body.observaciones && String(body.observaciones).trim() ? String(body.observaciones).trim() : null)
             : existing.observaciones,
+          // undefined = el cliente no lo envió → conserva el valor existente.
+          solucionHabitacional: body.solucionHabitacional !== undefined
+            ? normSolucionHab(body.solucionHabitacional)
+            : undefined,
           syncedAt: new Date(),
         }
       }));
@@ -326,6 +338,7 @@ export async function POST(req: Request) {
           intermitente: intermitenteVal,
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
           observaciones: (observaciones && String(observaciones).trim()) || (body.observaciones && String(body.observaciones).trim()) || null,
+          solucionHabitacional: normSolucionHab(body.solucionHabitacional),
           registrador: (auth.nombre || auth.email || "").trim() || null,
           syncedAt: new Date(),
         },

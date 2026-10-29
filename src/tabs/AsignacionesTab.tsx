@@ -19,7 +19,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import Reveal from "@/components/Reveal";
-import { PARROQUIAS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, RAZONES_RETIRO } from "@/lib/constants";
+import { PARROQUIAS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, RAZONES_RETIRO, SOLUCIONES_HABITACIONALES } from "@/lib/constants";
 import {
   formatRoomLabel,
   roomFillLevel,
@@ -362,6 +362,7 @@ export default function AsignacionesTab() {
     setEditData({
       carpaTipo: carpaTipoIni,
       carpaNro: carpaNroIni,
+      solucionHabitacional: reg.solucionHabitacional || "",
       nacionalidad: parsedCed.nac,
       cedula: parsedCed.digits,
       isChildDependent: parsedCed.isChild,
@@ -887,6 +888,7 @@ export default function AsignacionesTab() {
     if (esCarpa && editData.retirado !== "SI") {
       if (!s(editData.carpaTipo).trim()) e.carpaTipo = "Seleccione el tipo de carpa";
       if (!s(editData.carpaNro).trim()) e.carpaNro = "Indique el N.º / código de carpa";
+      if (!s(editData.solucionHabitacional).trim()) e.solucionHabitacional = "Seleccione la solución habitacional";
     }
     return e;
   };
@@ -1062,6 +1064,8 @@ export default function AsignacionesTab() {
             ? updated.medicamentoIds
             : [],
           cuarto: updated.cuarto || undefined,
+          // Solo refugios con carpa. "" = vaciado explícito (el servidor lo guarda como null).
+          solucionHabitacional: esCarpa ? (updated.solucionHabitacional || "") : undefined,
           retirado: updated.retirado || "NO",
           retiradoRazon:
             updated.retirado === "SI" ? updated.retiradoRazon : undefined,
@@ -2822,6 +2826,10 @@ export default function AsignacionesTab() {
                             <span className="detail-label">N.º / Código de Carpa</span>
                             <span className="detail-value">{selectedRegistro.carpaNro || "—"}</span>
                           </div>
+                          <div className="detail-field">
+                            <span className="detail-label">Solución Habitacional</span>
+                            <span className="detail-value">{selectedRegistro.solucionHabitacional || "—"}</span>
+                          </div>
                           <div className="detail-field detail-field--full">
                             <span className="detail-label">Designación Completa</span>
                             <span
@@ -3817,6 +3825,23 @@ export default function AsignacionesTab() {
                         <p style={{ margin: "0.25rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
                           Queda como “COMUNIDAD - TIPO DE CARPA - Nº”.
                         </p>
+                      </div>
+                      <div className="form-group">
+                        <label>
+                          Solución habitacional
+                          {editData.retirado !== "SI" && <span className="required-star">*</span>}
+                        </label>
+                        <StyledSelect
+                          value={editData.solucionHabitacional || ""}
+                          onChange={(v) => setEditData((prev) => ({ ...prev, solucionHabitacional: v }))}
+                          options={SOLUCIONES_HABITACIONALES.map((s) => ({ value: s, label: s }))}
+                          placeholder="Seleccione la solución habitacional"
+                          ariaLabel="Solución habitacional"
+                          error={!!editErr("solucionHabitacional")}
+                        />
+                        <div className="error-container">
+                          {editErr("solucionHabitacional") && <span className="field-error-message">{editErr("solucionHabitacional")}</span>}
+                        </div>
                       </div>
                     </>
                   ) : (

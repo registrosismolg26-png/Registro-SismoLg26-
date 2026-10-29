@@ -59,6 +59,7 @@ export interface LocalRegistro {
     gpsLng?: number;
     telefono?: string;
     observaciones?: string;
+    solucionHabitacional?: string;
   };
   status: 'pending' | 'synced' | 'error';
   syncResult?: 'registrado' | 'duplicado' | 'error';
