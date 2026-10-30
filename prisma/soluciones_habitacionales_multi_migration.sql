@@ -10,7 +10,7 @@
 --        ALQUILER                  → ALQUILER
 --        CRÉDITO HIPOTECARIO       → CRÉDITO HIPOTECARIO
 --        MERCADO SECUNDARIO        → MERCADO SECUNDARIO (SUBSIDIO)
---        SUBSIDIO                  → MERCADO SECUNDARIO (SUBSIDIO)   (⚠ confirmar)
+--        SUBSIDIO                  → MERCADO SECUNDARIO (SUBSIDIO)   (confirmado: son la misma opción)
 --        CAMPAMENTO CIUDAD CARIBIA → CIUDAD CARIBIA
 --    Cualquier otro valor NO se convierte (queda la lista vacía y el legado intacto).
 --  · Nota: el UPDATE dispara el trigger de auditoría (una fila de AuditLog por registro
