@@ -301,7 +301,12 @@ export async function POST(req: Request) {
           syncedAt: new Date(),
         }
       }));
-      if (vivienda) await upsertVivienda(updated.id, updated.refugio, vivienda);
+      if (vivienda) {
+        await upsertVivienda(updated.id, updated.refugio, vivienda);
+      } else if (jefeFamilia === "SI" && body.vivienda && typeof body.vivienda === "object") {
+        // El cliente envió el bloque pero VACÍO (quitó los QR y la etiqueta) → se elimina.
+        await prisma.registroVivienda.deleteMany({ where: { registroId: updated.id } });
+      }
       return NextResponse.json({ success: true, id: updated.id, updated: true }, { status: 200 });
     }
 

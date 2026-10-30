@@ -22,9 +22,17 @@ export async function GET(req: Request) {
       return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": "no-store" } });
     }
 
+    // `vivienda` (QR habitable/colapso + Comisión, solo jefes de campamentos con carpa) viaja
+    // anidada para que Registrados la vea/edite/exporte también SIN red (cache local). Un
+    // cambio de vivienda se hace por /api/register, que refresca `syncedAt` → el ETag cambia.
     const registros = await prisma.registro.findMany({
       where: scope,
       orderBy: { createdAt: "desc" },
+      include: {
+        vivienda: {
+          select: { habitableUrl: true, habitableData: true, colapsoUrl: true, colapsoData: true, comisionEtiqueta: true },
+        },
+      },
     });
 
     const headers: Record<string, string> = { "Cache-Control": "no-store" };

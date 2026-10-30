@@ -33,6 +33,8 @@ interface Props {
   showToast: (message: string, type: ToastType) => void;
   jefeNombre: string;
   jefeMeta: string;
+  /** Edición en Registrados: sin tarjeta del jefe ni texto de ayuda del asistente. */
+  compact?: boolean;
 }
 
 const META: Record<Kind, { titulo: string; modal: string; url: keyof ViviendaDraft; data: keyof ViviendaDraft }> = {
@@ -68,7 +70,7 @@ function resumen(data: unknown): string {
   return str(d.texto) ? str(d.texto).slice(0, 140) : "Contenido leído y guardado";
 }
 
-export default function ViviendaQrStep({ value, onChange, showToast, jefeNombre, jefeMeta }: Props) {
+export default function ViviendaQrStep({ value, onChange, showToast, jefeNombre, jefeMeta, compact = false }: Props) {
   const [scanning, setScanning] = useState<Kind | null>(null);
   const [reading, setReading] = useState<Kind | null>(null);
 
@@ -154,18 +156,22 @@ export default function ViviendaQrStep({ value, onChange, showToast, jefeNombre,
 
   return (
     <div className="pill-form">
-      <div className="intg-jefe-card">
-        <span className="intg-jefe-card__icon" aria-hidden>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </span>
-        <span className="intg-jefe-card__info">
-          <span className="intg-jefe-card__name">{jefeNombre?.trim() || "Jefe de familia"}</span>
-          <span className="intg-jefe-card__meta">{jefeMeta || "Jefe de familia"}</span>
-        </span>
-      </div>
-      <p className="intg-help">
-        Todo es <strong>opcional</strong> y queda <strong>vinculado al jefe de familia</strong>. Se guarda el QR y su contenido.
-      </p>
+      {!compact && (
+        <>
+        <div className="intg-jefe-card">
+          <span className="intg-jefe-card__icon" aria-hidden>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <span className="intg-jefe-card__info">
+            <span className="intg-jefe-card__name">{jefeNombre?.trim() || "Jefe de familia"}</span>
+            <span className="intg-jefe-card__meta">{jefeMeta || "Jefe de familia"}</span>
+          </span>
+        </div>
+        <p className="intg-help">
+          Todo es <strong>opcional</strong> y queda <strong>vinculado al jefe de familia</strong>. Se guarda el QR y su contenido.
+        </p>
+        </>
+      )}
 
       <div className="vqr-grid">
         {card("habitable")}
