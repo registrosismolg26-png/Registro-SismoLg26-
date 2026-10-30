@@ -19,7 +19,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import Reveal from "@/components/Reveal";
-import { PARROQUIAS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, RAZONES_RETIRO, SOLUCIONES_HABITACIONALES } from "@/lib/constants";
+import { PARROQUIAS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, RAZONES_RETIRO } from "@/lib/constants";
 import {
   formatRoomLabel,
   roomFillLevel,
@@ -45,6 +45,11 @@ import { logActivity } from "@/lib/activityLog";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
+import ViviendaQrStep, { EMPTY_VIVIENDA, type ViviendaDraft } from "@/components/ViviendaQrStep";
+import { flattenVivienda, viviendaTieneDatos } from "@/lib/vivienda";
+import SolucionesHabitacionalesField from "@/components/SolucionesHabitacionalesField";
+import { solucionesDe, solucionesTexto } from "@/lib/solucionesHab";
+import { ETIQUETAS_COMISION } from "@/lib/constants";
 import DatePicker from "@/components/DatePicker";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
 import { useAnimatedModal } from "@/components/useAnimatedModal";
@@ -362,7 +367,7 @@ export default function AsignacionesTab() {
     setEditData({
       carpaTipo: carpaTipoIni,
       carpaNro: carpaNroIni,
-      solucionHabitacional: reg.solucionHabitacional || "",
+      solucionesHabitacionales: solucionesDe(reg),
       nacionalidad: parsedCed.nac,
       cedula: parsedCed.digits,
       isChildDependent: parsedCed.isChild,
@@ -390,6 +395,14 @@ export default function AsignacionesTab() {
       motivoIntermitente: reg.motivoIntermitente || "",
       cuarto: reg.cuarto || "",
       observaciones: reg.observaciones || "",
+      // Vivienda del jefe (QR habitable/colapso + Comisión): borrador editable.
+      vivienda: {
+        habitableUrl: reg.vivienda?.habitableUrl || "",
+        habitableData: reg.vivienda?.habitableData ?? null,
+        colapsoUrl: reg.vivienda?.colapsoUrl || "",
+        colapsoData: reg.vivienda?.colapsoData ?? null,
+        comisionEtiqueta: reg.vivienda?.comisionEtiqueta || "",
+      } satisfies ViviendaDraft,
     });
     const initialMeds = Array.isArray(reg.medicamentoIds)
       ? reg.medicamentoIds
@@ -888,7 +901,7 @@ export default function AsignacionesTab() {
     if (esCarpa && editData.retirado !== "SI") {
       if (!s(editData.carpaTipo).trim()) e.carpaTipo = "Seleccione el tipo de carpa";
       if (!s(editData.carpaNro).trim()) e.carpaNro = "Indique el N.º / código de carpa";
-      if (!s(editData.solucionHabitacional).trim()) e.solucionHabitacional = "Seleccione la solución habitacional";
+      if (!Array.isArray(editData.solucionesHabitacionales) || editData.solucionesHabitacionales.length === 0) e.solucionHabitacional = "Seleccione al menos una solución habitacional";
     }
     return e;
   };
@@ -1006,6 +1019,7 @@ export default function AsignacionesTab() {
       cedula: finalCedula,
       cedulaJefeFamilia: finalJefeCedula,
       cuarto: cuartoFinal,
+      solucionHabitacional: null, // legado: el servidor lo deja en NULL al guardar la lista
       medicamentoIds: editMedicamentos,
       retiradoRazon: retiradoRazonFinal,
       observaciones: editData.observaciones !== undefined
@@ -1065,7 +1079,17 @@ export default function AsignacionesTab() {
             : [],
           cuarto: updated.cuarto || undefined,
           // Solo refugios con carpa. "" = vaciado explícito (el servidor lo guarda como null).
-          solucionHabitacional: esCarpa ? (updated.solucionHabitacional || "") : undefined,
+          solucionesHabitacionales: esCarpa ? (Array.isArray(updated.solucionesHabitacionales) ? updated.solucionesHabitacionales : []) : undefined,
+          // Vivienda del JEFE (solo campamentos con carpa). Bloque vacío = quitar QR y etiqueta.
+          vivienda: esCarpa && updated.jefeFamilia === "SI"
+            ? {
+                habitableUrl: updated.vivienda?.habitableUrl || null,
+                habitableData: updated.vivienda?.habitableData ?? null,
+                colapsoUrl: updated.vivienda?.colapsoUrl || null,
+                colapsoData: updated.vivienda?.colapsoData ?? null,
+                comisionEtiqueta: updated.vivienda?.comisionEtiqueta || null,
+              }
+            : undefined,
           retirado: updated.retirado || "NO",
           retiradoRazon:
             updated.retirado === "SI" ? updated.retiradoRazon : undefined,
@@ -2806,6 +2830,68 @@ export default function AsignacionesTab() {
                       </div>
                     )}
 
+                  {/* Vivienda y Comisión (QR habitable / colapso + Comisión Presidencial) */}
+                  {viviendaTieneDatos(selectedRegistro.vivienda) && (() => {
+                    const vv = flattenVivienda(selectedRegistro.vivienda);
+                    const com = ETIQUETAS_COMISION.find((e) => e.value === vv.comision);
+                    const campo = (label: string, valor: string, full = false) =>
+                      valor ? (
+                        <div className={`detail-field${full ? " detail-field--full" : ""}`}>
+                          <span className="detail-label">{label}</span>
+                          <span className="detail-value">{valor}</span>
+                        </div>
+                      ) : null;
+                    const enlace = (label: string, url: string) =>
+                      url ? (
+                        <div className="detail-field detail-field--full">
+                          <span className="detail-label">{label}</span>
+                          <span className="detail-value">
+                            {/^https?:\/\//i.test(url)
+                              ? <a href={url} target="_blank" rel="noopener noreferrer" style={{ wordBreak: "break-all" }}>{url}</a>
+                              : <span style={{ wordBreak: "break-all" }}>{url}</span>}
+                          </span>
+                        </div>
+                      ) : null;
+                    return (
+                      <>
+                        <div className="detail-section-title">Vivienda y Comisión</div>
+                        {com && (
+                          <div className="detail-field">
+                            <span className="detail-label">Visita Comisión Presidencial</span>
+                            <span className="detail-value">
+                              <span className="vqr-dot" style={{ background: com.color, display: "inline-block", marginRight: "0.4rem", verticalAlign: "middle" }} aria-hidden />
+                              {com.label}
+                            </span>
+                          </div>
+                        )}
+                        {enlace("QR Habitable (enlace)", vv.habUrl)}
+                        {campo("Tipo de vivienda", vv.habTipo)}
+                        {campo("Edificación", vv.habEdificacion)}
+                        {campo("Piso / Apto", vv.habPisoApto)}
+                        {campo("Dirección", vv.habDireccion, true)}
+                        {campo("Parroquia / Municipio", vv.habParroquia)}
+                        {campo("Circuito comunal", vv.habCircuito)}
+                        {campo("Etiqueta de inspección", vv.habEtiqueta)}
+                        {campo("Grupo familiar (censo habitable)", vv.habPersonas, true)}
+                        {campo("Mascotas", vv.habMascotas)}
+                        {campo("Fecha del censo", vv.habFecha)}
+                        {campo("Operador de censo", vv.habOperador)}
+                        {enlace("QR de Colapso (enlace)", vv.colUrl)}
+                        {campo("Edificación colapsada", vv.colEdificacion, true)}
+                        {campo("Dirección de la edificación", vv.colDireccion, true)}
+                        {campo("Etiqueta", vv.colEtiqueta)}
+                        {campo("Estatus de demolición", vv.colDemolicion)}
+                        {campo("Uso", vv.colUso)}
+                        {campo("N.º de pisos", vv.colPisos)}
+                        {campo("Año de construcción", vv.colAnio)}
+                        {campo("Niveles de daño", vv.colNiveles, true)}
+                        {campo("Medidas", vv.colMedidas, true)}
+                        {campo("Inspector", vv.colInspector)}
+                        {campo("Observaciones de la inspección", vv.colObservaciones, true)}
+                      </>
+                    );
+                  })()}
+
                   {/* Alojamiento y Estatus */}
                   {(selectedRegistro.cuarto ||
                     selectedRegistro.retirado === "SI" ||
@@ -2828,7 +2914,7 @@ export default function AsignacionesTab() {
                           </div>
                           <div className="detail-field">
                             <span className="detail-label">Solución Habitacional</span>
-                            <span className="detail-value">{selectedRegistro.solucionHabitacional || "—"}</span>
+                            <span className="detail-value">{solucionesTexto(selectedRegistro) || "—"}</span>
                           </div>
                           <div className="detail-field detail-field--full">
                             <span className="detail-label">Designación Completa</span>
@@ -3831,13 +3917,10 @@ export default function AsignacionesTab() {
                           Solución habitacional
                           {editData.retirado !== "SI" && <span className="required-star">*</span>}
                         </label>
-                        <StyledSelect
-                          value={editData.solucionHabitacional || ""}
-                          onChange={(v) => setEditData((prev) => ({ ...prev, solucionHabitacional: v }))}
-                          options={SOLUCIONES_HABITACIONALES.map((s) => ({ value: s, label: s }))}
-                          placeholder="Seleccione la solución habitacional"
-                          ariaLabel="Solución habitacional"
-                          error={!!editErr("solucionHabitacional")}
+                        <SolucionesHabitacionalesField
+                          value={Array.isArray(editData.solucionesHabitacionales) ? editData.solucionesHabitacionales : []}
+                          onChange={(v) => setEditData((prev) => ({ ...prev, solucionesHabitacionales: v }))}
+                          error={editErr("solucionHabitacional")}
                         />
                         <div className="error-container">
                           {editErr("solucionHabitacional") && <span className="field-error-message">{editErr("solucionHabitacional")}</span>}
@@ -3863,6 +3946,26 @@ export default function AsignacionesTab() {
                         ariaLabel="Habitación / Salón"
                       />
                     </div>
+                  )}
+                  {esCarpa && editData.jefeFamilia === "SI" && (
+                    <>
+                      <div className="detail-section-title">Vivienda y Comisión</div>
+                      <div className="detail-field--full">
+                        <ViviendaQrStep
+                          compact
+                          value={(editData.vivienda as ViviendaDraft) ?? EMPTY_VIVIENDA}
+                          onChange={(patch) =>
+                            setEditData((prev) => ({
+                              ...prev,
+                              vivienda: { ...((prev.vivienda as ViviendaDraft) ?? EMPTY_VIVIENDA), ...patch },
+                            }))
+                          }
+                          showToast={showToast}
+                          jefeNombre={editData.nombreApellido || ""}
+                          jefeMeta=""
+                        />
+                      </div>
+                    </>
                   )}
                   <div className="detail-section-title">Estatus</div>
                   <div className="detail-field--full">

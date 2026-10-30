@@ -59,7 +59,15 @@ export interface LocalRegistro {
     gpsLng?: number;
     telefono?: string;
     observaciones?: string;
-    solucionHabitacional?: string;
+    solucionHabitacional?: string; // LEGADO: campo único anterior (clientes viejos)
+    // Una o varias (mín. 1 en el censo); solo refugios con carpa.
+    solucionesHabitacionales?: string[];
+    // Solo el JEFE (censo ITINERANTE/MIXTO): QR habitable/colapso + etiqueta de la Comisión.
+    vivienda?: {
+      habitableUrl: string | null; habitableData: unknown | null;
+      colapsoUrl: string | null; colapsoData: unknown | null;
+      comisionEtiqueta: string | null;
+    };
   };
   status: 'pending' | 'synced' | 'error';
   syncResult?: 'registrado' | 'duplicado' | 'error';

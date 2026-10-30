@@ -1,22 +1,61 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { sendPushToAdmins } from "@/lib/push";
 import { getAuthUser, canRegister, canActOnRefugio, isMaster, hasRefugio } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
 import { sendTelegram, sendTelegramGroup } from "@/lib/telegram";
 import { adminRecipients, createNotifications } from "@/lib/notify";
-import { SOLUCIONES_HABITACIONALES } from "@/lib/constants";
+import { normalizeSoluciones } from "@/lib/solucionesHab";
+import { normalizeVivienda, resolveQrContent, corregirRanuras, type ViviendaPayload } from "@/lib/viviendaQr";
 
-// Solución habitacional OPCIONAL en el servidor (la cola offline de clientes viejos no la
-// envía; un 400 sería error permanente). Valor fuera de la lista o vacío → null.
-const normSolucionHab = (v: unknown): string | null => {
-  const up = String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
-  return SOLUCIONES_HABITACIONALES.find((s) => s === up) ?? null;
-};
+// Soluciones habitacionales (lista, una o varias) OPCIONALES en el servidor: la cola offline de
+// clientes viejos manda el campo ÚNICO `solucionHabitacional` (o nada) y un 400 sería un error
+// permanente. Se acepta la lista nueva o el valor único anterior; lo que no sea una opción
+// vigente se descarta. `undefined` = el cliente no lo envió → en edición se conserva.
+const solucionesDelBody = (body: Record<string, unknown>): string[] | undefined =>
+  body.solucionesHabitacionales !== undefined || body.solucionHabitacional !== undefined
+    ? normalizeSoluciones(body.solucionesHabitacionales !== undefined ? body.solucionesHabitacionales : body.solucionHabitacional)
+    : undefined;
+
+// QR habitable/colapso + etiqueta de la Comisión Presidencial del JEFE (opcional, ITINERANTE/MIXTO).
+// Si el QR llegó sin contenido (se escaneó offline) se intenta leerlo AQUÍ, ya con red; nunca
+// rompe el registro: si no se puede, se guarda la URL sola.
+async function prepararVivienda(raw: unknown): Promise<ViviendaPayload | null> {
+  const v = normalizeVivienda(raw);
+  if (!v) return null;
+  // En paralelo y con tope corto: la cola offline aborta el POST a los 15 s y un reintento
+  // de una creación ya hecha NO vuelve a guardar la vivienda.
+  const [hab, col] = await Promise.all([
+    v.habitableUrl && !v.habitableData ? resolveQrContent("habitable", v.habitableUrl) : null,
+    v.colapsoUrl && !v.colapsoData ? resolveQrContent("colapso", v.colapsoUrl) : null,
+  ]);
+  if (hab?.ok) v.habitableData = hab.data;
+  if (col?.ok) v.colapsoData = col.data;
+  return corregirRanuras(v);
+}
 
 const VALID_GENERO = ["MASCULINO", "FEMENINO"];
 const VALID_ESTADO_FISICO = ["ILESO", "LESIONADO"];
 const VALID_SI_NO = ["SI", "NO"];
+
+const viviendaData = (v: ViviendaPayload) => ({
+  habitableUrl: v.habitableUrl,
+  habitableData: (v.habitableData ?? undefined) as Prisma.InputJsonValue | undefined,
+  colapsoUrl: v.colapsoUrl,
+  colapsoData: (v.colapsoData ?? undefined) as Prisma.InputJsonValue | undefined,
+  comisionEtiqueta: v.comisionEtiqueta,
+});
+
+// Al EDITAR: reemplaza el bloque de vivienda del jefe (1:1 por registroId).
+async function upsertVivienda(registroId: string, refugio: string, v: ViviendaPayload) {
+  const data = viviendaData(v);
+  await prisma.registroVivienda.upsert({
+    where: { registroId },
+    create: { registroId, refugio, ...data },
+    update: { ...data, updatedAt: new Date() },
+  });
+}
 
 export async function POST(req: Request) {
   try {
@@ -59,6 +98,9 @@ export async function POST(req: Request) {
       motivoIntermitente,
       observaciones,
     } = body;
+
+    // La vivienda (QR + Comisión) solo aplica al JEFE de familia; en otros registros se ignora.
+    const vivienda = jefeFamilia === "SI" ? await prepararVivienda(body.vivienda) : null;
 
     // Required field presence check
     if (
@@ -254,13 +296,20 @@ export async function POST(req: Request) {
           observaciones: body.observaciones !== undefined
             ? (body.observaciones && String(body.observaciones).trim() ? String(body.observaciones).trim() : null)
             : existing.observaciones,
-          // undefined = el cliente no lo envió → conserva el valor existente.
-          solucionHabitacional: body.solucionHabitacional !== undefined
-            ? normSolucionHab(body.solucionHabitacional)
-            : undefined,
+          // undefined = el cliente no lo envió → conserva el valor existente. Al escribir la
+          // lista se deja en NULL el campo único anterior (evita resucitar un valor viejo).
+          ...(solucionesDelBody(body) !== undefined
+            ? { solucionesHabitacionales: solucionesDelBody(body), solucionHabitacional: null }
+            : {}),
           syncedAt: new Date(),
         }
       }));
+      if (vivienda) {
+        await upsertVivienda(updated.id, updated.refugio, vivienda);
+      } else if (jefeFamilia === "SI" && body.vivienda && typeof body.vivienda === "object") {
+        // El cliente envió el bloque pero VACÍO (quitó los QR y la etiqueta) → se elimina.
+        await prisma.registroVivienda.deleteMany({ where: { registroId: updated.id } });
+      }
       return NextResponse.json({ success: true, id: updated.id, updated: true }, { status: 200 });
     }
 
@@ -338,11 +387,14 @@ export async function POST(req: Request) {
           intermitente: intermitenteVal,
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
           observaciones: (observaciones && String(observaciones).trim()) || (body.observaciones && String(body.observaciones).trim()) || null,
-          solucionHabitacional: normSolucionHab(body.solucionHabitacional),
+          solucionesHabitacionales: solucionesDelBody(body) ?? [],
           registrador: (auth.nombre || auth.email || "").trim() || null,
           syncedAt: new Date(),
         },
       });
+      if (vivienda) {
+        await tx.registroVivienda.create({ data: { registroId: nuevo.id, refugio: nuevo.refugio, ...viviendaData(vivienda) } });
+      }
       return { nuevo, transferredFrom: origenes };
     });
 

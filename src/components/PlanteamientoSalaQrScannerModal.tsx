@@ -11,6 +11,10 @@ interface Props {
   onClose: () => void;
   onSuccess: (data: any) => void;
   showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void;
+  /** Si se pasa, el modal SOLO decodifica: entrega el texto del QR y NO consulta el lookup de Planteamiento. */
+  onDecoded?: (qrText: string) => void;
+  /** Título del modal (por defecto el de vivienda censada de Planteamiento). */
+  title?: string;
 }
 
 export default function PlanteamientoSalaQrScannerModal({
@@ -18,6 +22,8 @@ export default function PlanteamientoSalaQrScannerModal({
   onClose,
   onSuccess,
   showToast,
+  onDecoded,
+  title = "Escanear QR de Vivienda Censada",
 }: Props) {
   const modal = useAnimatedModal(isOpen);
   const [mode, setMode] = useState<"camera" | "upload" | "manual">("camera");
@@ -46,6 +52,11 @@ export default function PlanteamientoSalaQrScannerModal({
   const processQrText = useCallback(
     async (qrText: string) => {
       stopCamera();
+      if (onDecoded) {
+        onDecoded(qrText.trim());
+        onClose();
+        return;
+      }
       setLoading(true);
       try {
         let userId = "";
@@ -80,7 +91,7 @@ export default function PlanteamientoSalaQrScannerModal({
         setLoading(false);
       }
     },
-    [stopCamera, onSuccess, onClose, showToast]
+    [stopCamera, onSuccess, onClose, showToast, onDecoded]
   );
 
   // Escaneo en vivo con la cámara
@@ -230,7 +241,7 @@ export default function PlanteamientoSalaQrScannerModal({
                   <rect x="14" y="14" width="7" height="7" />
                   <rect x="3" y="14" width="7" height="7" />
                 </svg>
-                <span>Escanear QR de Vivienda Censada</span>
+                <span>{title}</span>
               </span>
               <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "var(--text-secondary)" }}>
                 Extrae automáticamente tipo, edificación, piso/apto, dirección, circuito y GPS.
@@ -482,7 +493,7 @@ export default function PlanteamientoSalaQrScannerModal({
               disabled={loading || !manualInput.trim()}
               style={{ width: "auto", minWidth: "140px" }}
             >
-              {loading ? "Obteniendo datos…" : "Consultar Enlace"}
+              {loading ? "Obteniendo datos…" : onDecoded ? "Usar enlace" : "Consultar Enlace"}
             </button>
           )}
         </div>

@@ -6,6 +6,7 @@
 // exceljs se carga de forma PEREZOSA (dynamic import).
 
 import { formatRoomLabel } from "@/lib/helpers";
+import { VIVIENDA_COLS, viviendaCells, etiquetaFill, colLetter } from "@/lib/vivienda";
 
 const BRAND = "1E3A8A";
 const BRAND_LIGHT = "E8EDF7";
@@ -45,6 +46,8 @@ const COLS: [string, number][] = [
   ["Habitación / Salón", 20],
   ["Teléfono", 14],
   ["Estado físico", 13],
+  // Vivienda del jefe: QR habitable + QR de colapso + Comisión Presidencial (solo en la fila del jefe).
+  ...VIVIENDA_COLS.map((c): [string, number] => [c.label, c.width]),
 ];
 
 export async function exportFamiliasExcel(opts: FamiliasExportOpts): Promise<void> {
@@ -58,7 +61,7 @@ export async function exportFamiliasExcel(opts: FamiliasExportOpts): Promise<voi
   });
 
   const nCols = COLS.length;
-  const lastColLetter = String.fromCharCode(64 + nCols);
+  const lastColLetter = colLetter(nCols);
   ws.columns = COLS.map(([, w]) => ({ width: w }));
 
   // ── Membrete (filas 1–4) ──────────────────────────────────────────────────
@@ -143,6 +146,7 @@ export async function exportFamiliasExcel(opts: FamiliasExportOpts): Promise<voi
         r.cuarto ? formatRoomLabel(r.cuarto) : "Sin asignar",
         r.telefono || "",
         r.estadoFisico === "LESIONADO" ? "Lesionado" : r.estadoFisico === "ILESO" ? "Ileso" : (r.estadoFisico || ""),
+        ...(esJefe ? viviendaCells(r.vivienda) : viviendaCells(null)),
       ];
       const row = ws.addRow(values);
       const bg = esJefe ? jefeColor : miembroColor;
@@ -162,6 +166,15 @@ export async function exportFamiliasExcel(opts: FamiliasExportOpts): Promise<voi
         });
       }
       if (r.estadoFisico === "LESIONADO") row.getCell(13).font = { name: "Arial", size: 9, bold: true, color: { argb: "DC2626" } };
+      // Etiquetas (Comisión / habitable / colapso) con su color semántico.
+      VIVIENDA_COLS.forEach((c, i) => {
+        if (c.key !== "comision" && c.key !== "habEtiqueta" && c.key !== "colEtiqueta") return;
+        const cell = row.getCell(COLS.length - VIVIENDA_COLS.length + i + 1);
+        const col = etiquetaFill(String(cell.value ?? ""));
+        if (!col) return;
+        cell.font = { name: "Arial", size: 9, bold: true, color: { argb: col.font } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: col.fill } };
+      });
     });
   });
 

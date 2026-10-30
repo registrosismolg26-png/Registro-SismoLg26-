@@ -45,7 +45,10 @@ model Registro {
   intermitente         String    @default("NO") // "SI" or "NO"
   motivoIntermitente   String?   // Required when intermitente = "SI"
   observaciones        String?   // Observaciones generales sobre la persona
-  solucionHabitacional String?   // ALQUILER | MERCADO SECUNDARIO | CRÉDITO HIPOTECARIO | SUBSIDIO | CAMPAMENTO CIUDAD CARIBIA (solo refugios con carpa)
+  solucionHabitacional String?   // LEGADO (congelado, campo único anterior) — reemplazado por solucionesHabitacionales; el servidor lo deja en NULL al escribir la lista
+  // Soluciones habitacionales que quiere la persona (solo refugios con carpa): una o varias, mín. 1.
+  // ["MERCADO SECUNDARIO (SUBSIDIO)", "CRÉDITO HIPOTECARIO", "ALQUILER", "ADJUDICACIÓN EN LA GUAIRA", "ADJUDICACIÓN DE CARACAS", "CIUDAD CARIBIA"]
+  solucionesHabitacionales Json? @default("[]")
   refugio              String
   registrador          String?   // Nombre del operador que registró (se setea al censar; backfill desde AuditLog)
 
@@ -56,6 +59,29 @@ model Registro {
   // Lecturas scoped por refugio ordenadas por fecha (GET /api/registros, ETag):
   // evita seq-scan al filtrar por refugio y ordenar/agrupar por createdAt.
   @@index([refugio, createdAt])
+
+  // Vivienda del JEFE de familia (QR habitable/colapso + visita de la Comisión Presidencial).
+  vivienda             RegistroVivienda?
+}
+
+// QR escaneados en el censo de campamentos ITINERANTE/MIXTO, vinculados al REGISTRO DEL JEFE
+// de familia (1:1). Tabla aparte a propósito: los blobs JSON no deben viajar en cada
+// GET /api/registros (egress, ver docs/EGRESS.md). Todo es opcional.
+// SQL: prisma/registro_vivienda_qr_migration.sql (idempotente, correr en Supabase).
+model RegistroVivienda {
+  id                String   @id @default(uuid())
+  registroId        String   @unique
+  registro          Registro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+  refugio           String
+  habitableUrl      String?  // texto/URL tal cual lo decodificó el QR habitable
+  habitableData     Json?    // contenido obtenido (certificado de habitable.gob.ve); null si no se pudo leer
+  colapsoUrl        String?  // texto/URL tal cual lo decodificó el QR de colapso
+  colapsoData       Json?    // contenido obtenido de la URL; null si no se pudo leer
+  comisionEtiqueta  String?  // VERDE | AMARILLA | ROJA | NEGRA (Visita de la Comisión Presidencial)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  @@index([refugio])
 }
 
 model Padron {

@@ -159,13 +159,34 @@ export const RAZONES_RETIRO = [
 // Solución habitacional de la persona/familia (refugios ITINERANTE/MIXTO, junto a la
 // carpa). Se guarda tal cual en Registro.solucionHabitacional. Fuente ÚNICA (censo,
 // edición, detalle, Excel y normalización del servidor en /api/register).
+// Opciones que la gente quiere como solución habitacional: se eligen UNA O VARIAS (mín. 1)
+// y se guardan como lista en Registro.solucionesHabitacionales (JSONB).
 export const SOLUCIONES_HABITACIONALES = [
-  "ALQUILER",
-  "MERCADO SECUNDARIO",
+  "MERCADO SECUNDARIO (SUBSIDIO)",
   "CRÉDITO HIPOTECARIO",
-  "SUBSIDIO",
-  "CAMPAMENTO CIUDAD CARIBIA",
+  "ALQUILER",
+  "ADJUDICACIÓN EN LA GUAIRA",
+  "ADJUDICACIÓN DE CARACAS",
+  "CIUDAD CARIBIA",
 ] as const;
+// Valores del campo ÚNICO anterior (Registro.solucionHabitacional) → opción vigente. Lo usan la
+// normalización del servidor (colas offline de clientes viejos) y el respaldo de lectura.
+export const SOLUCIONES_HAB_LEGACY: Record<string, string> = {
+  "MERCADO SECUNDARIO": "MERCADO SECUNDARIO (SUBSIDIO)",
+  "SUBSIDIO": "MERCADO SECUNDARIO (SUBSIDIO)",
+  "CAMPAMENTO CIUDAD CARIBIA": "CIUDAD CARIBIA",
+};
+
+// Etiqueta de la VISITA DE LA COMISIÓN PRESIDENCIAL (Censo ITINERANTE/MIXTO, Paso 5, opcional).
+// Se guarda tal cual en RegistroVivienda.comisionEtiqueta. Fuente ÚNICA (censo y /api/register).
+// `color` es solo presentación (chip del paso); el valor persistido es `value`.
+export const ETIQUETAS_COMISION = [
+  { value: "VERDE", label: "Etiqueta Verde", color: "#16a34a" },
+  { value: "AMARILLA", label: "Etiqueta Amarilla", color: "#d97706" },
+  { value: "ROJA", label: "Etiqueta Roja", color: "#dc2626" },
+  { value: "NEGRA", label: "Etiqueta Negra", color: "#1f2937" },
+] as const;
+export type EtiquetaComision = (typeof ETIQUETAS_COMISION)[number]["value"];
 
 // Motivo del RETIRO en VZLA RENACE (solución ejecutada) = subconjunto de RAZONES_RETIRO
 // para que el encadenado al censo caiga en una razón que este ya entiende (sus filtros y

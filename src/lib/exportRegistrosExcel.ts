@@ -5,6 +5,8 @@
 
 import { patologiaNombres, medItemsText, formatRoomLabel } from "@/lib/helpers";
 import type { Patologia, MedicamentoPredefinido, Medicamento } from "@/types";
+import { solucionesTexto } from "@/lib/solucionesHab";
+import { VIVIENDA_COLS, viviendaCells, etiquetaFill, colLetter } from "@/lib/vivienda";
 
 const BRAND = "1E3A8A";
 const BRAND_LIGHT = "E8EDF7";
@@ -53,7 +55,9 @@ const COLS: [string, number][] = [
   ["Fecha de registro", 18],
   ["Registrador", 22],
   ["Observaciones", 30],
-  ["Solución habitacional", 28],
+  ["Solución habitacional (una o varias)", 34],
+  // Vivienda del jefe: QR habitable + QR de colapso + Comisión Presidencial (solo filas de jefe).
+  ...VIVIENDA_COLS.map((c): [string, number] => [c.label, c.width]),
 ];
 
 export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
@@ -67,7 +71,7 @@ export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
   });
 
   const nCols = COLS.length;
-  const lastColLetter = String.fromCharCode(64 + nCols);
+  const lastColLetter = colLetter(nCols);
   ws.columns = COLS.map(([, w]) => ({ width: w }));
 
   // ── Membrete (filas 1–4) ──────────────────────────────────────────────────
@@ -165,7 +169,8 @@ export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
       r.createdAt ? new Date(r.createdAt).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "",
       r.registrador || "—",
       r.observaciones || "—",
-      r.solucionHabitacional || "—",
+      solucionesTexto(r) || "—",
+      ...viviendaCells(r.vivienda),
     ];
     const row = ws.addRow(values);
     const zebra = idx % 2 === 1;
@@ -182,6 +187,16 @@ export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
     if (r.estadoFisico === "LESIONADO") row.getCell(13).font = { name: "Arial", size: 9, bold: true, color: { argb: "DC2626" } };
     if (embarazoTxt === "Sí") row.getCell(14).font = { name: "Arial", size: 9, bold: true, color: { argb: "DB2777" } };
     if (retirado) row.getCell(21).font = { name: "Arial", size: 9, bold: true, color: { argb: "9CA3AF" } };
+    // Etiquetas (Comisión / habitable / colapso) con su color semántico.
+    VIVIENDA_COLS.forEach((c, i) => {
+      if (c.key !== "comision" && c.key !== "habEtiqueta" && c.key !== "colEtiqueta") return;
+      const cell = row.getCell(COLS.length - VIVIENDA_COLS.length + i + 1);
+      const col = etiquetaFill(String(cell.value ?? ""));
+      if (!col) return;
+      cell.font = { name: "Arial", size: 9, bold: true, color: { argb: col.font } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: col.fill } };
+      cell.alignment = { vertical: "top", horizontal: "center", wrapText: true };
+    });
   });
 
   ws.autoFilter = { from: { row: 6, column: 1 }, to: { row: 6, column: nCols } };
