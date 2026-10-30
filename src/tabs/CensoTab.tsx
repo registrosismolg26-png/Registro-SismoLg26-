@@ -162,6 +162,12 @@ export default function CensoTab() {
   // se retira a Hogar Solidario. Cada integrante se arma con el MISMO
   // buildRegistroData del jefe → queda idéntico a uno cargado individual. ──
   const puedeCargaFamiliar = formData.jefeFamilia === "SI" && !seRetira;
+  // ── Vivienda del jefe (Paso 5, SOLO campamentos ITINERANTE/MIXTO): QR habitable + QR de
+  // colapso + visita de la Comisión Presidencial. Opcional, vinculada al JEFE. Cuando aplica,
+  // la Carga Familiar pasa a ser el Paso 6 (en TRANSITORIO sigue siendo el 5). ──
+  const puedeVivienda = esCarpa && puedeCargaFamiliar;
+  const STEP_FAMILIA: 5 | 6 = esCarpa ? 6 : 5;
+  const [vivienda, setVivienda] = useState<ViviendaDraft>(EMPTY_VIVIENDA);
   const [integrantes, setIntegrantes] = useState<IntegranteDraft[]>([]);
   const [openIntg, setOpenIntg] = useState<Set<string>>(new Set());
   const newIntegrante = (): IntegranteDraft => ({
@@ -193,9 +199,17 @@ export default function CensoTab() {
       setOpenIntg(new Set());
       showToast("La carga familiar se limpió porque cambió la condición del jefe.", "info");
     }
-    if (!puedeCargaFamiliar && step === 5) setStep(4);
+    if (!puedeCargaFamiliar && step >= 5) setStep(4);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puedeCargaFamiliar]);
+  // Si el registrado deja de ser jefe (o se retira), la vivienda deja de aplicar.
+  useEffect(() => {
+    if (!puedeVivienda && !viviendaVacia(vivienda)) {
+      setVivienda(EMPTY_VIVIENDA);
+      showToast("Los QR y la etiqueta de vivienda se limpiaron porque cambió la condición del jefe.", "info");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeVivienda]);
 
   // Validación de un integrante (espeja las reglas por-persona del jefe).
   const validateIntegrante = (intg: IntegranteDraft): Record<string, string> => {
@@ -598,7 +612,7 @@ export default function CensoTab() {
   // Navega a un paso dejando SIN touched / SIN error los campos del paso DESTINO,
   // para que al llegar NUNCA aparezcan en rojo antes de tocar nada (bulletproof:
   // no importa cómo se hubieran marcado antes).
-  const goToStep = (next: 1 | 2 | 3 | 4 | 5) => {
+  const goToStep = (next: 1 | 2 | 3 | 4 | 5 | 6) => {
     const clearFields = [...(STEP_FIELDS[next] || []), ...(STEP_EXTRA[next] || [])];
     setTouched(prev => {
       const n = { ...prev };
@@ -638,12 +652,12 @@ export default function CensoTab() {
     }
     setErrors(prev => ({ ...prev, ...newErrors }));
     if (Object.keys(newErrors).length > 0) return;
-    goToStep((step + 1) as 1|2|3|4|5);
+    goToStep((step + 1) as 1|2|3|4|5|6);
   };
 
   // Ir a la carga familiar (Paso 5): valida el jefe COMPLETO primero. Si falta algo,
   // revela y salta al paso del error (visible) en vez de avanzar con el jefe a medias.
-  const goToCargaFamiliar = () => {
+  const irConJefeValido = (target: 5 | 6, aviso: string) => {
     setTriedSubmit(true);
     markTouched(
       "parroquia", "sector", "comunidad", "direccionExacta", "nombreApellido",
@@ -654,7 +668,7 @@ export default function CensoTab() {
     const errs = computeJefeErrors();
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      showToast("Completa los datos del jefe antes de agregar a la familia.", "warning");
+      showToast(aviso, "warning");
       setStep(firstErrorStep(errs));
       setTimeout(() => {
         const el = document.querySelector(".has-error");
@@ -662,8 +676,10 @@ export default function CensoTab() {
       }, 60);
       return;
     }
-    goToStep(5);
+    goToStep(target);
   };
+  const goToCargaFamiliar = () => irConJefeValido(STEP_FAMILIA, "Completa los datos del jefe antes de agregar a la familia.");
+  const goToVivienda = () => irConJefeValido(5, "Completa los datos del jefe antes de registrar su vivienda.");
 
   // ── Fuente ÚNICA del objeto de cola (jefe e integrantes lo usan por igual) ──
   // `person` = campos por-persona (identidad + salud). `shared` = ubicación/geo/carpa/
@@ -676,6 +692,8 @@ export default function CensoTab() {
     estadoFisico: string; embarazo: string; patologia: string; patologiaIds: string[];
     medicamentos: Medicamento[]; intermitente: string; motivoIntermitente: string;
     observaciones?: string;
+    // Solo el JEFE: QR habitable/colapso + etiqueta de la Comisión (opcional).
+    vivienda?: ViviendaDraft | null;
   };
   type SharedInput = {
     refugio: string; userId?: string;
@@ -733,6 +751,15 @@ export default function CensoTab() {
         intermitente: p.intermitente || "NO",
         motivoIntermitente: p.intermitente === "SI" ? p.motivoIntermitente.trim() : undefined,
         observaciones: p.observaciones ? p.observaciones.trim() : undefined,
+        vivienda: p.jefeFamilia === "SI" && p.vivienda && !viviendaVacia(p.vivienda)
+          ? {
+              habitableUrl: p.vivienda.habitableUrl || null,
+              habitableData: p.vivienda.habitableData ?? null,
+              colapsoUrl: p.vivienda.colapsoUrl || null,
+              colapsoData: p.vivienda.colapsoData ?? null,
+              comisionEtiqueta: p.vivienda.comisionEtiqueta || null,
+            }
+          : undefined,
         retirado: shared.retirado || "NO",
         retiradoRazon: shared.retiradoRazon,
         refugio: shared.refugio,
@@ -746,7 +773,7 @@ export default function CensoTab() {
     // Enter en un input de un paso previo dispara submit: NO debe enviar ni marcar
     // todo el form como tocado (eso pintaba en rojo los radios del paso 4 al llegar).
     // El envío real solo procede desde el Paso 4 (individual) o el Paso 5 (con carga familiar).
-    if (step !== 4 && step !== 5) return;
+    if (step < 4) return;
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -772,7 +799,7 @@ export default function CensoTab() {
     if (Object.keys(jefeErrs).length > 0) {
       showToast("Faltan campos obligatorios o poseen formato inválido.", "warning");
       // En el Paso 5 los campos del jefe están ocultos → salta al paso del 1.er error.
-      if (step === 5) setStep(firstErrorStep(jefeErrs));
+      if (step >= 5) setStep(firstErrorStep(jefeErrs));
       setTimeout(() => {
         const firstErrorEl = document.querySelector(".has-error");
         if (firstErrorEl) {
@@ -863,6 +890,7 @@ export default function CensoTab() {
           patologia: formData.patologia, patologiaIds: formData.patologiaIds,
           medicamentos, intermitente: formData.intermitente, motivoIntermitente: formData.motivoIntermitente,
           observaciones: formData.observaciones,
+          vivienda: puedeVivienda ? vivienda : null,
         },
         { ...sharedBase, retirado: seRetira ? "SI" : "NO", retiradoRazon: seRetira ? (composeRazonRetiro(retiroRazon, retiroSpec) || undefined) : undefined },
       );
@@ -927,6 +955,7 @@ export default function CensoTab() {
       setRetiroSpec("");
       setIntegrantes([]);
       setOpenIntg(new Set());
+      setVivienda(EMPTY_VIVIENDA);
       setStep(1);
 
       await refreshLocalRecords();
@@ -947,8 +976,8 @@ export default function CensoTab() {
 
   // El 5.º paso (Carga Familiar) es una RAMA opcional: el stepper solo lo muestra
   // al entrar en él, para no sugerir un paso obligatorio en el registro individual.
-  const totalSteps: 4 | 5 = step === 5 ? 5 : 4;
-  const wizardDots = step === 5 ? [1, 2, 3, 4, 5] : [1, 2, 3, 4];
+  const totalSteps = Math.max(4, step);
+  const wizardDots = Array.from({ length: totalSteps }, (_, i) => i + 1);
 
   return (
     <>
@@ -981,7 +1010,8 @@ export default function CensoTab() {
                 {step === 2 && "Paso 2 — Ubicación Geográfica"}
                 {step === 3 && "Paso 3 — Identificación Personal"}
                 {step === 4 && "Paso 4 — Estado de Salud"}
-                {step === 5 && "Paso 5 — Carga Familiar"}
+                {step === 5 && puedeVivienda && "Paso 5 — Vivienda y Comisión"}
+                {step === STEP_FAMILIA && `Paso ${STEP_FAMILIA} — Carga Familiar`}
               </div>
 
               {/* PASO 1: Grupo Familiar */}
@@ -1732,7 +1762,23 @@ export default function CensoTab() {
               )}
 
               {/* PASO 5: Carga Familiar (rama opcional; solo si el registrado es jefe) */}
-              {step === 5 && (
+              {step === 5 && puedeVivienda && (
+                <div className="form-section form-step-content" key="step-vivienda">
+                  <ViviendaQrStep
+                    value={vivienda}
+                    onChange={(patch) => setVivienda(prev => ({ ...prev, ...patch }))}
+                    showToast={showToast}
+                    jefeNombre={formData.nombreApellido}
+                    jefeMeta={[
+                      formData.cedula ? `${formData.nacionalidad}-${formData.cedula}` : "",
+                      formData.parroquia,
+                      formData.comunidad,
+                    ].filter(Boolean).join(" · ")}
+                  />
+                </div>
+              )}
+
+              {step === STEP_FAMILIA && (
                 <div className="form-section form-step-content" key="step-5">
                   {/* Resumen del jefe: a quién se asocia la carga familiar */}
                   <div className="intg-jefe-card">
@@ -1803,7 +1849,7 @@ export default function CensoTab() {
                     <button
                       type="button"
                       className="btn-back"
-                      onClick={() => goToStep((step - 1) as 1 | 2 | 3 | 4 | 5)}
+                      onClick={() => goToStep((step - 1) as 1 | 2 | 3 | 4 | 5 | 6)}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                       Atrás
@@ -1821,7 +1867,17 @@ export default function CensoTab() {
                   )}
                   {step === 4 && (
                     <>
-                      {puedeCargaFamiliar && (
+                      {puedeVivienda && (
+                        <button
+                          type="button"
+                          className="btn-secondary btn-add-familiar"
+                          onClick={goToVivienda}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v1"/></svg>
+                          <span className="btn-txt-collapsible">Vivienda&nbsp;</span>y QR
+                        </button>
+                      )}
+                      {puedeCargaFamiliar && !puedeVivienda && (
                         <button
                           type="button"
                           className="btn-secondary btn-add-familiar"
@@ -1840,7 +1896,22 @@ export default function CensoTab() {
                       </button>
                     </>
                   )}
-                  {step === 5 && (
+                  {step === 5 && puedeVivienda && (
+                    <>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-add-familiar"
+                        onClick={goToCargaFamiliar}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span className="btn-txt-collapsible">Agregar&nbsp;</span>Familiar
+                      </button>
+                      <button type="submit" className="btn-submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Guardando..." : "Registrar Afectado"}
+                      </button>
+                    </>
+                  )}
+                  {step === STEP_FAMILIA && (
                     <button
                       type="submit"
                       className="btn-submit"

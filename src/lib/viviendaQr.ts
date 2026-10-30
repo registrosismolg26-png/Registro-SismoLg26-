@@ -101,6 +101,8 @@ function getText(urlStr: string, insecure: boolean): Promise<{ status: number; t
   });
 }
 
+const msgOf = (e: unknown): string => (e instanceof Error ? e.message : String(e ?? ""));
+
 const htmlToText = (html: string): string =>
   html
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
@@ -145,10 +147,10 @@ export async function resolveQrContent(
     let res: { status: number; text: string };
     try {
       res = await getText(target, false);
-    } catch (e: any) {
+    } catch (e: unknown) {
       // habitable.gob.ve ha servido con certificado no verificable (el lector de
       // Planteamiento ya lo tolera): solo para ese host se reintenta sin verificar.
-      if (isHabitable && /certificate|self[- ]signed|unable to verify/i.test(String(e?.message))) {
+      if (isHabitable && /certificate|self[- ]signed|unable to verify/i.test(msgOf(e))) {
         res = await getText(target, true);
       } else {
         throw e;
@@ -166,7 +168,7 @@ export async function resolveQrContent(
     const plain = htmlToText(res.text).slice(0, MAX_TEXT);
     if (!plain) return { ok: false, reason: "La página del QR no devolvió contenido legible." };
     return { ok: true, data: { tipoQr: kind, url: text, texto: plain } };
-  } catch (e: any) {
-    return { ok: false, reason: `No se pudo consultar el QR: ${e?.message || "error de red"}` };
+  } catch (e: unknown) {
+    return { ok: false, reason: `No se pudo consultar el QR: ${msgOf(e) || "error de red"}` };
   }
 }

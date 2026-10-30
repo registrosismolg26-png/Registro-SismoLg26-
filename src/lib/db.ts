@@ -60,6 +60,12 @@ export interface LocalRegistro {
     telefono?: string;
     observaciones?: string;
     solucionHabitacional?: string;
+    // Solo el JEFE (censo ITINERANTE/MIXTO): QR habitable/colapso + etiqueta de la Comisión.
+    vivienda?: {
+      habitableUrl: string | null; habitableData: unknown | null;
+      colapsoUrl: string | null; colapsoData: unknown | null;
+      comisionEtiqueta: string | null;
+    };
   };
   status: 'pending' | 'synced' | 'error';
   syncResult?: 'registrado' | 'duplicado' | 'error';

@@ -41,14 +41,31 @@ const META: Record<Kind, { titulo: string; modal: string; url: keyof ViviendaDra
 };
 
 // Resumen corto del contenido leído (solo para mostrar; se guarda el contenido completo).
+// habitable.gob.ve devuelve dos formas: `tipo:"censo"` (familia censada: vivienda + personas)
+// y `tipo:"inspeccion"` (edificación evaluada: etiqueta, demolición, niveles).
 function resumen(data: unknown): string {
   if (!data || typeof data !== "object") return "";
-  const d = data as Record<string, any>;
-  const ub = d.ubicacion && typeof d.ubicacion === "object" ? d.ubicacion : {};
-  const partes = [d.tipo_vivienda, ub.nombre_edificacion || ub.edificacion, ub.direccion, ub.parroquia]
-    .filter((x) => typeof x === "string" && x.trim());
-  if (partes.length) return partes.join(" · ");
-  return typeof d.texto === "string" ? d.texto.slice(0, 140) : "Contenido leído y guardado";
+  const d = data as Record<string, unknown>;
+  const str = (x: unknown) => (typeof x === "string" && x.trim() ? x.trim() : "");
+  const obj = (x: unknown): Record<string, unknown> => (x && typeof x === "object" ? (x as Record<string, unknown>) : {});
+  if (d.tipo === "inspeccion") {
+    const ed = obj(d.edificacion);
+    return [
+      str(ed.nombre),
+      d.etiqueta ? `Etiqueta ${str(d.etiqueta)}` : "",
+      str(d.estatus_demolicion).replace(/_/g, " "),
+    ].filter(Boolean).join(" · ");
+  }
+  if (d.tipo === "censo") {
+    const ub = obj(d.ubicacion);
+    const apto = [str(ub.piso) && `Piso ${str(ub.piso)}`, str(ub.apartamento) && `Apto ${str(ub.apartamento)}`].filter(Boolean).join(" ");
+    return [
+      str(ub.nombre_edificacion),
+      apto,
+      typeof d.cantidad_personas === "number" ? `${d.cantidad_personas} persona${d.cantidad_personas === 1 ? "" : "s"}` : "",
+    ].filter(Boolean).join(" · ");
+  }
+  return str(d.texto) ? str(d.texto).slice(0, 140) : "Contenido leído y guardado";
 }
 
 export default function ViviendaQrStep({ value, onChange, showToast, jefeNombre, jefeMeta }: Props) {
@@ -72,6 +89,18 @@ export default function ViviendaQrStep({ value, onChange, showToast, jefeNombre,
         timeoutMs: 12000,
       });
       const json = await res.json().catch(() => ({}));
+      const tipo = (json?.data as { tipo?: string } | null)?.tipo;
+      const esperado = kind === "habitable" ? "censo" : "inspeccion";
+      if (res.ok && json?.data && tipo && tipo !== esperado) {
+        onChange({ [m.url]: "", [m.data]: null } as Partial<ViviendaDraft>);
+        showToast(
+          kind === "habitable"
+            ? "Ese QR es de COLAPSO (inspección de la edificación). Escanéalo en «QR de Colapso»."
+            : "Ese QR es del CENSO de la familia. Escanéalo en «QR Habitable».",
+          "warning",
+        );
+        return;
+      }
       if (res.ok && json?.data) {
         onChange({ [m.data]: json.data } as Partial<ViviendaDraft>);
         showToast(`${m.titulo}: contenido leído.`, "success");

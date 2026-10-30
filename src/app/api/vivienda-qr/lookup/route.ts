@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
     const r = await resolveQrContent(kind, qr);
     return NextResponse.json(r.ok ? { success: true, data: r.data } : { success: true, data: null, reason: r.reason });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error en /api/vivienda-qr/lookup:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
