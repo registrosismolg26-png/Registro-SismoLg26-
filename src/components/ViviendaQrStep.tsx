@@ -168,7 +168,7 @@ export default function ViviendaQrStep({ value, onChange, showToast, jefeNombre,
           </span>
         </div>
         <p className="intg-help">
-          Todo es <strong>opcional</strong> y queda <strong>vinculado al jefe de familia</strong>. Se guarda el QR y su contenido.
+          Todo es <strong>opcional</strong> y queda <strong>vinculado al jefe de familia</strong>. Se guarda el QR y su contenido. Si no aplica, toca <strong>Continuar</strong> para seguir con el siguiente paso.
         </p>
         </>
       )}

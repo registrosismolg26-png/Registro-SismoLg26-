@@ -674,8 +674,12 @@ export default function CensoTab() {
     }
     goToStep(target);
   };
-  const goToCargaFamiliar = () => irConJefeValido(STEP_FAMILIA, "Completa los datos del jefe antes de agregar a la familia.");
-  const goToVivienda = () => irConJefeValido(5, "Completa los datos del jefe antes de registrar su vivienda.");
+  // El jefe SIEMPRE ve el paso siguiente (QR en carpa; si no, Carga Familiar). "Registrar" solo
+  // aparece en el ÚLTIMO paso: así nadie da por terminado el registro antes de tiempo. Omitir
+  // los QR o la familia es pasar de largo ese paso (con "Continuar"), no registrar antes.
+  const pasoFinal: 4 | 5 | 6 = puedeCargaFamiliar ? STEP_FAMILIA : 4;
+  const goToSiguienteDelJefe = () =>
+    irConJefeValido(esCarpa ? 5 : STEP_FAMILIA, "Completa los datos del jefe antes de continuar.");
 
   // ── Fuente ÚNICA del objeto de cola (jefe e integrantes lo usan por igual) ──
   // `person` = campos por-persona (identidad + salud). `shared` = ubicación/geo/carpa/
@@ -769,7 +773,8 @@ export default function CensoTab() {
     // Enter en un input de un paso previo dispara submit: NO debe enviar ni marcar
     // todo el form como tocado (eso pintaba en rojo los radios del paso 4 al llegar).
     // El envío real solo procede desde el Paso 4 (individual) o el Paso 5 (con carga familiar).
-    if (step < 4) return;
+    // El envío SOLO procede desde el último paso (Enter en un campo de un paso anterior no registra).
+    if (step !== pasoFinal) return;
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -972,7 +977,8 @@ export default function CensoTab() {
 
   // El 5.º paso (Carga Familiar) es una RAMA opcional: el stepper solo lo muestra
   // al entrar en él, para no sugerir un paso obligatorio en el registro individual.
-  const totalSteps = Math.max(4, step);
+  // El stepper muestra desde el inicio TODOS los pasos que le tocan al registrado (jefe: 5 o 6).
+  const totalSteps = Math.max(pasoFinal, step);
   const wizardDots = Array.from({ length: totalSteps }, (_, i) => i + 1);
 
   return (
@@ -1860,27 +1866,7 @@ export default function CensoTab() {
                     </button>
                   )}
                   {step === 4 && (
-                    <>
-                      {puedeVivienda && (
-                        <button
-                          type="button"
-                          className="btn-secondary btn-add-familiar"
-                          onClick={goToVivienda}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v1"/></svg>
-                          <span className="btn-txt-collapsible">Vivienda&nbsp;</span>y QR
-                        </button>
-                      )}
-                      {puedeCargaFamiliar && !puedeVivienda && (
-                        <button
-                          type="button"
-                          className="btn-secondary btn-add-familiar"
-                          onClick={goToCargaFamiliar}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                          <span className="btn-txt-collapsible">Agregar&nbsp;</span>Familiar
-                        </button>
-                      )}
+                    pasoFinal === 4 ? (
                       <button
                         type="submit"
                         className="btn-submit"
@@ -1888,22 +1874,26 @@ export default function CensoTab() {
                       >
                         {isSubmitting ? "Guardando..." : "Registrar Afectado"}
                       </button>
-                    </>
-                  )}
-                  {step === 5 && puedeVivienda && (
-                    <>
+                    ) : (
                       <button
                         type="button"
-                        className="btn-secondary btn-add-familiar"
-                        onClick={goToCargaFamiliar}
+                        className="btn-submit"
+                        onClick={goToSiguienteDelJefe}
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        <span className="btn-txt-collapsible">Agregar&nbsp;</span>Familiar
+                        Continuar
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                       </button>
-                      <button type="submit" className="btn-submit" disabled={isSubmitting}>
-                        {isSubmitting ? "Guardando..." : "Registrar Afectado"}
-                      </button>
-                    </>
+                    )
+                  )}
+                  {step === 5 && puedeVivienda && (
+                    <button
+                      type="button"
+                      className="btn-submit"
+                      onClick={() => goToStep(STEP_FAMILIA)}
+                    >
+                      Continuar
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
                   )}
                   {step === STEP_FAMILIA && (
                     <button
@@ -1911,7 +1901,11 @@ export default function CensoTab() {
                       className="btn-submit"
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? "Guardando..." : `Registrar familia (${integrantes.length + 1})`}
+                      {isSubmitting
+                        ? "Guardando..."
+                        : integrantes.length === 0
+                          ? "Registrar (sin familiares)"
+                          : `Registrar familia (${integrantes.length + 1})`}
                     </button>
                   )}
                 </div>
