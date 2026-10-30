@@ -45,7 +45,10 @@ model Registro {
   intermitente         String    @default("NO") // "SI" or "NO"
   motivoIntermitente   String?   // Required when intermitente = "SI"
   observaciones        String?   // Observaciones generales sobre la persona
-  solucionHabitacional String?   // ALQUILER | MERCADO SECUNDARIO | CRÉDITO HIPOTECARIO | SUBSIDIO | CAMPAMENTO CIUDAD CARIBIA (solo refugios con carpa)
+  solucionHabitacional String?   // LEGADO (congelado, campo único anterior) — reemplazado por solucionesHabitacionales; el servidor lo deja en NULL al escribir la lista
+  // Soluciones habitacionales que quiere la persona (solo refugios con carpa): una o varias, mín. 1.
+  // ["MERCADO SECUNDARIO (SUBSIDIO)", "CRÉDITO HIPOTECARIO", "ALQUILER", "ADJUDICACIÓN EN LA GUAIRA", "ADJUDICACIÓN DE CARACAS", "CIUDAD CARIBIA"]
+  solucionesHabitacionales Json? @default("[]")
   refugio              String
   registrador          String?   // Nombre del operador que registró (se setea al censar; backfill desde AuditLog)
 

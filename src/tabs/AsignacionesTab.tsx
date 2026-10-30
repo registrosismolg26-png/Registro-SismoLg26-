@@ -19,7 +19,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import Reveal from "@/components/Reveal";
-import { PARROQUIAS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, RAZONES_RETIRO, SOLUCIONES_HABITACIONALES } from "@/lib/constants";
+import { PARROQUIAS, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, RAZONES_RETIRO } from "@/lib/constants";
 import {
   formatRoomLabel,
   roomFillLevel,
@@ -47,6 +47,8 @@ import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
 import ViviendaQrStep, { EMPTY_VIVIENDA, type ViviendaDraft } from "@/components/ViviendaQrStep";
 import { flattenVivienda, viviendaTieneDatos } from "@/lib/vivienda";
+import SolucionesHabitacionalesField from "@/components/SolucionesHabitacionalesField";
+import { solucionesDe, solucionesTexto } from "@/lib/solucionesHab";
 import { ETIQUETAS_COMISION } from "@/lib/constants";
 import DatePicker from "@/components/DatePicker";
 import { useBodyScrollLock } from "@/components/useBodyScrollLock";
@@ -365,7 +367,7 @@ export default function AsignacionesTab() {
     setEditData({
       carpaTipo: carpaTipoIni,
       carpaNro: carpaNroIni,
-      solucionHabitacional: reg.solucionHabitacional || "",
+      solucionesHabitacionales: solucionesDe(reg),
       nacionalidad: parsedCed.nac,
       cedula: parsedCed.digits,
       isChildDependent: parsedCed.isChild,
@@ -899,7 +901,7 @@ export default function AsignacionesTab() {
     if (esCarpa && editData.retirado !== "SI") {
       if (!s(editData.carpaTipo).trim()) e.carpaTipo = "Seleccione el tipo de carpa";
       if (!s(editData.carpaNro).trim()) e.carpaNro = "Indique el N.º / código de carpa";
-      if (!s(editData.solucionHabitacional).trim()) e.solucionHabitacional = "Seleccione la solución habitacional";
+      if (!Array.isArray(editData.solucionesHabitacionales) || editData.solucionesHabitacionales.length === 0) e.solucionHabitacional = "Seleccione al menos una solución habitacional";
     }
     return e;
   };
@@ -1017,6 +1019,7 @@ export default function AsignacionesTab() {
       cedula: finalCedula,
       cedulaJefeFamilia: finalJefeCedula,
       cuarto: cuartoFinal,
+      solucionHabitacional: null, // legado: el servidor lo deja en NULL al guardar la lista
       medicamentoIds: editMedicamentos,
       retiradoRazon: retiradoRazonFinal,
       observaciones: editData.observaciones !== undefined
@@ -1076,7 +1079,7 @@ export default function AsignacionesTab() {
             : [],
           cuarto: updated.cuarto || undefined,
           // Solo refugios con carpa. "" = vaciado explícito (el servidor lo guarda como null).
-          solucionHabitacional: esCarpa ? (updated.solucionHabitacional || "") : undefined,
+          solucionesHabitacionales: esCarpa ? (Array.isArray(updated.solucionesHabitacionales) ? updated.solucionesHabitacionales : []) : undefined,
           // Vivienda del JEFE (solo campamentos con carpa). Bloque vacío = quitar QR y etiqueta.
           vivienda: esCarpa && updated.jefeFamilia === "SI"
             ? {
@@ -2911,7 +2914,7 @@ export default function AsignacionesTab() {
                           </div>
                           <div className="detail-field">
                             <span className="detail-label">Solución Habitacional</span>
-                            <span className="detail-value">{selectedRegistro.solucionHabitacional || "—"}</span>
+                            <span className="detail-value">{solucionesTexto(selectedRegistro) || "—"}</span>
                           </div>
                           <div className="detail-field detail-field--full">
                             <span className="detail-label">Designación Completa</span>
@@ -3914,13 +3917,10 @@ export default function AsignacionesTab() {
                           Solución habitacional
                           {editData.retirado !== "SI" && <span className="required-star">*</span>}
                         </label>
-                        <StyledSelect
-                          value={editData.solucionHabitacional || ""}
-                          onChange={(v) => setEditData((prev) => ({ ...prev, solucionHabitacional: v }))}
-                          options={SOLUCIONES_HABITACIONALES.map((s) => ({ value: s, label: s }))}
-                          placeholder="Seleccione la solución habitacional"
-                          ariaLabel="Solución habitacional"
-                          error={!!editErr("solucionHabitacional")}
+                        <SolucionesHabitacionalesField
+                          value={Array.isArray(editData.solucionesHabitacionales) ? editData.solucionesHabitacionales : []}
+                          onChange={(v) => setEditData((prev) => ({ ...prev, solucionesHabitacionales: v }))}
+                          error={editErr("solucionHabitacional")}
                         />
                         <div className="error-container">
                           {editErr("solucionHabitacional") && <span className="field-error-message">{editErr("solucionHabitacional")}</span>}

@@ -5,6 +5,7 @@
 
 import { patologiaNombres, medItemsText, formatRoomLabel } from "@/lib/helpers";
 import type { Patologia, MedicamentoPredefinido, Medicamento } from "@/types";
+import { solucionesTexto } from "@/lib/solucionesHab";
 import { VIVIENDA_COLS, viviendaCells, etiquetaFill, colLetter } from "@/lib/vivienda";
 
 const BRAND = "1E3A8A";
@@ -54,7 +55,7 @@ const COLS: [string, number][] = [
   ["Fecha de registro", 18],
   ["Registrador", 22],
   ["Observaciones", 30],
-  ["Solución habitacional", 28],
+  ["Solución habitacional (una o varias)", 34],
   // Vivienda del jefe: QR habitable + QR de colapso + Comisión Presidencial (solo filas de jefe).
   ...VIVIENDA_COLS.map((c): [string, number] => [c.label, c.width]),
 ];
@@ -168,7 +169,7 @@ export async function exportRegistrosExcel(opts: ExportOpts): Promise<void> {
       r.createdAt ? new Date(r.createdAt).toLocaleString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "",
       r.registrador || "—",
       r.observaciones || "—",
-      r.solucionHabitacional || "—",
+      solucionesTexto(r) || "—",
       ...viviendaCells(r.vivienda),
     ];
     const row = ws.addRow(values);

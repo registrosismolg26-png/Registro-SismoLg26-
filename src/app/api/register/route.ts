@@ -6,15 +6,17 @@ import { getAuthUser, canRegister, canActOnRefugio, isMaster, hasRefugio } from 
 import { withAuditUser } from "@/lib/audit";
 import { sendTelegram, sendTelegramGroup } from "@/lib/telegram";
 import { adminRecipients, createNotifications } from "@/lib/notify";
-import { SOLUCIONES_HABITACIONALES } from "@/lib/constants";
+import { normalizeSoluciones } from "@/lib/solucionesHab";
 import { normalizeVivienda, resolveQrContent, corregirRanuras, type ViviendaPayload } from "@/lib/viviendaQr";
 
-// Solución habitacional OPCIONAL en el servidor (la cola offline de clientes viejos no la
-// envía; un 400 sería error permanente). Valor fuera de la lista o vacío → null.
-const normSolucionHab = (v: unknown): string | null => {
-  const up = String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
-  return SOLUCIONES_HABITACIONALES.find((s) => s === up) ?? null;
-};
+// Soluciones habitacionales (lista, una o varias) OPCIONALES en el servidor: la cola offline de
+// clientes viejos manda el campo ÚNICO `solucionHabitacional` (o nada) y un 400 sería un error
+// permanente. Se acepta la lista nueva o el valor único anterior; lo que no sea una opción
+// vigente se descarta. `undefined` = el cliente no lo envió → en edición se conserva.
+const solucionesDelBody = (body: Record<string, unknown>): string[] | undefined =>
+  body.solucionesHabitacionales !== undefined || body.solucionHabitacional !== undefined
+    ? normalizeSoluciones(body.solucionesHabitacionales !== undefined ? body.solucionesHabitacionales : body.solucionHabitacional)
+    : undefined;
 
 // QR habitable/colapso + etiqueta de la Comisión Presidencial del JEFE (opcional, ITINERANTE/MIXTO).
 // Si el QR llegó sin contenido (se escaneó offline) se intenta leerlo AQUÍ, ya con red; nunca
@@ -294,10 +296,11 @@ export async function POST(req: Request) {
           observaciones: body.observaciones !== undefined
             ? (body.observaciones && String(body.observaciones).trim() ? String(body.observaciones).trim() : null)
             : existing.observaciones,
-          // undefined = el cliente no lo envió → conserva el valor existente.
-          solucionHabitacional: body.solucionHabitacional !== undefined
-            ? normSolucionHab(body.solucionHabitacional)
-            : undefined,
+          // undefined = el cliente no lo envió → conserva el valor existente. Al escribir la
+          // lista se deja en NULL el campo único anterior (evita resucitar un valor viejo).
+          ...(solucionesDelBody(body) !== undefined
+            ? { solucionesHabitacionales: solucionesDelBody(body), solucionHabitacional: null }
+            : {}),
           syncedAt: new Date(),
         }
       }));
@@ -384,7 +387,7 @@ export async function POST(req: Request) {
           intermitente: intermitenteVal,
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
           observaciones: (observaciones && String(observaciones).trim()) || (body.observaciones && String(body.observaciones).trim()) || null,
-          solucionHabitacional: normSolucionHab(body.solucionHabitacional),
+          solucionesHabitacionales: solucionesDelBody(body) ?? [],
           registrador: (auth.nombre || auth.email || "").trim() || null,
           syncedAt: new Date(),
         },

@@ -15692,3 +15692,7 @@ html[data-theme="dark"] .comedor-mobile-card {
   flex: none;
   box-shadow: 0 0 0 1.5px color-mix(in srgb, currentColor 35%, transparent);
 }
+
+/* --- Solución habitacional múltiple (chips pill) --- */
+.soluciones-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.soluciones-chips.has-error .pill-check:not(.is-on) { border-color: var(--color-danger, #dc2626); }

@@ -21,11 +21,12 @@ import { useState, useRef, useReducer, useMemo, useEffect } from "react";
 import { saveLocal, buscarCedulaEnCliente } from "@/lib/db";
 import { fetchCedulaExterna } from "@/lib/cedulaApi";
 import type { Medicamento, FormData, IntegranteDraft } from "@/types";
-import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, TELEFONO_CODIGOS, RAZONES_RETIRO, SOLUCIONES_HABITACIONALES } from "@/lib/constants";
+import { PARROQUIAS, INITIAL_FORM, PERIODO_OPTIONS, DEPENDENT_NUMBER_OPTIONS, TELEFONO_CODIGOS, RAZONES_RETIRO } from "@/lib/constants";
 import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
 import { roomFillLevel, patologiaNombre, medLabel, findRepresentante, composeRazonRetiro } from "@/lib/helpers";
+import SolucionesHabitacionalesField from "@/components/SolucionesHabitacionalesField";
 import ViviendaQrStep, { EMPTY_VIVIENDA, viviendaVacia, type ViviendaDraft } from "@/components/ViviendaQrStep";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
@@ -93,7 +94,7 @@ export default function CensoTab() {
   const [carpaTipo, setCarpaTipo] = useState("");
   const [carpaNro, setCarpaNro] = useState("");
   // Solución habitacional (solo refugios con carpa); se hereda a la carga familiar.
-  const [solucionHab, setSolucionHab] = useState("");
+  const [solucionesHab, setSolucionesHab] = useState<string[]>([]);
   const roomCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     registros.filter((r: any) => r.retirado !== "SI" && r.cuarto).forEach((r: any) => {
@@ -202,14 +203,9 @@ export default function CensoTab() {
     if (!puedeCargaFamiliar && step >= 5) setStep(4);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puedeCargaFamiliar]);
-  // Si el registrado deja de ser jefe (o se retira), la vivienda deja de aplicar.
-  useEffect(() => {
-    if (!puedeVivienda && !viviendaVacia(vivienda)) {
-      setVivienda(EMPTY_VIVIENDA);
-      showToast("Los QR y la etiqueta de vivienda se limpiaron porque cambió la condición del jefe.", "info");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puedeVivienda]);
+  // Si el registrado deja de ser jefe (o se retira), la vivienda simplemente NO se envía
+  // (`vivienda: puedeVivienda ? vivienda : null` al armar el registro) y el borrador se
+  // descarta al registrar; no hace falta un efecto que lo limpie.
 
   // Validación de un integrante (espeja las reglas por-persona del jefe).
   const validateIntegrante = (intg: IntegranteDraft): Record<string, string> => {
@@ -439,7 +435,7 @@ export default function CensoTab() {
     if (esCarpa && !seRetira) {
       if (!carpaTipo) newErrors.carpaTipo = "Seleccione el tipo de carpa";
       if (!carpaNro.trim()) newErrors.carpaNro = "Indique el N.º / código de carpa";
-      if (!solucionHab) newErrors.solucionHabitacional = "Seleccione la solución habitacional";
+      if (solucionesHab.length === 0) newErrors.solucionHabitacional = "Seleccione al menos una solución habitacional";
     }
     return newErrors;
   };
@@ -699,7 +695,7 @@ export default function CensoTab() {
     refugio: string; userId?: string;
     parroquia: string; sector: string; comunidad: string; direccionExacta: string;
     gpsLat?: number; gpsLng?: number; cuarto?: string;
-    solucionHabitacional?: string;
+    solucionesHabitacionales?: string[];
     retirado?: string; retiradoRazon?: string;
   };
   const buildRegistroData = (p: PersonInput, shared: SharedInput) => {
@@ -747,7 +743,7 @@ export default function CensoTab() {
         telefono: finalTelefono !== null ? finalTelefono : undefined,
         medicamentoIds: p.medicamentos.filter(m => m.id),
         cuarto: shared.cuarto,
-        solucionHabitacional: shared.solucionHabitacional,
+        solucionesHabitacionales: shared.solucionesHabitacionales,
         intermitente: p.intermitente || "NO",
         motivoIntermitente: p.intermitente === "SI" ? p.motivoIntermitente.trim() : undefined,
         observaciones: p.observaciones ? p.observaciones.trim() : undefined,
@@ -873,7 +869,7 @@ export default function CensoTab() {
         gpsLat: coords.lat !== null ? coords.lat : undefined,
         gpsLng: coords.lng !== null ? coords.lng : undefined,
         cuarto: jefeCuarto,
-        solucionHabitacional: seRetira || !esCarpa ? undefined : (solucionHab || undefined),
+        solucionesHabitacionales: seRetira || !esCarpa ? undefined : solucionesHab,
       };
 
       // Registro del jefe (o de la persona individual). MISMO builder para ambos.
@@ -949,7 +945,7 @@ export default function CensoTab() {
       setAsignCuartoCenso("");
       setCarpaTipo("");
       setCarpaNro("");
-      setSolucionHab("");
+      setSolucionesHab([]);
       setSeRetira(false);
       setRetiroRazon("Hogar Solidario");
       setRetiroSpec("");
@@ -1616,7 +1612,7 @@ export default function CensoTab() {
                         const checked = !seRetira;
                         setSeRetira(checked);
                         // un retirado no ocupa habitación ni carpa
-                        if (checked) { setAsignCuartoCenso(""); setCarpaTipo(""); setCarpaNro(""); setSolucionHab(""); setErrors(prev => ({ ...prev, carpaTipo: "", carpaNro: "", solucionHabitacional: "" })); }
+                        if (checked) { setAsignCuartoCenso(""); setCarpaTipo(""); setCarpaNro(""); setSolucionesHab([]); setErrors(prev => ({ ...prev, carpaTipo: "", carpaNro: "", solucionHabitacional: "" })); }
                       }}
                     >
                       <span className="pill-check__box" aria-hidden>
@@ -1705,15 +1701,13 @@ export default function CensoTab() {
                       <div className="form-group">
                         <label>
                           Solución habitacional{!seRetira && <span className="required-star">*</span>}
+                          {" "}<span style={{ color: "var(--text-muted)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(una o varias)</span>
                         </label>
-                        <StyledSelect
-                          value={solucionHab}
-                          onChange={(v) => { setSolucionHab(v); setErrors(prev => ({ ...prev, solucionHabitacional: "" })); }}
-                          options={SOLUCIONES_HABITACIONALES.map(s => ({ value: s, label: s }))}
-                          placeholder="Seleccione la solución habitacional"
-                          ariaLabel="Solución habitacional"
+                        <SolucionesHabitacionalesField
+                          value={solucionesHab}
+                          onChange={(v) => { setSolucionesHab(v); setErrors(prev => ({ ...prev, solucionHabitacional: "" })); }}
                           disabled={seRetira}
-                          error={!!err("solucionHabitacional")}
+                          error={err("solucionHabitacional")}
                         />
                         <div className="error-container">
                           {err("solucionHabitacional") && <span className="field-error-message">{err("solucionHabitacional")}</span>}
