@@ -26,6 +26,7 @@ import { formReducer } from "@/lib/formReducer";
 import { useAppContext } from "@/context/AppContext";
 import { canRegister, hasRefugio } from "@/lib/permissions";
 import { roomFillLevel, patologiaNombre, medLabel, findRepresentante, composeRazonRetiro } from "@/lib/helpers";
+import ViviendaQrStep, { EMPTY_VIVIENDA, viviendaVacia, type ViviendaDraft } from "@/components/ViviendaQrStep";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableSingleSelect from "@/components/SearchableSingleSelect";
 import StyledSelect from "@/components/StyledSelect";
@@ -52,7 +53,7 @@ export default function CensoTab() {
     tiposCarpa
   } = useAppContext();
 
-  const [step, setStep] = useState<1|2|3|4|5>(1);
+  const [step, setStep] = useState<1|2|3|4|5|6>(1);
 
   // Patologías por-ID: se guarda un array de ids del catálogo.
   const addPatologia = (id: string) => {

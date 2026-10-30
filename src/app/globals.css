@@ -15632,3 +15632,63 @@ html[data-theme="dark"] .comedor-mobile-card {
 }
 
 
+
+/* --- Censo · Paso 5 (carpa): QR habitable / colapso + Comisión Presidencial --- */
+.vqr-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+@media (min-width: 720px) {
+  .vqr-grid { grid-template-columns: 1fr 1fr; }
+}
+.vqr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1.5px dashed var(--border-color);
+  background: var(--bg-secondary);
+  min-width: 0;
+}
+.vqr-card--ok {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-success, #16a34a) 55%, var(--border-color));
+}
+.vqr-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.vqr-card__title { font-weight: 800; font-size: 0.92rem; color: var(--text-primary); }
+.vqr-card__badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  color: var(--color-success, #16a34a);
+  background: color-mix(in srgb, var(--color-success, #16a34a) 14%, transparent);
+}
+.vqr-card__url {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vqr-card__sum { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
+.vqr-card__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.15rem; }
+.vqr-comision__title { font-weight: 800; font-size: 0.92rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+.vqr-opt { font-weight: 600; color: var(--text-secondary); font-size: 0.8rem; }
+.vqr-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.vqr-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, currentColor 35%, transparent);
+}

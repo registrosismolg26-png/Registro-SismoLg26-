@@ -167,6 +167,17 @@ export const SOLUCIONES_HABITACIONALES = [
   "CAMPAMENTO CIUDAD CARIBIA",
 ] as const;
 
+// Etiqueta de la VISITA DE LA COMISIÓN PRESIDENCIAL (Censo ITINERANTE/MIXTO, Paso 5, opcional).
+// Se guarda tal cual en RegistroVivienda.comisionEtiqueta. Fuente ÚNICA (censo y /api/register).
+// `color` es solo presentación (chip del paso); el valor persistido es `value`.
+export const ETIQUETAS_COMISION = [
+  { value: "VERDE", label: "Etiqueta Verde", color: "#16a34a" },
+  { value: "AMARILLA", label: "Etiqueta Amarilla", color: "#d97706" },
+  { value: "ROJA", label: "Etiqueta Roja", color: "#dc2626" },
+  { value: "NEGRA", label: "Etiqueta Negra", color: "#1f2937" },
+] as const;
+export type EtiquetaComision = (typeof ETIQUETAS_COMISION)[number]["value"];
+
 // Motivo del RETIRO en VZLA RENACE (solución ejecutada) = subconjunto de RAZONES_RETIRO
 // para que el encadenado al censo caiga en una razón que este ya entiende (sus filtros y
 // estadísticas). Fuente única: no duplicar textos.

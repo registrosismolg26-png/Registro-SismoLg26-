@@ -56,6 +56,29 @@ model Registro {
   // Lecturas scoped por refugio ordenadas por fecha (GET /api/registros, ETag):
   // evita seq-scan al filtrar por refugio y ordenar/agrupar por createdAt.
   @@index([refugio, createdAt])
+
+  // Vivienda del JEFE de familia (QR habitable/colapso + visita de la Comisión Presidencial).
+  vivienda             RegistroVivienda?
+}
+
+// QR escaneados en el censo de campamentos ITINERANTE/MIXTO, vinculados al REGISTRO DEL JEFE
+// de familia (1:1). Tabla aparte a propósito: los blobs JSON no deben viajar en cada
+// GET /api/registros (egress, ver docs/EGRESS.md). Todo es opcional.
+// SQL: prisma/registro_vivienda_qr_migration.sql (idempotente, correr en Supabase).
+model RegistroVivienda {
+  id                String   @id @default(uuid())
+  registroId        String   @unique
+  registro          Registro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+  refugio           String
+  habitableUrl      String?  // texto/URL tal cual lo decodificó el QR habitable
+  habitableData     Json?    // contenido obtenido (certificado de habitable.gob.ve); null si no se pudo leer
+  colapsoUrl        String?  // texto/URL tal cual lo decodificó el QR de colapso
+  colapsoData       Json?    // contenido obtenido de la URL; null si no se pudo leer
+  comisionEtiqueta  String?  // VERDE | AMARILLA | ROJA | NEGRA (Visita de la Comisión Presidencial)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  @@index([refugio])
 }
 
 model Padron {
