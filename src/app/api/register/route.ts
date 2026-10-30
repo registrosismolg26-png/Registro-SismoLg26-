@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { sendPushToAdmins } from "@/lib/push";
 import { getAuthUser, canRegister, canActOnRefugio, isMaster, hasRefugio } from "@/lib/auth";
 import { withAuditUser } from "@/lib/audit";
 import { sendTelegram, sendTelegramGroup } from "@/lib/telegram";
 import { adminRecipients, createNotifications } from "@/lib/notify";
 import { SOLUCIONES_HABITACIONALES } from "@/lib/constants";
-import { normalizeVivienda, resolveQrContent, type ViviendaPayload } from "@/lib/viviendaQr";
+import { normalizeVivienda, resolveQrContent, corregirRanuras, type ViviendaPayload } from "@/lib/viviendaQr";
 
 // Solución habitacional OPCIONAL en el servidor (la cola offline de clientes viejos no la
 // envía; un 400 sería error permanente). Valor fuera de la lista o vacío → null.
@@ -29,7 +30,7 @@ async function prepararVivienda(raw: unknown): Promise<ViviendaPayload | null> {
   ]);
   if (hab?.ok) v.habitableData = hab.data;
   if (col?.ok) v.colapsoData = col.data;
-  return v;
+  return corregirRanuras(v);
 }
 
 const VALID_GENERO = ["MASCULINO", "FEMENINO"];
@@ -38,9 +39,9 @@ const VALID_SI_NO = ["SI", "NO"];
 
 const viviendaData = (v: ViviendaPayload) => ({
   habitableUrl: v.habitableUrl,
-  habitableData: (v.habitableData ?? undefined) as any,
+  habitableData: (v.habitableData ?? undefined) as Prisma.InputJsonValue | undefined,
   colapsoUrl: v.colapsoUrl,
-  colapsoData: (v.colapsoData ?? undefined) as any,
+  colapsoData: (v.colapsoData ?? undefined) as Prisma.InputJsonValue | undefined,
   comisionEtiqueta: v.comisionEtiqueta,
 });
 

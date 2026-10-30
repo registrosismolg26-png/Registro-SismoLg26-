@@ -71,6 +71,30 @@ export function normalizeVivienda(raw: unknown): ViviendaPayload | null {
   return vacio ? null : out;
 }
 
+const tipoDe = (d: unknown): string | null =>
+  d && typeof d === "object" && typeof (d as { tipo?: unknown }).tipo === "string" ? (d as { tipo: string }).tipo : null;
+
+/**
+ * Corrige QR puestos en la ranura equivocada. Sin señal, el censo NO puede validar el tipo
+ * al escanear; al sincronizar, con el contenido ya leído, se acomodan por `tipo`:
+ * `censo` → habitable, `inspeccion` → colapso. Solo mueve si la ranura destino está libre
+ * (o intercambia si ambos están cruzados); si hay duda, deja todo como llegó.
+ */
+export function corregirRanuras(v: ViviendaPayload): ViviendaPayload {
+  const h = tipoDe(v.habitableData);
+  const c = tipoDe(v.colapsoData);
+  if (h === "inspeccion" && c === "censo") {
+    return { ...v, habitableUrl: v.colapsoUrl, habitableData: v.colapsoData, colapsoUrl: v.habitableUrl, colapsoData: v.habitableData };
+  }
+  if (h === "inspeccion" && !v.colapsoUrl) {
+    return { ...v, habitableUrl: null, habitableData: null, colapsoUrl: v.habitableUrl, colapsoData: v.habitableData };
+  }
+  if (c === "censo" && !v.habitableUrl) {
+    return { ...v, colapsoUrl: null, colapsoData: null, habitableUrl: v.colapsoUrl, habitableData: v.colapsoData };
+  }
+  return v;
+}
+
 function getText(urlStr: string, insecure: boolean): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
     try {
