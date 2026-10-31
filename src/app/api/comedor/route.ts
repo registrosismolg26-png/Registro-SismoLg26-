@@ -263,6 +263,10 @@ export async function GET(req: Request) {
       });
 
       const mapDias = new Map<string, { fecha: string; desayuno: number; almuerzo: number; cena: number; total: number; beneficiarios: number }>();
+      const mapHoras = new Map<string, { hora: string; raciones: number; atenciones: number }>();
+      const mapRefugios = new Map<string, { refugio: string; raciones: number; atenciones: number }>();
+      const mapTipos = new Map<string, { tipo: string; raciones: number; atenciones: number }>();
+
       let totalRaciones = 0;
       let totalAtendidos = entregas.length;
       let desayunoRaciones = 0;
@@ -286,18 +290,70 @@ export async function GET(req: Request) {
           cenaAtendidos++;
         }
 
+        // Agrupación por día
         if (!mapDias.has(e.fecha)) {
           mapDias.set(e.fecha, { fecha: e.fecha, desayuno: 0, almuerzo: 0, cena: 0, total: 0, beneficiarios: 0 });
         }
-        const item = mapDias.get(e.fecha)!;
-        item.total += r;
-        item.beneficiarios++;
-        if (e.servicio === "DESAYUNO") item.desayuno += r;
-        else if (e.servicio === "ALMUERZO") item.almuerzo += r;
-        else if (e.servicio === "CENA") item.cena += r;
+        const itemDia = mapDias.get(e.fecha)!;
+        itemDia.total += r;
+        itemDia.beneficiarios++;
+        if (e.servicio === "DESAYUNO") itemDia.desayuno += r;
+        else if (e.servicio === "ALMUERZO") itemDia.almuerzo += r;
+        else if (e.servicio === "CENA") itemDia.cena += r;
+
+        // Agrupación por hora (HH:00)
+        let horaKey = "00:00";
+        if (e.hora && typeof e.hora === "string") {
+          const parts = e.hora.split(":");
+          if (parts[0]) {
+            horaKey = parts[0].trim().padStart(2, "0") + ":00";
+          }
+        }
+        if (!mapHoras.has(horaKey)) {
+          mapHoras.set(horaKey, { hora: horaKey, raciones: 0, atenciones: 0 });
+        }
+        const itemHora = mapHoras.get(horaKey)!;
+        itemHora.raciones += r;
+        itemHora.atenciones++;
+
+        // Agrupación por refugio
+        const refName = (e.refugio || "Sin Asignar").trim();
+        if (!mapRefugios.has(refName)) {
+          mapRefugios.set(refName, { refugio: refName, raciones: 0, atenciones: 0 });
+        }
+        const itemRef = mapRefugios.get(refName)!;
+        itemRef.raciones += r;
+        itemRef.atenciones++;
+
+        // Agrupación por tipo de beneficiario
+        const tipoName = e.tipoBeneficiario === "SOLO" ? "Persona Sola" : "Jefe de Familia (Núcleo)";
+        if (!mapTipos.has(tipoName)) {
+          mapTipos.set(tipoName, { tipo: tipoName, raciones: 0, atenciones: 0 });
+        }
+        const itemTipo = mapTipos.get(tipoName)!;
+        itemTipo.raciones += r;
+        itemTipo.atenciones++;
       });
 
       const porDia = Array.from(mapDias.values()).sort((a, b) => a.fecha.localeCompare(b.fecha));
+      const porHora = Array.from(mapHoras.values()).sort((a, b) => a.hora.localeCompare(b.hora));
+      const porRefugio = Array.from(mapRefugios.values()).sort((a, b) => b.raciones - a.raciones);
+      const porTipoBeneficiario = Array.from(mapTipos.values()).map((t) => ({
+        ...t,
+        porcentaje: totalRaciones > 0 ? Number(((t.raciones / totalRaciones) * 100).toFixed(1)) : 0,
+      }));
+
+      const promedios = {
+        racionesPorDia: porDia.length > 0 ? Number((totalRaciones / porDia.length).toFixed(1)) : 0,
+        racionesPorPersona: totalAtendidos > 0 ? Number((totalRaciones / totalAtendidos).toFixed(1)) : 0,
+        atendidosPorDia: porDia.length > 0 ? Number((totalAtendidos / porDia.length).toFixed(1)) : 0,
+      };
+
+      const tasasServicio = {
+        desayunoPct: totalRaciones > 0 ? Number(((desayunoRaciones / totalRaciones) * 100).toFixed(1)) : 0,
+        almuerzoPct: totalRaciones > 0 ? Number(((almuerzoRaciones / totalRaciones) * 100).toFixed(1)) : 0,
+        cenaPct: totalRaciones > 0 ? Number(((cenaRaciones / totalRaciones) * 100).toFixed(1)) : 0,
+      };
 
       return NextResponse.json({
         success: true,
@@ -311,6 +367,11 @@ export async function GET(req: Request) {
           almuerzoAtendidos,
           cenaAtendidos,
           porDia,
+          porHora,
+          porRefugio,
+          porTipoBeneficiario,
+          promedios,
+          tasasServicio,
         },
       });
     }

@@ -164,11 +164,13 @@ export default function ComedorTab() {
   }, [selectedRefugio, fechaControl, servicioControl, showToast]);
 
   // Cargar estadísticas y gráficas (Submódulo 3)
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (desde?: string, hasta?: string) => {
     setLoadingStats(true);
     try {
       const qRef = selectedRefugio ? `&refugio=${encodeURIComponent(selectedRefugio)}` : "";
-      const res = await apiFetch(`/api/comedor?type=stats${qRef}`);
+      const qDesde = desde ? `&desde=${encodeURIComponent(desde)}` : "";
+      const qHasta = hasta ? `&hasta=${encodeURIComponent(hasta)}` : "";
+      const res = await apiFetch(`/api/comedor?type=stats${qRef}${qDesde}${qHasta}`);
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
         setStats(data.stats || null);
@@ -1386,6 +1388,8 @@ export default function ComedorTab() {
           onRefresh={fetchStats}
           rangoDias={rangoDias}
           setRangoDias={setRangoDias}
+          selectedRefugio={selectedRefugio}
+          currentUser={currentUser}
         />
       )}
 

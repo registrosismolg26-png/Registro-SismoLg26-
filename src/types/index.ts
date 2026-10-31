@@ -177,6 +177,32 @@ export interface ComedorStats {
     total: number;
     beneficiarios: number;
   }[];
+  porHora?: {
+    hora: string;
+    raciones: number;
+    atenciones: number;
+  }[];
+  porRefugio?: {
+    refugio: string;
+    raciones: number;
+    atenciones: number;
+  }[];
+  porTipoBeneficiario?: {
+    tipo: string;
+    raciones: number;
+    atenciones: number;
+    porcentaje: number;
+  }[];
+  promedios?: {
+    racionesPorDia: number;
+    racionesPorPersona: number;
+    atendidosPorDia: number;
+  };
+  tasasServicio?: {
+    desayunoPct: number;
+    almuerzoPct: number;
+    cenaPct: number;
+  };
 }
 
 // ── PLANTEAMIENTO SALA (Solo Master / Planteamiento Master) ───────────────────
