@@ -113,27 +113,32 @@ export default function AsignacionesTab() {
     }, 220);
   };
 
-  // Modal DEDICADO de observaciones
+  // Modal DEDICADO de observaciones y acción de respuesta
   const [observacionModalFor, setObservacionModalFor] = useState<any | null>(null);
   const [observacionText, setObservacionText] = useState("");
+  const [accionRespuestaText, setAccionRespuestaText] = useState("");
   const [savingObservacion, setSavingObservacion] = useState(false);
   const openObservacionModal = (reg: any) => {
     setObservacionModalFor(reg);
     setObservacionText(reg.observaciones || "");
+    setAccionRespuestaText(reg.accionRespuesta || "");
   };
   const closeObservacionModal = () => {
     if (savingObservacion) return;
     setObservacionModalFor(null);
     setObservacionText("");
+    setAccionRespuestaText("");
   };
 
   const handleSaveObservacion = async () => {
     if (!observacionModalFor) return;
     setSavingObservacion(true);
     const newObs = observacionText.trim() || null;
+    const newAcc = accionRespuestaText.trim() || null;
     const updated = {
       ...observacionModalFor,
       observaciones: newObs,
+      accionRespuesta: newAcc,
     };
     setRegistros((prev) => {
       const next = prev.map((r) => (r.id === updated.id ? updated : r));
@@ -154,12 +159,13 @@ export default function AsignacionesTab() {
         data: {
           ...updated,
           observaciones: newObs || undefined,
+          accionRespuesta: newAcc || undefined,
         },
       };
       await saveLocal(localRec as any);
       triggerSync();
       refreshLocalRecords();
-      showToast("Observación guardada correctamente.", "success");
+      showToast("Observación y acción de respuesta guardadas.", "success");
       closeObservacionModal();
     } catch (err) {
       console.error(err);
@@ -395,6 +401,7 @@ export default function AsignacionesTab() {
       motivoIntermitente: reg.motivoIntermitente || "",
       cuarto: reg.cuarto || "",
       observaciones: reg.observaciones || "",
+      accionRespuesta: reg.accionRespuesta || "",
       // Vivienda del jefe (QR habitable/colapso + Comisión): borrador editable.
       vivienda: {
         habitableUrl: reg.vivienda?.habitableUrl || "",
@@ -514,11 +521,13 @@ export default function AsignacionesTab() {
     return counts;
   }, [registros]);
 
-  // Conteo de personas que poseen alguna observación registrada
+  // Conteo de personas que poseen alguna observación registrada o acción de respuesta
   const countConObservaciones = useMemo(
     () =>
       registros.filter(
-        (r: any) => !!r.observaciones && String(r.observaciones).trim() !== "",
+        (r: any) =>
+          (!!r.observaciones && String(r.observaciones).trim() !== "") ||
+          (!!r.accionRespuesta && String(r.accionRespuesta).trim() !== ""),
       ).length,
     [registros],
   );
@@ -539,7 +548,8 @@ export default function AsignacionesTab() {
           normalizeText(r.nombreApellido).includes(q) ||
           normalizeText(r.cedula).includes(q) ||
           normalizeText(r.parroquia).includes(q) ||
-          normalizeText(r.observaciones || "").includes(q)
+          normalizeText(r.observaciones || "").includes(q) ||
+          normalizeText(r.accionRespuesta || "").includes(q)
         )
           return true;
         if (looksLikeCedula) {
@@ -635,14 +645,18 @@ export default function AsignacionesTab() {
       result = result.filter(
         (r) => r.createdAt && ymdLocal(new Date(r.createdAt)) <= filterHasta,
       );
-    // Filtro de Observaciones (personas con o sin notas cargadas)
+    // Filtro de Observaciones (personas con o sin notas cargadas o acción)
     if (filterObservaciones === "CON_OBS") {
       result = result.filter(
-        (r) => !!r.observaciones && String(r.observaciones).trim() !== "",
+        (r) =>
+          (!!r.observaciones && String(r.observaciones).trim() !== "") ||
+          (!!r.accionRespuesta && String(r.accionRespuesta).trim() !== ""),
       );
     } else if (filterObservaciones === "SIN_OBS") {
       result = result.filter(
-        (r) => !r.observaciones || String(r.observaciones).trim() === "",
+        (r) =>
+          (!r.observaciones || String(r.observaciones).trim() === "") &&
+          (!r.accionRespuesta || String(r.accionRespuesta).trim() === ""),
       );
     }
 
@@ -1025,6 +1039,9 @@ export default function AsignacionesTab() {
       observaciones: editData.observaciones !== undefined
         ? (editData.observaciones?.trim() || null)
         : (selectedRegistro.observaciones || null),
+      accionRespuesta: editData.accionRespuesta !== undefined
+        ? (editData.accionRespuesta?.trim() || null)
+        : (selectedRegistro.accionRespuesta || null),
     };
 
     // 1. Optimistic UI update
@@ -1099,6 +1116,7 @@ export default function AsignacionesTab() {
               ? updated.motivoIntermitente
               : undefined,
           observaciones: updated.observaciones || undefined,
+          accionRespuesta: updated.accionRespuesta || undefined,
           refugio: updated.refugio || currentUser?.campamentoTransitorio || "",
         },
       };
@@ -1899,18 +1917,18 @@ export default function AsignacionesTab() {
               </div>
 
               <div className="form-group">
-                <label>Observaciones</label>
+                <label>Observaciones y Acción</label>
                 <StyledSelect
                   value={filterObservaciones}
                   onChange={setFilterObservaciones}
-                  ariaLabel="Observaciones"
+                  ariaLabel="Observaciones y Acción"
                   options={[
                     { value: "", label: "Todas las personas" },
                     {
                       value: "CON_OBS",
-                      label: `Solo con observaciones (${countConObservaciones})`,
+                      label: `Con observación o acción (${countConObservaciones})`,
                     },
-                    { value: "SIN_OBS", label: "Sin observaciones" },
+                    { value: "SIN_OBS", label: "Sin observaciones ni acción" },
                   ]}
                 />
               </div>
@@ -2180,38 +2198,70 @@ export default function AsignacionesTab() {
                                 </span>
                               )}
                             </div>
-                            {reg.observaciones && (
-                              <div
-                                className="person-obs-snippet"
-                                title={`Observación: ${reg.observaciones}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openObservacionModal(reg);
-                                }}
-                                style={{
-                                  fontSize: "0.72rem",
-                                  color: "var(--text-secondary)",
-                                  marginTop: "3px",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  cursor: "pointer",
-                                  background: "rgba(139, 92, 246, 0.08)",
-                                  border: "1px solid rgba(139, 92, 246, 0.25)",
-                                  borderRadius: "6px",
-                                  padding: "2px 6px",
-                                  maxWidth: "220px",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                <span>📝</span>
-                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                  {reg.observaciones}
-                                </span>
-                              </div>
-                            )}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "3px" }}>
+                              {reg.observaciones && (
+                                <div
+                                  className="person-obs-snippet"
+                                  title={`Observación: ${reg.observaciones}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openObservacionModal(reg);
+                                  }}
+                                  style={{
+                                    fontSize: "0.72rem",
+                                    color: "var(--text-secondary)",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    cursor: "pointer",
+                                    background: "rgba(139, 92, 246, 0.08)",
+                                    border: "1px solid rgba(139, 92, 246, 0.25)",
+                                    borderRadius: "6px",
+                                    padding: "2px 6px",
+                                    maxWidth: "220px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  <span>📝</span>
+                                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {reg.observaciones}
+                                  </span>
+                                </div>
+                              )}
+                              {reg.accionRespuesta && (
+                                <div
+                                  className="person-obs-snippet"
+                                  title={`Acción de Respuesta: ${reg.accionRespuesta}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openObservacionModal(reg);
+                                  }}
+                                  style={{
+                                    fontSize: "0.72rem",
+                                    color: "#047857",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    cursor: "pointer",
+                                    background: "rgba(16, 185, 129, 0.1)",
+                                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                                    borderRadius: "6px",
+                                    padding: "2px 6px",
+                                    maxWidth: "220px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  <span>⚡</span>
+                                  <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    Acción: {reg.accionRespuesta}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -2388,7 +2438,7 @@ export default function AsignacionesTab() {
                                 <polyline points="10 9 9 9 8 9" />
                               </svg>
                               <span className="btn-ver__txt">Observación</span>
-                              {reg.observaciones && (
+                              {(reg.observaciones || reg.accionRespuesta) && (
                                 <span
                                   style={{
                                     position: "absolute",
@@ -2397,9 +2447,9 @@ export default function AsignacionesTab() {
                                     width: "6px",
                                     height: "6px",
                                     borderRadius: "50%",
-                                    backgroundColor: "#8b5cf6",
+                                    backgroundColor: reg.accionRespuesta ? "#10b981" : "#8b5cf6",
                                   }}
-                                  title="Tiene observación"
+                                  title={reg.accionRespuesta ? "Tiene acción de respuesta" : "Tiene observación"}
                                 />
                               )}
                             </button>
@@ -3002,7 +3052,7 @@ export default function AsignacionesTab() {
                     </div>
                   )}
 
-                  {/* Observaciones */}
+                  {/* Observaciones y Acción de Respuesta */}
                   <div
                     className="detail-section-title"
                     style={{
@@ -3011,7 +3061,7 @@ export default function AsignacionesTab() {
                       alignItems: "center",
                     }}
                   >
-                    <span>Observaciones</span>
+                    <span>Observaciones y Acción de Respuesta</span>
                     {canRegister(currentUser.role) && (
                       <button
                         type="button"
@@ -3026,49 +3076,102 @@ export default function AsignacionesTab() {
                         }}
                       >
                         <span>✏️</span>
-                        <span>{selectedRegistro.observaciones ? "Modificar" : "Agregar"}</span>
+                        <span>{selectedRegistro.observaciones || selectedRegistro.accionRespuesta ? "Modificar" : "Agregar"}</span>
                       </button>
                     )}
                   </div>
-                  <div className="detail-field detail-field--full">
-                    <div
-                      style={{
-                        width: "100%",
-                        padding: "0.85rem 1rem",
-                        borderRadius: "10px",
-                        background: selectedRegistro.observaciones
-                          ? "rgba(139, 92, 246, 0.08)"
-                          : "var(--bg-primary)",
-                        border: `1px solid ${selectedRegistro.observaciones ? "rgba(139, 92, 246, 0.3)" : "var(--border-color)"}`,
-                        minHeight: "56px",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      {selectedRegistro.observaciones ? (
-                        <p
-                          style={{
-                            margin: 0,
-                            fontSize: "0.88rem",
-                            color: "var(--text-primary)",
-                            whiteSpace: "pre-wrap",
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {selectedRegistro.observaciones}
-                        </p>
-                      ) : (
-                        <p
-                          style={{
-                            margin: 0,
-                            fontSize: "0.82rem",
-                            color: "var(--text-muted)",
-                            fontStyle: "italic",
-                          }}
-                        >
-                          Sin observaciones registradas para esta persona.
-                        </p>
-                      )}
+                  <div className="detail-field detail-field--full" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {/* Observaciones */}
+                    <div>
+                      <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textTransform: "uppercase" }}>
+                        Observaciones
+                      </div>
+                      <div
+                        style={{
+                          width: "100%",
+                          padding: "0.75rem 1rem",
+                          borderRadius: "10px",
+                          background: selectedRegistro.observaciones
+                            ? "rgba(139, 92, 246, 0.08)"
+                            : "var(--bg-primary)",
+                          border: `1px solid ${selectedRegistro.observaciones ? "rgba(139, 92, 246, 0.3)" : "var(--border-color)"}`,
+                          minHeight: "48px",
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        {selectedRegistro.observaciones ? (
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: "0.88rem",
+                              color: "var(--text-primary)",
+                              whiteSpace: "pre-wrap",
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {selectedRegistro.observaciones}
+                          </p>
+                        ) : (
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: "0.82rem",
+                              color: "var(--text-muted)",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            Sin observaciones registradas para esta persona.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Acción de Respuesta */}
+                    <div>
+                      <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#047857", marginBottom: "4px", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span>⚡</span> ACCION DE RESPUESTA
+                      </div>
+                      <div
+                        style={{
+                          width: "100%",
+                          padding: "0.75rem 1rem",
+                          borderRadius: "10px",
+                          background: selectedRegistro.accionRespuesta
+                            ? "rgba(16, 185, 129, 0.08)"
+                            : "var(--bg-primary)",
+                          border: `1px solid ${selectedRegistro.accionRespuesta ? "rgba(16, 185, 129, 0.35)" : "var(--border-color)"}`,
+                          minHeight: "48px",
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        {selectedRegistro.accionRespuesta ? (
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: "0.88rem",
+                              fontWeight: 600,
+                              color: "#065f46",
+                              whiteSpace: "pre-wrap",
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {selectedRegistro.accionRespuesta}
+                          </p>
+                        ) : (
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: "0.82rem",
+                              color: "var(--text-muted)",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            Sin acción de respuesta registrada para esta persona.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4083,9 +4186,9 @@ export default function AsignacionesTab() {
                     </div>
                   </Reveal>
 
-                  {/* Observaciones */}
-                  <div className="detail-section-title">Observaciones</div>
-                  <div className="form-group detail-field--full" style={{ marginBottom: "1rem" }}>
+                  {/* Observaciones y Acción de Respuesta */}
+                  <div className="detail-section-title">Observaciones y Acción de Respuesta</div>
+                  <div className="form-group detail-field--full" style={{ marginBottom: "0.75rem" }}>
                     <label>Observaciones de la persona</label>
                     <textarea
                       placeholder="Colocar cualquier tipo de observación sobre la persona o situación..."
@@ -4103,6 +4206,31 @@ export default function AsignacionesTab() {
                         fontSize: "0.88rem",
                         borderRadius: "8px",
                         border: "1px solid var(--border-color)",
+                        background: "var(--input-bg, var(--bg-secondary))",
+                        color: "var(--text-primary)",
+                        resize: "vertical",
+                        lineHeight: 1.5,
+                      }}
+                    />
+                  </div>
+                  <div className="form-group detail-field--full" style={{ marginBottom: "1rem" }}>
+                    <label style={{ color: "#047857", fontWeight: 700 }}>⚡ ACCION de RESPUESTA</label>
+                    <textarea
+                      placeholder="Indicar la acción de respuesta tomada o requerida..."
+                      value={editData.accionRespuesta || ""}
+                      onChange={(e) =>
+                        setEditData((prev) => ({
+                          ...prev,
+                          accionRespuesta: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: "0.6rem 0.8rem",
+                        fontSize: "0.88rem",
+                        borderRadius: "8px",
+                        border: "1px solid rgba(16, 185, 129, 0.4)",
                         background: "var(--input-bg, var(--bg-secondary))",
                         color: "var(--text-primary)",
                         resize: "vertical",
@@ -4446,7 +4574,7 @@ export default function AsignacionesTab() {
                 <span style={{ fontSize: "1.3rem" }}>📝</span>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "var(--text-primary)" }}>
-                    Observaciones
+                    Observaciones y ACCION de RESPUESTA
                   </div>
                   <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
                     {observacionModalFor.nombreApellido} · C.I. {observacionModalFor.cedula}
@@ -4469,7 +4597,7 @@ export default function AsignacionesTab() {
               </button>
             </div>
 
-            <div style={{ marginBottom: "1.25rem" }}>
+            <div style={{ marginBottom: "1rem" }}>
               <label
                 style={{
                   fontSize: "0.82rem",
@@ -4479,13 +4607,13 @@ export default function AsignacionesTab() {
                   marginBottom: "0.4rem",
                 }}
               >
-                Detalle de la observación:
+                📝 Observaciones:
               </label>
               <textarea
                 value={observacionText}
                 onChange={(e) => setObservacionText(e.target.value)}
                 placeholder="Colocar cualquier tipo de observación sobre la persona o situación..."
-                rows={4}
+                rows={3}
                 style={{
                   width: "100%",
                   padding: "0.75rem",
@@ -4499,6 +4627,37 @@ export default function AsignacionesTab() {
                 }}
                 autoFocus
               />
+            </div>
+
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  color: "#047857",
+                  display: "block",
+                  marginBottom: "0.4rem",
+                }}
+              >
+                ⚡ ACCION de RESPUESTA:
+              </label>
+              <textarea
+                value={accionRespuestaText}
+                onChange={(e) => setAccionRespuestaText(e.target.value)}
+                placeholder="Colocar la acción de respuesta tomada o requerida para este caso..."
+                rows={3}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  fontSize: "0.9rem",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(16, 185, 129, 0.4)",
+                  background: "var(--input-bg, var(--bg-secondary))",
+                  color: "var(--text-primary)",
+                  resize: "vertical",
+                  lineHeight: 1.5,
+                }}
+              />
               <span
                 style={{
                   fontSize: "0.72rem",
@@ -4507,7 +4666,7 @@ export default function AsignacionesTab() {
                   marginTop: "4px",
                 }}
               >
-                Esta nota quedará visible en la tabla y en la ficha de la persona.
+                Ambos campos quedarán visibles en la tabla, en la ficha individual y en las exportaciones oficiales.
               </span>
             </div>
 
@@ -4527,7 +4686,7 @@ export default function AsignacionesTab() {
                 disabled={savingObservacion}
                 style={{ padding: "0.5rem 1.25rem", fontSize: "0.88rem" }}
               >
-                {savingObservacion ? "Guardando..." : "Guardar Observación"}
+                {savingObservacion ? "Guardando..." : "Guardar Cambios"}
               </button>
             </div>
           </div>

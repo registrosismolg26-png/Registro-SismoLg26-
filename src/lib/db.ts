@@ -59,6 +59,7 @@ export interface LocalRegistro {
     gpsLng?: number;
     telefono?: string;
     observaciones?: string;
+    accionRespuesta?: string;
     solucionHabitacional?: string; // LEGADO: campo único anterior (clientes viejos)
     // Una o varias (mín. 1 en el censo); solo refugios con carpa.
     solucionesHabitacionales?: string[];
