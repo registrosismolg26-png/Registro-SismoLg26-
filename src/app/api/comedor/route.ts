@@ -187,16 +187,25 @@ export async function GET(req: Request) {
       if (refugio && refugio !== "TODOS") {
         whereClause.refugio = refugio;
       }
+      const desde = searchParams.get("desde")?.trim() || "";
+      const hasta = searchParams.get("hasta")?.trim() || "";
       if (fecha) {
         whereClause.fecha = fecha;
+      } else if (desde && hasta) {
+        whereClause.fecha = { gte: desde, lte: hasta };
+      } else if (desde) {
+        whereClause.fecha = { gte: desde };
+      } else if (hasta) {
+        whereClause.fecha = { lte: hasta };
       }
+
       if (servicio && ["DESAYUNO", "ALMUERZO", "CENA"].includes(servicio.toUpperCase())) {
         whereClause.servicio = servicio.toUpperCase();
       }
 
       const entregas = await prisma.comedorRegistro.findMany({
         where: whereClause,
-        orderBy: [{ fecha: "desc" }, { createdAt: "desc" }],
+        orderBy: [{ fecha: "desc" }, { hora: "asc" }, { createdAt: "desc" }],
       });
 
       // Totales calculados

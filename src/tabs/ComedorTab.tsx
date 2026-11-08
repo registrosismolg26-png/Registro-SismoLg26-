@@ -11,6 +11,8 @@ import ComedorCreateCarnetModal from "@/components/ComedorCreateCarnetModal";
 import ComedorBulkCarnetsModal from "@/components/ComedorBulkCarnetsModal";
 import ComedorQrScannerModal from "@/components/ComedorQrScannerModal";
 import ComedorGraficas from "@/components/ComedorGraficas";
+import ComedorExportEntregasModal from "@/components/ComedorExportEntregasModal";
+import { exportComedorEntregasExcel } from "@/lib/exportComedorEntregasExcel";
 import type {
   ComedorBeneficiario,
   ComedorRegistroItem,
@@ -110,6 +112,48 @@ export default function ComedorTab() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [quickCedula, setQuickCedula] = useState("");
   const [registeringQuick, setRegisteringQuick] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportingDayExcel, setExportingDayExcel] = useState(false);
+
+  // Descarga directa en Excel del día completo (Desayuno, Almuerzo y Cena)
+  const handleDirectDownloadDayExcel = async () => {
+    if (!fechaControl) {
+      showToast("Seleccione una fecha válida.", "warning");
+      return;
+    }
+    setExportingDayExcel(true);
+    try {
+      const qRef = selectedRefugio && selectedRefugio !== "TODOS" ? `&refugio=${encodeURIComponent(selectedRefugio)}` : "";
+      const qFecha = `&fecha=${encodeURIComponent(fechaControl)}`;
+      // Sin filtro de servicio para traer DESAYUNO, ALMUERZO y CENA del día
+      const res = await apiFetch(`/api/comedor?type=entregas${qRef}${qFecha}`);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "No se pudo obtener el listado de entregas del día.");
+      }
+
+      const lista = data.entregas || [];
+      if (lista.length === 0) {
+        showToast(`No hay entregas registradas para el día ${fechaControl}.`, "warning");
+        return;
+      }
+
+      await exportComedorEntregasExcel({
+        entregas: lista,
+        fecha: fechaControl,
+        refugio: selectedRefugio === "TODOS" ? "TODOS LOS CAMPAMENTOS" : selectedRefugio,
+        generadoPor: (currentUser?.nombre || currentUser?.email || "Operador").trim(),
+      });
+
+      showToast(`Excel descargado con éxito: ${lista.length} retiros del día ${fechaControl}.`, "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || "Error al descargar el archivo Excel.", "error");
+    } finally {
+      setExportingDayExcel(false);
+    }
+  };
 
   // Paginación Submódulo 2
   const [pageEntregas, setPageEntregas] = useState(1);
@@ -943,13 +987,13 @@ export default function ComedorTab() {
                 </div>
               </div>
 
-              {/* Botón destacado: Abrir Escáner QR */}
-              <div style={{ width: "100%" }}>
+              {/* Botón destacado: Abrir Escáner QR y Descarga de Excel */}
+              <div style={{ display: "flex", gap: "0.75rem", width: "100%", flexWrap: "wrap" }}>
                 <button
                   type="button"
                   className="btn-submit"
                   style={{
-                    width: "100%",
+                    flex: "2 1 240px",
                     padding: "0.75rem 1.25rem",
                     fontSize: "0.98rem",
                     display: "flex",
@@ -962,6 +1006,41 @@ export default function ComedorTab() {
                 >
                   <span style={{ fontSize: "1.25rem" }}>📷</span>
                   <span>Escanear Carnet QR con Cámara</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={handleDirectDownloadDayExcel}
+                  disabled={exportingDayExcel}
+                  style={{
+                    flex: "1 1 220px",
+                    padding: "0.75rem 1rem",
+                    fontSize: "0.9rem",
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    background: "#059669",
+                    color: "#ffffff",
+                    borderColor: "#047857",
+                    borderRadius: "10px",
+                    boxShadow: "0 2px 8px rgba(5, 150, 105, 0.25)",
+                  }}
+                  title="Descargar en Excel las personas que retiraron desayuno, almuerzo y cena hoy"
+                >
+                  {exportingDayExcel ? (
+                    <>
+                      <span className="spinner spinner-sm" />
+                      <span>Generando Excel...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: "1.1rem" }}>📊</span>
+                      <span>Descargar Excel del Día</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1066,16 +1145,68 @@ export default function ComedorTab() {
               <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--text-primary)" }}>
                 Registro de Entregas: {servicioControl} · {fechaControl}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginRight: "4px" }}>
                   {entregas.length} {entregas.length === 1 ? "entrega" : "entregas"}
                 </span>
+
+                {/* Botón directo de descarga en Excel del día */}
+                <button
+                  type="button"
+                  className="toolbar-btn toolbar-btn--primary"
+                  onClick={handleDirectDownloadDayExcel}
+                  disabled={exportingDayExcel}
+                  style={{
+                    background: "#059669",
+                    borderColor: "#047857",
+                    color: "#ffffff",
+                    fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "0.35rem 0.75rem",
+                    fontSize: "0.8rem",
+                  }}
+                  title="Descargar en Excel las personas que retiraron desayunos, almuerzos y cenas en esta fecha"
+                >
+                  {exportingDayExcel ? (
+                    <>
+                      <span className="spinner spinner-sm" />
+                      <span>Generando Excel...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>📊</span>
+                      <span>Descargar Excel ({fechaControl})</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Botón de opciones avanzadas (rango de fechas o filtro específico) */}
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={() => setExportModalOpen(true)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "0.35rem 0.65rem",
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                  }}
+                  title="Opciones avanzadas de descarga (rango de fechas, campamento y servicios)"
+                >
+                  <span>⚙️</span>
+                  <span>Opciones</span>
+                </button>
+
                 <button
                   type="button"
                   className="toolbar-btn"
                   onClick={fetchEntregas}
                   disabled={loadingEntregas}
-                  style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem" }}
+                  style={{ padding: "0.35rem 0.6rem", fontSize: "0.8rem" }}
                 >
                   {loadingEntregas ? <span className="spinner spinner-sm" /> : "🔄 Refrescar"}
                 </button>
@@ -1441,6 +1572,17 @@ export default function ComedorTab() {
         onDeliverySuccess={() => {
           fetchEntregas();
         }}
+        showToast={showToast}
+      />
+
+      {/* MODAL DE DESCARGA EN EXCEL DE RETIROS */}
+      <ComedorExportEntregasModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        refugioActual={selectedRefugio}
+        refugiosList={refugiosList || []}
+        fechaActual={fechaControl}
+        currentUser={currentUser}
         showToast={showToast}
       />
     </div>

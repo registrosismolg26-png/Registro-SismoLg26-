@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import type { ComedorStats } from "@/types";
 import { exportComedorExcel } from "@/lib/exportComedorExcel";
 import { exportComedorPdf } from "@/lib/exportComedorPdf";
+import { exportComedorEntregasExcel } from "@/lib/exportComedorEntregasExcel";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface Props {
   stats: ComedorStats | null;
@@ -47,6 +49,7 @@ export default function ComedorGraficas({
   const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [exportingRetiros, setExportingRetiros] = useState(false);
 
   // Calcular las fechas efectivas según el modo seleccionado
   const { desdeEfectiva, hastaEfectiva, periodoEtiqueta } = useMemo(() => {
@@ -181,6 +184,39 @@ export default function ComedorGraficas({
     }
   };
 
+  // ── DESCARGA EXCEL CON RETIROS DETALLADOS (PERSONAS QUE RETIRARON COMIDA) ──
+  const handleExportRetirosDetallados = async () => {
+    setExportingRetiros(true);
+    try {
+      const qRef = selectedRefugio && selectedRefugio !== "TODOS" ? `&refugio=${encodeURIComponent(selectedRefugio)}` : "";
+      const qDesde = desdeEfectiva ? `&desde=${encodeURIComponent(desdeEfectiva)}` : "";
+      const qHasta = hastaEfectiva ? `&hasta=${encodeURIComponent(hastaEfectiva)}` : "";
+      const res = await apiFetch(`/api/comedor?type=entregas${qRef}${qDesde}${qHasta}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "No se pudo obtener el listado de retiros.");
+      }
+      const entregas = data.entregas || [];
+      if (entregas.length === 0) {
+        alert("No hay registros de personas que hayan retirado comidas en el período seleccionado.");
+        return;
+      }
+      await exportComedorEntregasExcel({
+        entregas,
+        fecha: desdeEfectiva === hastaEfectiva ? desdeEfectiva : undefined,
+        desde: desdeEfectiva !== hastaEfectiva ? desdeEfectiva : undefined,
+        hasta: desdeEfectiva !== hastaEfectiva ? hastaEfectiva : undefined,
+        refugio: selectedRefugio === "TODOS" ? "TODOS LOS CAMPAMENTOS" : (selectedRefugio || "TODOS"),
+        generadoPor: currentUser?.nombre || currentUser?.email || "Usuario del Sistema",
+      });
+    } catch (err: any) {
+      console.error("Error al exportar personas que retiraron comida:", err);
+      alert(err.message || "Error al generar el listado de personas en Excel.");
+    } finally {
+      setExportingRetiros(false);
+    }
+  };
+
   // ── IMPRESIÓN DIRECTA / PRESENTACIÓN PDF ──────────────────────────────────
   const handleExportPdf = async (action: "print" | "download" = "print") => {
     if (!stats) return;
@@ -272,6 +308,32 @@ export default function ComedorGraficas({
           >
             {exportingExcel ? <span className="spinner spinner-sm" /> : <span style={{ fontSize: "1.05rem" }}>📗</span>}
             <span>Descargar Excel</span>
+          </button>
+
+          {/* BOTÓN: PERSONAS QUE RETIRARON COMIDA EN EXCEL */}
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={handleExportRetirosDetallados}
+            disabled={exportingRetiros || loading}
+            style={{
+              padding: "0.55rem 0.95rem",
+              fontSize: "0.85rem",
+              fontWeight: 800,
+              background: "linear-gradient(135deg, #0d9488 0%, #0f766e 100%)",
+              color: "#FFFFFF",
+              border: "none",
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.45rem",
+              boxShadow: "0 2px 8px rgba(13, 148, 136, 0.3)",
+              cursor: "pointer",
+            }}
+            title="Descargar listado nombre por nombre y cédula por cédula de los jefes que retiraron desayunos, almuerzos y cenas"
+          >
+            {exportingRetiros ? <span className="spinner spinner-sm" /> : <span style={{ fontSize: "1.05rem" }}>👥</span>}
+            <span>Personas que Retiraron (Excel)</span>
           </button>
 
           {/* BOTÓN 2: IMPRIMIR REPORTE DIRECTO / PRESENTACIÓN PDF */}
