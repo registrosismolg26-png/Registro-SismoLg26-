@@ -46,6 +46,7 @@ model Registro {
   motivoIntermitente   String?   // Required when intermitente = "SI"
   observaciones        String?   // Observaciones generales sobre la persona
   accionRespuesta      String?   // Acción de respuesta para jefes de familia y personas solas
+  historialObservaciones Json?   @default("[]") // Histórico de observaciones y acciones previas [{ id, fecha, observacion, accionRespuesta, autor }]
   solucionHabitacional String?   // LEGADO (congelado, campo único anterior) — reemplazado por solucionesHabitacionales; el servidor lo deja en NULL al escribir la lista
   // Soluciones habitacionales que quiere la persona (solo refugios con carpa): una o varias, mín. 1.
   // ["MERCADO SECUNDARIO (SUBSIDIO)", "CRÉDITO HIPOTECARIO", "ALQUILER", "ADJUDICACIÓN EN LA GUAIRA", "ADJUDICACIÓN DE CARACAS", "CIUDAD CARIBIA"]

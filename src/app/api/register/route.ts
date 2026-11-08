@@ -98,6 +98,7 @@ export async function POST(req: Request) {
       motivoIntermitente,
       observaciones,
       accionRespuesta,
+      historialObservaciones,
     } = body;
 
     // La vivienda (QR + Comisión) solo aplica al JEFE de familia; en otros registros se ignora.
@@ -300,6 +301,9 @@ export async function POST(req: Request) {
           accionRespuesta: body.accionRespuesta !== undefined
             ? (body.accionRespuesta && String(body.accionRespuesta).trim() ? String(body.accionRespuesta).trim() : null)
             : existing.accionRespuesta,
+          historialObservaciones: body.historialObservaciones !== undefined
+            ? (Array.isArray(body.historialObservaciones) ? body.historialObservaciones : [])
+            : (existing.historialObservaciones ?? []),
           // undefined = el cliente no lo envió → conserva el valor existente. Al escribir la
           // lista se deja en NULL el campo único anterior (evita resucitar un valor viejo).
           ...(solucionesDelBody(body) !== undefined
@@ -392,6 +396,9 @@ export async function POST(req: Request) {
           motivoIntermitente: intermitenteVal === "SI" ? String(motivoIntermitente).trim() : null,
           observaciones: (observaciones && String(observaciones).trim()) || (body.observaciones && String(body.observaciones).trim()) || null,
           accionRespuesta: (accionRespuesta && String(accionRespuesta).trim()) || (body.accionRespuesta && String(body.accionRespuesta).trim()) || null,
+          historialObservaciones: Array.isArray(historialObservaciones || body.historialObservaciones)
+            ? (historialObservaciones || body.historialObservaciones)
+            : [],
           solucionesHabitacionales: solucionesDelBody(body) ?? [],
           registrador: (auth.nombre || auth.email || "").trim() || null,
           syncedAt: new Date(),

@@ -34,6 +34,14 @@ export interface LocalConsulta {
   permanentError?: string;
 }
 
+export interface HistorialObservacionItem {
+  id: string;
+  fecha: string;
+  observacion?: string | null;
+  accionRespuesta?: string | null;
+  autor?: string | null;
+}
+
 export interface LocalRegistro {
   id: string;
   type?: 'new' | 'update';
@@ -60,6 +68,7 @@ export interface LocalRegistro {
     telefono?: string;
     observaciones?: string;
     accionRespuesta?: string;
+    historialObservaciones?: HistorialObservacionItem[];
     solucionHabitacional?: string; // LEGADO: campo único anterior (clientes viejos)
     // Una o varias (mín. 1 en el censo); solo refugios con carpa.
     solucionesHabitacionales?: string[];

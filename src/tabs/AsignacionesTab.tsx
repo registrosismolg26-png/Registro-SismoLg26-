@@ -59,6 +59,28 @@ import { useAppContext } from "@/context/AppContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { canRegister, canDeleteRegistro, isMaster } from "@/lib/permissions";
 
+interface HistorialObservacionEntry {
+  id: string;
+  fecha: string;
+  observacion?: string | null;
+  accionRespuesta?: string | null;
+  autor?: string | null;
+}
+
+function parseHistorialObservaciones(raw: any): HistorialObservacionEntry[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export default function AsignacionesTab() {
   const {
     registros,
@@ -118,16 +140,19 @@ export default function AsignacionesTab() {
   const [observacionText, setObservacionText] = useState("");
   const [accionRespuestaText, setAccionRespuestaText] = useState("");
   const [savingObservacion, setSavingObservacion] = useState(false);
+  const [showHistorialInModal, setShowHistorialInModal] = useState(false);
   const openObservacionModal = (reg: any) => {
     setObservacionModalFor(reg);
     setObservacionText(reg.observaciones || "");
     setAccionRespuestaText(reg.accionRespuesta || "");
+    setShowHistorialInModal(false);
   };
   const closeObservacionModal = () => {
     if (savingObservacion) return;
     setObservacionModalFor(null);
     setObservacionText("");
     setAccionRespuestaText("");
+    setShowHistorialInModal(false);
   };
 
   const handleSaveObservacion = async () => {
@@ -135,10 +160,30 @@ export default function AsignacionesTab() {
     setSavingObservacion(true);
     const newObs = observacionText.trim() || null;
     const newAcc = accionRespuestaText.trim() || null;
+
+    const prevObs = (observacionModalFor.observaciones || "").trim();
+    const prevAcc = (observacionModalFor.accionRespuesta || "").trim();
+    const newObsCheck = (newObs || "").trim();
+    const newAccCheck = (newAcc || "").trim();
+    const hasChanged = prevObs !== newObsCheck || prevAcc !== newAccCheck;
+
+    let updatedHistorial = parseHistorialObservaciones(observacionModalFor.historialObservaciones);
+    if (hasChanged && (prevObs || prevAcc)) {
+      const histItem: HistorialObservacionEntry = {
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `hist-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        fecha: new Date().toISOString(),
+        observacion: prevObs || null,
+        accionRespuesta: prevAcc || null,
+        autor: (currentUser?.nombre || currentUser?.email || "Operador").trim(),
+      };
+      updatedHistorial = [histItem, ...updatedHistorial];
+    }
+
     const updated = {
       ...observacionModalFor,
       observaciones: newObs,
       accionRespuesta: newAcc,
+      historialObservaciones: updatedHistorial,
     };
     setRegistros((prev) => {
       const next = prev.map((r) => (r.id === updated.id ? updated : r));
@@ -160,6 +205,7 @@ export default function AsignacionesTab() {
           ...updated,
           observaciones: newObs || undefined,
           accionRespuesta: newAcc || undefined,
+          historialObservaciones: updatedHistorial,
         },
       };
       await saveLocal(localRec as any);
@@ -1025,6 +1071,31 @@ export default function AsignacionesTab() {
         ? composeRazonRetiro(editData.retiroRazon || "Hogar Solidario", editData.retiroSpec) || undefined
         : undefined;
 
+    const finalObs = editData.observaciones !== undefined
+      ? (editData.observaciones?.trim() || null)
+      : (selectedRegistro.observaciones || null);
+    const finalAcc = editData.accionRespuesta !== undefined
+      ? (editData.accionRespuesta?.trim() || null)
+      : (selectedRegistro.accionRespuesta || null);
+
+    const prevObs = (selectedRegistro.observaciones || "").trim();
+    const prevAcc = (selectedRegistro.accionRespuesta || "").trim();
+    const newObsCheck = (finalObs || "").trim();
+    const newAccCheck = (finalAcc || "").trim();
+    const hasObsChanged = prevObs !== newObsCheck || prevAcc !== newAccCheck;
+
+    let updatedHistorial = parseHistorialObservaciones(selectedRegistro.historialObservaciones);
+    if (hasObsChanged && (prevObs || prevAcc)) {
+      const histItem: HistorialObservacionEntry = {
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `hist-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        fecha: new Date().toISOString(),
+        observacion: prevObs || null,
+        accionRespuesta: prevAcc || null,
+        autor: (currentUser?.nombre || currentUser?.email || "Operador").trim(),
+      };
+      updatedHistorial = [histItem, ...updatedHistorial];
+    }
+
     const updated = {
       ...selectedRegistro,
       ...editData,
@@ -1036,12 +1107,9 @@ export default function AsignacionesTab() {
       solucionHabitacional: null, // legado: el servidor lo deja en NULL al guardar la lista
       medicamentoIds: editMedicamentos,
       retiradoRazon: retiradoRazonFinal,
-      observaciones: editData.observaciones !== undefined
-        ? (editData.observaciones?.trim() || null)
-        : (selectedRegistro.observaciones || null),
-      accionRespuesta: editData.accionRespuesta !== undefined
-        ? (editData.accionRespuesta?.trim() || null)
-        : (selectedRegistro.accionRespuesta || null),
+      observaciones: finalObs,
+      accionRespuesta: finalAcc,
+      historialObservaciones: updatedHistorial,
     };
 
     // 1. Optimistic UI update
@@ -1117,6 +1185,7 @@ export default function AsignacionesTab() {
               : undefined,
           observaciones: updated.observaciones || undefined,
           accionRespuesta: updated.accionRespuesta || undefined,
+          historialObservaciones: updated.historialObservaciones || undefined,
           refugio: updated.refugio || currentUser?.campamentoTransitorio || "",
         },
       };
@@ -2261,6 +2330,34 @@ export default function AsignacionesTab() {
                                   </span>
                                 </div>
                               )}
+                              {parseHistorialObservaciones(reg.historialObservaciones).length > 0 && (
+                                <div
+                                  className="person-obs-snippet"
+                                  title={`Histórico disponible: ${parseHistorialObservaciones(reg.historialObservaciones).length} cambio(s) registrado(s)`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openObservacionModal(reg);
+                                  }}
+                                  style={{
+                                    fontSize: "0.7rem",
+                                    color: "#6d28d9",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    cursor: "pointer",
+                                    background: "rgba(139, 92, 246, 0.1)",
+                                    border: "1px solid rgba(139, 92, 246, 0.3)",
+                                    borderRadius: "6px",
+                                    padding: "1px 6px",
+                                    width: "fit-content",
+                                    maxWidth: "220px",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  <span>📜</span>
+                                  <span>{parseHistorialObservaciones(reg.historialObservaciones).length} hist.</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -3173,6 +3270,124 @@ export default function AsignacionesTab() {
                         )}
                       </div>
                     </div>
+
+                    {/* Histórico de Observaciones */}
+                    {(() => {
+                      const hist = parseHistorialObservaciones(selectedRegistro.historialObservaciones);
+                      return (
+                        <div style={{ marginTop: "0.25rem" }}>
+                          <div
+                            style={{
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              color: "var(--text-secondary)",
+                              marginBottom: "6px",
+                              textTransform: "uppercase",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                              <span>📜</span> HISTORICO DE OBSERVACIONES ({hist.length})
+                            </span>
+                            {hist.length > 0 && (
+                              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 500, textTransform: "none" }}>
+                                Registro cronológico de cambios
+                              </span>
+                            )}
+                          </div>
+
+                          {hist.length === 0 ? (
+                            <div
+                              style={{
+                                padding: "0.6rem 0.8rem",
+                                borderRadius: "8px",
+                                background: "var(--bg-primary)",
+                                border: "1px dashed var(--border-color)",
+                                fontSize: "0.78rem",
+                                color: "var(--text-muted)",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              No hay modificaciones previas registradas. Cuando se actualice la observación, la anterior quedará registrada aquí como histórico.
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "8px",
+                                maxHeight: "240px",
+                                overflowY: "auto",
+                                paddingRight: "4px",
+                              }}
+                            >
+                              {hist.map((item, idx) => {
+                                const fechaStr = item.fecha
+                                  ? new Date(item.fecha).toLocaleString("es-VE", {
+                                      day: "2-digit",
+                                      month: "short",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    })
+                                  : "Fecha desconocida";
+
+                                return (
+                                  <div
+                                    key={item.id || idx}
+                                    style={{
+                                      padding: "0.6rem 0.75rem",
+                                      borderRadius: "8px",
+                                      background: "var(--bg-primary)",
+                                      border: "1px solid var(--border-color)",
+                                      fontSize: "0.82rem",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: "4px",
+                                      borderLeft: "3px solid #8b5cf6",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        fontSize: "0.72rem",
+                                        color: "var(--text-muted)",
+                                        borderBottom: "1px dashed var(--border-color)",
+                                        paddingBottom: "3px",
+                                      }}
+                                    >
+                                      <span style={{ fontWeight: 600 }}>🕒 {fechaStr}</span>
+                                      {item.autor && (
+                                        <span style={{ background: "rgba(139, 92, 246, 0.1)", color: "#7c3aed", padding: "1px 6px", borderRadius: "4px", fontWeight: 600 }}>
+                                          👤 {item.autor}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {item.observacion && (
+                                      <div style={{ color: "var(--text-primary)", whiteSpace: "pre-wrap", lineHeight: 1.4 }}>
+                                        <span style={{ fontWeight: 600, color: "var(--text-secondary)", fontSize: "0.75rem" }}>Obs: </span>
+                                        {item.observacion}
+                                      </div>
+                                    )}
+                                    {item.accionRespuesta && (
+                                      <div style={{ color: "#065f46", whiteSpace: "pre-wrap", lineHeight: 1.4, fontSize: "0.8rem", background: "rgba(16, 185, 129, 0.08)", padding: "3px 6px", borderRadius: "5px" }}>
+                                        <span style={{ fontWeight: 700, color: "#047857", fontSize: "0.72rem" }}>⚡ ACCIÓN: </span>
+                                        {item.accionRespuesta}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -4669,6 +4884,109 @@ export default function AsignacionesTab() {
                 Ambos campos quedarán visibles en la tabla, en la ficha individual y en las exportaciones oficiales.
               </span>
             </div>
+
+            {/* Historial desplegable en el modal */}
+            {(() => {
+              const hist = parseHistorialObservaciones(observacionModalFor.historialObservaciones);
+              return (
+                <div style={{ marginBottom: "1.25rem", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowHistorialInModal((prev) => !prev)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                      fontWeight: 700,
+                      color: "#6d28d9",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      marginBottom: showHistorialInModal ? "8px" : "0",
+                      width: "100%",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span>📜</span>
+                      <span>Histórico de observaciones previas ({hist.length})</span>
+                    </span>
+                    <span style={{ fontSize: "0.75rem" }}>{showHistorialInModal ? "▲ Ocultar" : "▼ Ver histórico"}</span>
+                  </button>
+
+                  {showHistorialInModal && (
+                    <div
+                      style={{
+                        maxHeight: "180px",
+                        overflowY: "auto",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                        padding: "8px",
+                        borderRadius: "8px",
+                        background: "var(--input-bg, var(--bg-secondary))",
+                        border: "1px solid var(--border-color)",
+                      }}
+                    >
+                      {hist.length === 0 ? (
+                        <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontStyle: "italic", textAlign: "center", padding: "8px" }}>
+                          No hay observaciones previas registradas. Si modificas los campos arriba, la observación actual se guardará en este histórico.
+                        </span>
+                      ) : (
+                        hist.map((item, idx) => {
+                          const fechaStr = item.fecha
+                            ? new Date(item.fecha).toLocaleString("es-VE", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: true,
+                              })
+                            : "Fecha desconocida";
+
+                          return (
+                            <div
+                              key={item.id || idx}
+                              style={{
+                                padding: "6px 8px",
+                                borderRadius: "6px",
+                                background: "var(--card-bg, #ffffff)",
+                                border: "1px solid var(--border-color)",
+                                fontSize: "0.8rem",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "3px",
+                                borderLeft: "3px solid #8b5cf6",
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "var(--text-muted)", borderBottom: "1px dashed var(--border-color)", paddingBottom: "2px" }}>
+                                <span style={{ fontWeight: 600 }}>🕒 {fechaStr}</span>
+                                {item.autor && <span style={{ fontWeight: 600, color: "#7c3aed" }}>👤 {item.autor}</span>}
+                              </div>
+                              {item.observacion && (
+                                <div style={{ color: "var(--text-primary)" }}>
+                                  <strong style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>Obs: </strong>
+                                  {item.observacion}
+                                </div>
+                              )}
+                              {item.accionRespuesta && (
+                                <div style={{ color: "#065f46", fontSize: "0.78rem" }}>
+                                  <strong style={{ fontSize: "0.72rem", color: "#047857" }}>⚡ Acción: </strong>
+                                  {item.accionRespuesta}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
               <button
