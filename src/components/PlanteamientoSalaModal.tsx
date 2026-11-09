@@ -96,7 +96,7 @@ export default function PlanteamientoSalaModal({
   // Tipo de Opción / Modalidad
   const [tipoOpcion, setTipoOpcion] = useState<TipoOpcionPlanteamiento>("MERCADO_SECUNDARIO");
 
-  // 1. Mercado Secundario (10 Requisitos)
+  // 1. Mercado Secundario (11 Requisitos)
   const [planillaCaracterizacion, setPlanillaCaracterizacion] = useState<"SI" | "NO">("NO");
   const [cedulaCatastral, setCedulaCatastral] = useState<"SI" | "NO">("NO");
   const [tituloCasa, setTituloCasa] = useState<TituloCasaTipo>("NINGUNO");
@@ -108,6 +108,7 @@ export default function PlanteamientoSalaModal({
   const [cantidadFotos, setCantidadFotos] = useState("0");
   const [vendedorPoseePatria, setVendedorPoseePatria] = useState<"SI" | "NO">("NO");
   const [qrColapsoVivienda, setQrColapsoVivienda] = useState<"SI" | "NO">("NO");
+  const [entregoCompraVenta, setEntregoCompraVenta] = useState<"SI" | "NO">("NO");
 
   // 2. Alquiler (7 Requisitos)
   const [cartaCompromiso, setCartaCompromiso] = useState<"SI" | "NO">("NO");
@@ -198,6 +199,7 @@ export default function PlanteamientoSalaModal({
         setCantidadFotos(String(itemToEdit.cantidadFotos || 0));
         setVendedorPoseePatria(itemToEdit.vendedorPoseePatria || "NO");
         setQrColapsoVivienda(itemToEdit.qrColapsoVivienda || "NO");
+        setEntregoCompraVenta(itemToEdit.entregoCompraVenta || "NO");
 
         // Alquiler
         setCartaCompromiso(itemToEdit.cartaCompromiso || "NO");
@@ -285,6 +287,7 @@ export default function PlanteamientoSalaModal({
         setCantidadFotos("0");
         setVendedorPoseePatria("NO");
         setQrColapsoVivienda("NO");
+        setEntregoCompraVenta("NO");
 
         // Reset Alquiler
         setCartaCompromiso("NO");
@@ -376,10 +379,11 @@ export default function PlanteamientoSalaModal({
     if (fotosVivienda === "SI" || parseInt(cantidadFotos, 10) > 0) c++;
     if (vendedorPoseePatria === "SI") c++;
     if (qrColapsoVivienda === "SI") c++;
+    if (entregoCompraVenta === "SI") c++;
     return {
       cumplidos: c,
-      total: 10,
-      porcentaje: Math.round((c / 10) * 100),
+      total: 11,
+      porcentaje: Math.round((c / 11) * 100),
     };
   }, [
     tipoOpcion,
@@ -395,6 +399,7 @@ export default function PlanteamientoSalaModal({
     cantidadFotos,
     vendedorPoseePatria,
     qrColapsoVivienda,
+    entregoCompraVenta,
     // Alquiler
     cartaCompromiso,
     fotosAlquiler,
@@ -713,6 +718,7 @@ export default function PlanteamientoSalaModal({
         payload.fotosVivienda = fotosVivienda;
         payload.cantidadFotos = parseInt(cantidadFotos || "0", 10) || 0;
         payload.vendedorPoseePatria = vendedorPoseePatria;
+        payload.entregoCompraVenta = entregoCompraVenta;
       } else if (tipoOpcion === "ALQUILER") {
         payload.cartaCompromiso = cartaCompromiso;
         payload.fotosAlquiler = fotosAlquiler;
@@ -1928,7 +1934,7 @@ export default function PlanteamientoSalaModal({
                   justifyContent: "space-between",
                 }}
               >
-                <span>Requisitos: Mercado Secundario (10)</span>
+                <span>Requisitos: Mercado Secundario (11)</span>
                 <span style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: 700 }}>
                   Expediente de Compra / Venta
                 </span>
@@ -2080,6 +2086,19 @@ export default function PlanteamientoSalaModal({
                     options={[
                       { value: "SI", label: "Sí posee" },
                       { value: "NO", label: "No posee" },
+                    ]}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>11. ¿Se entregó el Compra y Venta?</label>
+                  <StyledSelect
+                    value={entregoCompraVenta}
+                    onChange={(v) => setEntregoCompraVenta(v as "SI" | "NO")}
+                    ariaLabel="¿Se entregó el Compra y Venta?"
+                    options={[
+                      { value: "SI", label: "Sí se entregó" },
+                      { value: "NO", label: "No se entregó" },
                     ]}
                   />
                 </div>

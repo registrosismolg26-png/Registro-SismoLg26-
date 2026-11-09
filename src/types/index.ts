@@ -266,6 +266,7 @@ export interface PlanteamientoSalaItem {
   cantidadFotos: number;
   vendedorPoseePatria: "SI" | "NO";
   qrColapsoVivienda?: "SI" | "NO";
+  entregoCompraVenta?: "SI" | "NO";
 
   // 2. Alquiler (7 Requisitos)
   cartaCompromiso?: "SI" | "NO";
@@ -323,6 +324,7 @@ export interface PlanteamientoRequisitosMercadoSecundario {
     fotosVivienda: number;
     vendedorPoseePatria: number;
     qrColapsoVivienda: number;
+    entregoCompraVenta?: number;
   };
   titulosCasaDesglose: Record<TituloCasaTipo, number>;
 }

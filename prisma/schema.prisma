@@ -623,6 +623,7 @@ model PlanteamientoSala {
   cantidadFotos              Int       @default(0)
   vendedorPoseePatria        String    @default("NO") // "SI" | "NO"
   qrColapsoVivienda          String    @default("NO") // "SI" | "NO"
+  entregoCompraVenta         String    @default("NO") // "SI" | "NO"
 
   // 2. Alquiler (7 Requisitos)
   cartaCompromiso            String    @default("NO") // "SI" | "NO"

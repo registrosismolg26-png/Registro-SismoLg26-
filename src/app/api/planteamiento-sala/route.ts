@@ -17,6 +17,7 @@ export function calcularProgreso(item: {
   cantidadFotos?: number | null;
   vendedorPoseePatria?: string | null;
   qrColapsoVivienda?: string | null;
+  entregoCompraVenta?: string | null;
   // Alquiler
   cartaCompromiso?: string | null;
   fotosAlquiler?: string | null;
@@ -76,7 +77,7 @@ export function calcularProgreso(item: {
     return Math.min(100, Math.max(0, Math.round((count / 5) * 100)));
   }
 
-  // Por defecto MERCADO_SECUNDARIO (10 recaudos)
+  // Por defecto MERCADO_SECUNDARIO (11 recaudos)
   let count = 0;
   if (item.planillaCaracterizacion === "SI") count++;
   if (item.cedulaCatastral === "SI") count++;
@@ -88,7 +89,8 @@ export function calcularProgreso(item: {
   if (item.fotosVivienda === "SI" || (item.cantidadFotos && item.cantidadFotos > 0)) count++;
   if (item.vendedorPoseePatria === "SI") count++;
   if (item.qrColapsoVivienda === "SI") count++;
-  return Math.min(100, Math.max(0, Math.round((count / 10) * 100)));
+  if (item.entregoCompraVenta === "SI") count++;
+  return Math.min(100, Math.max(0, Math.round((count / 11) * 100)));
 }
 
 // GET — Master o Planteamiento Master. Lista registros con soporte de búsqueda en servidor y paginación
@@ -225,6 +227,7 @@ export async function POST(req: Request) {
     const cantidadFotos = Math.max(0, parseInt(body.cantidadFotos || "0", 10) || 0);
     const vendedorPoseePatria = body.vendedorPoseePatria === "SI" ? "SI" : "NO";
     const qrColapsoVivienda = body.qrColapsoVivienda === "SI" ? "SI" : "NO";
+    const entregoCompraVenta = body.entregoCompraVenta === "SI" ? "SI" : "NO";
 
     // 2. Alquiler
     const cartaCompromiso = body.cartaCompromiso === "SI" ? "SI" : "NO";
@@ -259,6 +262,7 @@ export async function POST(req: Request) {
       cantidadFotos,
       vendedorPoseePatria,
       qrColapsoVivienda,
+      entregoCompraVenta,
       cartaCompromiso,
       fotosAlquiler,
       cantidadFotosAlquiler,
@@ -383,6 +387,7 @@ export async function POST(req: Request) {
       cantidadFotos,
       vendedorPoseePatria,
       qrColapsoVivienda,
+      entregoCompraVenta,
       cartaCompromiso,
       fotosAlquiler,
       cantidadFotosAlquiler,

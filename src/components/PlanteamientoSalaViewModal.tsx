@@ -219,7 +219,7 @@ export default function PlanteamientoSalaViewModal({
     cumplidosCount = requisitos.filter((r) => r.cumplido).length;
   } else {
     // MERCADO_SECUNDARIO
-    totalRequisitos = 10;
+    totalRequisitos = 11;
     requisitos = [
       {
         num: 1,
@@ -283,6 +283,12 @@ export default function PlanteamientoSalaViewModal({
         label: "QR de Colapso de Vivienda",
         cumplido: activeItem.qrColapsoVivienda === "SI",
         desc: activeItem.qrColapsoVivienda === "SI" ? "Posee QR de Colapso" : "No posee QR de Colapso",
+      },
+      {
+        num: 11,
+        label: "¿Se entregó el Compra y Venta?",
+        cumplido: activeItem.entregoCompraVenta === "SI",
+        desc: activeItem.entregoCompraVenta === "SI" ? "Entregó compra y venta" : "No entregó compra y venta",
       },
     ];
     cumplidosCount = requisitos.filter((r) => r.cumplido).length;

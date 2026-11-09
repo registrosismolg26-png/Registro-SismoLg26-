@@ -147,6 +147,7 @@ export async function PATCH(
       "cantidadFotos",
       "vendedorPoseePatria",
       "qrColapsoVivienda",
+      "entregoCompraVenta",
       // Alquiler
       "cartaCompromiso",
       "fotosAlquiler",

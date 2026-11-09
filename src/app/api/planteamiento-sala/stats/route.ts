@@ -30,7 +30,7 @@ export async function GET(req: Request) {
         },
         mercadoSecundario: {
           total: 0,
-          porRequisito: { planillaCaracterizacion: 0, cedulaCatastral: 0, conTituloCasa: 0, referenciaBancariaVendedor: 0, qrHabitatVivienda: 0, cedulaVendedor: 0, cedulaComprador: 0, fotosVivienda: 0, vendedorPoseePatria: 0, qrColapsoVivienda: 0 },
+          porRequisito: { planillaCaracterizacion: 0, cedulaCatastral: 0, conTituloCasa: 0, referenciaBancariaVendedor: 0, qrHabitatVivienda: 0, cedulaVendedor: 0, cedulaComprador: 0, fotosVivienda: 0, vendedorPoseePatria: 0, qrColapsoVivienda: 0, entregoCompraVenta: 0 },
           titulosCasaDesglose: { NINGUNO: 0, TITULO_PROPIEDAD: 0, TITULO_SUPLETORIO: 0, COMPRA_VENTA: 0 },
         },
         alquiler: {
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
           porRequisito: { rifViviendaDanos: 0, fotosViviendaRenace: 0, conMateriales: 0 },
           materialesTotales: { sacosCemento: 0, metrosArena: 0, bloques: 0, cabillas: 0, pego: 0 },
         },
-        porRequisito: { planillaCaracterizacion: 0, cedulaCatastral: 0, conTituloCasa: 0, referenciaBancariaVendedor: 0, qrHabitatVivienda: 0, cedulaVendedor: 0, cedulaComprador: 0, fotosVivienda: 0, vendedorPoseePatria: 0, qrColapsoVivienda: 0 },
+        porRequisito: { planillaCaracterizacion: 0, cedulaCatastral: 0, conTituloCasa: 0, referenciaBancariaVendedor: 0, qrHabitatVivienda: 0, cedulaVendedor: 0, cedulaComprador: 0, fotosVivienda: 0, vendedorPoseePatria: 0, qrColapsoVivienda: 0, entregoCompraVenta: 0 },
         titulosCasaDesglose: { NINGUNO: 0, TITULO_PROPIEDAD: 0, TITULO_SUPLETORIO: 0, COMPRA_VENTA: 0 },
       };
       const scopeData = targetCamp || { ...emptyScope, refugio: campRefugio };

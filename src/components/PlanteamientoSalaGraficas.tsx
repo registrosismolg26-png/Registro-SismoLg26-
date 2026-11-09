@@ -1776,6 +1776,7 @@ export default function PlanteamientoSalaGraficas({ campamentosList, showToast, 
                       { label: "8. Fotos Impresas de Vivienda", val: mercadoSecundario.porRequisito.fotosVivienda },
                       { label: "9. Vendedor Posee Patria", val: mercadoSecundario.porRequisito.vendedorPoseePatria },
                       { label: "10. QR de Colapso de Vivienda", val: mercadoSecundario.porRequisito.qrColapsoVivienda || 0 },
+                      { label: "11. ¿Entregó Compra y Venta?", val: mercadoSecundario.porRequisito.entregoCompraVenta || 0 },
                     ].map((reqItem) => {
                       const p = pctNum(reqItem.val, mercadoSecundario.total);
                       const color = p >= 70 ? "#059669" : p >= 40 ? "#2563eb" : "#d97706";

@@ -100,6 +100,7 @@ function createScopeStats(): PlanteamientoSalaStatsScope {
         fotosVivienda: 0,
         vendedorPoseePatria: 0,
         qrColapsoVivienda: 0,
+        entregoCompraVenta: 0,
       },
       titulosCasaDesglose: {
         NINGUNO: 0,
@@ -146,6 +147,7 @@ function createScopeStats(): PlanteamientoSalaStatsScope {
       fotosVivienda: 0,
       vendedorPoseePatria: 0,
       qrColapsoVivienda: 0,
+      entregoCompraVenta: 0,
     },
     titulosCasaDesglose: {
       NINGUNO: 0,
@@ -331,6 +333,12 @@ function processItemInScope(scope: PlanteamientoSalaStatsScope, it: any) {
     if (it.qrColapsoVivienda === "SI") {
       scope.mercadoSecundario.porRequisito.qrColapsoVivienda++;
     }
+    if (it.entregoCompraVenta === "SI") {
+      scope.mercadoSecundario.porRequisito.entregoCompraVenta = (scope.mercadoSecundario.porRequisito.entregoCompraVenta || 0) + 1;
+      if (scope.porRequisito.entregoCompraVenta !== undefined) {
+        scope.porRequisito.entregoCompraVenta++;
+      }
+    }
 
     const tipoTit = (it.tituloCasa && scope.mercadoSecundario.titulosCasaDesglose[it.tituloCasa as TituloCasaTipo] !== undefined)
       ? (it.tituloCasa as TituloCasaTipo)
@@ -434,6 +442,7 @@ export async function getOrComputePlanteamientoSalaStats(clientEtag?: string | n
         cantidadFotos: true,
         vendedorPoseePatria: true,
         qrColapsoVivienda: true,
+        entregoCompraVenta: true,
         cartaCompromiso: true,
         fotosAlquiler: true,
         cantidadFotosAlquiler: true,
