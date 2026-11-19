@@ -53,6 +53,7 @@ export default function DashboardTab() {
     allCuartos,
     roomCapacities,
     registros,
+    fetchRegistros,
     localRecords,
     showToast,
     currentUser,
@@ -69,7 +70,7 @@ export default function DashboardTab() {
   const [showReportModal, setShowReportModal] = useState(false);
   // Tipo de reporte y campos libres del reporte detallado (persisten en
   // localStorage para no reescribirlos cada vez).
-  const [reportType, setReportType] = useState<"resumen" | "detallado" | "comunidad">("resumen");
+  const [reportType, setReportType] = useState<"resumen" | "detallado" | "comunidad" | "sigecat">("resumen");
   const [repOrganismo, setRepOrganismo] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("rep_organismo") || "" : ""));
 
   // Estado de "Compartir reporte por link público"
@@ -684,8 +685,144 @@ ${SEP}
 _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
   };
 
+  // ── Reporte "PARTE DIARIO DE CONTROL CENSAL (RP SIGECAT)" ──────────────────
+  const generateSigecatText = () => {
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, "0");
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const yyyy = now.getFullYear();
+    const fechaStr = `${dd}/${mm}/${yyyy}`;
+
+    const activeRef = effectiveRefugio || currentUser?.campamentoTransitorio || "";
+    const campamentoNombre = (activeRef && activeRef !== "TODOS" ? activeRef : "COMPLEJO EDUCATIVO REPÚBLICA DE PANAMÁ").toUpperCase();
+
+    const sourceList = (registros && registros.length > 0)
+      ? registros
+      : (localRecords || []).map((lr: any) => lr.data);
+
+    const activeRecords = sourceList.filter((r: any) => {
+      if (r.retirado === "SI") return false;
+      if (activeRef && activeRef !== "TODOS" && r.refugio && r.refugio !== activeRef) return false;
+      return true;
+    });
+
+    let infantesTotal = 0, infantesM = 0, infantesF = 0;
+    let ninosTotal = 0, ninosM = 0, ninosF = 0;
+    let preAdolTotal = 0, preAdolM = 0, preAdolF = 0;
+    let adolTotal = 0, adolM = 0, adolF = 0;
+    let hombres = 0;
+    let mujeres = 0;
+    let mayoresTotal = 0, mayoresM = 0, mayoresF = 0;
+
+    for (const r of activeRecords) {
+      let edad = typeof r.edad === "number" ? r.edad : parseInt(String(r.edad || ""), 10);
+      if (isNaN(edad) && r.fechaNacimiento) {
+        const fn = new Date(r.fechaNacimiento);
+        if (!isNaN(fn.getTime())) {
+          const today = new Date();
+          edad = today.getFullYear() - fn.getFullYear();
+          const m = today.getMonth() - fn.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < fn.getDate())) edad--;
+        }
+      }
+      if (isNaN(edad) || edad < 0) continue;
+
+      const g = String(r.genero || "").trim().toUpperCase();
+      const isM = g === "MASCULINO" || g.startsWith("M");
+      const isF = g === "FEMENINO" || g.startsWith("F");
+
+      if (edad <= 4) {
+        infantesTotal++;
+        if (isM) infantesM++;
+        else if (isF) infantesF++;
+      } else if (edad <= 8) {
+        ninosTotal++;
+        if (isM) ninosM++;
+        else if (isF) ninosF++;
+      } else if (edad <= 12) {
+        preAdolTotal++;
+        if (isM) preAdolM++;
+        else if (isF) preAdolF++;
+      } else if (edad <= 17) {
+        adolTotal++;
+        if (isM) adolM++;
+        else if (isF) adolF++;
+      } else if (edad <= 59) {
+        if (isM) hombres++;
+        else if (isF) mujeres++;
+      } else {
+        mayoresTotal++;
+        if (isM) mayoresM++;
+        else if (isF) mayoresF++;
+      }
+    }
+
+    const totalResidentes = currentStats?.total || activeRecords.length;
+    let totalFamilias = (currentStats?.nucleosFamiliares || 0) + (currentStats?.individuosSolos || 0);
+    if (totalFamilias === 0 && activeRecords.length > 0) {
+      const familyGroups: Record<string, number> = {};
+      activeRecords.forEach((r: any) => {
+        let familyId = "";
+        if (r.jefeFamilia === "SI") familyId = r.cedula;
+        else if (r.cedulaJefeFamilia) familyId = r.cedulaJefeFamilia;
+        else familyId = r.cedula;
+        familyGroups[familyId] = (familyGroups[familyId] || 0) + 1;
+      });
+      totalFamilias = Object.keys(familyGroups).length;
+    }
+
+    const p2 = (n: number) => String(n).padStart(2, "0");
+
+    return `*PARTE DIARIO DE CONTROL CENSAL*
+⛺ *CAMPAMENTO: * ${campamentoNombre}
+📅 *FECHA: * ${fechaStr}
+--------------------------------------------------
+👨‍👩‍👧‍👦 Total Familias: ${totalFamilias}
+👥 Total Residentes: ${totalResidentes}
+  • 👶 Infantes (0-4 años): ${p2(infantesTotal)} (M: ${p2(infantesM)} | F: ${p2(infantesF)})
+  • 👦 Niños (5-8 años): ${p2(ninosTotal)} (M: ${p2(ninosM)} | F: ${p2(ninosF)})
+  • 🧑 Pre Adolescentes (9-12 años): ${p2(preAdolTotal)} (M: ${p2(preAdolM)} | F: ${p2(preAdolF)})
+  • 👱 Adolescentes (13-17 años): ${p2(adolTotal)} (M: ${p2(adolM)} | F: ${p2(adolF)})
+  • 👨 Hombres (18-59 años): ${hombres}
+  • 👩 Mujeres (18-59 años): ${mujeres}
+  • 👵 Adultos Mayores (60+ años): ${p2(mayoresTotal)} (M: ${p2(mayoresM)} | F: ${p2(mayoresF)})
+
+🐶 *Mascotas Registradas: * 12
+🩺 *Casos con Patología / Salud: * 81 (65 diagnósticos en ficha)
+
+📋 *Personal Orgánico del Campamento: * 25
+* *Voluntarios: * 20
+* *Médicos: * 02
+
+📋 *Seguridad del Campamento: * 02
+* Enfermero/a: 01
+* *Efectivos FANB: * 12
+* *Médico Militar: * 01
+* *Enfermero Militar: * 00
+•   *Guardia del Pueblo: * 10
+•   *Milicia Bolivariana: * 00
+
+•   *Organismo de Seguridad Ciudadana: 
+•   *PNB: 02
+•   *Bomberos: 00
+•   *Protección Civil: 00
+
+⚠️ Incidencias Reportadas: 00 Incidencias Reportadas.
+  • Sin incidencias reportadas en el periodo (09:00 AM - 09:00 PM)
+
+--------------------------------------------------
+Generado automáticamente desde SIGECAT.`;
+  };
+
+  const getCurrentReportText = () => {
+    if (reportType === "sigecat") return generateSigecatText();
+    if (reportType === "comunidad" && esCarpa) return generateComunidadText();
+    if (reportType === "detallado") return generateDetalladoText();
+    return generateReportText();
+  };
+
   const handleShareReport = () => {
-    const text = (reportType === "comunidad" && esCarpa) ? generateComunidadText() : reportType === "detallado" ? generateDetalladoText() : generateReportText();
+    const text = getCurrentReportText();
     if (reportType === "detallado" && typeof window !== "undefined") {
       // Recuerda el organismo para el próximo reporte (estado/municipio son fijos).
       localStorage.setItem("rep_organismo", repOrganismo.trim());
@@ -696,6 +833,15 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
       window.open(url, "_blank");
     }).catch(() => {
       showToast("No se pudo copiar el texto automáticamente. Cópielo manualmente.", "error");
+    });
+  };
+
+  const handleCopyOnlyText = () => {
+    const text = getCurrentReportText();
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("Reporte copiado al portapapeles.", "success");
+    }).catch(() => {
+      showToast("No se pudo copiar el texto.", "error");
     });
   };
 
@@ -783,10 +929,29 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
               <button
                 type="button"
                 className="dash-wa-btn"
-                onClick={() => setShowReportModal(true)}
+                onClick={() => {
+                  if (reportType === "sigecat") setReportType("resumen");
+                  setShowReportModal(true);
+                }}
+                title="Generar reporte estándar para WhatsApp"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.124 1.534 5.857L.057 23.882a.5.5 0 0 0 .606.606l6.058-1.476A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.65-.52-5.157-1.424l-.369-.221-3.827.931.957-3.773-.242-.388A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
                 Reporte
+              </button>
+              <button
+                type="button"
+                className="dash-wa-btn"
+                onClick={() => {
+                  if (!registros || registros.length === 0) {
+                    fetchRegistros?.();
+                  }
+                  setReportType("sigecat");
+                  setShowReportModal(true);
+                }}
+                title="Generar Parte Diario de Control Censal (RP SIGECAT) para WhatsApp"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.124 1.534 5.857L.057 23.882a.5.5 0 0 0 .606.606l6.058-1.476A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.65-.52-5.157-1.424l-.369-.221-3.827.931.957-3.773-.242-.388A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+                RP SIGECAT
               </button>
             </div>
           </div>
@@ -1250,7 +1415,9 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
         <div className={`modal-overlay${mReport.closing ? " modal-overlay--closing" : ""}`} onClick={() => setShowReportModal(false)}>
           <div className={`modal-content modal-content--detail pill-form${mReport.closing ? " modal-content--closing" : ""}`} onClick={e => e.stopPropagation()} style={{ maxWidth: "600px", width: "95%" }}>
             <div className="modal-header">
-              <span className="modal-title" style={{ fontSize: "0.95rem", lineHeight: "1.2" }}>Reporte para WhatsApp</span>
+              <span className="modal-title" style={{ fontSize: "0.95rem", lineHeight: "1.2" }}>
+                {reportType === "sigecat" ? "Parte Diario de Control Censal (RP SIGECAT)" : "Reporte para WhatsApp"}
+              </span>
               <button className="modal-close" onClick={() => setShowReportModal(false)}>✕</button>
             </div>
 
@@ -1261,6 +1428,7 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
                 <div className="report-type-toggle">
                   <button type="button" className={`report-type-btn ${reportType === "resumen" ? "report-type-btn--active" : ""}`} onClick={() => setReportType("resumen")}>Resumen</button>
                   <button type="button" className={`report-type-btn ${reportType === "detallado" ? "report-type-btn--active" : ""}`} onClick={() => setReportType("detallado")}>Detallado</button>
+                  <button type="button" className={`report-type-btn ${reportType === "sigecat" ? "report-type-btn--active" : ""}`} onClick={() => setReportType("sigecat")}>RP SIGECAT</button>
                   {esCarpa && (
                     <button type="button" className={`report-type-btn ${reportType === "comunidad" ? "report-type-btn--active" : ""}`} onClick={() => setReportType("comunidad")}>Por Comunidad</button>
                   )}
@@ -1278,8 +1446,21 @@ _Gobernación del Estado La Guaira · Campamentos Transitorios_`;
 
               {/* Vista previa */}
               <div className="form-group">
-                <label>Vista previa del mensaje</label>
-                <pre className="report-preview">{(reportType === "comunidad" && esCarpa) ? generateComunidadText() : reportType === "detallado" ? generateDetalladoText() : generateReportText()}</pre>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+                  <label style={{ margin: 0 }}>Vista previa del mensaje</label>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ fontSize: "0.72rem", padding: "0.2rem 0.55rem", height: "auto" }}
+                    onClick={handleCopyOnlyText}
+                    title="Copiar solo el texto sin abrir WhatsApp"
+                  >
+                    📋 Copiar texto
+                  </button>
+                </div>
+                <pre className="report-preview" style={{ maxHeight: reportType === "sigecat" ? "360px" : "220px" }}>
+                  {getCurrentReportText()}
+                </pre>
               </div>
             </div>
 
