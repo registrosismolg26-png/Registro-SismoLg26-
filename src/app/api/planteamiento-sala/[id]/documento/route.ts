@@ -7,6 +7,7 @@ import {
   isPlanteamientoVisualizador,
 } from "@/lib/auth";
 import { invalidatePlanteamientoStatsCache } from "@/lib/planteamientoStatsCache";
+import { ensurePlanteamientoPdfSchema } from "@/app/api/planteamiento-sala/route";
 import crypto from "crypto";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
@@ -21,6 +22,8 @@ export async function GET(
     if (!auth || !canViewPlanteamientoSala(auth)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
+
+    await ensurePlanteamientoPdfSchema();
 
     const { id } = await context.params;
     if (!id) {
@@ -94,6 +97,8 @@ export async function POST(
     if (!auth || !canManagePlanteamientoSala(auth)) {
       return NextResponse.json({ error: "No autorizado para subir documentos" }, { status: 403 });
     }
+
+    await ensurePlanteamientoPdfSchema();
 
     const { id } = await context.params;
     if (!id) {

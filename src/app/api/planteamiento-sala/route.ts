@@ -3,6 +3,33 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, canManagePlanteamientoSala, canViewPlanteamientoSala, isPlanteamientoVisualizador } from "@/lib/auth";
 import { invalidatePlanteamientoStatsCache } from "@/lib/planteamientoStatsCache";
 
+let schemaEnsured = false;
+export async function ensurePlanteamientoPdfSchema() {
+  if (schemaEnsured) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "PlanteamientoSala" ADD COLUMN IF NOT EXISTS "tieneDocumentoPdf" BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE "PlanteamientoSala" ADD COLUMN IF NOT EXISTS "documentoPdfNombre" TEXT;
+      ALTER TABLE "PlanteamientoSala" ADD COLUMN IF NOT EXISTS "documentoPdfFecha" TIMESTAMP(3);
+      ALTER TABLE "PlanteamientoSala" ADD COLUMN IF NOT EXISTS "documentoPdfSize" INTEGER;
+      CREATE TABLE IF NOT EXISTS "PlanteamientoSalaDocumento" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "planteamientoId" TEXT NOT NULL UNIQUE REFERENCES "PlanteamientoSala"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        "nombre" TEXT NOT NULL,
+        "mimeType" TEXT NOT NULL DEFAULT 'application/pdf',
+        "size" INTEGER NOT NULL DEFAULT 0,
+        "base64" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS "PlanteamientoSalaDocumento_planteamientoId_idx" ON "PlanteamientoSalaDocumento"("planteamientoId");
+    `);
+    schemaEnsured = true;
+  } catch (err: any) {
+    // Se reintentará cuando la conexión a la base de datos se restablezca
+  }
+}
+
 export function calcularProgreso(item: {
   tipoOpcion?: string | null;
   // Mercado Secundario
@@ -101,6 +128,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    await ensurePlanteamientoPdfSchema();
+
     const { searchParams } = new URL(req.url);
     const refugio = (searchParams.get("refugio") || "").trim();
     const tipoOpcion = (searchParams.get("tipoOpcion") || "").trim();
@@ -186,7 +215,19 @@ export async function GET(req: Request) {
     });
   } catch (error: any) {
     console.error("Error en GET /api/planteamiento-sala:", error);
-    return NextResponse.json({ error: "Error al obtener planteamientos" }, { status: 500 });
+    const msg = String(error?.message || "");
+    const isConnError =
+      msg.includes("tenant") ||
+      msg.includes("ENOTFOUND") ||
+      msg.includes("not found") ||
+      error?.code === "P1001" ||
+      error?.code === "XX000";
+
+    const errorMsg = isConnError
+      ? "Error de conexión con la base de datos (Supabase pausado o no disponible)."
+      : "Error al obtener planteamientos";
+
+    return NextResponse.json({ error: errorMsg, details: msg }, { status: 500 });
   }
 }
 
