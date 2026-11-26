@@ -14,6 +14,7 @@ interface Props {
   onClose: () => void;
   item: PlanteamientoSalaItem | null;
   onEdit?: (item: PlanteamientoSalaItem) => void;
+  onManagePdf?: (item: PlanteamientoSalaItem) => void;
 }
 
 function formatDateDisplay(dStr?: string | null): string {
@@ -48,6 +49,7 @@ export default function PlanteamientoSalaViewModal({
   onClose,
   item,
   onEdit,
+  onManagePdf,
 }: Props) {
   const modal = useAnimatedModal(isOpen && item ? item : null);
   const activeItem = modal.data;
@@ -484,6 +486,166 @@ export default function PlanteamientoSalaViewModal({
                 <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontStyle: "italic" }}>
                   Sin observaciones registradas para este expediente.
                 </span>
+              )}
+            </div>
+          </div>
+
+          {/* Documento PDF Adjunto */}
+          <div
+            style={{
+              background: activeItem.tieneDocumentoPdf
+                ? "linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.1) 100%)"
+                : "var(--bg-secondary)",
+              padding: "1rem 1.1rem",
+              borderRadius: "14px",
+              border: activeItem.tieneDocumentoPdf
+                ? "1px solid rgba(220, 38, 38, 0.3)"
+                : "1px solid var(--border-color)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "1rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  width: "42px",
+                  height: "42px",
+                  borderRadius: "10px",
+                  background: activeItem.tieneDocumentoPdf ? "#dc2626" : "rgba(100, 116, 139, 0.15)",
+                  color: activeItem.tieneDocumentoPdf ? "#fff" : "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  fontWeight: 800,
+                  fontSize: "0.7rem",
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <path d="M10 13h4" />
+                  <path d="M10 17h4" />
+                </svg>
+              </div>
+
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--text-primary)" }}>
+                    Documento PDF del Expediente
+                  </span>
+                  {activeItem.tieneDocumentoPdf ? (
+                    <span
+                      style={{
+                        fontSize: "0.7rem",
+                        background: "rgba(22, 163, 74, 0.1)",
+                        color: "#16a34a",
+                        padding: "1px 8px",
+                        borderRadius: "999px",
+                        fontWeight: 700,
+                        border: "1px solid rgba(22, 163, 74, 0.3)",
+                      }}
+                    >
+                      Adjunto
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: "0.7rem",
+                        background: "rgba(100, 116, 139, 0.1)",
+                        color: "var(--text-secondary)",
+                        padding: "1px 8px",
+                        borderRadius: "999px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Sin archivo
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {activeItem.tieneDocumentoPdf
+                    ? `${activeItem.documentoPdfNombre || "Documento.pdf"} · ${activeItem.documentoPdfSize ? (activeItem.documentoPdfSize > 1048576 ? (activeItem.documentoPdfSize / 1048576).toFixed(1) + " MB" : (activeItem.documentoPdfSize / 1024).toFixed(0) + " KB") : ""} ${activeItem.documentoPdfFecha ? "· Subido " + formatDateDisplay(activeItem.documentoPdfFecha) : ""}`
+                    : "No se ha subido ningún documento PDF para este expediente."}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              {activeItem.tieneDocumentoPdf && (
+                <>
+                  <a
+                    href={`/api/planteamiento-sala/${encodeURIComponent(activeItem.id)}/documento`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary"
+                    style={{
+                      textDecoration: "none",
+                      padding: "0.45rem 0.8rem",
+                      fontSize: "0.82rem",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                    <span>Ver PDF</span>
+                  </a>
+
+                  <a
+                    href={`/api/planteamiento-sala/${encodeURIComponent(activeItem.id)}/documento?download=true`}
+                    className="btn-secondary"
+                    style={{
+                      textDecoration: "none",
+                      padding: "0.45rem 0.8rem",
+                      fontSize: "0.82rem",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span>Descargar</span>
+                  </a>
+                </>
+              )}
+
+              {onManagePdf && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => onManagePdf(activeItem)}
+                  style={{
+                    padding: "0.45rem 0.8rem",
+                    fontSize: "0.82rem",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <path d="M12 11v6" />
+                    <path d="M9 14h6" />
+                  </svg>
+                  <span>{activeItem.tieneDocumentoPdf ? "Gestionar PDF" : "Subir PDF"}</span>
+                </button>
               )}
             </div>
           </div>

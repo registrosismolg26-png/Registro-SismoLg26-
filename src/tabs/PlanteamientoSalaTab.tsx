@@ -16,6 +16,7 @@ import PlanteamientoSalaGraficas from "@/components/PlanteamientoSalaGraficas";
 import PlanteamientoSalaExportModal from "@/components/PlanteamientoSalaExportModal";
 import PlanteamientoSalaGrupoFamiliarModal from "@/components/PlanteamientoSalaGrupoFamiliarModal";
 import PlanteamientoSalaBulkUploadModal from "@/components/PlanteamientoSalaBulkUploadModal";
+import PlanteamientoSalaPdfModal from "@/components/PlanteamientoSalaPdfModal";
 import {
   ESTATUS_SALA_OPTIONS,
   CAMPAMENTOS_PLANTEAMIENTO_SALA,
@@ -111,6 +112,7 @@ export default function PlanteamientoSalaTab() {
   const [itemToDelete, setItemToDelete] = useState<PlanteamientoSalaItem | null>(null);
   const [itemToView, setItemToView] = useState<PlanteamientoSalaItem | null>(null);
   const [itemForGrupoFamiliar, setItemForGrupoFamiliar] = useState<PlanteamientoSalaItem | null>(null);
+  const [itemForPdf, setItemForPdf] = useState<PlanteamientoSalaItem | null>(null);
 
   // Debounce de 300ms para la búsqueda en servidor
   useEffect(() => {
@@ -868,6 +870,32 @@ export default function PlanteamientoSalaTab() {
                                     {item.cargaFamiliar.length} fam.
                                   </span>
                                 )}
+                                {item.tieneDocumentoPdf && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setItemForPdf(item)}
+                                    style={{
+                                      fontSize: "0.68rem",
+                                      background: "rgba(239, 68, 68, 0.1)",
+                                      color: "#dc2626",
+                                      padding: "1px 7px",
+                                      borderRadius: "999px",
+                                      fontWeight: 700,
+                                      border: "1px solid rgba(239, 68, 68, 0.25)",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "3px",
+                                      cursor: "pointer",
+                                    }}
+                                    title={`Documento PDF: ${item.documentoPdfNombre || "Documento.pdf"}. Haz clic para ver o gestionar.`}
+                                  >
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                      <polyline points="14 2 14 8 20 8" />
+                                    </svg>
+                                    <span>PDF</span>
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1051,6 +1079,20 @@ export default function PlanteamientoSalaTab() {
                                 ),
                                 onClick: () => setItemForGrupoFamiliar(item),
                               },
+                              {
+                                key: "pdf",
+                                label: item.tieneDocumentoPdf ? "Documento PDF (Adjunto)" : "Subir Documento PDF",
+                                tone: item.tieneDocumentoPdf ? ("primary" as const) : ("default" as const),
+                                icon: (
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <path d="M10 13h4" />
+                                    <path d="M10 17h4" />
+                                  </svg>
+                                ),
+                                onClick: () => setItemForPdf(item),
+                              },
                               ...(canManage
                                 ? [
                                     {
@@ -1153,6 +1195,7 @@ export default function PlanteamientoSalaTab() {
           setEditingItem(it);
           setShowModal(true);
         }) : undefined}
+        onManagePdf={(it) => setItemForPdf(it)}
       />
 
       {/* Modal de Grupo Familiar */}
@@ -1165,6 +1208,16 @@ export default function PlanteamientoSalaTab() {
           setEditingItem(it);
           setShowModal(true);
         }) : undefined}
+      />
+
+      {/* Modal de Documento PDF */}
+      <PlanteamientoSalaPdfModal
+        isOpen={itemForPdf !== null}
+        onClose={() => setItemForPdf(null)}
+        onUpdated={loadItems}
+        item={itemForPdf}
+        canManage={canManage}
+        showToast={showToast}
       />
 
       {/* Modal de Selección y Descarga de Excel por Modalidad */}

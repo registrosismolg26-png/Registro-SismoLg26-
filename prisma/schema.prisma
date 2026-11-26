@@ -656,11 +656,33 @@ model PlanteamientoSala {
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
 
+  // Documento PDF adjunto
+  tieneDocumentoPdf          Boolean   @default(false)
+  documentoPdfNombre         String?
+  documentoPdfFecha          DateTime?
+  documentoPdfSize           Int?
+  documento                  PlanteamientoSalaDocumento?
+
   @@unique([cedula, refugio])
   @@index([refugio])
   @@index([cedula])
   @@index([estatus])
   @@index([tipoOpcion])
+  @@index([tieneDocumentoPdf])
+}
+
+model PlanteamientoSalaDocumento {
+  id              String            @id @default(uuid())
+  planteamientoId String            @unique
+  planteamiento   PlanteamientoSala @relation(fields: [planteamientoId], references: [id], onDelete: Cascade)
+  nombre          String
+  mimeType        String            @default("application/pdf")
+  size            Int               @default(0)
+  base64          String            // Data URL: "data:application/pdf;base64,..."
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([planteamientoId])
 }
 
 model ComedorRegistro {

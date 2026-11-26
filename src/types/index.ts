@@ -293,6 +293,13 @@ export interface PlanteamientoSalaItem {
   observacion?: string | null;
   fechaEntregaCarpeta?: string | null;
   fechaEntregaSubsidio?: string | null;
+
+  // Documento PDF
+  tieneDocumentoPdf?: boolean;
+  documentoPdfNombre?: string | null;
+  documentoPdfFecha?: string | null;
+  documentoPdfSize?: number | null;
+
   createdBy?: string | null;
   createdAt: string;
   updatedAt: string;
